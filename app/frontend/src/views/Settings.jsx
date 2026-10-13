@@ -196,9 +196,9 @@ export default function Settings() {
 
     <div className="dim small" style={{ textAlign: 'center', marginTop: 4, lineHeight: 1.6 }}>
       <b>{t('About & license')}</b><br />
-      {t('AVADESK is based on openGym ┬® 2026 Duarte Santos, licensed under the GNU AGPL v3.0. Exercise data: hasaneyldrm/exercises-dataset (MIT); media ┬® Gym visual.')}<br />
+      {t('AVADESK is based on AVAGYM.')}<br />
       {/* AGPL-3.0 ┬º13: oferecer o c├│digo-fonte aos usu├írios da rede. Defina VITE_SOURCE_URL com o reposit├│rio da vers├úo modificada. */}
-      <a href={import.meta.env.VITE_SOURCE_URL || 'https://github.com/DuarteSantos8/openGym'} target="_blank" rel="noopener">{t('Source code')}</a> ┬À {t('free & open source (AGPL v3)')}
+      <a href={import.meta.env.VITE_SOURCE_URL || 'AVADESK'} target="_blank" rel="noopener">{t('Source code')}</a> ┬À {t('AVADESK')}
     </div>
   </div>
 }
