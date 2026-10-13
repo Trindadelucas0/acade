@@ -1,27 +1,20 @@
 {
+  "id": "/",
   "name": "AVADESK",
   "short_name": "AVADESK",
   "description": "Seu acompanhamento de treinos e peso corporal",
   "lang": "pt-BR",
   "dir": "ltr",
-  "start_url": "./",
-  "scope": "./",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#F8FAFC",
+  "background_color": "#0E2439",
   "theme_color": "#0E2439",
   "icons": [
-    {
-      "src": "icon-180.png",
-      "sizes": "180x180",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    }
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icon-180.png", "sizes": "180x180", "type": "image/png" }
   ]
 }

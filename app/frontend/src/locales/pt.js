@@ -568,4 +568,6 @@ export default {
   'AVADESK is based on openGym © 2026 Duarte Santos, licensed under the GNU AGPL v3.0. Exercise data: hasaneyldrm/exercises-dataset (MIT); media © Gym visual.': 'O AVADESK é baseado no openGym © 2026 Duarte Santos, licenciado sob a GNU AGPL v3.0. Dados de exercícios: hasaneyldrm/exercises-dataset (MIT); mídia © Gym visual.',
   'Source code': 'Código-fonte',
   'You are offline — changes are saved on this device.': 'Você está offline — as alterações ficam salvas neste dispositivo.',
+  'your fingerprint, face or PIN': 'sua digital, rosto ou PIN',
+  'fingerprint or face unlock': 'digital ou desbloqueio facial',
 }
