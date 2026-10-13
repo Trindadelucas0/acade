@@ -198,7 +198,7 @@ export default function Settings() {
       <b>{t('About & license')}</b><br />
       {t('AVADESK is based on AVAGYM.')}<br />
       {/* AGPL-3.0 ┬º13: oferecer o c├│digo-fonte aos usu├írios da rede. Defina VITE_SOURCE_URL com o reposit├│rio da vers├úo modificada. */}
-      <a href={import.meta.env.VITE_SOURCE_URL || 'AVADESK'} target="_blank" rel="noopener">{t('Source code')}</a> ┬À {t('AVADESK')}
+      <a href={ 'AVADESK'} target="_blank" rel="noopener">{t('')}</a> ┬À {t('AVADESK')}
     </div>
   </div>
 }
