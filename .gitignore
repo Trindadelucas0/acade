@@ -1,31 +1,21 @@
-# Node & Dependencies
+# dependencias e builds
 node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+dist/
+.npm-cache/
 
-# Cloudflare & Wrangler
-.wrangler/
-.dev.vars
+# dados locais, chaves e midia (nao versionar)
+runtime/
+logs/
+work/
+*.log
+export.tar
+*.bak
+
+# segredos
 .env
 .env.*
+!.env.example
 
-# Build & Dist
-dist/
-build/
-.output/
-
-# OS / IDE
+# sistema
 .DS_Store
 Thumbs.db
-.vscode/
-.idea/
-
-# Local data & secrets
-/data/secret
-/data/db.json
-/data/vapid.json
-*.tmp
-
-# Modelo de variáveis (sem segredos) é versionado
-!.env.example
