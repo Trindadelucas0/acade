@@ -25,7 +25,7 @@ export async function run({ adm, p1, p2, stu, sid, P1, get, post, check }) {
   check((await get(adm, '/api/adm/prizes')).d.prizes.find(p => p.id === pz).status === 'aguardando_resultado', 'no início: aguardando resultado')
   const tid = (await q('select tenant_id from users where id=$1', [sid])).rows[0].tenant_id, p2id = (await q(`select id from users where email='pro2.e2e@avadesk.local'`)).rows[0].id
   // período no passado, longe dos treinos das outras fases; empate exato entre P1 e P2 (mesmos dias e horários)
-  const at = d => new Date(Date.now() - d * day).toISOString()
+  const now0 = Date.now(), at = d => new Date(now0 - d * day).toISOString()
   for (const u of [P1.user_id, p2id]) for (const d of [35, 34]) await q(`insert into sessions(tenant_id,user_id,started_at,finished_at,status) values($1,$2,$3,$3::timestamptz+interval '30 min','done')`, [tid, u, at(d)])
   await q(`insert into sessions(tenant_id,user_id,started_at,finished_at,status) values($1,$2,$3,$3::timestamptz+interval '30 min','done')`, [tid, sid, at(33)])
   const w0 = (await get(adm, '/api/adm/prizes')).d.prizes.find(p => p.id === pz)
