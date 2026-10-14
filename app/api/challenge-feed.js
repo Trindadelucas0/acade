@@ -9,6 +9,7 @@ import { requireAuth, audit } from './auth.js'
 import { notify, notifyAdmins } from './pro.js'
 import { getChallenge, canManage } from './challenges.js'
 import { canMoveProof } from './challenge-rules.js'
+import { loadAndCompute, podiumOf, spDay, formulaOf } from './challenge-score.js'
 
 const UP = path.join(path.dirname(fileURLToPath(import.meta.url)), 'uploads')
 const isUuid = s => /^[0-9a-f-]{36}$/i.test(String(s || ''))
@@ -174,6 +175,42 @@ export function challengeFeedRoutes({ json, readBody }) {
       json(res, 201, { id: r.rows[0].id })
     },
 
+    // ---------- ranking (V6): o backend calcula; o frontend só exibe ----------
+    'GET /api/challenges/ranking': async (req, res) => {
+      const { u, c, m } = await ctx(req, res, qs(req).get('id')); if (!u) return
+      if (c.status === 'rascunho') return json(res, 409, { error: 'Desafio ainda não publicado' })
+      const snap = c.status === 'concluido' && (await q(`select * from challenge_results where challenge_id=$1 and kind='final' order by computed_at desc limit 1`, [c.id])).rows[0]
+      const r = snap ? snap.data : await loadAndCompute(c)
+      const state = snap ? (snap.homologated_at ? 'homologado' : 'final') : c.status === 'apurando' ? 'apurando' : ['em_andamento'].includes(c.status) ? 'provisorio' : c.status === 'cancelado' ? 'cancelado' : 'nao_iniciado'
+      const page = Math.max(0, +qs(req).get('page') || 0), size = 20, rows = r.rows || []
+      const mine = rows.find(x => x.user_id === u.id) || (r.disqualified || []).find(x => x.user_id === u.id)
+      const pend = m ? (await q(`select count(*)::int n from challenge_proofs where challenge_id=$1 and user_id=$2 and status in ('enviado','em_analise','recurso','substituicao')`, [c.id, u.id])).rows[0].n : 0
+      const strip = x => ({ ...x, user_id: x.optout && x.user_id !== u.id ? null : x.user_id, me: x.user_id === u.id })
+      json(res, 200, { state, mode: r.mode, formula: r.formula, rules_version: snap ? snap.rules_version : r.rules_version, period: r.period, computed_at: snap ? snap.computed_at : new Date().toISOString(), goal: r.goal, metric: r.metric,
+        podium: r.mode === 'podio' ? podiumOf(rows).map(strip) : r.mode === 'equipes' ? (r.teams || []).filter(t => t.position && t.position <= 3 && t.score > 0) : [],
+        list: rows.slice(page * size, page * size + size).map(strip), total: rows.length, page, pages: Math.ceil(rows.length / size),
+        teams: r.teams || null, collective: r.collective || null, disqualified_count: (r.disqualified || []).length,
+        me: mine ? { ...strip(mine), left: r.goal ? Math.max(0, Math.round((r.goal - mine.score) * 10) / 10) : null, pending_proofs: pend, disqualified: mine.status === 'desclassificado' } : null })
+    },
+    'GET /api/challenges/score': async (req, res) => {   // "Entender pontuação": só os próprios treinos (sem cargas, peso ou saúde)
+      const { u, c, m } = await ctx(req, res, qs(req).get('id')); if (!u) return
+      if (!m) return json(res, 403, { error: 'Só participantes veem a própria pontuação' })
+      const ss = (await q(`select s.id, s.started_at, s.workout_name, s.voided_at is not null voided, s.ranking_invalid_at is not null invalid,
+          (select p.status from challenge_proofs p where p.challenge_id=$2 and p.session_id=s.id order by (p.status='aprovado') desc, p.created_at desc limit 1) proof
+        from sessions s where s.user_id=$1 and s.status='done' and s.finished_at is not null and s.started_at between $3 and $4 order by s.started_at`, [u.id, c.id, c.starts_at, c.ends_at])).rows
+      const seen = new Set(), sessions = ss.map(s => {
+        const d = spDay(s.started_at); let why = 'contou'
+        if (s.voided || s.invalid) why = 'anulado'
+        else if (c.proof === 'obrigatoria' && s.proof !== 'aprovado') why = s.proof && ['enviado', 'em_analise', 'recurso', 'substituicao'].includes(s.proof) ? 'comprovante_pendente' : 'sem_comprovante_aprovado'
+        else if (seen.has(d)) why = 'mesmo_dia'
+        if (why === 'contou') seen.add(d)
+        return { id: s.id, started_at: s.started_at, workout_name: s.workout_name, proof: s.proof || null, counted: why === 'contou', why }
+      })
+      const pr = (await q(`select status, count(*)::int n from challenge_proofs where challenge_id=$1 and user_id=$2 group by status`, [c.id, u.id])).rows, pc = k => pr.filter(x => k.includes(x.status)).reduce((a, x) => a + x.n, 0)
+      const r = await loadAndCompute(c), me = (r.rows || []).find(x => x.user_id === u.id)
+      json(res, 200, { formula: formulaOf(c), metric: c.metric, goal: c.goal ? +c.goal : null, planned: c.planned_sessions || c.goal || null, weekly_goal: c.weekly_goal, rules_version: c.rules_version, period: { start: c.starts_at, end: c.ends_at },
+        valid_days: seen.size, score: me ? me.score : 0, position: me?.position ?? null, sessions, proofs: { aprovado: pc(['aprovado']), pendente: pc(['enviado', 'em_analise', 'recurso', 'substituicao']), rejeitado: pc(['rejeitado', 'invalidado']) } })
+    },
     // ---------- comprovantes ----------
     'GET /api/challenges/sessions': async (req, res) => {   // sessões elegíveis do próprio usuário para comprovar
       const { u, c } = await ctx(req, res, qs(req).get('id')); if (!u) return

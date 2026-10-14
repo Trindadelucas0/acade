@@ -5,6 +5,7 @@ import { CH, TYPE_PT, METRIC_PT, STATUS_PT, AUD_PT, MEM_PT, spDate, spInput, spE
 import { GR } from '../../lib/groups.js'
 import { useStore } from '../../store/useStore.js'
 import { ChFeed, ChProofs, ReportBtn } from './DesafioFeed.jsx'
+import { ChRanking } from './DesafioRanking.jsx'
 import { Sheet, Av, Empty, Load, Tabs, useLoad, Err, Field } from './kit.jsx'
 
 const VIEWS = [['explorar', 'Explorar'], ['participando', 'Participando'], ['criados', 'Criados por mim'], ['convites', 'Convites'], ['historico', 'Histórico']]
@@ -120,7 +121,7 @@ export function ChallengePage() {
   if (!d) return <div className="ag"><Load /></div>
   const c = d.challenge, me = d.me, inIt = me && ['ativo', 'aprovado'].includes(me.status), open = ['inscricoes_abertas', 'em_andamento'].includes(c.status)
   const canFeed = d.manage || inIt || c.audience !== 'convite'
-  const tabs = [['resumo', 'Resumo'], ...(canFeed && c.status !== 'rascunho' ? [['feed', 'Feed']] : []), ...(c.proof !== 'nenhuma' && (inIt || d.manage) && c.status !== 'rascunho' ? [['comprovantes', 'Comprovantes']] : []), ['pessoas', c.type === 'competicao_equipes' ? 'Equipes' : 'Participantes'], ['regras', 'Regras'], ...(d.manage ? [['gestao', 'Gestão']] : [])]
+  const tabs = [['resumo', 'Resumo'], ...(canFeed && c.status !== 'rascunho' ? [['feed', 'Feed']] : []), ...(c.status !== 'rascunho' && (canFeed || inIt) ? [['ranking', ['competicao_individual', 'competicao_equipes'].includes(c.type) ? 'Ranking' : 'Progresso']] : []), ...(c.proof !== 'nenhuma' && (inIt || d.manage) && c.status !== 'rascunho' ? [['comprovantes', 'Comprovantes']] : []), ['pessoas', c.type === 'competicao_equipes' ? 'Equipes' : 'Participantes'], ...(d.manage ? [['gestao', 'Gestão']] : [])]
   return <div className="ag" data-testid="desafio">
     {c.cover_url && <img src={c.cover_url} alt="" style={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: 16 }} />}
     <div className="g-row" style={{ gap: 6, flexWrap: 'wrap', marginTop: 8 }}>{c.official && <span className="ch-pill lime">Oficial</span>}<span className="ch-pill" data-testid="ch-status">{STATUS_PT[c.status]}</span><span className="ch-pill">{AUD_PT[c.audience]}</span></div>
@@ -136,6 +137,7 @@ export function ChallengePage() {
     {me?.status === 'solicitado' && <p className="g-note">Pedido enviado ao organizador.</p>}
     {me && ['removido', 'desclassificado', 'rejeitado'].includes(me.status) && <p className="g-warn">Situação: {MEM_PT[me.status]}</p>}
     <Tabs cur={tab} set={setTab} tabs={tabs} />
+    {tab === 'ranking' && <ChRanking c={c} inIt={inIt} />}
     {tab === 'feed' && <ChFeed c={c} setDlg={setDlg} />}
     {tab === 'comprovantes' && <ChProofs c={c} me={me} setDlg={setDlg} />}
     {tab === 'resumo' && <div className="g-card"><p className="g-sm" style={{ whiteSpace: 'pre-wrap' }}>{c.description || 'Sem descrição.'}</p>
@@ -147,7 +149,7 @@ export function ChallengePage() {
       ? <div className="g-card g-list">{d.teams.map(t => <div key={t.id} className="g-li"><b style={{ flex: 1 }}>{t.name}</b><span className="g-mut g-xs">{t.size} membros</span></div>)}</div>
       : <div className="g-card g-list">{d.members.length ? d.members.map(m => <div key={m.user_id} className="g-li"><Av name={m.name} url={m.photo} size={36} /><b className="g-sm" style={{ flex: 1 }}>{m.name}</b>
         {d.manage && <button className="g-btn g-ghost g-sm" style={{ width: 'auto', padding: '0 10px' }} onClick={() => setDlg({ t: 'Remover participante', x: 'Informe o motivo (fica na auditoria).', input: true, ok: r => act(() => CH.remove({ id, user_id: m.user_id, reason: r }))() })}>Remover</button>}</div>) : <Empty>Sem participantes visíveis.</Empty>}</div>)}
-    {tab === 'regras' && <div className="g-card">{d.versions.length ? d.versions.map(v => <div key={v.version} style={{ marginBottom: 8 }}><b className="g-sm">Versão {v.version}</b> <span className="g-mut g-xs">{new Date(v.created_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}{v.reason ? ' · ' + v.reason : ''}</span>
+    {tab === 'resumo' && <div className="g-card"><b className="g-sm">Regras</b>{d.versions.length ? d.versions.map(v => <div key={v.version} style={{ marginBottom: 8 }}><b className="g-sm">Versão {v.version}</b> <span className="g-mut g-xs">{new Date(v.created_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}{v.reason ? ' · ' + v.reason : ''}</span>
       <p className="g-mut g-xs">{METRIC_PT[v.rules.metric]}{v.rules.goal ? ' · meta ' + v.rules.goal : ''} · {spDate(v.rules.starts_at)}–{spDate(v.rules.ends_at)} · comprovação {v.rules.proof}{v.rules.late_entry ? ' · entrada tardia' : ''}</p></div>) : <p className="g-mut g-sm">As regras são registradas ao publicar.</p>}</div>}
     {tab === 'gestao' && <div className="g-card" data-testid="ch-manage">
       <div className="g-row" style={{ gap: 6, flexWrap: 'wrap' }}>

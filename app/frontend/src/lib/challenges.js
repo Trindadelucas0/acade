@@ -36,3 +36,7 @@ export const CF = {
 export const PROOF_PT = { enviado: 'Enviado', em_analise: 'Em análise', aprovado: 'Aprovado', rejeitado: 'Rejeitado', substituicao: 'Substituição pedida', recurso: 'Recurso em análise', invalidado: 'Invalidado' }
 export const readFile = f => new Promise((ok, bad) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = () => bad(new Error('Não foi possível ler o arquivo')); r.readAsDataURL(f) })
 export const MAX_MB = { foto: 2.5, video: 3.5 }
+export const RK = { get: (id, page = 0) => api(`/api/challenges/ranking?id=${id}&page=${page}`), score: id => api('/api/challenges/score?id=' + id) }
+export const RK_STATE = { nao_iniciado: 'Ainda não começou', provisorio: 'Provisório', apurando: 'Em apuração', final: 'Resultado final', homologado: 'Homologado', cancelado: 'Cancelado' }
+export const WHY_PT = { contou: 'Contou', mesmo_dia: 'Mesmo dia — já contado', anulado: 'Treino anulado', comprovante_pendente: 'Comprovante pendente', sem_comprovante_aprovado: 'Sem comprovante aprovado' }
+export const unitOf = m => m === 'consistencia' ? '%' : m === 'semanas_meta' ? 'sem.' : 'pts'
