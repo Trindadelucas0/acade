@@ -25,7 +25,7 @@ import Library from './views/Library.jsx'
 import Settings from './views/Settings.jsx'
 const MuscleMap = lazy(() => import('./views/MuscleMap.jsx'))
 // treino guiado (AVAGYM)
-import GuidedTabBar from './views/guided/TabBar.jsx'
+import GuidedTabBar, { isProAccount } from './views/guided/TabBar.jsx'
 import Onboarding from './views/guided/Onboarding.jsx'
 import Today from './views/guided/Today.jsx'
 import { Recommendations, Library as ProgramLibrary, ProgramDetail } from './views/guided/Programs.jsx'

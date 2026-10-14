@@ -11,8 +11,8 @@ function PlanEditor({ student, plan, onClose, onSaved }) {
   const search = async v => { setQq(v); if (v.length < 2) return setFound([]); try { setFound((await C.searchEx(v)).exercises) } catch { /* */ } }
   const upd = (i, k, v) => setExs(x => x.map((e, j) => j === i ? { ...e, [k]: v } : e))
   const save = async () => { setErr(''); try { await C.savePlan({ id: plan?.id, student_id: student, title, notes, exercises: exs }); onSaved() } catch (e) { setErr(e.message) } }
-  return <Sheet title={plan ? 'Editar plano' : 'Novo plano'} onClose={onClose}>
-    <Field label="Nome do plano"><input className="g-in" value={title} onChange={e => setTitle(e.target.value)} data-testid="plan-title" /></Field>
+  return <Sheet title={plan ? 'Editar ficha' : 'Nova ficha de treino'} onClose={onClose}>
+    <Field label="Nome da ficha"><input className="g-in" value={title} onChange={e => setTitle(e.target.value)} data-testid="plan-title" /></Field>
     <Field label="Orientações gerais"><textarea className="g-in" value={notes} onChange={e => setNotes(e.target.value)} /></Field>
     <h3 style={{ marginTop: 14 }}>Exercícios</h3>
     {exs.map((e, i) => <div key={i} className="g-card" style={{ marginTop: 8, padding: 12 }}>
@@ -26,11 +26,12 @@ function PlanEditor({ student, plan, onClose, onSaved }) {
     <Field label="Adicionar exercício"><input className="g-in" value={qq} onChange={e => search(e.target.value)} placeholder="Buscar: agachamento, remada…" data-testid="ex-search" /></Field>
     {found.map(f => <button key={f.id} className="g-li" style={{ width: '100%' }} onClick={() => { setExs(x => [...x, { exercise_id: f.id, name: f.name, sets: 3, reps_max: 10 }]); setQq(''); setFound([]) }}>+ {f.name}</button>)}
     {err && <p className="g-warn" style={{ marginTop: 10 }}>{err}</p>}
-    <button className="g-btn" style={{ marginTop: 14 }} onClick={save} data-testid="plan-save">Salvar plano</button>
+    <button className="g-btn" style={{ marginTop: 14 }} onClick={save} data-testid="plan-save">Salvar ficha</button>
   </Sheet>
 }
 
 function Student({ id, onBack }) {
+  const nav = useNavigate()
   const [d, err, reload] = useLoad(() => C.student(id), [id])
   const [edit, setEdit] = useState(null)
   if (err) return <Err msg={err} retry={reload} />
@@ -38,13 +39,19 @@ function Student({ id, onBack }) {
   return <div>
     <button className="g-link" onClick={onBack}>← Alunos</button>
     <h2 style={{ marginTop: 4 }}>{d.student.name}</h2>
-    <div className="g-row"><h3 style={{ margin: 0 }}>Planos</h3><span className="g-sp" /><button className="g-btn g-sm" style={{ width: 'auto', padding: '0 14px' }} onClick={() => setEdit({})} data-testid="new-plan">+ Novo plano</button></div>
+    <div className="g-row"><h3 style={{ margin: 0 }}>Fichas de treino</h3><span className="g-sp" /><button className="g-btn g-sm" style={{ width: 'auto', padding: '0 14px' }} onClick={() => setEdit({})} data-testid="new-plan">+ Nova ficha</button></div>
     <div className="g-card g-list" style={{ marginTop: 8 }}>{d.plans.length ? d.plans.map(p => <div key={p.id} className="g-li" style={{ display: 'block' }}>
       <div className="g-row"><b>{p.title}</b><span className="g-sp" /><span className={'g-pill ' + (p.status === 'ativo' ? 'g-ok' : '')}>{p.status}</span></div>
       <p className="g-mut g-xs">Responsável: {p.owner_name}{p.mine ? ' (você)' : ' — somente leitura'} · {p.exercises.length} exercícios · v{p.version}</p>
       {p.mine && p.status === 'ativo' && <div className="g-actions"><button className="g-btn g-ghost g-sm" onClick={() => setEdit(p)}>Editar</button>
         <button className="g-btn g-danger g-sm" onClick={async () => { const r = prompt('Motivo do arquivamento'); if (r != null) { await C.archivePlan(p.id, r); reload() } }}>Arquivar</button></div>}
-    </div>) : <Empty>Nenhum plano ainda.</Empty>}</div>
+    </div>) : <Empty>Nenhuma ficha ainda. Crie a primeira para este aluno.</Empty>}</div>
+    <div className="g-row" style={{ marginTop: 14 }}><h3 style={{ margin: 0 }}>Conversas</h3><span className="g-sp" />
+      <button className="g-btn g-ghost g-sm" style={{ width: 'auto', padding: '0 14px' }} data-testid="msg-student" onClick={async () => { const m = prompt('Mensagem para ' + d.student.name); if (m && m.trim()) { try { const r = await C.proThread(id, m.trim()); nav('/conversa/' + r.thread.id) } catch (e) { alert(e.message) } } }}>Enviar mensagem</button></div>
+    <div className="g-card g-list" style={{ marginTop: 8 }}>{(d.threads || []).length ? d.threads.map(t => <button key={t.id} className="g-li" onClick={() => nav('/conversa/' + t.id)}>
+      <span className="g-ico"><Icon name="chat" /></span><span style={{ minWidth: 0 }}><b>{t.exercise_name || (t.context_type === 'geral' ? 'Conversa' : t.context_type)}</b><br /><span className="g-mut g-xs">{t.last_body?.slice(0, 70)}</span></span>
+      <span className={'g-pill ' + (t.status === 'aguardando' ? 'g-warn2' : 'g-ok')} style={{ marginLeft: 'auto' }}>{t.status}</span></button>) : <Empty icon="chat">Nenhuma conversa com este aluno.</Empty>}</div>
+    {d.occurrences.length > 0 && <><h3 style={{ marginTop: 14 }}>Ocorrências</h3><div className="g-card g-list">{d.occurrences.map(o => <div key={o.id} className="g-li"><span><b>{CAT_PT[o.category]}</b>{o.exercise_name ? ' · ' + o.exercise_name : ''}<br /><span className="g-mut g-xs">{OCC_ST[o.status]} · {dt(o.created_at)}</span></span></div>)}</div></>}
     <h3 style={{ marginTop: 14 }}>Sessões recentes</h3>
     <div className="g-card g-list">{d.sessions.length ? d.sessions.map(s => <div key={s.id} className="g-li"><span><b>{s.workout_name}</b><br /><span className="g-mut g-xs">{dt(s.started_at)} · {s.sets_count} séries · {Math.round((s.duration_sec || 0) / 60)} min</span></span></div>) : <Empty>Sem sessões registradas.</Empty>}</div>
     {d.blocks.length > 0 && <div className="g-blocked">Exercícios pausados: {d.blocks.map(b => b.exercise_id).join(', ')}</div>}

@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Icon from '../../components/Icon.jsx'
 import { useStore } from '../../store/useStore.js'
+import { C, exportMyData } from '../../lib/care.js'
+import { isProAccount } from './TabBar.jsx'
 import { G, GOAL_PT, LEVEL_PT, LOC_PT, RESTR_PT } from '../../lib/guided.js'
 import './guided.css'
 
@@ -11,7 +13,8 @@ export default function Profile() {
   const user = useStore(s => s.user)
   const signOut = useStore(s => s.signOut)
   const [st, setSt] = useState(null)
-  useEffect(() => { G.state().then(setSt).catch(() => {}) }, [])
+  const proAcc = isProAccount(user)
+  useEffect(() => { if (!proAcc) G.state().then(setSt).catch(() => {}) }, [proAcc])
   const p = st?.profile
   const pro = user?.roles?.some(r => r === 'admin' || r === 'profissional')
   const Li = ({ icon, t, s, to, onClick, testid }) => <button className="g-li" onClick={onClick || (() => nav(to))} data-testid={testid}>
@@ -31,11 +34,14 @@ export default function Profile() {
     </div>}
     <h2>Conta</h2>
     <div className="g-card g-list">
-      <Li icon="chat" t="Acompanhamento" s="Profissionais, dúvidas e ocorrências" to="/acompanhamento" />
+      {!proAcc && <Li icon="chat" t="Acompanhamento" s="Profissionais, dúvidas e ocorrências" to="/acompanhamento" />}
       <Li icon="bell" t="Avisos" to="/avisos" />
       {user?.pro && <Li icon="clipboard" t="Área profissional" s="Alunos, atendimentos e perfil profissional" to="/pro" testid="pro-area" />}
       {user?.admin && <Li icon="shield" t="Painel administrativo" s="Liberações, profissionais, vínculos, filas e auditoria" to="/admin/painel" testid="admin-area" />}
     </div>
+    {proAcc && <p className="g-note" style={{ marginTop: 10 }} data-testid="pro-account-note">Esta é sua conta profissional. Para treinar como aluno, crie uma conta separada com outro e-mail — os dados não se misturam.</p>}
+    {user && <MeusDados />}
+    {!proAcc && <>
     <h2>Treino</h2>
     <div className="g-card g-list">
       <Li icon="calendar" t="Meu programa" to="/meu-programa" />
@@ -46,10 +52,10 @@ export default function Profile() {
     <div className="g-card g-list">
       <Li icon="pencil" t="Criar treino manual" s="Para quem já sabe montar a própria ficha" to="/plan" testid="manual" />
       <Li icon="chart" t="Estatísticas detalhadas" to="/stats" />
-      <Li icon="gear" t="Configurações" to="/settings" />
+      <Li icon="gear" t="Preferências do treino" s="Unidades, tema, descanso, lembretes, backup" to="/settings" />
       {pro && <Li icon="clipboard" t="Programas (profissionais)" s="Status: rascunho, revisão, publicado, arquivado" to="/admin/programas" />}
-      {user?.admin && <Li icon="shield" t="Administração" to="/admin" />}
     </div>
+    </>}
     {user && <button className="g-btn g-danger" style={{ marginTop: 18 }} onClick={() => signOut()}>Sair da conta</button>}
     <div className="g-dim g-xs g-center" style={{ marginTop: 22, lineHeight: 1.6 }} data-testid="about">
       <b>Sobre e licença</b><br />
@@ -58,4 +64,24 @@ export default function Profile() {
       {SOURCE_URL && <a href={SOURCE_URL} target="_blank" rel="noopener" style={{ color: 'var(--ag-acc)' }}>Código-fonte</a>}
     </div>
   </div>
+}
+
+// LGPD: exportação imediata e pedido de exclusão (analisado pela administração)
+function MeusDados() {
+  const [req, setReq] = useState(null), [msg, setMsg] = useState('')
+  const load = () => C.myRequests().then(r => setReq(r.requests)).catch(() => {})
+  useEffect(() => { load() }, [])
+  const open = (req || []).find(r => r.kind === 'exclusao' && r.status === 'pendente')
+  return <>
+    <h2>Meus dados</h2>
+    <div className="g-card g-list" data-testid="meus-dados">
+      <button className="g-li" onClick={async () => { try { await exportMyData(); setMsg('Arquivo gerado.') } catch (e) { setMsg(e.message) } }} data-testid="export-data">
+        <span className="g-ico"><Icon name="download" /></span><span><b>Exportar meus dados</b><br /><span className="g-mut g-xs">Arquivo JSON com cadastro, treinos, mensagens e aceites</span></span></button>
+      {open ? <div className="g-li" style={{ display: 'block' }}><b>Pedido de exclusão em análise</b><p className="g-mut g-xs">Enviado em {new Date(open.created_at).toLocaleDateString('pt-BR')}. A administração confirma antes de excluir.</p>
+        <button className="g-btn g-ghost g-sm" onClick={async () => { await C.cancelDelete(); load() }}>Cancelar pedido</button></div>
+      : <button className="g-li" onClick={async () => { const r = prompt('Quer mesmo pedir a exclusão da conta? Conte o motivo (opcional):'); if (r == null) return; try { await C.deleteRequest(r); setMsg('Pedido enviado à administração.'); load() } catch (e) { setMsg(e.message) } }} data-testid="delete-request">
+        <span className="g-ico"><Icon name="trash" /></span><span><b>Pedir exclusão da conta</b><br /><span className="g-mut g-xs">Nada é apagado sem a confirmação da administração</span></span></button>}
+    </div>
+    {msg && <p className="g-acc g-sm">{msg}</p>}
+  </>
 }

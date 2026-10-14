@@ -21,7 +21,7 @@ export async function notify(userId, kind, title, body, link) {
   if (!userId) return
   await q('insert into notifications(user_id,kind,title,body,link) values($1,$2,$3,$4,$5)', [userId, kind, title, body || null, link || null]).catch(e => console.error('[notify]', e.message))
 }
-async function notifyAdmins(tid, kind, title, body, link) {
+export async function notifyAdmins(tid, kind, title, body, link) {
   const r = await q(`select user_id from user_roles where tenant_id=$1 and role_id='admin'`, [tid])
   for (const x of r.rows) await notify(x.user_id, kind, title, body, link)
 }
@@ -31,7 +31,7 @@ const guard = role => async (req, res, json) => {
   if (role === 'admin' && !has(u, 'admin')) { json(res, 403, { error: 'Sem permissão' }); return null }
   return u
 }
-const isLinked = async (coach, student) => (await q(`select 1 from coach_students where coach_id=$1 and student_id=$2 and status='ativo'`, [coach, student])).rowCount > 0
+export const isLinked = async (coach, student) => (await q(`select 1 from coach_students where coach_id=$1 and student_id=$2 and status='ativo'`, [coach, student])).rowCount > 0
 const occCanAct = (o, u) => o.responsible_id === u.id || o.assigned_to === u.id
 // pendências vencidas voltam para a fila administrativa (sem resposta automática e sem alterar treino)
 async function sweepOverdue(tid) {
@@ -47,6 +47,31 @@ const PRO_SQL = `select pp.*, u.name, (select count(*) from coach_students cs wh
   coalesce((select json_agg(json_build_object('kind',pq.kind,'number',pq.number,'area',pq.area)) from professional_qualifications pq where pq.user_id=pp.user_id and pq.status='verificada'),'[]') verified,
   (select count(*) from follows f where f.professional_id=pp.user_id) followers`
 
+
+// verificações do vínculo (PRD 8.2), reaproveitadas pelo admin e pela aprovação de solicitações
+export async function linkFailures(tid, studentId, coachId, area) {
+  const s = (await q(`select u.status, ap.max_professionals, ap.active plan_active from users u left join user_access_plans x on x.user_id=u.id left join access_plans ap on ap.id=x.plan_id where u.id=$1 and u.tenant_id=$2`, [studentId, tid])).rows[0]
+  const p = (await q(`select pp.*, (select count(*) from coach_students cs where cs.coach_id=pp.user_id and cs.status='ativo')::int active_links,
+      (select count(*) from professional_qualifications q where q.user_id=pp.user_id and q.status='verificada' and ($2::text is null or q.area ilike $2 or q.kind ilike $2))::int verified
+    from professional_profiles pp where pp.user_id=$1 and pp.tenant_id=$3`, [coachId, area ? txt(area, 80) : null, tid])).rows[0]
+  const links = +(await q(`select count(*) from coach_students where student_id=$1 and status='ativo'`, [studentId])).rows[0].count
+  const fail = []
+  if (!s || s.status !== 'ativo') fail.push('A conta do aluno não está ativa')
+  if (!p || p.state !== 'ativo') fail.push('O profissional não está ativo')
+  if (p && !p.verified) fail.push('O profissional não tem habilitação verificada' + (area ? ' para esta área' : ''))
+  if (p && p.active_links >= p.capacity) fail.push('O profissional não tem vaga disponível')
+  if (s && s.max_professionals == null) fail.push('O aluno não tem plano de acesso definido')
+  else if (s && links >= s.max_professionals) fail.push(`O plano do aluno permite no máximo ${s.max_professionals} profissional(is)`)
+  if (await isLinked(coachId, studentId)) fail.push('Já existe um vínculo ativo entre eles')
+  return fail
+}
+export async function createLink(admin, studentId, coachId, area) {
+  const r = await q(`insert into coach_students(tenant_id,coach_id,student_id,created_by,area) values($1,$2,$3,$4,$5) returning id`, [admin.tenant_id, coachId, studentId, admin.id, area ? txt(area, 80) : null])
+  await audit(admin.tenant_id, admin.id, 'vinculo.criado', 'link', r.rows[0].id, { student: studentId, coach: coachId })
+  await notify(studentId, 'vinculo', 'Novo profissional responsável', 'A administração vinculou um profissional ao seu acompanhamento.', '/acompanhamento')
+  await notify(coachId, 'vinculo', 'Novo aluno vinculado', '', '/pro?tab=alunos')
+  return r.rows[0].id
+}
 export function proRoutes({ json, readBody }) {
   return {
     // ================= aluno =================
@@ -502,25 +527,10 @@ export function proRoutes({ json, readBody }) {
       const u = await guard('admin')(req, res, json); if (!u) return
       const b = await readBody(req)
       if (!isUuid(b.student_id) || !isUuid(b.coach_id)) return json(res, 400, { error: 'Selecione aluno e profissional' })
-      const s = (await q(`select u.status, ap.max_professionals, ap.active plan_active from users u left join user_access_plans x on x.user_id=u.id left join access_plans ap on ap.id=x.plan_id where u.id=$1 and u.tenant_id=$2`, [b.student_id, u.tenant_id])).rows[0]
-      const p = (await q(`select pp.*, (select count(*) from coach_students cs where cs.coach_id=pp.user_id and cs.status='ativo')::int active_links,
-          (select count(*) from professional_qualifications q where q.user_id=pp.user_id and q.status='verificada' and ($2::text is null or q.area ilike $2 or q.kind ilike $2))::int verified
-        from professional_profiles pp where pp.user_id=$1`, [b.coach_id, b.area ? txt(b.area, 80) : null])).rows[0]
-      const links = +(await q(`select count(*) from coach_students where student_id=$1 and status='ativo'`, [b.student_id])).rows[0].count
-      const fail = []
-      if (!s || s.status !== 'ativo') fail.push('A conta do aluno não está ativa')
-      if (!p || p.state !== 'ativo') fail.push('O profissional não está ativo')
-      if (p && !p.verified) fail.push('O profissional não tem habilitação verificada' + (b.area ? ' para esta área' : ''))
-      if (p && p.active_links >= p.capacity) fail.push('O profissional não tem vaga disponível')
-      if (s && s.max_professionals == null) fail.push('O aluno não tem plano de acesso definido')
-      else if (s && links >= s.max_professionals) fail.push(`O plano do aluno permite no máximo ${s.max_professionals} profissional(is)`)
-      if (await isLinked(b.coach_id, b.student_id)) fail.push('Já existe um vínculo ativo entre eles')
+      const fail = await linkFailures(u.tenant_id, b.student_id, b.coach_id, b.area)
       if (b.confirm !== true) fail.push('Confirme a atribuição')
       if (fail.length) return json(res, 409, { error: fail[0], reasons: fail })
-      const r = await q(`insert into coach_students(tenant_id,coach_id,student_id,created_by,area) values($1,$2,$3,$4,$5) returning id`, [u.tenant_id, b.coach_id, b.student_id, u.id, b.area ? txt(b.area, 80) : null])
-      await audit(u.tenant_id, u.id, 'vinculo.criado', 'link', r.rows[0].id, { student: b.student_id, coach: b.coach_id })
-      await notify(b.student_id, 'vinculo', 'Novo profissional responsável', 'A administração vinculou um profissional ao seu acompanhamento.', '/acompanhamento')
-      await notify(b.coach_id, 'vinculo', 'Novo aluno vinculado', '', '/pro')
+      const r = { rows: [{ id: await createLink(u, b.student_id, b.coach_id, b.area) }] }
       json(res, 201, { id: r.rows[0].id })
     },
     'POST /api/adm/links/end': async (req, res) => {

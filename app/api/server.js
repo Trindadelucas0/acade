@@ -9,6 +9,7 @@ import { communityRoutes } from './community.js';
 import { rankingRoutes } from './ranking.js';
 import { lgpdRoutes, termsStatus } from './lgpd.js';
 import { exerciseMediaRoutes } from './exmedia.js';
+import { portalRoutes } from './portal.js';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -373,7 +374,8 @@ Object.assign(routes, proRoutes({ json, readBody }));
 Object.assign(routes, communityRoutes({ json, readBody }));  // feed, curtidas, comentários, denúncias, moderação
 Object.assign(routes, lgpdRoutes({ json, readBody, legacyState: readState, legacyErase: uid => { try { fs.unlinkSync(stateFile(uid)) } catch {} db.users = db.users.filter(x => x.id !== uid); saveDb() } }));
 Object.assign(routes, rankingRoutes({ json, readBody }));
-Object.assign(routes, exerciseMediaRoutes({ json, readBody }));   // vídeos e fotos extras dos exercícios (admin)    // ranking semanal/mensal        // profissionais, vínculos, atendimento, admin   // treino guiado (onboarding, programas, sessões)
+Object.assign(routes, exerciseMediaRoutes({ json, readBody }));
+Object.assign(routes, portalRoutes({ json, readBody }));   // AVADESK PRO + central de solicitações + KPIs   // vídeos e fotos extras dos exercícios (admin)    // ranking semanal/mensal        // profissionais, vínculos, atendimento, admin   // treino guiado (onboarding, programas, sessões)
 
 http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');

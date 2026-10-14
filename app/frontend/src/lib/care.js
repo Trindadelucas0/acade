@@ -20,6 +20,13 @@ export const C = {
   links: () => api('/api/adm/links'), link: b => post('/api/adm/links', b), endLink: (id, reason) => post('/api/adm/links/end', { id, reason }),
   queue: () => api('/api/adm/queue'), assign: b => post('/api/adm/assign', b), admClose: (id, reason) => post('/api/adm/close-occurrence', { id, reason }),
   live: () => api('/api/adm/live'), userWorkouts: id => api('/api/adm/users/workouts?id=' + id),
+  samePerson: (id, other_id, note) => post('/api/adm/users/same-person', { id, other_id, note }),
+  dataRequests: st => api('/api/adm/data-requests?status=' + (st || '')), decideData: b => post('/api/adm/data-requests/decide', b),
+  terms: () => api('/api/adm/terms'), publishTerms: b => post('/api/adm/terms', b),
+  admExercises: qq => api('/api/adm/exercises?q=' + encodeURIComponent(qq || '')), exMedia: id => api('/api/exercises/media?id=' + encodeURIComponent(id)),
+  addExMedia: b => post('/api/adm/exercises/media', b), rmExMedia: id => post('/api/adm/exercises/media/remove', { id }),
+  myRequests: () => api('/api/me/requests'), deleteRequest: reason => post('/api/me/delete-request', { reason }), cancelDelete: () => post('/api/me/delete-request/cancel', {}),
+  proThread: (student_id, body) => post('/api/pro/threads', { student_id, body }),
   resetLink: id => post('/api/adm/users/reset-link', { id }),
   audit: () => api('/api/adm/audit'), settings: () => api('/api/adm/settings'), saveSettings: b => post('/api/adm/settings', b)
 }
@@ -38,3 +45,16 @@ export const F = {
   admRanking: period => api('/api/adm/ranking?period=' + period), invalidate: (session_id, reason) => post('/api/adm/ranking/invalidate', { session_id, reason })
 }
 export const REPORT_PT = { ofensivo: 'Conteúdo ofensivo', prejudicial: 'Informação inadequada ou potencialmente prejudicial', privado: 'Divulgação de informações privadas', spam: 'Spam ou propaganda não autorizada', outro: 'Outro motivo' }
+
+const API_BASE = import.meta.env.VITE_API_BASE || ''
+// envio binário direto (vídeo até 60 MB, foto até 5 MB)
+export async function uploadExMedia(exercise_id, file, caption) {
+  const r = await fetch(API_BASE + '/api/adm/exercises/upload?' + new URLSearchParams({ exercise_id, caption: caption || '' }), { method: 'POST', credentials: 'include', headers: { 'Content-Type': file.type || 'application/octet-stream' }, body: file })
+  const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || 'Falha no envio'); return d
+}
+export async function exportMyData() {
+  const r = await fetch(API_BASE + '/api/me/export', { credentials: 'include' })
+  if (!r.ok) throw new Error('Não foi possível exportar')
+  const blob = await r.blob(), a = document.createElement('a')
+  a.href = URL.createObjectURL(blob); a.download = 'avadesk-meus-dados.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000)
+}
