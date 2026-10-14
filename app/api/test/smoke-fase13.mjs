@@ -21,17 +21,16 @@ export async function run({ adm, p1, p2, stu, sid, P1, get, post, check }) {
   check(!(await get(p1, '/api/challenges/prizes?id=' + c)).d.prizes.length, 'prêmio só configurado não aparece')
   check((await post(adm, '/api/adm/prizes/transition', { id: pz, to: 'publicado' })).d.status === 'publicado' && (await get(p1, '/api/challenges/prizes?id=' + c)).d.prizes[0]?.public_state === 'provisorio', 'publicado: aparece como provisório')
   for (const tk of [p1, p2, stu]) await post(tk, '/api/challenges/join', { id: c })
-  await q(`update challenges set starts_at=now() - interval '4 days' where id=$1`, [c]); await get(adm, '/api/challenge?id=' + c)
+  await q(`update challenges set starts_at=now() - interval '40 days' where id=$1`, [c]); await get(adm, '/api/challenge?id=' + c)
   check((await get(adm, '/api/adm/prizes')).d.prizes.find(p => p.id === pz).status === 'aguardando_resultado', 'no início: aguardando resultado')
   const tid = (await q('select tenant_id from users where id=$1', [sid])).rows[0].tenant_id, p2id = (await q(`select id from users where email='pro2.e2e@avadesk.local'`)).rows[0].id
-  const mk = (uid, ago) => q(`insert into sessions(tenant_id,user_id,started_at,finished_at,status) values($1,$2,now()-$3::interval,now()-$3::interval+interval '30 min','done')`, [tid, uid, ago])
-  // empate exato: P1 e P2 com os mesmos dias e o mesmo horário de chegada
-  const ts = new Date(Date.now() - 50 * 3600e3).toISOString()
-  for (const u of [P1.user_id, p2id]) await q(`insert into sessions(tenant_id,user_id,started_at,finished_at,status) values($1,$2,$3,$3::timestamptz+interval '30 min','done')`, [tid, u, ts])
-  await mk(sid, '3 hours')
+  // período no passado, longe dos treinos das outras fases; empate exato entre P1 e P2 (mesmos dias e horários)
+  const at = d => new Date(Date.now() - d * day).toISOString()
+  for (const u of [P1.user_id, p2id]) for (const d of [35, 34]) await q(`insert into sessions(tenant_id,user_id,started_at,finished_at,status) values($1,$2,$3,$3::timestamptz+interval '30 min','done')`, [tid, u, at(d)])
+  await q(`insert into sessions(tenant_id,user_id,started_at,finished_at,status) values($1,$2,$3,$3::timestamptz+interval '30 min','done')`, [tid, sid, at(33)])
   const w0 = (await get(adm, '/api/adm/prizes')).d.prizes.find(p => p.id === pz)
   check(!w0.winners.length, 'sem vencedor antes da homologação')
-  await q(`update challenges set ends_at=now() - interval '1 minute' where id=$1`, [c]); await get(adm, '/api/challenge?id=' + c)
+  await q(`update challenges set ends_at=now() - interval '30 days' where id=$1`, [c]); await get(adm, '/api/challenge?id=' + c)
   check((await post(adm, '/api/adm/challenges/homologate', { id: c })).s === 409, 'não homologa resultado em apuração (provisório)')
   check((await post(adm, '/api/challenges/transition', { id: c, to: 'concluido' })).s === 200, 'admin conclui o oficial')
   const tro = (await q('select template_id, user_id from user_trophies where challenge_id=$1', [c])).rows
