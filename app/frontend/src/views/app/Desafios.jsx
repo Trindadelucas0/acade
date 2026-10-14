@@ -1,7 +1,7 @@
 // V5 · Desafios: Explorar, Participando, Criados por mim, Convites, Histórico, Criar (assistente de 5 etapas que mantém o estado).
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { CH, TYPE_PT, METRIC_PT, STATUS_PT, AUD_PT, MEM_PT, spDate, spInput, toYmd, addDays } from '../../lib/challenges.js'
+import { CH, TYPE_PT, METRIC_PT, STATUS_PT, AUD_PT, MEM_PT, spDate, spInput, spEnd, toYmd, addDays } from '../../lib/challenges.js'
 import { GR } from '../../lib/groups.js'
 import { useStore } from '../../store/useStore.js'
 import { Sheet, Av, Empty, Load, Tabs, useLoad, Err, Field } from './kit.jsx'
@@ -33,17 +33,17 @@ const DRAFT_KEY = 'ch-wizard'
 export function ChallengeWizard() {
   const nav = useNavigate(), [sp] = useSearchParams(), editId = sp.get('id')
   const today = toYmd(new Date().toISOString()), start0 = addDays(today, 1)
-  const [w, setW] = useState(() => { try { const s = JSON.parse(sessionStorage.getItem(DRAFT_KEY) || 'null'); if (s && (s.id || null) === (editId || null)) return s } catch { /* */ } return { id: editId || null, step: 0, name: '', description: '', cover_url: '', category: 'consistencia', type: 'meta_individual', metric: 'sessoes', goal: 12, weekly_goal: 3, planned_sessions: 12, duration: 30, start: start0, end: addDays(start0, 30), immediate: false, audience: 'aberto', group_id: '', max_participants: '', late_entry: false, proof: 'nenhuma', proof_media: [], manual_validation: true, teams: ['Equipe A', 'Equipe B'], team_min: 2, team_max: '', tie_break: 'primeiro_a_atingir', reason: '' } })
+  const [w, setW] = useState(() => { try { const s = JSON.parse(sessionStorage.getItem(DRAFT_KEY) || 'null'); if (s && (s.id || null) === (editId || null)) return s } catch { /* */ } return { id: editId || null, step: 0, name: '', description: '', cover_url: '', category: 'consistencia', type: 'meta_individual', metric: 'sessoes', goal: 12, weekly_goal: 3, planned_sessions: 12, duration: 30, start: start0, end: addDays(start0, 29), immediate: false, audience: 'aberto', group_id: '', max_participants: '', late_entry: false, proof: 'nenhuma', proof_media: [], manual_validation: true, teams: ['Equipe A', 'Equipe B'], team_min: 2, team_max: '', tie_break: 'primeiro_a_atingir', reason: '' } })
   const isAdmin = !!useStore(s => s.user)?.admin
   const [cats] = useLoad(() => CH.cats()), [groups] = useLoad(() => GR.list({ mine: '1' })), [msg, setMsg] = useState(null), [busy, setBusy] = useState(false)
   useEffect(() => { sessionStorage.setItem(DRAFT_KEY, JSON.stringify(w)) }, [w])
   useEffect(() => { if (editId && !w.loaded) CH.get(editId).then(r => { const c = r.challenge; setW(x => ({ ...x, ...c, cover_url: c.cover_url || '', group_id: c.group_id || '', max_participants: c.max_participants || '', start: toYmd(c.starts_at), end: toYmd(c.ends_at), duration: 0, teams: r.teams.map(t => t.name), status: c.status, loaded: true })) }).catch(e => setMsg({ bad: true, t: e.message })) }, [editId]) // eslint-disable-line
   const set = (k, v) => setW(x => ({ ...x, [k]: v })), inp = k => e => set(k, e.target.type === 'checkbox' ? e.target.checked : e.target.value)
   const cat = cats?.categories.find(c => c.id === w.category)
-  const setDur = n => setW(x => ({ ...x, duration: n, end: n ? addDays(x.start, n) : x.end }))
+  const setDur = n => setW(x => ({ ...x, duration: n, end: n ? addDays(x.start, n - 1) : x.end }))
   const body = () => ({ id: w.id || undefined, official: isAdmin && !!w.official, name: w.name, description: w.description, cover_url: w.cover_url || null, category: w.category, type: w.type, metric: w.type === 'meta_coletiva' ? 'soma_coletiva' : w.metric,
     goal: ['meta_individual', 'meta_coletiva'].includes(w.type) ? w.goal : null, weekly_goal: w.weekly_goal, planned_sessions: w.planned_sessions,
-    starts_at: w.immediate ? new Date(Date.now() + 60e3).toISOString() : spInput(w.start), ends_at: spInput(w.end), audience: w.audience, group_id: w.group_id || null, max_participants: w.max_participants || null, late_entry: w.late_entry,
+    starts_at: w.immediate ? new Date(Date.now() + 60e3).toISOString() : spInput(w.start), ends_at: spEnd(w.end), audience: w.audience, group_id: w.group_id || null, max_participants: w.max_participants || null, late_entry: w.late_entry,
     proof: w.proof, proof_media: w.proof === 'nenhuma' ? [] : w.proof_media, manual_validation: true, teams: w.type === 'competicao_equipes' ? w.teams.filter(Boolean) : [], team_min: w.team_min, team_max: w.team_max || null, tie_break: w.tie_break, reason: w.reason })
   const save = async publish => {
     setBusy(true); setMsg(null)
@@ -72,9 +72,9 @@ export function ChallengeWizard() {
       <span className="g-mut g-xs">Duração</span>
       <div className="g-row" style={{ gap: 6, flexWrap: 'wrap' }}>{[7, 15, 30, 90].map(n => <button key={n} className={'g-chipbtn' + (w.duration === n ? ' on' : '')} aria-pressed={w.duration === n} onClick={() => setDur(n)} data-testid={'cw-dur-' + n}>{n} dias</button>)}<button className={'g-chipbtn' + (!w.duration ? ' on' : '')} onClick={() => set('duration', 0)}>Personalizado</button></div>
       <label className="g-chk"><input type="checkbox" checked={w.immediate} onChange={inp('immediate')} /> Começar imediatamente após publicar</label>
-      <div className="g-row" style={{ gap: 8 }}>{!w.immediate && <Field label="Início (horário de Brasília)"><input className="g-in" type="date" min={today} value={w.start} onChange={e => setW(x => ({ ...x, start: e.target.value, end: x.duration ? addDays(e.target.value, x.duration) : x.end }))} /></Field>}
+      <div className="g-row" style={{ gap: 8 }}>{!w.immediate && <Field label="Início (horário de Brasília)"><input className="g-in" type="date" min={today} value={w.start} onChange={e => setW(x => ({ ...x, start: e.target.value, end: x.duration ? addDays(e.target.value, x.duration - 1) : x.end }))} /></Field>}
         <Field label="Fim"><input className="g-in" type="date" value={w.end} onChange={e => setW(x => ({ ...x, end: e.target.value, duration: 0 }))} /></Field></div>
-      {cat && <p className="g-mut g-xs">Nesta categoria: de {cat.min_days} a {cat.max_days} dias. Fim às 00:00 do dia escolhido.</p>}
+      {cat && <p className="g-mut g-xs">Nesta categoria: de {cat.min_days} a {cat.max_days} dias. O dia final conta: termina às 23:59 (Brasília).</p>}
       {w.type === 'competicao_equipes' && <div className="g-card"><b className="g-sm">Equipes (fixadas antes do início)</b>
         {w.teams.map((t, i) => <div key={i} className="g-row" style={{ gap: 6, marginTop: 6 }}><input className="g-in" value={t} onChange={e => set('teams', w.teams.map((x, k) => k === i ? e.target.value : x))} aria-label={'Equipe ' + (i + 1)} /><button className="g-btn g-ghost g-sm" style={{ width: 'auto', padding: '0 12px' }} onClick={() => set('teams', w.teams.filter((_, k) => k !== i))} aria-label="Remover equipe">✕</button></div>)}
         <button className="g-btn g-ghost g-sm" style={{ marginTop: 6 }} onClick={() => set('teams', [...w.teams, 'Equipe ' + String.fromCharCode(65 + w.teams.length)])}>+ Equipe</button>
@@ -95,7 +95,7 @@ export function ChallengeWizard() {
     {S === 4 && <div className="g-card" data-testid="cw-review">
       <b>{w.name || 'Sem nome'}</b><p className="g-mut g-sm">{w.description}</p>
       <p className="g-sm">{TYPE_PT[w.type]} · {METRIC_PT[w.type === 'meta_coletiva' ? 'soma_coletiva' : w.metric]}{w.goal && ['meta_individual', 'meta_coletiva'].includes(w.type) ? ' · meta ' + w.goal : ''}</p>
-      <p className="g-sm">{w.immediate ? 'Começa ao publicar' : 'De ' + w.start.split('-').reverse().join('/')} até {w.end.split('-').reverse().join('/')} (horário de Brasília)</p>
+      <p className="g-sm">{w.immediate ? 'Começa ao publicar' : 'De ' + w.start.split('-').reverse().join('/')} até {w.end.split('-').reverse().join('/')} (inclusive, até 23:59 de Brasília)</p>
       <p className="g-sm">{AUD_PT[w.audience]}{w.max_participants ? ' · até ' + w.max_participants : ''}{w.late_entry ? ' · aceita entrada tardia' : ''} · comprovação {w.proof}</p>
       <p className="g-mut g-xs">Ao publicar, as regras ficam registradas (versão 1). Mudanças depois exigem justificativa e criam nova versão; após o início, a pontuação fica congelada.</p>
       {published && <Field label="Motivo da alteração (obrigatório)"><input className="g-in" value={w.reason} onChange={inp('reason')} data-testid="cw-reason" /></Field>}

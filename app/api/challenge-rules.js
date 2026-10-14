@@ -22,6 +22,9 @@ export const DURATIONS = [7, 15, 30, 90]
 const DAY = 86400e3
 // data local de São Paulo (UTC-3, sem horário de verão) -> instante UTC
 export const spMidnight = ymd => new Date(ymd + 'T00:00:00-03:00')
+// fim INCLUSIVO: o desafio vai até 23:59:59 (Brasília) do dia final
+export const spEndOfDay = ymd => new Date(ymd + 'T23:59:59.999-03:00')
+export const CAT_LIMITS = { min: 1, max: 365 }
 export function wizardProblems(b, cat, now = Date.now()) {
   const p = []
   if (String(b.name || '').trim().length < 3) p.push('Dê um nome ao desafio (mínimo 3 letras)')

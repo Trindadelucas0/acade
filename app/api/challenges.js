@@ -4,7 +4,7 @@ import { q } from './db/pool.js'
 import { requireAuth, audit } from './auth.js'
 import { notify, isLinked } from './pro.js'
 import { useInvite, newCode } from './groups.js'
-import { canMove, canMoveMember, wizardProblems, timeStatus, rulesOf, RULE_FIELDS } from './challenge-rules.js'
+import { canMove, canMoveMember, wizardProblems, timeStatus, rulesOf, RULE_FIELDS, CAT_LIMITS } from './challenge-rules.js'
 
 const isUuid = s => /^[0-9a-f-]{36}$/i.test(String(s || ''))
 const txt = (s, n = 2000) => String(s ?? '').trim().slice(0, n)
@@ -63,6 +63,15 @@ export function challengeRoutes({ json, readBody }) {
   }
   return {
     'GET /api/challenge-categories': async (req, res) => { const u = await auth(req, res); if (!u) return; json(res, 200, { categories: (await q('select * from challenge_categories order by name_pt')).rows }) },
+    'POST /api/adm/challenge-categories': async (req, res) => {
+      const u = await auth(req, res); if (!u) return; if (!isAdm(u)) return json(res, 403, { error: 'Só o admin' })
+      const b = await readBody(req), mn = +b.min_days, mx = +b.max_days
+      if (!Number.isInteger(mn) || !Number.isInteger(mx) || mn < CAT_LIMITS.min || mx > CAT_LIMITS.max || mn > mx) return json(res, 400, { error: `Use dias inteiros entre ${CAT_LIMITS.min} e ${CAT_LIMITS.max}, mínimo ≤ máximo` })
+      const old = (await q('select * from challenge_categories where id=$1', [b.id])).rows[0]; if (!old) return json(res, 404, { error: 'Categoria não encontrada' })
+      await q('update challenge_categories set min_days=$2, max_days=$3 where id=$1', [b.id, mn, mx])
+      await audit(u.tenant_id, u.id, 'desafio.categoria_limites', 'challenge_category', null, { id: b.id, de: [old.min_days, old.max_days], para: [mn, mx] })
+      json(res, 200, { ok: true, note: 'Vale para novos desafios e edições; desafios já publicados mantêm as regras congeladas' })
+    },
     'GET /api/challenges': async (req, res) => {
       const u = await auth(req, res); if (!u) return
       const p = qs(req), view = p.get('view') || 'explorar', page = Math.max(0, +p.get('page') || 0), term = txt(p.get('q'), 60)

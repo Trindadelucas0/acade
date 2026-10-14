@@ -1,7 +1,7 @@
 // Central administrativa AVADESK (desktop-first, funciona no celular): barra lateral, KPIs com gráficos,
 // tabelas com busca/filtro/ordenação/paginação/CSV e gavetas de detalhe. O admin é quem decide vínculos, capacidade e liberações.
 import { GR } from '../../lib/groups.js'
-import { CH, STATUS_PT } from '../../lib/challenges.js'
+import { CH, CAT, STATUS_PT } from '../../lib/challenges.js'
 import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import Icon from '../../components/Icon.jsx'
@@ -223,10 +223,22 @@ function AdmDesafios() {
     <div className="adm-tools"><button className="adm-btn" onClick={() => nav('/desafios/criar')} data-testid="c-official">+ Criar desafio oficial</button>{[['', 'Todos'], ['em_andamento', 'Em andamento'], ['suspenso', 'Suspensos'], ['concluido', 'Concluídos']].map(([s, l]) => <button key={s} className={'adm-btn ' + (st === s ? '' : 'ghost')} onClick={() => setSt(s)}>{l}</button>)}</div>
     {msg && <p className="g-warn">{msg}</p>}
     {err ? <p className="g-warn">{err}</p> : <DataTable name="desafios" cols={cols} rows={rows} onRow={r => nav('/desafio/' + r.id)} />}
+    <AdmCategorias />
     {why && <Drawer title={(why.restore ? 'Reativar ' : 'Suspender ') + why.name} onClose={() => setWhy(null)}><p className="g-sm">Informe o motivo (fica na auditoria e o organizador é avisado).</p>
       <textarea className="g-in" rows={3} value={why.reason} onChange={e => setWhy({ ...why, reason: e.target.value })} />
       <div className="adm-tools"><button className="adm-btn danger" disabled={why.reason.trim().length < 3} onClick={async () => { try { await CH.transition(why.restore ? { id: why.id, restore: true, reason: why.reason } : { id: why.id, to: 'suspenso', reason: why.reason }); setWhy(null); reload() } catch (e) { setMsg(e.message) } }}>Confirmar</button></div></Drawer>}
   </>
+}
+function AdmCategorias() {
+  const [d, err, reload] = useLoad(() => CAT.list()), [ed, setEd] = useState({}), [msg, setMsg] = useState('')
+  if (err) return <p className="g-warn">{err}</p>
+  const rows = d?.categories || []
+  return <div className="adm-card"><h3>Limites de duração por categoria</h3><p className="g-mut g-sm">Padrão: 7 a 90 dias. Vale para novos desafios; os publicados mantêm as regras congeladas.</p>
+    {msg && <p className="g-warn" role="status">{msg}</p>}
+    <table style={{ width: "100%", borderCollapse: "collapse" }}><thead><tr><th>Categoria</th><th>Mínimo (dias)</th><th>Máximo (dias)</th><th /></tr></thead><tbody>{rows.map(c => { const v = ed[c.id] || c; return <tr key={c.id}><td>{c.name_pt}</td>
+      <td><input className="g-in" type="number" min={1} max={365} style={{ width: 90 }} value={v.min_days} onChange={e => setEd({ ...ed, [c.id]: { ...v, min_days: e.target.value } })} data-testid={'cat-min-' + c.id} /></td>
+      <td><input className="g-in" type="number" min={1} max={365} style={{ width: 90 }} value={v.max_days} onChange={e => setEd({ ...ed, [c.id]: { ...v, max_days: e.target.value } })} data-testid={'cat-max-' + c.id} /></td>
+      <td><button className="adm-btn" disabled={!ed[c.id]} onClick={async () => { try { await CAT.save({ id: c.id, min_days: +v.min_days, max_days: +v.max_days }); setMsg('Limites de ' + c.name_pt + ' salvos'); setEd(x => { const n = { ...x }; delete n[c.id]; return n }); reload() } catch (e) { setMsg(e.message) } }} data-testid={'cat-save-' + c.id}>Salvar</button></td></tr> })}</tbody></table></div>
 }
 function AdmGrupos() {
   const [st, setSt] = useState(''), [d, err, reload] = useLoad(() => GR.admList(st), [st]), [msg, setMsg] = useState(''), [why, setWhy] = useState(null)

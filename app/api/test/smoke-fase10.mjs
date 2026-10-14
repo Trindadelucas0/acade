@@ -62,6 +62,10 @@ export async function run({ adm, p1, p2, stu, sid, P1, get, post, check }) {
   const teams = (await get(p1, '/api/challenge?id=' + c4)).d.teams
   check((await post(p1, '/api/challenges/join', { id: c4 })).s === 400, 'equipe obrigatória na inscrição')
   check((await post(p1, '/api/challenges/join', { id: c4, team_id: teams[0].id })).s === 200 && (await post(p2, '/api/challenges/join', { id: c4, team_id: teams[0].id })).s === 409, 'tamanho máximo da equipe respeitado')
+  check((await post(stu, '/api/adm/challenge-categories', { id: 'geral', min_days: 3, max_days: 60 })).s === 403, 'só admin altera limites de categoria')
+  check((await post(adm, '/api/adm/challenge-categories', { id: 'geral', min_days: 50, max_days: 10 })).s === 400, 'limites inválidos recusados')
+  check((await post(adm, '/api/adm/challenge-categories', { id: 'geral', min_days: 7, max_days: 90 })).s === 200, 'admin edita limites por categoria')
+  check((await get(adm, '/api/challenge-categories')).d.categories.find(c => c.id === 'geral').max_days === 90, 'limites salvos')
   check((await get(adm, '/api/adm/challenges')).d.challenges.length >= 4, 'admin lista desafios')
   const acts = (await get(adm, '/api/adm/audit')).d.audit.map(a => a.action)
   check(['desafio.publicado', 'desafio.suspenso', 'desafio.desclassificado', 'desafio.editado'].every(a => acts.includes(a)), 'publicação, suspensão, desclassificação e edição na auditoria')

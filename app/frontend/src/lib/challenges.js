@@ -16,5 +16,8 @@ export const MEM_PT = { convidado: 'Convidado', solicitado: 'Pedido enviado', ap
 // data local (America/Sao_Paulo, UTC-3)
 export const spDate = d => new Date(d).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: 'short' })
 export const spInput = ymd => new Date(ymd + 'T00:00:00-03:00').toISOString()
+export const spEnd = ymd => new Date(ymd + 'T23:59:59.999-03:00').toISOString()
 export const toYmd = iso => new Date(new Date(iso).getTime() - 3 * 3600e3).toISOString().slice(0, 10)
 export const addDays = (ymd, n) => toYmd(new Date(spInput(ymd)).getTime() + n * 86400e3)
+
+export const CAT = { list: () => api('/api/challenge-categories'), save: b => post('/api/adm/challenge-categories', b) }

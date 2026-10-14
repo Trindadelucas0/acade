@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { canMove, canMoveMember, wizardProblems, timeStatus, CH_FLOW, spMidnight } from '../challenge-rules.js'
+import { canMove, canMoveMember, wizardProblems, timeStatus, CH_FLOW, spMidnight, spEndOfDay } from '../challenge-rules.js'
 const cat = { min_days: 7, max_days: 90 }, now = Date.parse('2026-10-14T15:00:00Z')
 const base = { name: 'Outubro ativo', type: 'meta_individual', metric: 'sessoes', goal: 12, starts_at: '2026-10-15T03:00:00Z', ends_at: '2026-11-14T03:00:00Z', audience: 'aberto', proof: 'nenhuma' }
 let n = 0; const t = (name, fn) => { fn(); n++; console.log('  ✓', name) }
@@ -19,4 +19,5 @@ t('meta semanal acima de 7 é recusada (sem excesso)', () => assert(wizardProble
 t('relógio: começa no início e apura no fim', () => { const c = { ...base, status: 'inscricoes_abertas' }; assert.equal(timeStatus(c, Date.parse('2026-10-14T00:00:00Z')), 'inscricoes_abertas'); assert.equal(timeStatus(c, Date.parse('2026-10-20T00:00:00Z')), 'em_andamento'); assert.equal(timeStatus({ ...c, status: 'em_andamento' }, Date.parse('2026-11-20T00:00:00Z')), 'apurando') })
 t('suspenso não avança pelo relógio', () => assert.equal(timeStatus({ ...base, status: 'suspenso' }, Date.parse('2026-11-20T00:00:00Z')), 'suspenso'))
 t('meia-noite de São Paulo', () => assert.equal(spMidnight('2026-10-15').toISOString(), '2026-10-15T03:00:00.000Z'))
+t('fim inclusivo: 23:59:59 de Brasília do dia final', () => { assert.equal(spEndOfDay('2026-11-13').toISOString(), '2026-11-14T02:59:59.999Z'); assert.equal(wizardProblems({ ...base, ends_at: spEndOfDay('2026-11-13').toISOString() }, cat, now).length, 0) })
 console.log(`desafios (regras): ${n} testes passaram`)
