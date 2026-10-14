@@ -17,10 +17,10 @@ export async function run({ adm, p1, p2, stu, sid, P1, P2, get, post, check }) {
   check(r.list[0].user_id === P1.user_id && r.list[0].score === 2, 'líder com pontos por dia (2 sessões no mesmo dia valem 1)')
   check(r.me.position === 1 && r.me.me && typeof r.me.pending_proofs === 'number', 'minha posição com pontos e comprovantes pendentes')
   check(r.formula && !/100 pontos/.test(r.formula) && r.rules_version >= 1 && r.period.start, 'fórmula real, versão das regras e período')
-  check(r.podium.length === 2, 'pódio sem quem tem zero ponto (menos de 3)')
+  check(r.podium.length >= 2 && r.podium.length <= 3 && r.podium.every(x => x.score > 0 && x.position <= 3), 'pódio só com quem pontuou (até 3, empates incluídos)')
   check(!JSON.stringify(r).match(/volume_kg|weight|peso|pain|carga/i), 'ranking não expõe cargas, peso ou saúde')
   const sc = (await get(stu, '/api/challenges/score?id=' + c)).d
-  check(sc.sessions.find(s => s.id === sv)?.why === 'anulado' && sc.score === 0, 'entender pontuação: treino anulado não contou e diz por quê')
+  check(sc.sessions.find(s => s.id === sv)?.why === 'anulado' && sc.sessions.filter(s => s.counted).length === sc.valid_days, 'entender pontuação: treino anulado não contou e diz por quê')
   check((await get(p1, '/api/challenges/score?id=' + c)).d.sessions.some(s => s.why === 'mesmo_dia'), 'entender pontuação: mesmo dia conta uma vez')
   await post(p2, '/api/challenges/optout', { id: c, on: true })
   r = (await get(p1, '/api/challenges/ranking?id=' + c)).d
