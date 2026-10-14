@@ -3,26 +3,22 @@ import { useUI } from '../store/useUI.js'
 import { authLogin, authRegister, api } from '../lib/api.js'
 import { t } from '../lib/i18n.js'
 import { DEMO, REPO } from '../lib/demo.js'
-import { useState, useEffect, lazy, Suspense } from 'react'
+import { useState } from 'react'
 import { useTerms, TermsText } from './app/Terms.jsx'
 import InstallButton from '../components/InstallButton.jsx'
 import './login.css'
 
-// three.js só é baixado depois que a tela de login já está pintada.
-const Body3D = lazy(() => import('../components/Body3D.jsx'))
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 
+// Foto de capa da tela de login (Pexels License). O modelo 3D continua no resto do app.
 function Hero() {
-  const [show, setShow] = useState(false)
-  useEffect(() => {
-    const go = () => setShow(true)
-    const id = window.requestIdleCallback ? requestIdleCallback(go, { timeout: 1200 }) : setTimeout(go, 300)
-    return () => (window.cancelIdleCallback ? cancelIdleCallback(id) : clearTimeout(id))
-  }, [])
   return (
     <div className="lg-hero" aria-hidden="true">
-      <div className="lg-glow" />
-      {show && <Suspense fallback={null}><Body3D hero /></Suspense>}
+      <picture>
+        <source srcSet="/img/login-hero.webp" type="image/webp" />
+        <img src="/img/login-hero.jpg" alt="" width="1200" height="1800" fetchpriority="high" decoding="async" />
+      </picture>
+      <div className="lg-shade" />
     </div>
   )
 }
