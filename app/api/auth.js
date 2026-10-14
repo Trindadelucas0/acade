@@ -3,6 +3,7 @@
 import './env.js'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
+import crypto from 'node:crypto'
 import { q } from './db/pool.js'
 
 const SECRET = process.env.JWT_SECRET
@@ -108,7 +109,39 @@ export function authRoutes({ json, readBody, bridge, clearCookies }) {
       const u = await requireAuth(req, res, json, { allowPending: true }); if (!u) return
       json(res, 200, { user: pub(u) })
     },
-    'POST /api/auth/forgot': async (req, res) => json(res, 501, { error: 'Recuperação de senha ainda não disponível — fale com a sua academia.' }),
+    // recuperação: o pedido avisa a administração, que gera um link de uso único (24 h). Resposta sempre genérica.
+    'POST /api/auth/forgot': async (req, res) => {
+      const b = await readBody(req), email = String(b.email || '').trim().toLowerCase()
+      const r = EMAIL_RE.test(email) ? (await q('select id, tenant_id, name from users where lower(email)=$1 and disabled_at is null', [email])).rows[0] : null
+      if (r) {
+        await audit(r.tenant_id, r.id, 'senha.recuperacao_pedida', 'user', r.id)
+        const admins = await q(`select user_id from user_roles where tenant_id=$1 and role_id='admin'`, [r.tenant_id])
+        for (const a of admins.rows) await q('insert into notifications(user_id,kind,title,body,link) values($1,$2,$3,$4,$5)', [a.user_id, 'senha', 'Pedido de recuperação de senha', `${r.name} (${email})`, '/admin/painel?tab=alunos'])
+      }
+      json(res, 200, { ok: true, message: 'Se o e-mail estiver cadastrado, a administração vai enviar a você um link para criar uma nova senha.' })
+    },
+    'POST /api/auth/reset': async (req, res) => {
+      const b = await readBody(req), pw = String(b.password || '')
+      if (pw.length < 8) return json(res, 400, { error: 'A senha deve ter pelo menos 8 caracteres' })
+      const h = crypto.createHash('sha256').update(String(b.token || '')).digest('hex')
+      const r = (await q('select * from password_resets where token_hash=$1 and used_at is null and expires_at > now()', [h])).rows[0]
+      if (!r) return json(res, 400, { error: 'Link inválido ou expirado. Peça um novo à administração.' })
+      await q('update users set password_hash=$2 where id=$1', [r.user_id, await bcrypt.hash(pw, 12)])
+      await q('update password_resets set used_at=now() where id=$1', [r.id])
+      const t = (await q('select tenant_id from users where id=$1', [r.user_id])).rows[0]
+      await audit(t.tenant_id, r.user_id, 'senha.redefinida', 'user', r.user_id)
+      json(res, 200, { ok: true })
+    },
+    'POST /api/adm/users/reset-link': async (req, res) => {
+      const u = await requireRole('admin')(req, res, json); if (!u) return
+      const b = await readBody(req)
+      const t = (await q('select id from users where id=$1 and tenant_id=$2', [b.id, u.tenant_id])).rows[0]
+      if (!t) return json(res, 404, { error: 'Usuário não encontrado' })
+      const tok = crypto.randomBytes(24).toString('base64url')
+      await q(`insert into password_resets(user_id,token_hash,expires_at,created_by) values($1,$2,now()+interval '24 hours',$3)`, [t.id, crypto.createHash('sha256').update(tok).digest('hex'), u.id])
+      await audit(u.tenant_id, u.id, 'senha.link_gerado', 'user', t.id)
+      json(res, 200, { link: (process.env.ORIGIN || 'http://localhost:4449') + '/#/redefinir?t=' + tok, expires_hours: 24 })
+    },
 
     // ===== catálogo =====
     'GET /api/muscles': async (req, res) => {

@@ -36,6 +36,7 @@ function Alunos() {
         {u.status === 'ativo' && <button className="g-btn g-danger g-sm" onClick={run(() => { const r = ask('Motivo do bloqueio'); return r != null && C.setStatus(u.id, 'bloqueado', r) }, reload)}>Bloquear</button>}
         <select className="g-in" style={{ flex: 1, minWidth: 120 }} value={u.plan_id || ''} onChange={run(async e => { const r = await C.setPlan(u.id, e.target.value); if (r?.over_limit) alert(`Atenção: o aluno tem ${r.links} vínculo(s) e o plano permite ${r.max}. Nada foi encerrado; revise os vínculos.`) }, reload)} aria-label="Plano de acesso">
           <option value="" disabled>Plano de acesso…</option>{(pl?.plans || []).filter(p => p.active).map(p => <option key={p.id} value={p.id}>{p.name_pt} (até {p.max_professionals})</option>)}</select>
+        <button className="g-btn g-ghost g-sm" onClick={run(async () => { const r = await C.resetLink(u.id); prompt('Link de redefinição (uso único, 24 h). Envie ao usuário:', r.link) })}>Link de nova senha</button>
         <button className="g-btn g-ghost g-sm" onClick={run(() => C.setRole(u.id, 'profissional', !u.roles.includes('profissional')), reload)}>{u.roles.includes('profissional') ? 'Remover profissional' : 'Tornar profissional'}</button>
       </div></div>) : <Empty>Nenhuma conta aqui.</Empty>}</div>}
   </div>

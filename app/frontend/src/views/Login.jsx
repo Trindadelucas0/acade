@@ -1,6 +1,6 @@
 import { useStore, hasData } from '../store/useStore.js'
 import { useUI } from '../store/useUI.js'
-import { authLogin, authRegister } from '../lib/api.js'
+import { authLogin, authRegister, api } from '../lib/api.js'
 import { t } from '../lib/i18n.js'
 import { DEMO, REPO } from '../lib/demo.js'
 import { useState, useEffect, lazy, Suspense } from 'react'
@@ -33,7 +33,24 @@ function Eye({ off }) {
 }
 
 
+function ResetPassword({ token }) {
+  const [pw, setPw] = useState(''), [pw2, setPw2] = useState(''), [msg, setMsg] = useState(''), [done, setDone] = useState(false)
+  const go = async e => { e.preventDefault(); if (pw.length < 8) return setMsg('A senha deve ter pelo menos 8 caracteres'); if (pw !== pw2) return setMsg('As senhas não conferem')
+    try { await api('/api/auth/reset', { method: 'POST', body: JSON.stringify({ token, password: pw }) }); setDone(true) } catch (er) { setMsg(er.message) } }
+  return <div className="lg-wrap"><form className="lg-card" onSubmit={go}>
+    <div className="lg-brand">AVADESK <b>Fitness</b></div>
+    {done ? <><p className="lg-sub">Senha alterada! Entre com a nova senha.</p><button type="button" className="lg-btn" onClick={() => { location.hash = '#/hoje' }}>Ir para o login</button></> : <>
+      <p className="lg-sub">Crie uma nova senha.</p>
+      <label className="lg-field"><span>Nova senha</span><div className="lg-input"><input type="password" autoComplete="new-password" value={pw} onChange={e => setPw(e.target.value)} /></div></label>
+      <label className="lg-field"><span>Confirmar senha</span><div className="lg-input"><input type="password" autoComplete="new-password" value={pw2} onChange={e => setPw2(e.target.value)} /></div></label>
+      {msg && <div className="lg-msg" role="alert">{msg}</div>}
+      <button className="lg-btn" type="submit">Salvar nova senha</button></>}
+  </form></div>
+}
+
 export default function Login() {
+  const resetToken = /^#\/redefinir\?t=([\w-]+)/.exec(location.hash)?.[1]
+  if (resetToken) return <ResetPassword token={resetToken} />
   const { setUser, pullState, setGuest } = useStore()
   const [mode, setMode] = useState('login')       // 'login' | 'register'
   const [f, setF] = useState({ name: '', email: '', password: '', confirm: '' })
@@ -100,7 +117,9 @@ export default function Login() {
         {field('email', 'E-mail', 'email', 'email', { inputMode: 'email', placeholder: 'voce@email.com' })}
         {field('password', 'Senha', showPw ? 'text' : 'password', reg ? 'new-password' : 'current-password')}
         {reg && field('confirm', 'Confirmar senha', showPw ? 'text' : 'password', 'new-password')}
-        {!reg && <button type="button" className="lg-forgot" onClick={() => setMsg('Recuperação de senha em breve — por enquanto, fale com a sua academia.')}>Esqueci a senha</button>}
+        {!reg && <button type="button" className="lg-forgot" onClick={async () => {
+          if (!EMAIL_RE.test(f.email.trim())) return setErrs({ ...errs, email: 'Informe seu e-mail acima para recuperar o acesso' })
+          try { const r = await api('/api/auth/forgot', { method: 'POST', body: JSON.stringify({ email: f.email.trim() }) }); setMsg(r.message) } catch (e) { setMsg(e.message) } }}>Esqueci a senha</button>}
         {msg && <div className="lg-msg" role="alert">{msg}</div>}
         <button className="lg-btn" type="submit" disabled={busy}>{busy ? 'Aguarde…' : reg ? 'Criar conta' : 'Entrar'}</button>
         <button type="button" className="lg-btn ghost" onClick={() => { setMode(reg ? 'login' : 'register'); setErrs({}); setMsg('') }}>

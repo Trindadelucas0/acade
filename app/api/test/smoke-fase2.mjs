@@ -1,5 +1,14 @@
 // Smoke test fase 2: comunidade e ranking (chamado por smoke.mjs com o contexto da fase 1)
 export async function run({ stu, adm, p1, p2, sid, P1, get, post, check }) {
+  console.log('Recuperação de senha')
+  const me = (await get(stu, '/api/auth/me')).d.user
+  check((await post(null, '/api/auth/forgot', { email: me.email })).s === 200, 'pedido de recuperação (resposta genérica)')
+  check((await post(stu, '/api/adm/users/reset-link', { id: sid })).s === 403, 'aluno não gera link de redefinição')
+  const link = (await post(adm, '/api/adm/users/reset-link', { id: sid })).d.link, tok = link.split('t=')[1]
+  check((await post(null, '/api/auth/reset', { token: tok, password: 'nova-senha-123' })).s === 200, 'redefinição com link de uso único')
+  check((await post(null, '/api/auth/reset', { token: tok, password: 'outra-senha-123' })).s === 400, 'link não pode ser reutilizado')
+  check((await post(null, '/api/auth/login', { email: me.email, password: 'nova-senha-123' })).s === 200, 'login com a nova senha')
+
   console.log('Fase 2 — comunidade')
   check((await post(stu, '/api/posts', { title: 'Post de aluno', body: 'não pode' })).s === 403, 'aluno não publica')
   check((await post(stu, '/api/uploads', { data: 'data:image/png;base64,iVBORw0KGgo=' })).s === 403, 'aluno não envia fotos')
