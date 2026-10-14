@@ -1,6 +1,9 @@
 /* opengym-api — passkey (WebAuthn) auth + per-user state storage for openGym
    No framework, JSON-file storage, signed session cookies.               */
+import './env.js';
 import http from 'node:http';
+import { authRoutes, clearTokenCookie } from './auth.js';
+import { guidedRoutes } from './guided.js';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -358,7 +361,7 @@ const routes = {
     json(res, 200, { user: { id: user.id, name: user.name, admin: isAdmin(user) } }, { 'Set-Cookie': sessionCookie(user) });
   },
 
-  'POST /api/logout': async (req, res) => json(res, 200, { ok: true }, { 'Set-Cookie': clearCookie }),
+  'POST /api/logout': async (req, res) => json(res, 200, { ok: true }, { 'Set-Cookie': [clearCookie, clearTokenCookie] }),
 
   // "Sign out everywhere" — bumps this user's session version, which invalidates every cookie
   // ever issued for the account, on every device, including a copy someone else walked off with.
@@ -540,6 +543,19 @@ const routes = {
     json(res, 200, { ok: true });
   }
 };
+
+/* ---------- AVAGYM: login email+senha (Postgres + JWT) ---------- */
+// Ponte: quem entra por e-mail/senha ganha também uma entrada em db.json (id = uuid do Postgres)
+// e o cookie gymsid, para que /api/data, push, admin etc. (ainda em JSON) continuem funcionando.
+function pgBridge(u) {
+  let x = db.users.find(v => v.id === u.id);
+  if (!x) { x = { id: u.id, name: u.name, created: Date.now(), pg: true }; db.users.push(x); }
+  x.name = u.name; x.email = u.email; x.admin = u.roles.includes('admin');
+  saveDb();
+  return [sessionCookie(x)];
+}
+Object.assign(routes, authRoutes({ json, readBody, bridge: pgBridge, clearCookies: [clearCookie] }));
+Object.assign(routes, guidedRoutes({ json, readBody }));   // treino guiado (onboarding, programas, sessões)
 
 http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');

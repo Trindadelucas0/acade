@@ -54,3 +54,11 @@ and are **not** covered by openGym's AGPL license — they remain under that dat
 The media files are not distributed in this repository; they are downloaded from the upstream
 source on first run. If you redistribute openGym with the media included, review the upstream
 license first.
+
+
+## Modelo anatômico 3D
+
+frontend/public/models/corpo.glb deriva do Z-Anatomy (Lluís Vinent Juanico, https://github.com/LluisV/Z-Anatomy, baseado em BodyParts3D/DBCLS), licenciado sob CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/). Modificado (simplificação, metadados de grupos). O arquivo derivado permanece sob CC BY-SA 4.0. Detalhes: frontend/public/models/CREDITS.md.
+
+
+Mídias locais de exercícios (frontend/public/media/exercicios): fotos da Wikimedia Commons — perdigueiro (PTPioneer, CC BY 2.0) e pêndulo de Codman (M.C. Morgan, CC0). Detalhes: frontend/public/media/exercicios/CREDITS.md.

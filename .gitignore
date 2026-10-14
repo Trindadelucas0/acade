@@ -19,3 +19,11 @@ export.tar
 # sistema
 .DS_Store
 Thumbs.db
+
+# credenciais locais
+CREDENCIAIS-LOCAL.txt
+
+
+# backups locais
+*.bak*
+

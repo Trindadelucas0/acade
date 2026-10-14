@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, lazy, Suspense } from 'react'
 import { HashRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { useStore } from './store/useStore.js'
 import { useUI } from './store/useUI.js'
@@ -24,6 +24,18 @@ import History from './views/History.jsx'
 import Library from './views/Library.jsx'
 import Settings from './views/Settings.jsx'
 import Admin from './views/Admin.jsx'
+const MuscleMap = lazy(() => import('./views/MuscleMap.jsx'))
+// treino guiado (AVAGYM)
+import GuidedTabBar from './views/guided/TabBar.jsx'
+import Onboarding from './views/guided/Onboarding.jsx'
+import Today from './views/guided/Today.jsx'
+import { Recommendations, Library as ProgramLibrary, ProgramDetail } from './views/guided/Programs.jsx'
+import MyProgram from './views/guided/MyProgram.jsx'
+import Train from './views/guided/Train.jsx'
+import Done from './views/guided/Done.jsx'
+import Progress from './views/guided/Progress.jsx'
+import Profile from './views/guided/Profile.jsx'
+import AdminPrograms from './views/guided/AdminPrograms.jsx'
 
 bindUI(useUI)   // lets the shared controls open sheets without importing the store at module scope
 
@@ -67,6 +79,17 @@ function Shell() {
         <ErrorBoundary>
           {!authed ? <Login /> : (
             <Routes>
+              <Route path="/hoje" element={<Today />} />
+              <Route path="/onboarding" element={<Onboarding />} />
+              <Route path="/recomendados" element={<Recommendations />} />
+              <Route path="/programas" element={<ProgramLibrary />} />
+              <Route path="/programa/:id" element={<ProgramDetail />} />
+              <Route path="/meu-programa" element={<MyProgram />} />
+              <Route path="/treinar" element={<Train />} />
+              <Route path="/concluido" element={<Done />} />
+              <Route path="/progresso" element={<Progress />} />
+              <Route path="/perfil" element={<Profile />} />
+              <Route path="/admin/programas" element={user ? <AdminPrograms /> : <Navigate to="/hoje" replace />} />
               <Route path="/home" element={<Home />} />
               <Route path="/plan" element={<Plan />} />
               <Route path="/plan/r/:id" element={<RoutineEdit />} />
@@ -74,14 +97,16 @@ function Shell() {
               <Route path="/stats" element={<Stats />} />
               <Route path="/history" element={<History />} />
               <Route path="/library" element={<Library />} />
+              <Route path="/muscles" element={<Suspense fallback={null}><MuscleMap /></Suspense>} />
               <Route path="/settings" element={<Settings />} />
-              <Route path="/admin" element={user?.admin ? <Admin /> : <Navigate to="/home" replace />} />
-              <Route path="*" element={<Navigate to="/home" replace />} />
+              <Route path="/admin" element={user?.admin ? <Admin /> : <Navigate to="/hoje" replace />} />
+              <Route path="*" element={<Navigate to="/hoje" replace />} />
             </Routes>
           )}
         </ErrorBoundary>
       </div>
-      <TabBar onStart={startFlow} />
+      {/* barra principal = treino guiado; a antiga só aparece no treino manual em execução */}
+      {authed && <GuidedTabBar />}
       <RestTimer />
       <Modals />
       <Toast />
