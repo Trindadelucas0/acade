@@ -77,3 +77,37 @@ export const PROOF_FLOW = {
 }
 export const canMoveProof = (from, to) => (PROOF_FLOW[from] || []).includes(to)
 export const PROOF_COUNTS = s => s === 'aprovado'
+// premiações oficiais: sem sorteio, sem dinheiro, sem entrega em resultado provisório
+export const PRIZE_FLOW = {
+  configurado: ['publicado', 'cancelado'],
+  publicado: ['aguardando_resultado', 'aguardando_homologacao', 'cancelado'],
+  aguardando_resultado: ['aguardando_homologacao', 'cancelado'],
+  aguardando_homologacao: ['vencedor_homologado', 'cancelado'],
+  vencedor_homologado: ['entrega_pendente', 'cancelado'],
+  entrega_pendente: ['entregue', 'cancelado'],
+  entregue: [], cancelado: []
+}
+export const canMovePrize = (from, to) => (PRIZE_FLOW[from] || []).includes(to)
+const MONEY = /(r\$|\bpix\b|dinheiro|reais|\bcash\b|sorteio|rifa|aposta)/i
+export const prizeProblems = b => {
+  const p = []
+  if (String(b.name || '').trim().length < 3) p.push('Dê um nome ao prêmio')
+  if (MONEY.test(`${b.name} ${b.description || ''} ${b.rules || ''}`)) p.push('Prêmios não podem ser dinheiro nem sorteio')
+  if (!(+b.quantity >= 1 && +b.quantity <= 1000)) p.push('Quantidade entre 1 e 1000')
+  if (!['primeiro', 'segundo', 'terceiro', 'top3', 'meta_atingida', 'equipe_vencedora'].includes(b.criterion)) p.push('Escolha o critério')
+  if (!String(b.owner || '').trim()) p.push('Informe o responsável pela entrega')
+  if (!b.delivery_deadline) p.push('Informe o prazo de entrega')
+  return p
+}
+const BAD_WORDS = /(porra|caralho|merda|puta|viado|idiota|burro|otario|fdp)/i
+export const trophyNameOk = n => String(n || '').trim().length >= 3 && String(n).length <= 40 && !BAD_WORDS.test(n)
+// quem ganha cada troféu, a partir do resultado final (nunca de um provisório)
+export function trophyWinners(kind, result, c) {
+  const rows = result.rows || [], pos = n => rows.filter(r => r.position === n && r.score > 0).map(r => r.user_id)
+  if (kind === 'participacao') return rows.filter(r => r.days > 0).map(r => r.user_id)
+  if (kind === 'conclusao') return result.mode === 'coletivo' ? (result.collective?.reached ? rows.filter(r => r.days > 0).map(r => r.user_id) : []) : rows.filter(r => r.goal_reached).map(r => r.user_id)
+  if (['primeiro', 'segundo', 'terceiro'].includes(kind)) return ['podio', 'equipes'].includes(result.mode) ? pos({ primeiro: 1, segundo: 2, terceiro: 3 }[kind]) : []
+  if (kind === 'equipe_vencedora') { const w = (result.teams || []).filter(t => t.position === 1 && t.score > 0).map(t => t.team_id); return rows.filter(r => w.includes(r.team_id) && r.days > 0).map(r => r.user_id) }
+  if (kind === 'consistencia') { const plan = +c.planned_sessions || +c.goal || 0; return plan ? rows.filter(r => r.days >= Math.ceil(plan * 0.7)).map(r => r.user_id) : [] }
+  return []
+}

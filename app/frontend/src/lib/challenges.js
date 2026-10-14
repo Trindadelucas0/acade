@@ -40,3 +40,15 @@ export const RK = { get: (id, page = 0) => api(`/api/challenges/ranking?id=${id}
 export const RK_STATE = { nao_iniciado: 'Ainda não começou', provisorio: 'Provisório', apurando: 'Em apuração', final: 'Resultado final', homologado: 'Homologado', cancelado: 'Cancelado' }
 export const WHY_PT = { contou: 'Contou', mesmo_dia: 'Mesmo dia — já contado', anulado: 'Treino anulado', comprovante_pendente: 'Comprovante pendente', sem_comprovante_aprovado: 'Sem comprovante aprovado' }
 export const unitOf = m => m === 'consistencia' ? '%' : m === 'semanas_meta' ? 'sem.' : 'pts'
+export const TR = {
+  list: () => api('/api/trophies'), create: b => post('/api/trophies', b), ofChallenge: id => api('/api/challenges/trophies?id=' + id), set: (id, template_ids) => post('/api/challenges/trophies', { id, template_ids }),
+  mine: () => api('/api/me/trophies'), show: (id, on) => post('/api/me/trophies/show', { id, on }), ofUser: uid => api('/api/users/trophies?user_id=' + uid),
+  admPending: () => api('/api/adm/trophies?status=pendente'), decide: (id, approve, reason) => post('/api/adm/trophies/decide', { id, approve, reason })
+}
+export const PZ = {
+  ofChallenge: id => api('/api/challenges/prizes?id=' + id), adm: () => api('/api/adm/prizes'), save: b => post('/api/adm/prizes', b), transition: (id, to, reason) => post('/api/adm/prizes/transition', { id, to, reason }),
+  homologate: b => post('/api/adm/challenges/homologate', b), recompute: (id, reason) => post('/api/adm/challenges/recompute', { id, reason }), deliver: (winner_id, note) => post('/api/adm/prizes/deliver', { winner_id, note })
+}
+export const CRIT_PT = { participacao: 'Participação (1+ dia válido)', conclusao: 'Meta cumprida', primeiro: '1º lugar', segundo: '2º lugar', terceiro: '3º lugar', equipe_vencedora: 'Equipe vencedora', consistencia: 'Consistência (70% dos dias previstos)', top3: 'Top 3', meta_atingida: 'Meta atingida' }
+export const PRIZE_PT = { configurado: 'Configurado', publicado: 'Publicado', aguardando_resultado: 'Aguardando resultado', aguardando_homologacao: 'Aguardando homologação', vencedor_homologado: 'Vencedor homologado', entrega_pendente: 'Entrega pendente', entregue: 'Entregue', cancelado: 'Cancelado' }
+export const PUB_PRIZE_PT = { provisorio: 'Provisório', apurando: 'Em apuração', homologado: 'Homologado', premio_pendente: 'Prêmio pendente', entregue: 'Entregue' }

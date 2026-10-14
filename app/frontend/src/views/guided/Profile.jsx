@@ -5,6 +5,7 @@ import { useStore } from '../../store/useStore.js'
 import { C, P, exportMyData } from '../../lib/care.js'
 import { isProAccount, isNonTrainee } from './TabBar.jsx'
 import { G, GOAL_PT, LEVEL_PT, LOC_PT, RESTR_PT } from '../../lib/guided.js'
+import { MyTrophies } from '../app/Trofeus.jsx'
 import './guided.css'
 
 const SOURCE_URL = import.meta.env.VITE_SOURCE_URL || ''
@@ -23,6 +24,7 @@ export default function Profile() {
     <span className="g-eyebrow">Perfil</span>
     <h1>{user?.name || 'Visitante'}</h1>
     <p className="g-mut g-sm">{user?.email}{user?.tenant?.name ? ' · ' + user.tenant.name : ''}</p>
+    {user && <div className="g-card" style={{ marginTop: 14 }} id="trofeus"><b className="g-sm">Troféus</b><MyTrophies /></div>}
     {p && <div className="g-card" style={{ marginTop: 14 }}>
       <b className="g-sm">Suas respostas</b>
       <div className="g-chips" style={{ marginTop: 8 }}>

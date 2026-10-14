@@ -1,11 +1,12 @@
 // V5 · Desafios: Explorar, Participando, Criados por mim, Convites, Histórico, Criar (assistente de 5 etapas que mantém o estado).
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { CH, TYPE_PT, METRIC_PT, STATUS_PT, AUD_PT, MEM_PT, spDate, spInput, spEnd, toYmd, addDays } from '../../lib/challenges.js'
+import { CH, TR, TYPE_PT, METRIC_PT, STATUS_PT, AUD_PT, MEM_PT, spDate, spInput, spEnd, toYmd, addDays } from '../../lib/challenges.js'
 import { GR } from '../../lib/groups.js'
 import { useStore } from '../../store/useStore.js'
 import { ChFeed, ChProofs, ReportBtn } from './DesafioFeed.jsx'
 import { ChRanking } from './DesafioRanking.jsx'
+import { TrophyPick, ChPrizes } from './Trofeus.jsx'
 import { Sheet, Av, Empty, Load, Tabs, useLoad, Err, Field } from './kit.jsx'
 
 const VIEWS = [['explorar', 'Explorar'], ['participando', 'Participando'], ['criados', 'Criados por mim'], ['convites', 'Convites'], ['historico', 'Histórico']]
@@ -49,7 +50,7 @@ export function ChallengeWizard() {
     proof: w.proof, proof_media: w.proof === 'nenhuma' ? [] : w.proof_media, manual_validation: true, teams: w.type === 'competicao_equipes' ? w.teams.filter(Boolean) : [], team_min: w.team_min, team_max: w.team_max || null, tie_break: w.tie_break, reason: w.reason })
   const save = async publish => {
     setBusy(true); setMsg(null)
-    try { const r = await CH.save(body()); const id = r.id || w.id; set('id', id); if (publish) { const p = await CH.publish(id); sessionStorage.removeItem(DRAFT_KEY); nav('/desafio/' + id + '?publicado=' + p.status) } else setMsg({ t: 'Rascunho salvo. Só você vê.' }) }
+    try { const r = await CH.save(body()); const id = r.id || w.id; set('id', id); if (w.trophies) await TR.set(id, w.trophies).catch(() => {}); if (publish) { const p = await CH.publish(id); sessionStorage.removeItem(DRAFT_KEY); nav('/desafio/' + id + '?publicado=' + p.status) } else setMsg({ t: 'Rascunho salvo. Só você vê.' }) }
     catch (e) { setMsg({ bad: true, t: e.problems ? e.problems.join(' · ') : e.message }) } finally { setBusy(false) }
   }
   const published = w.status && w.status !== 'rascunho'
@@ -93,7 +94,8 @@ export function ChallengeWizard() {
       <Field label="Comprovação"><select className="g-in" value={w.proof} onChange={inp('proof')} data-testid="cw-proof"><option value="nenhuma">Nenhuma (vale a sessão registrada)</option><option value="opcional">Opcional</option><option value="obrigatoria">Obrigatória</option></select></Field>
       {w.proof !== 'nenhuma' && <><div className="g-row" style={{ gap: 12 }}>{['foto', 'video'].map(m => <label key={m} className="g-chk"><input type="checkbox" checked={w.proof_media.includes(m)} onChange={e => set('proof_media', e.target.checked ? [...w.proof_media, m] : w.proof_media.filter(x => x !== m))} data-testid={'cw-pm-' + m} /> {m === 'foto' ? 'Foto' : 'Vídeo'}</label>)}</div>
         <p className="g-mut g-xs">Toda comprovação é revisada por uma pessoa (moderador ou admin). Ninguém aprova a própria. Pendente não conta.</p></>}
-      <p className="g-mut g-xs">Troféus e prêmios oficiais são configurados na página do desafio (prêmios: só admin).</p></>}
+      <TrophyPick value={w.trophies || []} onChange={v => set('trophies', v)} />
+      <p className="g-mut g-xs">Prêmios oficiais são configurados pelo admin no painel.</p></>}
     {S === 4 && <div className="g-card" data-testid="cw-review">
       <b>{w.name || 'Sem nome'}</b><p className="g-mut g-sm">{w.description}</p>
       <p className="g-sm">{TYPE_PT[w.type]} · {METRIC_PT[w.type === 'meta_coletiva' ? 'soma_coletiva' : w.metric]}{w.goal && ['meta_individual', 'meta_coletiva'].includes(w.type) ? ' · meta ' + w.goal : ''}</p>
@@ -137,7 +139,7 @@ export function ChallengePage() {
     {me?.status === 'solicitado' && <p className="g-note">Pedido enviado ao organizador.</p>}
     {me && ['removido', 'desclassificado', 'rejeitado'].includes(me.status) && <p className="g-warn">Situação: {MEM_PT[me.status]}</p>}
     <Tabs cur={tab} set={setTab} tabs={tabs} />
-    {tab === 'ranking' && <ChRanking c={c} inIt={inIt} />}
+    {tab === 'ranking' && <><ChRanking c={c} inIt={inIt} /><ChPrizes c={c} /></>}
     {tab === 'feed' && <ChFeed c={c} setDlg={setDlg} />}
     {tab === 'comprovantes' && <ChProofs c={c} me={me} setDlg={setDlg} />}
     {tab === 'resumo' && <div className="g-card"><p className="g-sm" style={{ whiteSpace: 'pre-wrap' }}>{c.description || 'Sem descrição.'}</p>
@@ -151,6 +153,9 @@ export function ChallengePage() {
         {d.manage && <button className="g-btn g-ghost g-sm" style={{ width: 'auto', padding: '0 10px' }} onClick={() => setDlg({ t: 'Remover participante', x: 'Informe o motivo (fica na auditoria).', input: true, ok: r => act(() => CH.remove({ id, user_id: m.user_id, reason: r }))() })}>Remover</button>}</div>) : <Empty>Sem participantes visíveis.</Empty>}</div>)}
     {tab === 'resumo' && <div className="g-card"><b className="g-sm">Regras</b>{d.versions.length ? d.versions.map(v => <div key={v.version} style={{ marginBottom: 8 }}><b className="g-sm">Versão {v.version}</b> <span className="g-mut g-xs">{new Date(v.created_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}{v.reason ? ' · ' + v.reason : ''}</span>
       <p className="g-mut g-xs">{METRIC_PT[v.rules.metric]}{v.rules.goal ? ' · meta ' + v.rules.goal : ''} · {spDate(v.rules.starts_at)}–{spDate(v.rules.ends_at)} · comprovação {v.rules.proof}{v.rules.late_entry ? ' · entrada tardia' : ''}</p></div>) : <p className="g-mut g-sm">As regras são registradas ao publicar.</p>}</div>}
+    {tab === 'gestao' && <div className="g-card" data-testid="ch-creator-overview"><b className="g-sm">Visão geral</b>
+      <div className="g-row" style={{ gap: 6, flexWrap: 'wrap', marginTop: 6 }}><span className="ch-pill">{d.count} participantes</span><span className="ch-pill">{(d.pending || []).length} pedidos</span><span className="ch-pill">{(d.invites || []).length} convites</span><span className="ch-pill">Regras v{c.rules_version || 0}</span></div>
+      <div className="g-row" style={{ gap: 6, flexWrap: 'wrap', marginTop: 8 }}>{tabs.filter(([k]) => ['feed', 'comprovantes', 'ranking', 'pessoas'].includes(k)).map(([k, l]) => <button key={k} className="g-btn g-ghost g-sm" style={{ width: 'auto', padding: '0 10px' }} onClick={() => setTab(k)}>{l}</button>)}</div></div>}
     {tab === 'gestao' && <div className="g-card" data-testid="ch-manage">
       <div className="g-row" style={{ gap: 6, flexWrap: 'wrap' }}>
         {!['concluido', 'cancelado', 'apurando'].includes(c.status) && <button className="g-btn g-ghost g-sm" style={{ width: 'auto', padding: '0 12px' }} onClick={() => nav('/desafios/criar?id=' + id)} data-testid="ch-edit">Editar</button>}

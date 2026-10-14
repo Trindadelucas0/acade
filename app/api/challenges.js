@@ -5,6 +5,7 @@ import { requireAuth, audit } from './auth.js'
 import { notify, isLinked } from './pro.js'
 import { useInvite, newCode } from './groups.js'
 import { snapshot } from './challenge-score.js'
+import { onConcluded, syncPrizes } from './prizes.js'
 import { canMove, canMoveMember, wizardProblems, timeStatus, rulesOf, RULE_FIELDS, CAT_LIMITS } from './challenge-rules.js'
 
 const isUuid = s => /^[0-9a-f-]{36}$/i.test(String(s || ''))
@@ -173,7 +174,8 @@ export function challengeRoutes({ json, readBody }) {
       if (!canMove(c.status, to)) return json(res, 409, { error: `Não é possível passar de ${c.status} para ${to}` })
       if (to === 'cancelado' && reason.length < 5) return json(res, 400, { error: 'Explique o motivo do cancelamento' })
       await log(c, to, u.id, reason); await q('update challenges set status=$2, status_reason=$3, updated_at=now() where id=$1', [c.id, to, reason || null])
-      if (to === 'concluido') await snapshot(c, 'final')   // resultado guardado com a versão das regras e o período
+      if (to === 'concluido') await onConcluded(c, await snapshot(c, 'final'))   // resultado guardado com versão das regras e período; troféus; prêmios aguardam homologação
+      if (to === 'cancelado') await syncPrizes({ ...c, status: 'cancelado' })
       for (const uid of await memberIds(c.id, ['ativo', 'aprovado', 'solicitado', 'convidado'])) await notify(uid, 'desafio', to === 'cancelado' ? 'Desafio cancelado' : to === 'concluido' ? 'Resultado do desafio publicado' : 'Inscrições encerradas', c.name, link(c.id))
       await audit(u.tenant_id, u.id, 'desafio.' + to, 'challenge', c.id, { reason }); json(res, 200, { ok: true, status: to })
     },

@@ -1,7 +1,7 @@
 // Central administrativa AVADESK (desktop-first, funciona no celular): barra lateral, KPIs com gráficos,
 // tabelas com busca/filtro/ordenação/paginação/CSV e gavetas de detalhe. O admin é quem decide vínculos, capacidade e liberações.
 import { GR } from '../../lib/groups.js'
-import { CH, CAT, CF, PROOF_PT, STATUS_PT } from '../../lib/challenges.js'
+import { CH, CAT, CF, TR, PZ, CRIT_PT, PRIZE_PT, PROOF_PT, STATUS_PT } from '../../lib/challenges.js'
 import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import Icon from '../../components/Icon.jsx'
@@ -223,12 +223,56 @@ function AdmDesafios() {
     <div className="adm-tools"><button className="adm-btn" onClick={() => nav('/desafios/criar')} data-testid="c-official">+ Criar desafio oficial</button>{[['', 'Todos'], ['em_andamento', 'Em andamento'], ['suspenso', 'Suspensos'], ['concluido', 'Concluídos']].map(([s, l]) => <button key={s} className={'adm-btn ' + (st === s ? '' : 'ghost')} onClick={() => setSt(s)}>{l}</button>)}</div>
     {msg && <p className="g-warn">{msg}</p>}
     {err ? <p className="g-warn">{err}</p> : <DataTable name="desafios" cols={cols} rows={rows} onRow={r => nav('/desafio/' + r.id)} />}
+    <AdmPremios challenges={rows} />
     <AdmComprovantes />
+    <AdmTrofeus />
     <AdmCategorias />
     {why && <Drawer title={(why.restore ? 'Reativar ' : 'Suspender ') + why.name} onClose={() => setWhy(null)}><p className="g-sm">Informe o motivo (fica na auditoria e o organizador é avisado).</p>
       <textarea className="g-in" rows={3} value={why.reason} onChange={e => setWhy({ ...why, reason: e.target.value })} />
       <div className="adm-tools"><button className="adm-btn danger" disabled={why.reason.trim().length < 3} onClick={async () => { try { await CH.transition(why.restore ? { id: why.id, restore: true, reason: why.reason } : { id: why.id, to: 'suspenso', reason: why.reason }); setWhy(null); reload() } catch (e) { setMsg(e.message) } }}>Confirmar</button></div></Drawer>}
   </>
+}
+const PZ0 = { challenge_id: '', name: '', description: '', image_url: '', quantity: 1, criterion: 'primeiro', eligibility: '', availability: '', owner: '', delivery_deadline: '', logistics: '', rules: '' }
+function AdmPremios({ challenges }) {
+  const [d, err, reload] = useLoad(() => PZ.adm()), [ed, setEd] = useState(null), [msg, setMsg] = useState(''), [ask, setAsk] = useState(null)
+  const act = fn => async () => { setMsg(''); try { await fn(); reload() } catch (e) { setMsg(e.message) } }
+  const off = (challenges || []).filter(c => c.official && !['concluido', 'cancelado'].includes(c.status))
+  const homolog = (cid, extra = {}) => act(async () => { try { await PZ.homologate({ id: cid, ...extra }); setMsg('Resultado homologado. Vencedores avisados.') } catch (e) { if (e.message && /Empate|pendentes/.test(e.message)) setAsk({ cid, msg: e.message, extra: /Empate/.test(e.message) ? { ...extra, confirm_ties: true } : { ...extra, confirm_pending: true } }); else throw e } })()
+  const cols = [{ k: 'name', l: 'Prêmio' }, { k: 'challenge', l: 'Desafio' }, { k: 'criterion', l: 'Critério', r: r => CRIT_PT[r.criterion] }, { k: 'quantity', l: 'Qtd.' }, { k: 'status', l: 'Status', r: r => PRIZE_PT[r.status] }, { k: 'owner', l: 'Responsável' },
+    { k: 'delivery_deadline', l: 'Prazo', r: r => r.delivery_deadline ? new Date(r.delivery_deadline).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '' }, { k: 'pending_delivery', l: 'A entregar' },
+    { k: 'acao', l: '', csv: () => '', r: r => <span onClick={e => e.stopPropagation()}>
+      {r.status === 'configurado' && <button className="adm-btn ghost" onClick={act(() => PZ.transition(r.id, 'publicado'))} data-testid="pz-publish">Publicar</button>}
+      {r.status === 'aguardando_homologacao' && r.challenge_status === 'concluido' && <button className="adm-btn" onClick={() => homolog(r.challenge_id)} data-testid="pz-homolog">Homologar</button>}
+      {!['entregue', 'cancelado'].includes(r.status) && <button className="adm-btn ghost danger" onClick={() => setAsk({ cancel: r.id, msg: 'Cancelar "' + r.name + '"? Informe a justificativa.', reason: '' })}>Cancelar</button>}</span> }]
+  return <div className="adm-card" data-testid="adm-prizes"><h3>Premiações oficiais</h3><p className="g-mut g-sm">Só em desafios oficiais. Sem sorteio e sem dinheiro. Entrega só depois do resultado homologado.</p>
+    {msg && <p className="g-warn" role="status">{msg}</p>}
+    <div className="adm-tools"><button className="adm-btn" disabled={!off.length} onClick={() => setEd({ ...PZ0, challenge_id: off[0]?.id || '' })} data-testid="pz-new">+ Novo prêmio</button>{!off.length && <span className="g-mut g-sm">Crie um desafio oficial primeiro.</span>}</div>
+    {err ? <p className="g-warn">{err}</p> : <DataTable name="premios" cols={cols} rows={d?.prizes} onRow={r => setEd({ ...r, delivery_deadline: r.delivery_deadline ? String(r.delivery_deadline).slice(0, 10) : '' })} />}
+    {(d?.prizes || []).filter(p => p.winners.length).map(p => <div key={p.id} className="adm-card" style={{ marginTop: 8 }}><b>Vencedores · {p.name}</b>
+      {p.winners.map(w => <div key={w.id} className="adm-tools"><span style={{ flex: 1 }}>{w.position ? w.position + 'º · ' : ''}{w.name} · {w.email}</span><span>{w.status === 'entregue' ? 'Entregue ' + new Date(w.delivered_at).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) + (w.note ? ' — ' + w.note : '') : w.status}</span>
+        {w.status === 'pendente' && p.status === 'entrega_pendente' && <button className="adm-btn" onClick={() => setAsk({ deliver: w.id, msg: 'Registrar entrega para ' + w.name + ': como foi entregue?', reason: '' })} data-testid="pz-deliver">Registrar entrega</button>}</div>)}</div>)}
+    {ed && <Drawer title={ed.id ? 'Editar prêmio' : 'Novo prêmio'} onClose={() => setEd(null)}>
+      {!ed.id && <label className="g-field"><span>Desafio oficial</span><select className="g-in" value={ed.challenge_id} onChange={e => setEd({ ...ed, challenge_id: e.target.value })}>{off.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>}
+      {[['name', 'Nome'], ['description', 'Descrição'], ['image_url', 'Imagem (https)'], ['eligibility', 'Elegibilidade'], ['availability', 'Disponibilidade'], ['owner', 'Responsável pela entrega'], ['logistics', 'Logística de entrega'], ['rules', 'Regras']].map(([k, l]) =>
+        <label key={k} className="g-field"><span>{l}</span><input className="g-in" value={ed[k] || ''} onChange={e => setEd({ ...ed, [k]: e.target.value })} data-testid={'pz-' + k} /></label>)}
+      <label className="g-field"><span>Critério</span><select className="g-in" value={ed.criterion} onChange={e => setEd({ ...ed, criterion: e.target.value })}>{['primeiro', 'segundo', 'terceiro', 'top3', 'meta_atingida', 'equipe_vencedora'].map(k => <option key={k} value={k}>{CRIT_PT[k]}</option>)}</select></label>
+      <label className="g-field"><span>Quantidade</span><input className="g-in" type="number" min={1} value={ed.quantity} onChange={e => setEd({ ...ed, quantity: e.target.value })} /></label>
+      <label className="g-field"><span>Prazo de entrega</span><input className="g-in" type="date" value={ed.delivery_deadline || ''} onChange={e => setEd({ ...ed, delivery_deadline: e.target.value })} data-testid="pz-deadline" /></label>
+      {ed.id && ed.status !== 'configurado' && <label className="g-field"><span>Justificativa da alteração</span><input className="g-in" value={ed.reason || ''} onChange={e => setEd({ ...ed, reason: e.target.value })} /></label>}
+      <div className="adm-tools"><button className="adm-btn" onClick={act(async () => { await PZ.save({ ...ed, quantity: +ed.quantity }); setEd(null) })} data-testid="pz-save">Salvar</button></div></Drawer>}
+    {ask && <Drawer title="Confirmar" onClose={() => setAsk(null)}><p className="g-sm">{ask.msg}</p>
+      {(ask.cancel || ask.deliver) && <textarea className="g-in" rows={3} value={ask.reason} onChange={e => setAsk({ ...ask, reason: e.target.value })} data-testid="pz-reason" />}
+      <div className="adm-tools"><button className="adm-btn" disabled={(ask.cancel || ask.deliver) && ask.reason.trim().length < 3} onClick={async () => { const a = ask; setAsk(null); if (a.cancel) await act(() => PZ.transition(a.cancel, 'cancelado', a.reason))(); else if (a.deliver) await act(() => PZ.deliver(a.deliver, a.reason))(); else homolog(a.cid, a.extra) }} data-testid="pz-confirm">Confirmar</button></div></Drawer>}
+  </div>
+}
+function AdmTrofeus() {
+  const [d, err, reload] = useLoad(() => TR.admPending()), [msg, setMsg] = useState('')
+  if (err) return null
+  return <div className="adm-card" data-testid="adm-trophies"><h3>Troféus personalizados em moderação ({d?.trophies?.length ?? '…'})</h3>{msg && <p className="g-warn">{msg}</p>}
+    {(d?.trophies || []).map(t => <div key={t.id} className="adm-tools"><span style={{ flex: 1 }}>{t.icon} <b>{t.name}</b> · {CRIT_PT[t.criterion]} · por {t.author}</span>
+      <button className="adm-btn" onClick={async () => { await TR.decide(t.id, true); reload() }}>Aprovar</button>
+      <button className="adm-btn ghost danger" onClick={async () => { try { await TR.decide(t.id, false, 'Nome não adequado'); reload() } catch (e) { setMsg(e.message) } }}>Recusar</button></div>)}
+    {d && !d.trophies.length && <p className="g-mut g-sm">Nada para moderar.</p>}</div>
 }
 function AdmComprovantes() {
   const nav = useNavigate(), [d, err, reload] = useLoad(() => CF.admProofs()), [rv, , reloadR] = useLoad(() => CF.reviewers()), [email, setEmail] = useState(''), [msg, setMsg] = useState('')
