@@ -48,3 +48,4 @@ textarea.wb-in{padding:8px 10px}.wb-in.err{border-color:#ff6b6b}
   .wb-actions{flex-wrap:wrap}.wb-actions .wb-in{max-width:none;flex:1 1 100%}.wb-actions .wb-btn{flex:1}
   .wb-days .wb-btn{padding:0 10px}
 }
+#app:has(.wb){max-width:none;padding:0;margin:0}
