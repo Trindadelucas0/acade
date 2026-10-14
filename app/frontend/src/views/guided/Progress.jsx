@@ -23,8 +23,13 @@ export default function Progress() {
     <div className="g-stat" style={{ marginTop: 14 }}>
       <div><b>{d.totals.n}</b><span>Treinos</span></div><div><b>{fmtMin(d.totals.secs)}</b><span>Treinando</span></div><div><b>{(d.totals.vol / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} t</b><span>Levantadas</span></div>
     </div>
-    <h2>Músculos</h2>
+    <h2>Músculos trabalhados</h2>
     <MuscleStatus />
+    <div className="g-card g-list" style={{ marginTop: 12 }}>
+      <button className="g-li" onClick={() => nav('/muscles')} data-testid="open-3d"><span className="g-ico"><Icon name="person" /></span><span><b>Corpo 3D</b><br /><span className="g-mut g-xs">Veja no modelo anatômico o que você treinou</span></span></button>
+      <button className="g-li" onClick={() => nav('/stats')}><span className="g-ico"><Icon name="chart" /></span><span><b>Estatísticas detalhadas</b><br /><span className="g-mut g-xs">1RM, volume e gráficos do treino livre</span></span></button>
+      <button className="g-li" onClick={() => nav('/history')}><span className="g-ico"><Icon name="history" /></span><span><b>Histórico do treino livre</b></span></button>
+    </div>
     <h2>Treinos por semana</h2>
     <div className="g-card"><div className="g-bars">{weeks.map(w => <div key={w.k}><b>{w.n || ''}</b><i className={w.n ? '' : 'g-z'} style={{ height: (w.n / max * 100) + '%' }} />{w.l}</div>)}</div></div>
     <h2>Recordes</h2>

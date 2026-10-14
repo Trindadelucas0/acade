@@ -27,3 +27,6 @@ CREDENCIAIS-LOCAL.txt
 # backups locais
 *.bak*
 
+
+# backups do banco
+backups/

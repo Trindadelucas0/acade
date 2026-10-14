@@ -27,18 +27,20 @@ export async function authUser(req) {
   return loadUser(p.sub)
 }
 async function loadUser(id) {
-  const r = await q(`select u.id,u.name,u.email,u.tenant_id,u.disabled_at,t.slug tenant_slug,t.name tenant_name,
+  const r = await q(`select u.id,u.name,u.email,u.tenant_id,u.disabled_at,u.status,t.slug tenant_slug,t.name tenant_name,
       coalesce(array_agg(ur.role_id) filter (where ur.role_id is not null),'{}') roles
     from users u join tenants t on t.id=u.tenant_id left join user_roles ur on ur.user_id=u.id and ur.tenant_id=u.tenant_id
     where u.id=$1 group by u.id,t.slug,t.name`, [id])
   const u = r.rows[0]
-  if (!u || u.disabled_at) return null
+  if (!u || u.disabled_at || u.status === 'bloqueado') return null
   return u
 }
 // Middlewares estilo "guard": retornam o usuário ou respondem 401/403 e retornam null.
-export async function requireAuth(req, res, json) {
+// Conta "pendente" entra no app, mas as funcionalidades ficam travadas até a liberação (APP FLOW / decisão 4).
+export async function requireAuth(req, res, json, opts) {
   const u = await authUser(req)
   if (!u) { json(res, 401, { error: 'Não autenticado' }); return null }
+  if (u.status !== 'ativo' && !(opts && opts.allowPending)) { json(res, 403, { pending: true, error: 'Sua conta está aguardando liberação da administração.' }); return null }
   req.user = u; req.tenantId = u.tenant_id
   return u
 }
@@ -49,11 +51,16 @@ export function requireRole(...roles) {
     return u
   }
 }
+// Registro de auditoria (quem, o quê, quando). Nunca derruba a operação principal.
+export async function audit(tenantId, actorId, action, entity, entityId, data) {
+  try { await q('insert into audit_log(tenant_id,actor_id,action,entity,entity_id,data) values($1,$2,$3,$4,$5,$6)', [tenantId, actorId, action, entity, entityId == null ? null : String(entityId), data || null]) }
+  catch (e) { console.error('[audit]', e.message) }
+}
 // Filtro padrão para tabelas com catálogo global + dados do tenant.
 export const tenantScope = (alias, idx) => `(${alias}.tenant_id is null or ${alias}.tenant_id = $${idx})`
 
 const sign = u => jwt.sign({ sub: u.id, tid: u.tenant_id, roles: u.roles }, SECRET, { expiresIn: TTL_H + 'h' })
-const pub = u => ({ id: u.id, name: u.name, email: u.email, roles: u.roles, admin: u.roles.includes('admin'),
+export const pub = u => ({ id: u.id, name: u.name, email: u.email, roles: u.roles, admin: u.roles.includes('admin'), pro: u.roles.includes('profissional'), status: u.status,
   tenant: { id: u.tenant_id, slug: u.tenant_slug, name: u.tenant_name } })
 
 export function authRoutes({ json, readBody, bridge, clearCookies }) {
@@ -79,23 +86,26 @@ export function authRoutes({ json, readBody, bridge, clearCookies }) {
       const hash = await bcrypt.hash(password, 12)
       const u = await q('insert into users(tenant_id,name,email,password_hash) values($1,$2,$3,$4) returning id', [t.rows[0].id, name.slice(0, 80), email, hash])
       await q(`insert into user_roles values($1,$2,'aluno')`, [u.rows[0].id, t.rows[0].id])
+      // APP FLOW: novo aluno aguarda liberação da administração (sem login automático)
+      await q(`update users set status='pendente' where id=$1`, [u.rows[0].id])
+      await audit(t.rows[0].id, u.rows[0].id, 'conta.cadastro', 'user', u.rows[0].id, { email })
       await login(res, u.rows[0].id)
     },
     'POST /api/auth/login': async (req, res) => {
       const b = await readBody(req)
       const email = String(b.email || '').trim().toLowerCase(), password = String(b.password || '')
       if (!email || !password) return json(res, 400, { error: 'Informe e-mail e senha' })
-      const r = await q('select id,password_hash,disabled_at from users where lower(email)=$1', [email])
+      const r = await q('select id,password_hash,disabled_at,status from users where lower(email)=$1', [email])
       const row = r.rows[0]
       const ok = row && row.password_hash && await bcrypt.compare(password, row.password_hash)
       if (!ok) return json(res, 401, { error: 'E-mail ou senha incorretos' })
-      if (row.disabled_at) return json(res, 403, { error: 'Conta desativada' })
+      if (row.disabled_at || row.status === 'bloqueado') return json(res, 403, { error: 'Conta desativada' })
       await q('update users set last_seen_at=now() where id=$1', [row.id])
       await login(res, row.id)
     },
     'POST /api/auth/logout': async (req, res) => json(res, 200, { ok: true }, { 'Set-Cookie': [clearTokenCookie, ...(clearCookies || [])] }),
     'GET /api/auth/me': async (req, res) => {
-      const u = await requireAuth(req, res, json); if (!u) return
+      const u = await requireAuth(req, res, json, { allowPending: true }); if (!u) return
       json(res, 200, { user: pub(u) })
     },
     'POST /api/auth/forgot': async (req, res) => json(res, 501, { error: 'Recuperação de senha ainda não disponível — fale com a sua academia.' }),

@@ -5,6 +5,7 @@ import { useStore } from '../../store/useStore.js'
 import { G, loadSession, flushQueue, pendingCount, mediaOf, minutesLabel } from '../../lib/guided.js'
 import { Spin } from './Programs.jsx'
 import MuscleStatus from './MuscleStatus.jsx'
+import { PendingCard, isPending } from '../app/Locked.jsx'
 import './guided.css'
 
 const DN = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D']
@@ -31,6 +32,7 @@ export default function Today() {
       if (s.active) G.today().then(setToday).catch(() => {})
     }).catch(e => setErr(e.status === 401 ? 'Entre com sua conta para usar os programas guiados.' : 'Sem conexão. Você ainda pode continuar um treino salvo no aparelho.'))
   }, [nav])
+  if (isPending(user)) return <div className="ag" data-testid="today"><span className="g-eyebrow">Início</span><h1>Olá{user.name ? ', ' + user.name.split(' ')[0] : ''}!</h1><div style={{ marginTop: 14 }}><PendingCard /></div></div>
   if (err) return <div className="ag"><h1>Hoje</h1><p className="g-mut">{err}</p>
     {local && <button className="g-btn g-xl" style={{ marginTop: 20 }} onClick={() => nav('/treinar')}>CONTINUAR TREINO</button>}</div>
   if (!st) return <Spin />
@@ -50,7 +52,7 @@ export default function Today() {
     {!st.active ? <div className="g-hero" style={{ marginTop: 14 }}>
       <div className="g-in" style={{ maxWidth: '100%' }}>
         <span className="g-eyebrow">Comece por aqui</span>
-        <h2 style={{ marginTop: 6 }}>Escolha seu objetivo e o AVAGYM encontra um programa</h2>
+        <h2 style={{ marginTop: 6 }}>Escolha seu objetivo e o AVADESK encontra um programa</h2>
         <button className="g-btn" style={{ marginTop: 12 }} onClick={() => nav('/recomendados')}>Ver programas para mim</button>
       </div>
     </div> : <>

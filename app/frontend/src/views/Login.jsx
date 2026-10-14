@@ -1,6 +1,6 @@
 import { useStore, hasData } from '../store/useStore.js'
 import { useUI } from '../store/useUI.js'
-import { webauthnOK, passkeyLogin, passkeyRegister, api, authLogin, authRegister } from '../lib/api.js'
+import { authLogin, authRegister } from '../lib/api.js'
 import { t } from '../lib/i18n.js'
 import { DEMO, REPO } from '../lib/demo.js'
 import { useState, useEffect, lazy, Suspense } from 'react'
@@ -32,29 +32,6 @@ function Eye({ off }) {
     {off && <path d="M3 3l18 18" />}</svg>
 }
 
-function PasskeySheet({ close }) {
-  const { setUser, pushState, pullState } = useStore()
-  const [name, setName] = useState('')
-  const [code, setCode] = useState('')
-  const [inviteOnly, setInviteOnly] = useState(false)
-  useEffect(() => { api('/api/config').then(c => setInviteOnly(!!c.invite_only)).catch(() => {}) }, [])
-  const go = async () => {
-    if (!name.trim()) { useUI.getState().toast('Informe um nome'); return }
-    try {
-      const u = await passkeyRegister(name.trim(), code.trim())
-      setUser(u); close()
-      if (hasData(useStore.getState().S)) await pushState(); else await pullState()
-    } catch (e) { if (e.name !== 'NotAllowedError' && e.name !== 'AbortError') useUI.getState().toast(e.message || 'Falha no cadastro') }
-  }
-  return <>
-    <h3>Criar perfil com passkey</h3>
-    <div className="muted small" style={{ marginBottom: 14 }}>Opcional: entre com biometria/PIN do aparelho, sem senha.</div>
-    <input className="input" placeholder="Seu nome" maxLength={40} value={name} onChange={e => setName(e.target.value)} />
-    {inviteOnly && <><div style={{ height: 10 }} /><input className="input" placeholder="Código de convite" value={code} onChange={e => setCode(e.target.value.toUpperCase())} /></>}
-    <div style={{ height: 12 }} />
-    <button className="lg-btn" onClick={go}>Criar passkey</button>
-  </>
-}
 
 export default function Login() {
   const { setUser, pullState, setGuest } = useStore()
@@ -90,10 +67,6 @@ export default function Login() {
       setMsg(e.status === 0 || !e.status ? 'Não foi possível conectar ao servidor' : e.message)
     } finally { setBusy(false) }
   }
-  const passkey = async () => {
-    try { const u = await passkeyLogin(); setUser(u); await pullState() }
-    catch (e) { if (e.name !== 'NotAllowedError' && e.name !== 'AbortError') setMsg(e.message || 'Falha ao entrar com passkey') }
-  }
   const field = (k, label, type, auto, extra) => (
     <label className={'lg-field' + (errs[k] ? ' err' : '')}>
       <span>{label}</span>
@@ -109,7 +82,7 @@ export default function Login() {
   if (DEMO) return (
     <div className="lg-wrap"><Hero />
       <div className="lg-card">
-        <div className="lg-brand">AVA<b>GYM</b></div>
+        <div className="lg-brand">AVADESK <b>Fitness</b></div>
         <p className="lg-sub">Demonstração — tudo fica neste navegador.</p>
         <button className="lg-btn" onClick={() => setGuest(true)}>Iniciar demonstração</button>
         <a className="lg-link" href={REPO} target="_blank" rel="noopener">Código-fonte</a>
@@ -121,7 +94,7 @@ export default function Login() {
     <div className="lg-wrap">
       <Hero />
       <form className="lg-card" onSubmit={submit} noValidate>
-        <div className="lg-brand">AVA<b>GYM</b></div>
+        <div className="lg-brand">AVADESK <b>Fitness</b></div>
         <p className="lg-sub">{reg ? 'Crie sua conta e comece a treinar.' : 'Seu treino, seu corpo, sua evolução.'}</p>
         {reg && field('name', 'Nome', 'text', 'name', { maxLength: 80 })}
         {field('email', 'E-mail', 'email', 'email', { inputMode: 'email', placeholder: 'voce@email.com' })}
@@ -133,10 +106,6 @@ export default function Login() {
         <button type="button" className="lg-btn ghost" onClick={() => { setMode(reg ? 'login' : 'register'); setErrs({}); setMsg('') }}>
           {reg ? 'Já tenho conta — Entrar' : 'Criar conta'}</button>
         <div className="lg-alt">
-          {webauthnOK() && <>
-            <button type="button" className="lg-link" onClick={passkey}>Entrar com passkey</button>
-            <button type="button" className="lg-link" onClick={() => useUI.getState().openSheet(close => <PasskeySheet close={close} />)}>Criar passkey</button>
-          </>}
           <button type="button" className="lg-link" onClick={() => setGuest(true)}>Usar sem conta</button>
         </div>
         <InstallButton />

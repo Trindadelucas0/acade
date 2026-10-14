@@ -46,7 +46,7 @@ export default function Profile() {
     {user && <button className="g-btn g-danger" style={{ marginTop: 18 }} onClick={() => signOut()}>Sair da conta</button>}
     <div className="g-dim g-xs g-center" style={{ marginTop: 22, lineHeight: 1.6 }} data-testid="about">
       <b>Sobre e licença</b><br />
-      AVAGYM / AVADESK é baseado no openGym © 2026 Duarte Santos, licenciado sob a GNU AGPL v3.0 (veja LICENSE e NOTICE).<br />
+      AVADESK Fitness (antigo AVAGYM) é baseado no openGym © 2026 Duarte Santos, licenciado sob a GNU AGPL v3.0 (veja LICENSE e NOTICE).<br />
       Modelo anatômico 3D: Z-Anatomy (Lluís Vinent Juanico, baseado em BodyParts3D/DBCLS), CC BY-SA 4.0, modificado. Dados de exercícios: hasaneyldrm/exercises-dataset (MIT); mídia © Gym visual. Fotos de perdigueiro (PTPioneer, CC BY 2.0) e pêndulo de Codman (M.C. Morgan, CC0) via Wikimedia Commons.<br />
       {SOURCE_URL && <a href={SOURCE_URL} target="_blank" rel="noopener" style={{ color: 'var(--ag-acc)' }}>Código-fonte</a>}
     </div>

@@ -2,7 +2,7 @@
    No framework, JSON-file storage, signed session cookies.               */
 import './env.js';
 import http from 'node:http';
-import { authRoutes, clearTokenCookie } from './auth.js';
+import { authRoutes, clearTokenCookie, authUser, pub } from './auth.js';
 import { guidedRoutes } from './guided.js';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
@@ -21,6 +21,8 @@ const RP_NAME = process.env.RP_NAME || 'openGym';
 // Admin dashboard (issue): admins are matched by uid; INVITE_ONLY gates new signups behind a
 // code the admin generates. Both default off so a fresh self-hosted instance stays open.
 const ADMIN_UIDS = (process.env.ADMIN_UIDS || '').split(',').map(s => s.trim()).filter(Boolean);
+// Passkeys (WebAuthn) do openGym: desativadas por padrão no AVADESK Fitness (decisão provisória 1). LEGACY_PASSKEY=1 reativa.
+const LEGACY_PASSKEY = /^(1|true|yes|on)$/i.test(process.env.LEGACY_PASSKEY || '');
 const INVITE_ONLY = /^(1|true|yes|on)$/i.test(process.env.INVITE_ONLY || '');
 // 90 days keeps someone who trains a few times a week permanently signed in without a stolen
 // cookie staying good for a year. Overridable because a family instance and one on the open
@@ -259,11 +261,13 @@ const routes = {
   'GET /api/health': async (req, res) => json(res, 200, { ok: true, users: db.users.length }),
 
   // Public config the login screen needs before anyone is signed in.
-  'GET /api/config': async (req, res) => json(res, 200, { invite_only: INVITE_ONLY }),
+  'GET /api/config': async (req, res) => json(res, 200, { invite_only: INVITE_ONLY, legacy_passkey: LEGACY_PASSKEY }),
 
   'GET /api/me': async (req, res) => {
     const user = readSession(req);
     if (!user) return json(res, 401, { error: 'not signed in' });
+    // conta Postgres: devolve papéis/status reais (o JWT é a fonte da verdade)
+    if (user.pg) { const u = await authUser(req).catch(() => null); if (!u) return json(res, 401, { error: 'not signed in' }); return json(res, 200, { user: pub(u) }) }
     json(res, 200, { user: { id: user.id, name: user.name, admin: isAdmin(user) } });
   },
 
@@ -562,6 +566,7 @@ http.createServer(async (req, res) => {
   const key = req.method + ' ' + url.pathname;
   const handler = routes[key];
   if (!handler) return json(res, 404, { error: 'not found' });
+  if (!LEGACY_PASSKEY && /^\/api\/(register|login)\//.test(url.pathname)) return json(res, 410, { error: 'Login por passkey desativado. Use e-mail e senha.' });
   try { await handler(req, res); }
   catch (e) {
     console.error(key, e);

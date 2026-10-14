@@ -148,3 +148,16 @@ body:has(.ag),html:has(.ag){background:var(--ag-bg)!important}
 .ag .ag-mrow{display:grid;grid-template-columns:1.3fr 1fr auto auto auto;gap:8px;align-items:center;padding:7px 0;border-top:1px solid var(--ag-line);font-size:13.5px;cursor:pointer}
 .ag .ag-mrow .g-bar{height:6px}
 .ag .ag-mrow .v{white-space:nowrap;font-size:12.5px}
+/* AVADESK Fitness — fase 0 */
+#agtab button{position:relative;min-height:52px;min-width:44px}
+#agtab .g-live{position:absolute;top:4px;right:calc(50% - 18px);width:9px;height:9px;border-radius:50%;background:var(--ag-warn);box-shadow:0 0 0 2px #070b10}
+.ag .g-badge{margin-left:auto;min-width:22px;height:22px;padding:0 7px;border-radius:99px;background:var(--ag-acc);color:var(--ag-on);font-size:12px;font-weight:800;display:inline-flex;align-items:center;justify-content:center}
+.ag .g-pending{border-color:#ffb54755;background:linear-gradient(180deg,#ffb54712,var(--ag-card))}
+.ag .g-pending .g-ico{color:var(--ag-warn)}
+.ag input.g-in,.ag textarea.g-in,.ag select.g-in{width:100%;min-height:48px;border-radius:14px;border:1px solid var(--ag-line);background:var(--ag-card-2);color:var(--ag-txt);padding:12px 14px;font:inherit;font-size:16px}
+.ag textarea.g-in{min-height:96px;resize:vertical}
+.ag .g-tabs{display:flex;gap:6px;background:var(--ag-card);border:1px solid var(--ag-line);border-radius:14px;padding:4px;margin:12px 0}
+.ag .g-tabs button{flex:1;min-height:44px;border:0;border-radius:10px;background:none;color:var(--ag-mut);font-weight:700;font-size:14px;cursor:pointer}
+.ag .g-tabs button.g-on{background:var(--ag-acc);color:var(--ag-on)}
+.ag .g-av{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#22d3a633,#16212d);color:var(--ag-acc);display:flex;align-items:center;justify-content:center;font-weight:800;flex:none}
+@media (max-width:360px){.ag{padding-left:14px;padding-right:14px}.ag h1{font-size:24px}#agtab button span{font-size:10px}}

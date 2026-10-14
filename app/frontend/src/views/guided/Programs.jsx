@@ -111,7 +111,7 @@ export function ProgramDetail() {
       <div className="g-row g-xs g-mut" style={{ margin: '12px 0 6px' }}><Icon name="target" /> Músculos trabalhados</div>
       <p className="g-sm">{p.muscles_pt.join(' · ')}</p>
       <div className="g-row g-xs g-mut" style={{ margin: '12px 0 6px' }}><Icon name="person" /> Autor</div>
-      <p className="g-sm">{p.author_name || 'Equipe AVAGYM'} · versão {p.version}</p>
+      <p className="g-sm">{p.author_name || 'Equipe AVADESK'} · versão {p.version}</p>
     </div>
     <h2>{p.workouts.length} treinos que se repetem na semana</h2>
     {p.workouts.map((w, i) => <div className="g-card" key={w.id}>

@@ -36,6 +36,10 @@ import Done from './views/guided/Done.jsx'
 import Progress from './views/guided/Progress.jsx'
 import Profile from './views/guided/Profile.jsx'
 import AdminPrograms from './views/guided/AdminPrograms.jsx'
+// AVADESK Fitness
+import Treinos from './views/app/Treinos.jsx'
+import Comunidade from './views/app/Comunidade.jsx'
+import Gate from './views/app/Locked.jsx'
 
 bindUI(useUI)   // lets the shared controls open sheets without importing the store at module scope
 
@@ -80,14 +84,16 @@ function Shell() {
           {!authed ? <Login /> : (
             <Routes>
               <Route path="/hoje" element={<Today />} />
-              <Route path="/onboarding" element={<Onboarding />} />
+              <Route path="/treinos" element={<Gate title="Treinos"><Treinos /></Gate>} />
+              <Route path="/comunidade" element={<Gate title="Comunidade"><Comunidade /></Gate>} />
+              <Route path="/onboarding" element={<Gate title="Treinos"><Onboarding /></Gate>} />
               <Route path="/recomendados" element={<Recommendations />} />
               <Route path="/programas" element={<ProgramLibrary />} />
               <Route path="/programa/:id" element={<ProgramDetail />} />
               <Route path="/meu-programa" element={<MyProgram />} />
-              <Route path="/treinar" element={<Train />} />
+              <Route path="/treinar" element={<Gate title="Treinos"><Train /></Gate>} />
               <Route path="/concluido" element={<Done />} />
-              <Route path="/progresso" element={<Progress />} />
+              <Route path="/progresso" element={<Gate title="Progresso"><Progress /></Gate>} />
               <Route path="/perfil" element={<Profile />} />
               <Route path="/admin/programas" element={user ? <AdminPrograms /> : <Navigate to="/hoje" replace />} />
               <Route path="/home" element={<Home />} />
