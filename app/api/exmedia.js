@@ -41,7 +41,7 @@ export function exerciseMediaRoutes({ json, readBody }) {
     'GET /api/adm/exercises': async (req, res) => {
       const u = await requireRole('admin')(req, res, json); if (!u) return
       const t = '%' + String(qs(req).get('q') || '').slice(0, 60) + '%'
-      const r = await q(`select e.id,e.name_pt name,e.media_url,(select count(*)::int from exercise_media m where m.exercise_id=e.id and m.tenant_id=$2 and m.active) extra
+      const r = await q(`select e.id,e.name_pt name,e.media_url,e.instructions_pt,e.level,e.equipment_id,e.body_part,e.archived_at,e.owner_id,(select count(*)::int from exercise_media m where m.exercise_id=e.id and m.tenant_id=$2 and m.active) extra
         from exercises e where (e.tenant_id is null or e.tenant_id=$2) and e.name_pt ilike $1 order by extra desc, e.name_pt limit 40`, [t, u.tenant_id])
       json(res, 200, { exercises: r.rows })
     },

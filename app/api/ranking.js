@@ -48,7 +48,7 @@ async function validSessions(tid, tz, pct, start, end, userId) {
       (select count(distinct ss.exercise_id) from session_sets ss where ss.session_id=s.id)::int done_ex,
       (select count(distinct o.exercise_id) from occurrences o where o.student_id=s.user_id and o.session_client_id=s.client_id and o.category in ('dor','desconforto'))::int blocked_ex
     from sessions s
-    where s.tenant_id=$1 and s.status='done' and s.finished_at is not null and s.ranking_invalid_at is null
+    where s.tenant_id=$1 and s.status='done' and s.finished_at is not null and s.ranking_invalid_at is null and s.voided_at is null
       and (s.started_at at time zone $2)::date >= $3::date and (s.started_at at time zone $2)::date < $4::date ${userId ? 'and s.user_id=$5' : ''}
     order by s.finished_at`, params)
   return r.rows.filter(x => { const need = Math.max(1, x.prescribed - x.blocked_ex); return x.prescribed > 0 && x.done_ex >= Math.ceil(need * pct / 100) })

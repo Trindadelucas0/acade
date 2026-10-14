@@ -8,6 +8,7 @@ import { C, P, GOALS, REQ_ST, dt, uploadExMedia } from '../../lib/care.js'
 import { useLoad } from '../app/kit.jsx'
 import { Alunos, Profissionais, Planos, Vinculos, Filas, Config, EXTRA } from '../app/AdminPanel.jsx'
 import '../guided/guided.css'
+import { UserEdit, ProEdit, StudentRecord, StudentTraining, Publicacoes, ExerciseEdit } from './AdminCrud.jsx'
 
 // ---------- utilitários ----------
 const csvEsc = v => { const s = v == null ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v); return /[",;\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s }
@@ -101,11 +102,11 @@ function Usuarios() {
     { k: 'roles', l: 'Papéis', csv: r => r.roles.join(', '), r: r => r.roles.join(', ') }, { k: 'plan_id', l: 'Plano' }, { k: 'links', l: 'Vínculos', r: r => <>{r.links}{r.over_limit ? ' ⚠' : ''}</> },
     { k: 'created_at', l: 'Cadastro', r: r => r.created_at ? new Date(r.created_at).toLocaleDateString('pt-BR') : '—', sv: r => r.created_at }]
   const u = sel && (d?.users || []).find(x => x.id === sel)
-  const [novo, setNovo] = useState(false)
+  const [novo, setNovo] = useState(false), [dtab, setDt] = useState('conta'), [pros, , reloadPros] = useLoad(() => C.admPros(), [])
   return <>
     <div className="adm-tools"><button className="adm-btn" onClick={() => setNovo(true)} data-testid="nu-open">+ Novo usuário</button></div>
     {novo && <NovoUsuario plans={(pl?.plans || []).filter(p => p.active)} onClose={() => setNovo(false)} onDone={reload} />}
-    {err ? <p className="g-warn">{err}</p> : <DataTable name="usuarios" cols={cols} rows={d?.users} onRow={r => setSel(r.id)}
+    {err ? <p className="g-warn">{err}</p> : <DataTable name="usuarios" cols={cols} rows={d?.users} onRow={r => { setSel(r.id); setDt('conta') }}
       filters={<select className="adm-in" value={st} onChange={e => setSt(e.target.value)} aria-label="Status"><option value="">Todos os status</option><option value="pendente">Aguardando liberação</option><option value="ativo">Ativos</option><option value="bloqueado">Bloqueados</option></select>} />}
     {u && <Drawer title={u.name} onClose={() => setSel(null)}>
       <dl className="adm-dl"><dt>E-mail</dt><dd>{u.email}</dd><dt>Status</dt><dd><Pill v={u.status} map={ST} /></dd><dt>Papéis</dt><dd>{u.roles.join(', ')}</dd><dt>Plano de acesso</dt><dd>{u.plan_id || '—'}</dd><dt>Vínculos ativos</dt><dd>{u.links}{u.over_limit ? ' (acima do limite do plano)' : ''}</dd></dl>
@@ -119,6 +120,12 @@ function Usuarios() {
         <button className="adm-btn ghost" onClick={act(() => { const o = prompt('ID da outra conta da mesma pessoa (vazio = desfazer). Só para auditoria; nada é compartilhado.'); return o != null && C.samePerson(u.id, o.trim() || null, 'registro manual') }, reload)}>Mesma pessoa…</button>
       </div>
       <p className="g-mut g-xs">Contas profissionais e de treino são separadas (e-mails diferentes). “Mesma pessoa” só fica registrado na auditoria.</p>
+      <div className="adm-tools" role="tablist" style={{ marginTop: 12 }}>{[['conta', 'Conta'], ...(u.roles.includes('profissional') ? [['pro', 'Profissional']] : []), ...(u.roles.includes('aluno') ? [['ficha', 'Ficha'], ['treinos', 'Treinos e vínculos']] : [])].map(([k, l]) =>
+        <button key={k} role="tab" aria-selected={dtab === k} className={'adm-btn ' + (dtab === k ? '' : 'ghost')} onClick={() => setDt(k)} data-testid={'udt-' + k}>{l}</button>)}</div>
+      {dtab === 'conta' && <UserEdit key={u.id} u={u} onChanged={reload} onDeleted={() => { setSel(null); reload() }} />}
+      {dtab === 'pro' && u.roles.includes('profissional') && <ProEdit key={u.id} u={u} pro={(pros?.professionals || []).find(p => p.user_id === u.id)} onChanged={() => { reloadPros(); reload() }} />}
+      {dtab === 'ficha' && <StudentRecord key={u.id} u={u} />}
+      {dtab === 'treinos' && <StudentTraining key={u.id} u={u} pros={pros?.professionals} />}
     </Drawer>}
   </>
 }
@@ -237,10 +244,10 @@ function TemplateEditor({ t, onDone }) {
 }
 
 function Exercicios() {
-  const [qq, setQq] = useState(''), [d, err] = useLoad(() => C.admExercises(qq), [qq]), [sel, setSel] = useState(null)
+  const [qq, setQq] = useState(''), [d, err, reload] = useLoad(() => C.admExercises(qq), [qq]), [sel, setSel] = useState(null)
   const cols = [{ k: 'name', l: 'Exercício' }, { k: 'id', l: 'Código' }, { k: 'media_url', l: 'Mídia padrão', r: r => r.media_url ? 'sim' : '—' }, { k: 'extra', l: 'Mídias extras' }]
-  return <>{err ? <p className="g-warn">{err}</p> : <DataTable name="exercicios" cols={cols} rows={d?.exercises} onRow={r => setSel(r)} filters={<input className="adm-in" placeholder="Buscar no servidor" value={qq} onChange={e => setQq(e.target.value)} />} />}
-    {sel && <Drawer title={sel.name} onClose={() => setSel(null)}><ExMedia ex={sel} /></Drawer>}</>
+  return <><div className="adm-tools"><button className="adm-btn" onClick={() => setSel({})} data-testid="ex-new">+ Novo exercício</button></div>{err ? <p className="g-warn">{err}</p> : <DataTable name="exercicios" cols={[...cols, { k: 'archived_at', l: 'Situação', r: r => r.archived_at ? 'arquivado' : 'ativo' }]} rows={d?.exercises} onRow={r => setSel(r)} filters={<input className="adm-in" placeholder="Buscar no servidor" value={qq} onChange={e => setQq(e.target.value)} />} />}
+    {sel && <Drawer title={sel.name || 'Novo exercício'} onClose={() => setSel(null)}><ExerciseEdit key={sel.id || 'novo'} ex={sel} onSaved={() => { reload(); if (!sel.id) setSel(null) }} />{sel.id && <ExMedia ex={sel} />}</Drawer>}</>
 }
 function ExMedia({ ex }) {
   const [d, err, reload] = useLoad(() => C.exMedia(ex.id), [ex.id]), [url, setUrl] = useState(''), [kind, setKind] = useState('video'), [cap, setCap] = useState(''), [busy, setBusy] = useState(false), [msg, setMsg] = useState('')
@@ -292,7 +299,7 @@ const NAV = [
   ['Visão geral', [['dashboard', 'Dashboard', 'chart']]],
   ['Pessoas', [['usuarios', 'Usuários', 'person'], ['alunos', 'Liberações rápidas', 'check'], ['profissionais', 'Profissionais e habilitações', 'clipboard'], ['vinculos', 'Vínculos', 'users'], ['solicitacoes', 'Central de solicitações', 'flag']]],
   ['Operação', [['filas', 'Filas e prazos (SLA)', 'bell'], ['planos', 'Planos de acesso', 'shield'], ['modelos', 'Modelos de treino', 'pencil'], ['exercicios', 'Biblioteca e mídia', 'dumbbell']]],
-  ['Comunidade', [['moderacao', 'Moderação', 'chat'], ['ranking', 'Auditoria do ranking', 'sparkles']]],
+  ['Comunidade', [['publicacoes', 'Publicações e comentários', 'pencil'], ['moderacao', 'Moderação', 'chat'], ['ranking', 'Auditoria do ranking', 'sparkles']]],
   ['Governança', [['auditoria', 'Auditoria', 'list'], ['lgpd', 'LGPD', 'lock'], ['termos', 'Termos de uso', 'info'], ['config', 'Configurações', 'gear']]]]
 const TITLE = Object.fromEntries(NAV.flatMap(([, it]) => it.map(([k, l]) => [k, l])))
 export default function AdminApp() {
@@ -310,6 +317,7 @@ export default function AdminApp() {
       <h1>{TITLE[tab]}</h1><p className="adm-sub">AVADESK Fitness · central administrativa</p>
       {tab === 'dashboard' && <Dashboard go={go} />}
       {tab === 'usuarios' && <Usuarios />}
+      {tab === 'publicacoes' && <Publicacoes DataTable={DataTable} Drawer={Drawer} />}
       {tab === 'alunos' && <Wrap><Alunos /></Wrap>}
       {tab === 'profissionais' && <Wrap><Profissionais /></Wrap>}
       {tab === 'vinculos' && <Wrap><Vinculos /></Wrap>}

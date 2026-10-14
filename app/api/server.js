@@ -10,6 +10,7 @@ import { rankingRoutes } from './ranking.js';
 import { lgpdRoutes, termsStatus } from './lgpd.js';
 import { exerciseMediaRoutes } from './exmedia.js';
 import { portalRoutes } from './portal.js';
+import { adminCrudRoutes } from './admcrud.js';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -376,6 +377,7 @@ Object.assign(routes, lgpdRoutes({ json, readBody, legacyState: readState, legac
 Object.assign(routes, rankingRoutes({ json, readBody }));
 Object.assign(routes, exerciseMediaRoutes({ json, readBody }));
 Object.assign(routes, portalRoutes({ json, readBody }));   // AVADESK PRO + central de solicitações + KPIs   // vídeos e fotos extras dos exercícios (admin)    // ranking semanal/mensal        // profissionais, vínculos, atendimento, admin   // treino guiado (onboarding, programas, sessões)
+Object.assign(routes, adminCrudRoutes({ json, readBody }));  // admin gestor: editar/excluir tudo
 
 http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');

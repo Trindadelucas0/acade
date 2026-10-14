@@ -21,7 +21,7 @@ const proState = async uid => (await q(`select pp.*, (select count(*) from coach
   from professional_profiles pp where pp.user_id=$1`, [uid])).rows[0]
 
 // ---------- fichas: normalização e validação ----------
-function normDays(days) {
+export function normDays(days) {
   return (Array.isArray(days) ? days : []).slice(0, 7).map((d, i) => ({
     name: txt(d.name, 60) || `Treino ${String.fromCharCode(65 + i)}`, weekday: Number.isInteger(+d.weekday) && d.weekday !== null && d.weekday !== '' ? Math.max(0, Math.min(6, +d.weekday)) : null,
     exercises: (Array.isArray(d.exercises) ? d.exercises : []).slice(0, 30).map(e => ({
@@ -29,10 +29,10 @@ function normDays(days) {
       load: e.load ? txt(e.load, 30) : null, rest_sec: e.rest_sec === '' || e.rest_sec == null ? 60 : +e.rest_sec, notes: e.notes ? txt(e.notes, 400) : null }))
   }))
 }
-async function planProblems(days, { full }) {
+export async function planProblems(days, { full }) {
   const p = [], ids = [...new Set(days.flatMap(d => d.exercises.map(e => e.exercise_id)))]
   if (ids.length) {
-    const found = new Set((await q('select id from exercises where id = any($1)', [ids])).rows.map(r => r.id))
+    const found = new Set((await q('select id from exercises where id = any($1) and archived_at is null', [ids])).rows.map(r => r.id))
     const miss = ids.filter(i => !found.has(i)); if (miss.length) p.push('Exercício fora da biblioteca: ' + miss.join(', '))
   }
   days.forEach(d => d.exercises.forEach(e => {
@@ -56,7 +56,7 @@ async function publishProblems(u, plan) {
   if (!plan.goal) p.push('Informe o objetivo')
   return p.concat(await planProblems(plan.days || [], { full: true }))
 }
-const flat = days => days.flatMap(d => d.exercises.map(e => ({ ...e, day: d.name })))
+export const flat = days => days.flatMap(d => d.exercises.map(e => ({ ...e, day: d.name })))
 
 export function portalRoutes({ json, readBody }) {
   return {
@@ -118,7 +118,7 @@ export function portalRoutes({ json, readBody }) {
       const r = await q(`select e.id, e.name_pt name, e.media_url media, e.level, eq.name_pt equipment,
           (select array_agg(distinct mg.name_pt) from exercise_groups x join muscle_groups mg on mg.id=x.group_id where x.exercise_id=e.id) groups
         from exercises e left join equipment eq on eq.id=e.equipment_id
-        where (e.tenant_id is null or e.tenant_id=$2) and e.name_pt ilike $1 and ($3::text is null or exists (select 1 from exercise_groups x where x.exercise_id=e.id and x.group_id=$3))
+        where (e.tenant_id is null or e.tenant_id=$2) and e.archived_at is null and e.name_pt ilike $1 and ($3::text is null or exists (select 1 from exercise_groups x where x.exercise_id=e.id and x.group_id=$3))
           and ($4::text is null or e.equipment_id=$4) order by e.name_pt limit 60`, [term, u.tenant_id, g, eq])
       const [groups, equip] = await Promise.all([q('select id,name_pt from muscle_groups where is_training order by position'), q('select id,name_pt from equipment order by name_pt')])
       json(res, 200, { exercises: r.rows, groups: groups.rows, equipment: equip.rows })

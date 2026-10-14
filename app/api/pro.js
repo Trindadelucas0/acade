@@ -206,7 +206,7 @@ export function proRoutes({ json, readBody }) {
     'GET /api/exercises/search': async (req, res) => {
       const u = await requireAuth(req, res, json); if (!u) return
       const t = '%' + txt(qs(req).get('q'), 60) + '%'
-      const r = await q(`select id, name_pt name, media_url media from exercises where (tenant_id is null or tenant_id=$2) and name_pt ilike $1 order by name_pt limit 20`, [t, u.tenant_id])
+      const r = await q(`select id, name_pt name, media_url media from exercises where (tenant_id is null or tenant_id=$2) and archived_at is null and name_pt ilike $1 order by name_pt limit 20`, [t, u.tenant_id])
       json(res, 200, { exercises: r.rows })
     },
     // ================= profissional =================

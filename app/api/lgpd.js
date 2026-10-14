@@ -25,7 +25,20 @@ const SENSITIVE = /password_hash|token_hash/
 // tabelas de dados pessoais apagadas na exclusão; o restante (atendimento, publicações, auditoria) é mantido vinculado à conta anonimizada
 const PERSONAL = new Set(['post_likes', 'follows', 'notifications', 'ranking_prefs', 'ranking_pref_history', 'password_resets', 'user_access_plans', 'body_goals'])
 
+let _legacyErase = null
+// Exclusão = anonimização: apaga dados pessoais, mantém sessões/ranking/auditoria sem identificação; encerra vínculos; remove posts
+export async function anonymizeUser(uid) {
+  const removed = {}
+  for (const { t, c } of await userColumns()) if (PERSONAL.has(t)) { const r = await q(`delete from "${t}" where "${c}"=$1`, [uid]); removed[t] = (removed[t] || 0) + r.rowCount }
+  await q(`update users set name='Conta excluída', email='excluida-'||id||'@removido.invalid', password_hash=null, status='bloqueado', disabled_at=now() where id=$1`, [uid])
+  if (_legacyErase) _legacyErase(uid)
+  await q(`update posts set status='removido' where author_id=$1`, [uid]).catch(() => {})
+  await q(`update coach_students set status='encerrado', ended_at=now(), end_reason='conta excluída' where (student_id=$1 or coach_id=$1) and status='ativo'`, [uid]).catch(() => {})
+  await q(`update professional_profiles set state='encerrado', can_publish=false where user_id=$1`, [uid]).catch(() => {})
+  return removed
+}
 export function lgpdRoutes({ json, readBody, legacyState, legacyErase }) {
+  _legacyErase = legacyErase
   return {
     'GET /api/terms': async (req, res) => json(res, 200, { terms: await currentTerms() }),
     'POST /api/terms/accept': async (req, res) => {
@@ -106,11 +119,7 @@ export function lgpdRoutes({ json, readBody, legacyState, legacyErase }) {
       if (b.action !== 'excluir') return json(res, 400, { error: 'Ação inválida' })
       if (b.confirm !== 'EXCLUIR') return json(res, 400, { error: 'Para confirmar, digite EXCLUIR', needs_confirm: true })
       if (d.user_id === u.id) return json(res, 400, { error: 'Não é possível excluir a própria conta' })
-      const removed = {}
-      for (const { t, c } of await userColumns()) if (PERSONAL.has(t)) { const r = await q(`delete from "${t}" where "${c}"=$1`, [d.user_id]); removed[t] = (removed[t] || 0) + r.rowCount }
-      await q(`update users set name='Conta excluída', email='excluida-'||id||'@removido.invalid', password_hash=null, status='bloqueado', disabled_at=now() where id=$1`, [d.user_id])
-      if (legacyErase) legacyErase(d.user_id)
-      await q(`update posts set status='removido' where author_id=$1`, [d.user_id]).catch(() => {})
+      const removed = await anonymizeUser(d.user_id)
       await q(`update data_requests set status='concluida',decision_note=$2,decided_by=$3,decided_at=now() where id=$1`, [d.id, note || 'Conta anonimizada', u.id])
       await audit(u.tenant_id, u.id, 'lgpd.exclusao_executada', 'user', d.user_id, { removed })
       json(res, 200, { ok: true, removed })
