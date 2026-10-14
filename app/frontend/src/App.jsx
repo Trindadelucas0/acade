@@ -46,6 +46,7 @@ import Avisos from './views/app/Avisos.jsx'
 import AdminApp from './views/admin/AdminApp.jsx'
 import { TermsGate } from './views/app/Terms.jsx'
 import ProPortal from './views/pro/Portal.jsx'
+import { GroupPage } from './views/app/Grupos.jsx'
 import Builder from './views/builder/WorkoutBuilder.jsx'
 
 bindUI(useUI)   // lets the shared controls open sheets without importing the store at module scope
@@ -94,6 +95,7 @@ function Shell() {
               <Route path="/pro/treino" element={<Builder />} />
               <Route path="/admin/programas" element={<AdminPrograms />} />
               <Route path="/comunidade" element={<Gate title="Comunidade"><Comunidade /></Gate>} />
+              <Route path="/grupo/:id" element={<Gate title="Comunidade"><GroupPage /></Gate>} />
               <Route path="/post/:id" element={<Gate title="Comunidade"><PostPage /></Gate>} />
               <Route path="/profissional/:id" element={<Gate title="Comunidade"><ProfessionalPage /></Gate>} />
               <Route path="/conversa/:id" element={<Gate title="Conversa"><Conversa /></Gate>} />
@@ -106,6 +108,7 @@ function Shell() {
               <Route path="/pro" element={<Gate title="AVADESK PRO"><ProPortal /></Gate>} />
               <Route path="/pro/treino" element={<Gate title="AVADESK PRO"><Builder /></Gate>} />
               <Route path="/comunidade" element={<Gate title="Comunidade"><Comunidade /></Gate>} />
+              <Route path="/grupo/:id" element={<Gate title="Comunidade"><GroupPage /></Gate>} />
               <Route path="/post/:id" element={<Gate title="Comunidade"><PostPage /></Gate>} />
               <Route path="/profissional/:id" element={<Gate title="Comunidade"><ProfessionalPage /></Gate>} />
               <Route path="/conversa/:id" element={<Gate title="Conversa"><Conversa /></Gate>} />
@@ -122,6 +125,7 @@ function Shell() {
               <Route path="/acompanhamento" element={<Gate title="Acompanhamento"><Acompanhamento /></Gate>} />
               <Route path="/conversa/:id" element={<Gate title="Conversa"><Conversa /></Gate>} />
               <Route path="/avisos" element={<Avisos />} />
+              <Route path="/grupo/:id" element={<Gate title="Comunidade"><GroupPage /></Gate>} />
               <Route path="/post/:id" element={<Gate title="Comunidade"><PostPage /></Gate>} />
               <Route path="/profissional/:id" element={<Gate title="Comunidade"><ProfessionalPage /></Gate>} />
               <Route path="/ranking" element={<Gate title="Ranking"><Ranking /></Gate>} />

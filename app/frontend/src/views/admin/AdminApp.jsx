@@ -1,5 +1,6 @@
 // Central administrativa AVADESK (desktop-first, funciona no celular): barra lateral, KPIs com gráficos,
 // tabelas com busca/filtro/ordenação/paginação/CSV e gavetas de detalhe. O admin é quem decide vínculos, capacidade e liberações.
+import { GR } from '../../lib/groups.js'
 import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import Icon from '../../components/Icon.jsx'
@@ -210,6 +211,19 @@ function Solicitacoes() {
   </>
 }
 
+function AdmGrupos() {
+  const [st, setSt] = useState(''), [d, err, reload] = useLoad(() => GR.admList(st), [st]), [msg, setMsg] = useState(''), [why, setWhy] = useState(null)
+  const cols = [{ k: 'name', l: 'Grupo' }, { k: 'owner', l: 'Dono' }, { k: 'privacy', l: 'Privacidade' }, { k: 'members', l: 'Membros' }, { k: 'status', l: 'Status', r: r => <Pill v={r.status} map={ST} /> }, { k: 'status_reason', l: 'Motivo' },
+    { k: 'acao', l: '', csv: () => '', r: r => r.status === 'ativo' ? <button className="adm-btn ghost danger" onClick={e => { e.stopPropagation(); setWhy({ id: r.id, name: r.name, reason: '' }) }} data-testid="g-suspend">Suspender</button> : <button className="adm-btn ghost" onClick={async e => { e.stopPropagation(); await GR.admStatus(r.id, 'ativo'); reload() }}>Reativar</button> }]
+  return <>
+    <div className="adm-tools">{[['', 'Todos'], ['ativo', 'Ativos'], ['suspenso', 'Suspensos'], ['arquivado', 'Arquivados']].map(([k, l]) => <button key={k} className={'adm-btn ' + (st === k ? '' : 'ghost')} onClick={() => setSt(k)}>{l}</button>)}</div>
+    {msg && <p className="g-warn">{msg}</p>}
+    {err ? <p className="g-warn">{err}</p> : <DataTable name="grupos" cols={cols} rows={d?.groups} />}
+    {why && <Drawer title={'Suspender ' + why.name} onClose={() => setWhy(null)}><p className="g-sm">O grupo some da busca e fica congelado. O dono é avisado. Informe o motivo (fica na auditoria).</p>
+      <textarea className="g-in" rows={3} value={why.reason} onChange={e => setWhy({ ...why, reason: e.target.value })} data-testid="g-reason" />
+      <div className="adm-tools"><button className="adm-btn danger" disabled={why.reason.trim().length < 3} onClick={async () => { try { await GR.admStatus(why.id, 'suspenso', why.reason); setWhy(null); reload() } catch (e) { setMsg(e.message) } }} data-testid="g-confirm">Suspender grupo</button></div></Drawer>}
+  </>
+}
 function Modelos() {
   const [d, err, reload] = useLoad(() => P.admTemplates()), [ed, setEd] = useState(null)
   const nav = useNavigate()
@@ -298,7 +312,7 @@ function Wrap({ children }) { return <div className="ag">{children}</div> }
 const NAV = [
   ['Visão geral', [['dashboard', 'Dashboard', 'chart']]],
   ['Pessoas', [['usuarios', 'Usuários', 'person'], ['alunos', 'Liberações rápidas', 'check'], ['profissionais', 'Profissionais e habilitações', 'clipboard'], ['vinculos', 'Vínculos', 'users'], ['solicitacoes', 'Central de solicitações', 'flag']]],
-  ['Operação', [['filas', 'Filas e prazos (SLA)', 'bell'], ['planos', 'Planos de acesso', 'shield'], ['modelos', 'Modelos de treino', 'pencil'], ['exercicios', 'Biblioteca e mídia', 'dumbbell']]],
+  ['Operação', [['filas', 'Filas e prazos (SLA)', 'bell'], ['planos', 'Planos de acesso', 'shield'], ['modelos', 'Modelos de treino', 'pencil'], ['grupos', 'Grupos', 'users'], ['exercicios', 'Biblioteca e mídia', 'dumbbell']]],
   ['Comunidade', [['publicacoes', 'Publicações e comentários', 'pencil'], ['moderacao', 'Moderação', 'chat'], ['ranking', 'Auditoria do ranking', 'sparkles']]],
   ['Governança', [['auditoria', 'Auditoria', 'list'], ['lgpd', 'LGPD', 'lock'], ['termos', 'Termos de uso', 'info'], ['config', 'Configurações', 'gear']]]]
 const TITLE = Object.fromEntries(NAV.flatMap(([, it]) => it.map(([k, l]) => [k, l])))
@@ -325,6 +339,7 @@ export default function AdminApp() {
       {tab === 'filas' && <Wrap><Filas /></Wrap>}
       {tab === 'planos' && <Wrap><Planos /></Wrap>}
       {tab === 'modelos' && <Modelos />}
+      {tab === 'grupos' && <AdmGrupos />}
       {tab === 'exercicios' && <Exercicios />}
       {['moderacao', 'ranking'].includes(tab) && (X ? <Wrap><X /></Wrap> : <p className="g-mut">Indisponível.</p>)}
       {tab === 'auditoria' && <AuditoriaT />}
