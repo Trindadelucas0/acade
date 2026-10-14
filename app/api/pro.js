@@ -89,7 +89,7 @@ export function proRoutes({ json, readBody }) {
         q(`select t.*, (select body from messages m where m.thread_id=t.id order by id desc limit 1) last_body, (select count(*) from messages m where m.thread_id=t.id) n
            from threads t where t.student_id=$1 order by t.updated_at desc limit 50`, [u.id]),
         q(`select exercise_id, occurrence_id from exercise_blocks where student_id=$1 and active`, [u.id]),
-        q(`select p.id,p.title,p.notes,p.exercises,p.updated_at, coalesce(pp.display_name,o.name) owner_name, p.owner_id from pro_plans p join users o on o.id=p.owner_id
+        q(`select p.id,p.title,p.notes,p.exercises,p.days,p.description,p.goal,p.specialty,p.version,p.updated_at, coalesce(pp.display_name,o.name) owner_name, p.owner_id from pro_plans p join users o on o.id=p.owner_id
            left join professional_profiles pp on pp.user_id=o.id where p.student_id=$1 and p.status='ativo' order by p.updated_at desc`, [u.id])])
       json(res, 200, { professionals: pros.rows, occurrences: occ.rows, threads: th.rows, blocks: blocks.rows, plans: plans.rows })
     },
@@ -102,7 +102,11 @@ export function proRoutes({ json, readBody }) {
       const ids = (p.exercises || []).map(e => e.exercise_id)
       const media = (await q('select id, media_url, instructions_pt from exercises where id = any($1)', [ids])).rows
       const by = Object.fromEntries(media.map(m => [m.id, m]))
-      p.exercises = (p.exercises || []).map(e => ({ ...e, media: by[e.exercise_id]?.media_url || null, instructions: e.notes || by[e.exercise_id]?.instructions_pt || null }))
+      const ids2 = (p.days || []).flatMap(d => (d.exercises || []).map(e => e.exercise_id)).filter(i => !by[i])
+      if (ids2.length) for (const m of (await q('select id, media_url, instructions_pt from exercises where id = any($1)', [ids2])).rows) by[m.id] = m
+      const enrich = e => ({ ...e, media: by[e.exercise_id]?.media_url || null, how_to: by[e.exercise_id]?.instructions_pt || null, instructions: e.instructions || e.notes || by[e.exercise_id]?.instructions_pt || null })
+      p.exercises = (p.exercises || []).map(enrich)
+      p.days = (p.days || []).map(d => ({ ...d, exercises: (d.exercises || []).map(enrich) }))
       json(res, 200, { plan: p })
     },
     'GET /api/blocks': async (req, res) => {

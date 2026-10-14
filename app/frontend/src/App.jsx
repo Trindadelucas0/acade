@@ -46,7 +46,7 @@ import Avisos from './views/app/Avisos.jsx'
 import AdminApp from './views/admin/AdminApp.jsx'
 import { TermsGate } from './views/app/Terms.jsx'
 import ProPortal from './views/pro/Portal.jsx'
-import Builder from './views/pro/Builder.jsx'
+import Builder from './views/builder/WorkoutBuilder.jsx'
 
 bindUI(useUI)   // lets the shared controls open sheets without importing the store at module scope
 

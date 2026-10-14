@@ -158,7 +158,7 @@ export function adminCrudRoutes({ json, readBody }) {
       if (b.id) {
         const p = (await q('select * from pro_plans where id=$1 and tenant_id=$2', [b.id, u.tenant_id])).rows[0]
         if (!p) return json(res, 404, { error: 'Treino não encontrado' })
-        await q(`update pro_plans set title=$2, goal=$3, notes=$4, days=$5, exercises=$6, status=$7, version=version+1, updated_at=now() where id=$1`, [p.id, title, txt(b.goal, 40) || p.goal, txt(b.notes, 2000) || null, JSON.stringify(days), JSON.stringify(flat(days)), status])
+        await q(`update pro_plans set title=$2, goal=$3, notes=$4, days=$5, exercises=$6, status=$7, specialty=$8, description=$9, format_version=2, version=version+1, updated_at=now()${status === 'ativo' && p.status !== 'ativo' ? ', published_at=now()' : ''} where id=$1`, [p.id, title, txt(b.goal, 40) || p.goal, txt(b.notes, 2000) || null, JSON.stringify(days), JSON.stringify(flat(days)), status, txt(b.specialty, 60) || p.specialty, b.description === undefined ? p.description : txt(b.description, 1500) || null])
         await q('insert into pro_plan_history(plan_id,actor_id,action,before,after,reason) values($1,$2,$3,$4,$5,$6)', [p.id, u.id, 'editado_admin', JSON.stringify({ version: p.version, title: p.title, days: p.days, status: p.status }), JSON.stringify({ title, days, status }), txt(b.reason, 300) || null])
         await audit(u.tenant_id, u.id, 'treino.editado_admin', 'pro_plan', p.id, { status })
         if (status === 'ativo') await notify(p.student_id, 'treino', 'Seu treino foi atualizado', title, '/treinos').catch(() => {})
@@ -167,12 +167,18 @@ export function adminCrudRoutes({ json, readBody }) {
       if (!(await sameTenant(b.student_id, u.tenant_id))) return json(res, 404, { error: 'Aluno não encontrado' })
       const owner = b.owner_id || u.id
       if (owner !== u.id && !(await q(`select 1 from coach_students where coach_id=$1 and student_id=$2 and status='ativo'`, [owner, b.student_id])).rowCount) return json(res, 400, { error: 'O responsável precisa ter vínculo ativo com o aluno', errors: { owner_id: 'Sem vínculo' } })
-      const r = await q(`insert into pro_plans(tenant_id,owner_id,student_id,title,goal,notes,days,exercises,status) values($1,$2,$3,$4,$5,$6,$7,$8,$9) returning id`,
-        [u.tenant_id, owner, b.student_id, title, txt(b.goal, 40) || null, txt(b.notes, 2000) || null, JSON.stringify(days), JSON.stringify(flat(days)), status])
+      const r = await q(`insert into pro_plans(tenant_id,owner_id,student_id,title,goal,notes,days,exercises,status,specialty,description,template_id,format_version${status === 'ativo' ? ',published_at' : ''}) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,2${status === 'ativo' ? ',now()' : ''}) returning id`,
+        [u.tenant_id, owner, b.student_id, title, txt(b.goal, 40) || null, txt(b.notes, 2000) || null, JSON.stringify(days), JSON.stringify(flat(days)), status, txt(b.specialty, 60) || null, txt(b.description, 1500) || null, isUuid(b.template_id) ? b.template_id : null])
       await q('insert into pro_plan_history(plan_id,actor_id,action,after) values($1,$2,$3,$4)', [r.rows[0].id, u.id, 'criado_admin', JSON.stringify({ title, days, status })])
       await audit(u.tenant_id, u.id, 'treino.criado_admin', 'pro_plan', r.rows[0].id, { student: b.student_id, owner, status })
       if (status === 'ativo') await notify(b.student_id, 'treino', 'Novo treino disponível', title, '/treinos').catch(() => {})
       json(res, 201, { id: r.rows[0].id })
+    },
+    'GET /api/adm/plan': async (req, res) => {
+      const u = await admin(req, res, json); if (!u) return
+      const p = (await q(`select p.*, x.name student from pro_plans p join users x on x.id=p.student_id where p.id=$1 and p.tenant_id=$2`, [qs(req).get('id'), u.tenant_id])).rows[0]
+      if (!p) return json(res, 404, { error: 'Treino não encontrado' })
+      json(res, 200, { plan: p })
     },
     'POST /api/adm/plans/delete': async (req, res) => {
       const u = await admin(req, res, json); if (!u) return

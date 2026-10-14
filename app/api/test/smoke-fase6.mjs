@@ -33,7 +33,7 @@ export async function run({ adm, p1, p2, stu, sid, P1, P2, get, post, check }) {
   check((await post(adm, '/api/adm/plans/save', { student_id: sid, title: 'Admin A', status: 'ativo', days: [{ name: 'A', exercises: [{ exercise_id: 'nao-existe', sets: 3 }] }] })).s === 400, 'treino: só exercícios da biblioteca')
   r = await post(adm, '/api/adm/plans/save', { student_id: sid, title: 'Treino do admin', goal: 'strength', status: 'ativo', days: [{ name: 'A', exercises: [{ exercise_id: ex.id, sets: 3, reps_max: 10 }] }] })
   check(r.s === 201, 'admin cria treino para o aluno'); const pid = r.d.id
-  check((await post(adm, '/api/adm/plans/save', { id: pid, title: 'Treino do admin v2', status: 'ativo', days: [{ name: 'A', exercises: [{ exercise_id: ex.id, sets: 4 }] }] })).s === 200, 'admin edita treino (nova versão)')
+  check((await post(adm, '/api/adm/plans/save', { id: pid, title: 'Treino do admin v2', status: 'ativo', days: [{ name: 'A', exercises: [{ exercise_id: ex.id, sets: 4, reps: '8-12' }] }] })).s === 200, 'admin edita treino (nova versão)')
   let tr = (await get(adm, '/api/adm/student/training?id=' + sid)).d
   check(tr.plans.some(p => p.id === pid && p.version === 2), 'admin vê treinos, programas, sessões e vínculos do aluno')
   check((await post(adm, '/api/adm/plans/delete', { id: pid, confirm: 'EXCLUIR' })).d.archived, 'excluir treino = arquivar (histórico preservado)')

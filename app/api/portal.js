@@ -21,25 +21,15 @@ const proState = async uid => (await q(`select pp.*, (select count(*) from coach
   from professional_profiles pp where pp.user_id=$1`, [uid])).rows[0]
 
 // ---------- fichas: normalização e validação ----------
-export function normDays(days) {
-  return (Array.isArray(days) ? days : []).slice(0, 7).map((d, i) => ({
-    name: txt(d.name, 60) || `Treino ${String.fromCharCode(65 + i)}`, weekday: Number.isInteger(+d.weekday) && d.weekday !== null && d.weekday !== '' ? Math.max(0, Math.min(6, +d.weekday)) : null,
-    exercises: (Array.isArray(d.exercises) ? d.exercises : []).slice(0, 30).map(e => ({
-      exercise_id: txt(e.exercise_id, 80), name: txt(e.name, 120), sets: +e.sets, reps_min: e.reps_min ? +e.reps_min : null, reps_max: e.reps_max ? +e.reps_max : null,
-      load: e.load ? txt(e.load, 30) : null, rest_sec: e.rest_sec === '' || e.rest_sec == null ? 60 : +e.rest_sec, notes: e.notes ? txt(e.notes, 400) : null }))
-  }))
-}
+import { normDays as _nd, shapeProblems, flat as _flat } from './workout-schema.js'
+export const normDays = _nd
 export async function planProblems(days, { full }) {
   const p = [], ids = [...new Set(days.flatMap(d => d.exercises.map(e => e.exercise_id)))]
   if (ids.length) {
     const found = new Set((await q('select id from exercises where id = any($1) and archived_at is null', [ids])).rows.map(r => r.id))
     const miss = ids.filter(i => !found.has(i)); if (miss.length) p.push('Exercício fora da biblioteca: ' + miss.join(', '))
   }
-  days.forEach(d => d.exercises.forEach(e => {
-    if (!(e.sets >= 1 && e.sets <= 10)) p.push(`${d.name}: ${e.name || e.exercise_id} — séries entre 1 e 10`)
-    if (e.reps_max != null && !(e.reps_max >= 1 && e.reps_max <= 100)) p.push(`${d.name}: ${e.name || e.exercise_id} — repetições inválidas`)
-    if (!(e.rest_sec >= 0 && e.rest_sec <= 600)) p.push(`${d.name}: ${e.name || e.exercise_id} — descanso entre 0 e 600 s`)
-  }))
+  p.push(...shapeProblems(days))
   if (full) {
     if (!days.length) p.push('Monte pelo menos um dia de treino')
     days.forEach(d => { if (!d.exercises.length) p.push(`${d.name} está sem exercícios`) })
@@ -56,7 +46,7 @@ async function publishProblems(u, plan) {
   if (!plan.goal) p.push('Informe o objetivo')
   return p.concat(await planProblems(plan.days || [], { full: true }))
 }
-export const flat = days => days.flatMap(d => d.exercises.map(e => ({ ...e, day: d.name })))
+export const flat = _flat
 
 export function portalRoutes({ json, readBody }) {
   return {
@@ -114,18 +104,33 @@ export function portalRoutes({ json, readBody }) {
     'GET /api/pro/library': async (req, res) => {
       const u = await requireAuth(req, res, json); if (!u) return
       if (!has(u, 'profissional') && !has(u, 'admin')) return json(res, 403, { error: 'Sem permissão' })
-      const p = qs(req), term = '%' + txt(p.get('q'), 60) + '%', g = txt(p.get('group'), 40) || null, eq = txt(p.get('equipment'), 40) || null
+      const p = qs(req), term = '%' + txt(p.get('q'), 60) + '%', g = txt(p.get('group'), 40) || null, eq = txt(p.get('equipment'), 40) || null, lv = ['beginner', 'intermediate', 'advanced'].includes(p.get('level')) ? p.get('level') : null, lim = Math.min(400, Math.max(1, +p.get('limit') || 60))
       const r = await q(`select e.id, e.name_pt name, e.media_url media, e.level, eq.name_pt equipment,
           (select array_agg(distinct mg.name_pt) from exercise_groups x join muscle_groups mg on mg.id=x.group_id where x.exercise_id=e.id) groups
         from exercises e left join equipment eq on eq.id=e.equipment_id
         where (e.tenant_id is null or e.tenant_id=$2) and e.archived_at is null and e.name_pt ilike $1 and ($3::text is null or exists (select 1 from exercise_groups x where x.exercise_id=e.id and x.group_id=$3))
-          and ($4::text is null or e.equipment_id=$4) order by e.name_pt limit 60`, [term, u.tenant_id, g, eq])
+          and ($4::text is null or e.equipment_id=$4) and ($5::text is null or e.level=$5) order by e.name_pt limit $6`, [term, u.tenant_id, g, eq, lv, lim])
       const [groups, equip] = await Promise.all([q('select id,name_pt from muscle_groups where is_training order by position'), q('select id,name_pt from equipment order by name_pt')])
       json(res, 200, { exercises: r.rows, groups: groups.rows, equipment: equip.rows })
     },
     'GET /api/pro/templates': async (req, res) => {
       const u = await proOnly(req, res, json); if (!u) return
-      json(res, 200, { templates: (await q(`select * from workout_templates where tenant_id=$1 and status='ativo' order by title`, [u.tenant_id])).rows })
+      json(res, 200, { templates: (await q(`select * from workout_templates where tenant_id=$1 and status='ativo' and (scope='global' or owner_id=$2) order by scope, title`, [u.tenant_id, u.id])).rows })
+    },
+    // modelo pessoal do profissional (só ele vê); modelos globais continuam exclusivos do admin
+    'POST /api/pro/templates': async (req, res) => {
+      const u = await proOnly(req, res, json); if (!u) return
+      const b = await readBody(req), days = normDays(b.days), title = txt(b.title, 120)
+      if (title.length < 2) return json(res, 400, { error: 'Dê um nome ao modelo', problems: ['Dê um nome ao modelo'] })
+      const probs = await planProblems(days, { full: true }); if (probs.length) return json(res, 400, { error: probs[0], problems: probs })
+      const f = [txt(b.goal, 60) || null, txt(b.level, 30) || null, txt(b.specialty, 60) || null, txt(b.description, 1500) || null, JSON.stringify(days)]
+      if (b.id) {
+        const r = await q(`update workout_templates set title=$3,goal=$4,level=$5,specialty=$6,description=$7,days=$8,format_version=2,version=version+1,updated_at=now() where id=$1 and owner_id=$2 and scope='pessoal' returning id`, [b.id, u.id, title, ...f])
+        if (!r.rowCount) return json(res, 403, { error: 'Você só edita os seus modelos pessoais' })
+        await audit(u.tenant_id, u.id, 'modelo_pessoal.editado', 'template', b.id); return json(res, 200, { id: b.id })
+      }
+      const r = await q(`insert into workout_templates(tenant_id,title,goal,level,specialty,description,days,created_by,owner_id,scope,format_version) values($1,$2,$3,$4,$5,$6,$7,$8,$8,'pessoal',2) returning id`, [u.tenant_id, title, ...f, u.id])
+      await audit(u.tenant_id, u.id, 'modelo_pessoal.criado', 'template', r.rows[0].id); json(res, 201, { id: r.rows[0].id })
     },
     'GET /api/pro/prescriptions': async (req, res) => {
       const u = await proOnly(req, res, json); if (!u) return
@@ -162,7 +167,7 @@ export function portalRoutes({ json, readBody }) {
         if (!(await isLinked(u.id, p.student_id))) return json(res, 403, { error: 'Não há vínculo ativo com este aluno' })
         const nv = p.status === 'ativo'
         if (nv) { const pp = await publishProblems(u, { ...p, ...f, days }); if (pp.length) return json(res, 400, { error: pp[0], problems: pp }) }
-        await q(`update pro_plans set title=$2,goal=$3,specialty=$4,description=$5,notes=$6,start_date=$7,days=$8,exercises=$9,version=version+1,updated_at=now()${nv ? ',published_version=version+1' : ''} where id=$1`,
+        await q(`update pro_plans set title=$2,goal=$3,specialty=$4,description=$5,notes=$6,start_date=$7,days=$8,exercises=$9,format_version=2,version=version+1,updated_at=now()${nv ? ',published_version=version+1' : ''} where id=$1`,
           [p.id, f.title, f.goal, f.specialty, f.description, f.notes, f.start_date, JSON.stringify(days), JSON.stringify(flat(days))])
         await q('insert into pro_plan_history(plan_id,actor_id,action,before,after,reason) values($1,$2,$3,$4,$5,$6)', [p.id, u.id, nv ? 'nova_versao' : 'rascunho_editado', JSON.stringify({ version: p.version, days: p.days }), JSON.stringify({ days }), txt(b.reason, 300) || null])
         await audit(u.tenant_id, u.id, nv ? 'prescricao.nova_versao' : 'prescricao.rascunho', 'pro_plan', p.id)
@@ -170,7 +175,7 @@ export function portalRoutes({ json, readBody }) {
         return json(res, 200, { id: p.id, status: p.status, version: p.version + 1 })
       }
       if (!isUuid(b.student_id) || !(await isLinked(u.id, b.student_id))) return json(res, 403, { error: 'Aluno não vinculado a você' })
-      const r = await q(`insert into pro_plans(tenant_id,owner_id,student_id,title,goal,specialty,description,notes,start_date,template_id,days,exercises,status) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'rascunho') returning id`,
+      const r = await q(`insert into pro_plans(tenant_id,owner_id,student_id,title,goal,specialty,description,notes,start_date,template_id,days,exercises,status,format_version) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'rascunho',2) returning id`,
         [u.tenant_id, u.id, b.student_id, f.title, f.goal, f.specialty, f.description, f.notes, f.start_date, f.template_id, JSON.stringify(days), JSON.stringify(flat(days))])
       await q('insert into pro_plan_history(plan_id,actor_id,action,after) values($1,$2,$3,$4)', [r.rows[0].id, u.id, 'rascunho_criado', JSON.stringify({ days })])
       await audit(u.tenant_id, u.id, 'prescricao.rascunho', 'pro_plan', r.rows[0].id, { student: b.student_id })
@@ -334,7 +339,7 @@ export function portalRoutes({ json, readBody }) {
     },
     'GET /api/adm/templates': async (req, res) => {
       const u = await admin(req, res, json); if (!u) return
-      json(res, 200, { templates: (await q(`select t.*, (select count(*)::int from pro_plans p where p.template_id=t.id) uses from workout_templates t where tenant_id=$1 order by status, title`, [u.tenant_id])).rows })
+      json(res, 200, { templates: (await q(`select t.*, (select count(*)::int from pro_plans p where p.template_id=t.id) uses from workout_templates t where tenant_id=$1 and t.scope='global' order by status, title`, [u.tenant_id])).rows })
     },
     'POST /api/adm/templates': async (req, res) => {
       const u = await admin(req, res, json); if (!u) return
@@ -343,11 +348,11 @@ export function portalRoutes({ json, readBody }) {
       const probs = await planProblems(days, { full: true }); if (probs.length) return json(res, 400, { error: probs[0], problems: probs })
       const f = [txt(b.goal, 60) || null, txt(b.level, 30) || null, txt(b.specialty, 60) || null, txt(b.description, 1500) || null, JSON.stringify(days)]
       if (b.id) {
-        const r = await q(`update workout_templates set title=$3,goal=$4,level=$5,specialty=$6,description=$7,days=$8,version=version+1,updated_at=now() where id=$1 and tenant_id=$2 returning id`, [b.id, u.tenant_id, title, ...f])
+        const r = await q(`update workout_templates set title=$3,goal=$4,level=$5,specialty=$6,description=$7,days=$8,format_version=2,version=version+1,updated_at=now() where id=$1 and tenant_id=$2 and scope='global' returning id`, [b.id, u.tenant_id, title, ...f])
         if (!r.rowCount) return json(res, 404, { error: 'Modelo não encontrado' })
         await audit(u.tenant_id, u.id, 'modelo.editado', 'template', b.id); return json(res, 200, { id: b.id })
       }
-      const r = await q(`insert into workout_templates(tenant_id,title,goal,level,specialty,description,days,created_by) values($1,$2,$3,$4,$5,$6,$7,$8) returning id`, [u.tenant_id, title, ...f, u.id])
+      const r = await q(`insert into workout_templates(tenant_id,title,goal,level,specialty,description,days,created_by,format_version) values($1,$2,$3,$4,$5,$6,$7,$8,2) returning id`, [u.tenant_id, title, ...f, u.id])
       await audit(u.tenant_id, u.id, 'modelo.criado', 'template', r.rows[0].id); json(res, 201, { id: r.rows[0].id })
     },
     'POST /api/adm/templates/status': async (req, res) => {

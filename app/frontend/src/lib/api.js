@@ -10,7 +10,7 @@ export async function api(path, opts) {
   const url = path.startsWith('http') ? path : (API_BASE + path)
   const r = await fetch(url, Object.assign({ credentials: 'include', headers: { 'Content-Type': 'application/json' } }, opts))
   const data = await r.json().catch(() => ({}))
-  if (!r.ok) { const e = new Error(data.error || ('HTTP ' + r.status)); e.status = r.status; e.errors = data.errors; throw e }
+  if (!r.ok) { const e = new Error(data.error || ('HTTP ' + r.status)); e.status = r.status; e.errors = data.errors; e.problems = data.problems; throw e }
   return data
 }
 

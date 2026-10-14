@@ -216,9 +216,9 @@ function Modelos() {
   const cols = [{ k: 'title', l: 'Modelo' }, { k: 'goal', l: 'Objetivo', r: r => GOALS[r.goal] || r.goal || '—' }, { k: 'specialty', l: 'Especialidade' }, { k: 'days', l: 'Dias', r: r => r.days.length, csv: r => r.days.length },
     { k: 'uses', l: 'Usos' }, { k: 'version', l: 'Versão' }, { k: 'status', l: 'Status', r: r => <Pill v={r.status} map={ST} /> }]
   return <>
-    <div className="adm-tools"><button className="adm-btn" onClick={() => setEd({ title: '', goal: '', specialty: '', description: '', days: [{ name: 'Treino A', exercises: [] }] })} data-testid="tpl-new">Novo modelo</button>
+    <div className="adm-tools"><button className="adm-btn" onClick={() => nav('/pro/treino')} data-testid="tpl-new">Novo modelo (construtor)</button>
       <span className="g-mut g-xs">Modelos ficam disponíveis para todos os profissionais em “Criar treino › Usar modelo”.</span></div>
-    {err ? <p className="g-warn">{err}</p> : <DataTable name="modelos" cols={cols} rows={d?.templates} onRow={r => setEd(r)} />}
+    {err ? <p className="g-warn">{err}</p> : <DataTable name="modelos" cols={cols} rows={d?.templates} onRow={r => nav('/pro/treino?template=' + r.id + '&scope=global')} />}
     {ed && <Drawer title={ed.id ? 'Editar modelo' : 'Novo modelo'} onClose={() => setEd(null)}><TemplateEditor t={ed} onDone={() => { setEd(null); reload() }} /></Drawer>}
   </>
 }

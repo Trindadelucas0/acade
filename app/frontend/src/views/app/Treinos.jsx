@@ -32,7 +32,9 @@ export default function Treinos() {
       <div className="g-card g-list">{care.plans.map(p => <div key={p.id} className="g-li" style={{ display: 'block' }} data-testid="pro-plan">
         <b>{p.title}</b><br /><span className="g-mut g-xs">Responsável: {p.owner_name} · {p.exercises.length} exercícios</span>
         {p.notes && <p className="g-sm g-mut" style={{ marginTop: 4 }}>{p.notes}</p>}
-        <button className="g-btn g-sm" style={{ marginTop: 8 }} disabled={!!live} onClick={() => nav('/treinar?plan=' + p.id)}>Abrir treino</button></div>)}</div></>}
+        {p.description && <p className="g-sm" style={{ marginTop: 4 }} data-testid="plan-description">{p.description}</p>}
+        {p.days?.length > 1 ? <div className="g-row" style={{ gap: 8, flexWrap: 'wrap', marginTop: 8 }}>{p.days.map((d, i) => <button key={i} className="g-btn g-sm" style={{ width: 'auto', padding: '0 14px' }} disabled={!!live} onClick={() => nav(`/treinar?plan=${p.id}&day=${i}`)} data-testid="plan-day">{d.name} · {d.exercises.length}</button>)}</div>
+          : <button className="g-btn g-sm" style={{ marginTop: 8 }} disabled={!!live} onClick={() => nav('/treinar?plan=' + p.id)}>Abrir treino</button>}</div>)}</div></>}
     <h2>Programa guiado</h2>
     <div className="g-card g-list">
       <Li icon="calendar" t="Meu programa" s="Treinos da semana e progresso" to="/meu-programa" />

@@ -132,9 +132,9 @@ export function StudentTraining({ u, pros }) {
   if (!d) return <p className="g-mut">Carregando…</p>
   const active = (pros || []).filter(p => p.state === 'ativo')
   return <div style={{ marginTop: 12 }} data-testid="student-training">
-    <div className="adm-card"><div className="g-row"><h3 style={{ flex: 1 }}>Treinos (fichas)</h3><button className="adm-btn" onClick={() => setEdit({})} data-testid="pl-new">+ Criar treino</button></div>
+    <div className="adm-card"><div className="g-row"><h3 style={{ flex: 1 }}>Treinos (fichas)</h3><button className="adm-btn" onClick={() => { location.hash = '#/pro/treino?student=' + u.id }} data-testid="pl-builder">+ Criar no construtor</button><button className="adm-btn ghost" onClick={() => setEdit({})} data-testid="pl-new">Edição rápida</button></div>
       {d.plans.map(p => <div key={p.id} className="adm-tools" style={{ marginTop: 6 }}><span style={{ flex: 1 }}><b>{p.title}</b> · {p.status} · v{p.version} · {p.owner}</span>
-        <button className="adm-btn ghost" onClick={() => setEdit(p)}>Ver / editar</button>
+        <button className="adm-btn ghost" onClick={() => { location.hash = '#/pro/treino?id=' + p.id }}>Abrir no construtor</button><button className="adm-btn ghost" onClick={() => setEdit(p)}>Ver / editar</button>
         {p.status !== 'arquivado' && <button className="adm-btn danger" onClick={() => confirm({ title: 'Excluir treino', text: `“${p.title}” será arquivado (sai do aluno; histórico e execuções ficam).`, needReason: false, onConfirm: async reason => { await C.admDelPlan({ id: p.id, confirm: 'EXCLUIR', reason }); reload() } })}>Excluir</button>}</div>)}
       {!d.plans.length && <p className="g-mut g-xs">Nenhum treino.</p>}</div>
     {edit && <PlanEditor u={u} plan={edit} links={d.links.filter(l => l.status === 'ativo')} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); reload() }} />}
