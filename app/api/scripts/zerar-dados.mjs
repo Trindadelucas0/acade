@@ -24,6 +24,12 @@ try {
   const extra = ['post_likes', 'post_comments', 'content_reports', 'pro_request_history', 'ranking_snapshots', 'workout_templates', 'audit_log', 'password_resets', 'term_acceptances', 'data_requests', 'notifications', 'messages', 'threads']
   const exists = (await c.query(`select tablename from pg_tables where schemaname='public'`)).rows.map(r => r.tablename)
   const all = [...new Set([...fk, ...extra])].filter(t => exists.includes(t))
+  // fecho: toda tabela que referencia uma tabela zerada também é zerada (as mantidas não podem depender delas)
+  const refs = (await c.query(`select cl.relname t, r.relname r from pg_constraint co join pg_class cl on cl.oid=co.conrelid join pg_class r on r.oid=co.confrelid where co.contype='f' and cl.relname<>r.relname`)).rows
+  for (let grew = true; grew;) { grew = false
+    for (const { t, r } of refs) if ((all.includes(r) || r === 'users') && !all.includes(t) && t !== 'users') {
+      if (keep.has(t)) { if (r !== 'users') throw new Error(`tabela mantida ${t} depende de ${r}`); continue }
+      all.push(t); grew = true } }
   await c.query(`truncate ${all.map(t => `"${t}"`).join(',')} restart identity`)
   // users: delete (tabelas mantidas ainda referenciam users, com as colunas já anuladas)
   await c.query('delete from users')
