@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { isProAccount, isAdminAccount, isNonTrainee } from './TabBar.jsx'
+import { isProAccount, isAdminAccount, isNonTrainee } from './accounts.js'
 describe('tipos de conta', () => {
   const admin = { admin: true, pro: false, roles: ['admin'] }, pro = { admin: false, pro: true, roles: ['profissional'] }, aluno = { admin: false, pro: false, roles: ['aluno'] }
   it('admin é conta de gestão (sem fluxo de aluno)', () => { expect(isAdminAccount(admin)).toBe(true); expect(isNonTrainee(admin)).toBe(true); expect(isProAccount(admin)).toBe(false) })
