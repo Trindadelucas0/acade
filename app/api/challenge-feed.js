@@ -9,7 +9,7 @@ import { requireAuth, audit } from './auth.js'
 import { notify, notifyAdmins } from './pro.js'
 import { getChallenge, canManage } from './challenges.js'
 import { canMoveProof } from './challenge-rules.js'
-import { loadAndCompute, podiumOf, spDay, formulaOf } from './challenge-score.js'
+import { loadAndCompute, podiumOf, spDay, formulaOf, checkGoals } from './challenge-score.js'
 
 const UP = path.join(path.dirname(fileURLToPath(import.meta.url)), 'uploads')
 const isUuid = s => /^[0-9a-f-]{36}$/i.test(String(s || ''))
@@ -17,13 +17,16 @@ const txt = (s, n = 2000) => String(s ?? '').trim().slice(0, n)
 const qs = req => new URL(req.url, 'http://x').searchParams
 const isAdm = u => u.roles.includes('admin')
 const link = (id, tab) => '/desafio/' + id + (tab ? '?aba=' + tab : '')
-export const LIMITS = { foto: 2.5 * 1024 * 1024, video: 3.5 * 1024 * 1024 }
+export const LIMITS = { foto: 2.5 * 1024 * 1024, video: 50 * 1024 * 1024 }
 const LIVE_FEED = ['inscricoes_abertas', 'agendado', 'em_andamento', 'apurando', 'concluido']
 const memberOf = async (cid, uid) => (await q('select * from challenge_members where challenge_id=$1 and user_id=$2', [cid, uid])).rows[0]
 const inside = m => m && ['ativo', 'aprovado'].includes(m.status)
 const mediaFile = url => { const m = /^\/api\/media\?f=([a-f0-9]{24}\.(png|jpg|webp|mp4|webm))$/.exec(url || ''); return m && path.join(UP, m[1]) }
 const fileName = url => (/f=([a-f0-9]{24}\.\w+)$/.exec(url || '') || [])[1]
-const ownsMedia = async (url, uid, cid) => (await q('select 1 from challenge_media where file=$1 and user_id=$2 and challenge_id=$3', [fileName(url), uid, cid])).rowCount > 0
+const mediaRow = async (url, uid, cid) => (await q('select * from challenge_media where file=$1 and user_id=$2 and challenge_id=$3', [fileName(url), uid, cid])).rows[0]
+const ownsMedia = async (url, uid, cid) => !!(await mediaRow(url, uid, cid))
+// lê só o cabeçalho para conferir a assinatura (arquivos de até 50 MB)
+const headOf = file => { const fd = fs.openSync(file, 'r'), b = Buffer.alloc(16); fs.readSync(fd, b, 0, 16, 0); fs.closeSync(fd); return b }
 const kindOf = url => /\.(mp4|webm)$/.test(url) ? 'video' : 'foto'
 export function sniff(buf) {
   const h = buf.subarray(0, 12).toString('hex')
@@ -96,11 +99,44 @@ export function challengeFeedRoutes({ json, readBody }) {
       if (!mm) return json(res, 400, { error: 'Envie foto (PNG, JPEG, WEBP) ou vídeo (MP4, WEBM)' })
       const buf = Buffer.from(mm[4], 'base64'), kind = sniff(buf)
       if (!kind || kind[0] !== (mm[2] ? 'foto' : 'video')) return json(res, 400, { error: 'Arquivo corrompido ou de tipo diferente do informado' })
-      if (buf.length > LIMITS[kind[0]]) return json(res, 413, { error: kind[0] === 'foto' ? 'Foto acima de 2,5 MB' : 'Vídeo acima de 3,5 MB' })
+      if (buf.length > (kind[0] === 'foto' ? LIMITS.foto : 3.5 * 1024 * 1024)) return json(res, 413, { error: kind[0] === 'foto' ? 'Foto acima de 2,5 MB' : 'Vídeo grande: use o envio por streaming (até 50 MB)' })
       fs.mkdirSync(UP, { recursive: true }); const name = crypto.randomBytes(12).toString('hex') + '.' + kind[1]
       fs.writeFileSync(path.join(UP, name), buf); const sha = crypto.createHash('sha256').update(buf).digest('hex')
       await q('insert into challenge_media(file,user_id,challenge_id,media_type,sha256,size_bytes) values($1,$2,$3,$4,$5,$6)', [name, u.id, c.id, kind[0], sha, buf.length])
       json(res, 201, { url: '/api/media?f=' + name, media_type: kind[0], size: buf.length, sha256: sha })
+    },
+    // upload por streaming (vídeo até 50 MB; foto até 2,5 MB): corpo bruto, sem passar pelo limite JSON global.
+    // Tipo conferido pelo cabeçalho E pela assinatura do arquivo; tamanho conferido durante a gravação.
+    'POST /api/challenges/media/stream': async (req, res) => {
+      const { u, c, m, mgr } = await ctx(req, res, qs(req).get('id')); if (!u) { req.resume(); return }
+      const fail = (code, error) => { req.resume(); json(res, code, { error }) }
+      if (!inside(m) && !mgr) return fail(403, 'Só participantes enviam mídia')
+      const ct = String(req.headers['content-type'] || '').split(';')[0].trim()
+      const want = { 'video/mp4': ['video', 'mp4'], 'video/webm': ['video', 'webm'], 'image/png': ['foto', 'png'], 'image/jpeg': ['foto', 'jpg'], 'image/webp': ['foto', 'webp'] }[ct]
+      if (!want) return fail(415, 'Envie foto (PNG, JPEG, WEBP) ou vídeo (MP4, WEBM)')
+      const max = LIMITS[want[0]], len = +req.headers['content-length'] || 0
+      if (len > max) return fail(413, want[0] === 'foto' ? 'Foto acima de 2,5 MB' : 'Vídeo acima de 50 MB')
+      fs.mkdirSync(UP, { recursive: true })
+      const name = crypto.randomBytes(12).toString('hex') + '.' + want[1], file = path.join(UP, name), out = fs.createWriteStream(file), hash = crypto.createHash('sha256')
+      let size = 0, head = Buffer.alloc(0), aborted = false
+      const ok = await new Promise(resolve => {
+        req.on('data', d => {
+          if (aborted) return
+          size += d.length; if (head.length < 16) head = Buffer.concat([head, d]).subarray(0, 16)
+          if (size > max) { aborted = true; out.destroy(); req.unpipe?.(); return resolve('grande') }
+          hash.update(d); if (!out.write(d)) { req.pause(); out.once('drain', () => req.resume()) }
+        })
+        req.on('end', () => { if (!aborted) out.end(() => resolve('ok')) })
+        req.on('error', () => { aborted = true; out.destroy(); resolve('erro') })
+      })
+      const drop = () => fs.rmSync(file, { force: true })
+      if (ok === 'grande') { drop(); req.resume(); return json(res, 413, { error: want[0] === 'foto' ? 'Foto acima de 2,5 MB' : 'Vídeo acima de 50 MB' }) }
+      if (ok !== 'ok' || !size) { drop(); return json(res, 400, { error: 'Envio interrompido, tente de novo' }) }
+      const kind = sniff(head)
+      if (!kind || kind[0] !== want[0] || (want[0] === 'video' && kind[1] !== want[1])) { drop(); return json(res, 400, { error: 'Arquivo corrompido ou de tipo diferente do informado' }) }
+      const sha = hash.digest('hex')
+      await q('insert into challenge_media(file,user_id,challenge_id,media_type,sha256,size_bytes) values($1,$2,$3,$4,$5,$6)', [name, u.id, c.id, kind[0], sha, size])
+      json(res, 201, { url: '/api/media?f=' + name, media_type: kind[0], size, sha256: sha })
     },
     'GET /api/challenges/feed': async (req, res) => {
       const { u, c, mgr } = await ctx(req, res, qs(req).get('id')); if (!u) return
@@ -180,6 +216,7 @@ export function challengeFeedRoutes({ json, readBody }) {
       const { u, c, m } = await ctx(req, res, qs(req).get('id')); if (!u) return
       if (c.status === 'rascunho') return json(res, 409, { error: 'Desafio ainda não publicado' })
       const snap = c.status === 'concluido' && (await q(`select * from challenge_results where challenge_id=$1 and kind='final' order by computed_at desc limit 1`, [c.id])).rows[0]
+      if (!snap && m?.status === 'ativo') await checkGoals(u.id)
       const r = snap ? snap.data : await loadAndCompute(c)
       const state = snap ? (snap.homologated_at ? 'homologado' : 'final') : c.status === 'apurando' ? 'apurando' : ['em_andamento'].includes(c.status) ? 'provisorio' : c.status === 'cancelado' ? 'cancelado' : 'nao_iniciado'
       const page = Math.max(0, +qs(req).get('page') || 0), size = 20, rows = r.rows || []
@@ -223,15 +260,15 @@ export function challengeFeedRoutes({ json, readBody }) {
       if (!m || m.status !== 'ativo') return json(res, 403, { error: 'Só participantes ativos enviam comprovantes' })
       if (c.proof === 'nenhuma') return json(res, 409, { error: 'Este desafio não usa comprovantes' })
       if (!['em_andamento', 'apurando'].includes(c.status)) return json(res, 409, { error: 'Comprovantes só durante o desafio (ou na apuração)' })
-      const file = mediaFile(b.media_url); if (!file || !fs.existsSync(file) || !(await ownsMedia(b.media_url, u.id, c.id))) return json(res, 400, { error: 'Envie a foto ou o vídeo primeiro' })
-      const buf = fs.readFileSync(file), kind = sniff(buf)
+      const file = mediaFile(b.media_url), mr = file && fs.existsSync(file) && await mediaRow(b.media_url, u.id, c.id); if (!mr) return json(res, 400, { error: 'Envie a foto ou o vídeo primeiro' })
+      const kind = sniff(headOf(file)), sz = fs.statSync(file).size
       if (!kind) return json(res, 400, { error: 'Arquivo corrompido' })
       if (!(c.proof_media || []).includes(kind[0])) return json(res, 400, { error: 'Este desafio aceita: ' + (c.proof_media || []).join(' e ') })
-      if (buf.length > LIMITS[kind[0]]) return json(res, 413, { error: 'Arquivo acima do limite' })
+      if (sz > LIMITS[kind[0]] || sz !== mr.size_bytes) return json(res, 413, { error: 'Arquivo acima do limite ou alterado' })
       if (!isUuid(b.session_id) || !(await eligibleSession(b.session_id, u.id, c))) return json(res, 400, { error: 'Escolha um treino seu concluído dentro do período do desafio' })
-      const sha = crypto.createHash('sha256').update(buf).digest('hex')
+      const sha = mr.sha256
       if ((await q(`select 1 from challenge_proofs where sha256=$1 and status not in ('rejeitado','invalidado')`, [sha])).rowCount) return json(res, 409, { error: 'Este arquivo já foi usado como comprovante' })
-      const r = await q(`insert into challenge_proofs(challenge_id,user_id,session_id,media_url,media_type,sha256,size_bytes) values($1,$2,$3,$4,$5,$6,$7) on conflict do nothing returning *`, [c.id, u.id, b.session_id, b.media_url, kind[0], sha, buf.length])
+      const r = await q(`insert into challenge_proofs(challenge_id,user_id,session_id,media_url,media_type,sha256,size_bytes) values($1,$2,$3,$4,$5,$6,$7) on conflict do nothing returning *`, [c.id, u.id, b.session_id, b.media_url, kind[0], sha, sz])
       if (!r.rowCount) return json(res, 409, { error: 'Este treino já tem comprovante neste desafio' })
       await proofLog({ ...r.rows[0], status: null }, 'enviado', u.id)
       const to = await routeProof(c, r.rows[0], u.tenant_id)
@@ -261,6 +298,7 @@ export function challengeFeedRoutes({ json, readBody }) {
       await audit(u.tenant_id, u.id, 'desafio.comprovante_' + b.decision, 'proof', p.id, { reason })
       const msg = { em_analise: 'Seu comprovante está em análise', aprovado: 'Comprovante aprovado', rejeitado: 'Comprovante rejeitado', substituicao: 'Envie outro comprovante' }[b.decision]
       await notify(p.user_id, 'desafio.comprovante_' + b.decision, msg, c.name, link(c.id, 'comprovantes'))
+      if (b.decision === 'aprovado') await checkGoals(p.user_id)
       json(res, 200, { status: b.decision })
     },
     'POST /api/challenges/proofs/replace': async (req, res) => {
@@ -268,12 +306,12 @@ export function challengeFeedRoutes({ json, readBody }) {
       const p = isUuid(b.proof_id) && (await q('select * from challenge_proofs where id=$1 and user_id=$2', [b.proof_id, u.id])).rows[0]
       if (!p) return json(res, 404, { error: 'Comprovante não encontrado' })
       if (!canMoveProof(p.status, 'enviado')) return json(res, 409, { error: 'Só é possível substituir quando o revisor pedir' })
-      const file = mediaFile(b.media_url); if (!file || !fs.existsSync(file) || !(await ownsMedia(b.media_url, u.id, p.challenge_id))) return json(res, 400, { error: 'Envie o novo arquivo' })
-      const buf = fs.readFileSync(file), kind = sniff(buf), sha = crypto.createHash('sha256').update(buf).digest('hex'), c = await getChallenge(p.challenge_id, u.tenant_id)
+      const file = mediaFile(b.media_url), mr = file && fs.existsSync(file) && await mediaRow(b.media_url, u.id, p.challenge_id); if (!mr) return json(res, 400, { error: 'Envie o novo arquivo' })
+      const kind = sniff(headOf(file)), sha = mr.sha256, sz = mr.size_bytes, c = await getChallenge(p.challenge_id, u.tenant_id)
       if (!kind || !(c.proof_media || []).includes(kind[0])) return json(res, 400, { error: 'Tipo de arquivo não aceito' })
       if ((await q(`select 1 from challenge_proofs where sha256=$1 and id<>$2 and status not in ('rejeitado','invalidado')`, [sha, p.id])).rowCount || sha === p.sha256) return json(res, 409, { error: 'Este arquivo já foi usado como comprovante' })
       await proofLog(p, 'enviado', u.id, 'substituição')
-      await q(`update challenge_proofs set status='enviado', media_url=$2, media_type=$3, sha256=$4, size_bytes=$5, updated_at=now() where id=$1`, [p.id, b.media_url, kind[0], sha, buf.length])
+      await q(`update challenge_proofs set status='enviado', media_url=$2, media_type=$3, sha256=$4, size_bytes=$5, updated_at=now() where id=$1`, [p.id, b.media_url, kind[0], sha, sz])
       await routeProof(c, p, u.tenant_id); json(res, 200, { status: 'enviado' })
     },
     'POST /api/challenges/proofs/appeal': async (req, res) => {

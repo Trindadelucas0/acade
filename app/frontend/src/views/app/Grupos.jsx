@@ -2,6 +2,8 @@
 import { useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { GR, PRIV_PT } from '../../lib/groups.js'
+import { ReportBtn, ChDialogLite } from './DesafioFeed.jsx'
+import { useStore } from '../../store/useStore.js'
 import { Sheet, Av, Empty, Load, Tabs, useLoad, Err, Field } from './kit.jsx'
 
 function Dialog({ d, close }) {
@@ -53,6 +55,7 @@ export function GroupPage() {
   const { id } = useParams(), [sp] = useSearchParams(), nav = useNavigate(), code = sp.get('convite')
   const [d, err, reload] = useLoad(() => GR.get(id), [id]), [dlg, setDlg] = useState(null), [msg, setMsg] = useState(''), [edit, setEdit] = useState(false), [tab, setTab] = useState('membros')
   const act = fn => async (...a) => { setMsg(''); try { await fn(...a); reload() } catch (e) { setMsg(e.message) } }
+  const myId = useStore(s => s.user)?.id, [rep, setRep] = useState(null)
   if (err && code) return <div className="ag"><h1>Convite de grupo</h1><p className="g-mut g-sm">Use o código para entrar.</p>{msg && <p className="g-warn">{msg}</p>}<button className="g-btn" onClick={act(async () => { await GR.join(id, code) })} data-testid="grp-join-code">Entrar com o convite</button></div>
   if (err) return <div className="ag"><Err msg={err} /></div>
   if (!d) return <div className="ag"><Load /></div>
@@ -61,6 +64,8 @@ export function GroupPage() {
     {g.cover_url && <img src={g.cover_url} alt="" style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 16 }} />}
     <span className="g-eyebrow">Grupo · {PRIV_PT[g.privacy]}</span>
     <h1>{g.icon} {g.name}</h1>
+    {!owner && <ReportBtn type="group" id={g.id} setDlg={setRep} />}
+    {rep && <ChDialogLite d={rep} close={() => setRep(null)} />}
     {g.status !== 'ativo' && <p className="g-warn">Grupo {g.status}{g.status_reason ? ': ' + g.status_reason : ''}</p>}
     {g.description && <p className="g-sm">{g.description}</p>}
     <p className="g-mut g-xs">{d.count}{g.member_limit ? '/' + g.member_limit : ''} membros</p>
@@ -74,6 +79,7 @@ export function GroupPage() {
     {tab === 'regras' && <div className="g-card"><p className="g-sm" style={{ whiteSpace: 'pre-wrap' }}>{g.rules || 'Sem regras definidas.'}</p></div>}
     {tab === 'membros' && <div className="g-card g-list">{d.members.length ? d.members.map(m => <div key={m.user_id} className="g-li"><Av name={m.name} url={m.avatar} size={36} />
       <span style={{ flex: 1, minWidth: 0 }}><b className="g-sm">{m.name}</b><br /><span className="g-mut g-xs">{m.role}</span></span>
+      {m.user_id && m.user_id !== myId && <ReportBtn type="user" id={m.user_id} setDlg={setRep} />}
       {mod && m.role !== 'dono' && m.user_id !== undefined && <>
         {owner && <button className="g-btn g-ghost g-sm" style={{ width: 'auto', padding: '0 10px' }} onClick={act(() => GR.role(id, m.user_id, m.role === 'moderador' ? 'membro' : 'moderador'))}>{m.role === 'moderador' ? 'Tirar moderação' : 'Tornar moderador'}</button>}
         {owner && <button className="g-btn g-ghost g-sm" style={{ width: 'auto', padding: '0 10px' }} onClick={() => setDlg({ title: 'Transferir propriedade', text: `${m.name} será o novo dono. Você passa a moderador.`, okLabel: 'Transferir', ok: act(() => GR.transfer(id, m.user_id)) })} data-testid="grp-transfer">Tornar dono</button>}

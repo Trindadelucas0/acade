@@ -1,4 +1,5 @@
 // AVAGYM — Treino guiado: onboarding, recomendação determinística, programa ativo, sessões e progresso.
+import { checkGoals } from './challenge-score.js'
 import { summarize } from './timing.js'
 // Todas as rotas exigem login (requireAuth) e são isoladas por tenant (tenantScope / user_id).
 import { q } from './db/pool.js'
@@ -274,6 +275,7 @@ export function guidedRoutes({ json, readBody }) {
       const timing = finished ? summarize({ started_at: started, finished_at: finished, paused_sec: paused, sets: tsets }) : null
       await q('update sessions set paused_sec=$2, active_sec=$3, timing=$4, duration_sec=coalesce($5, duration_sec) where id=$1', [sid, paused, timing?.active_sec ?? null, timing ? JSON.stringify(timing) : null, timing?.total_sec ?? null])
       json(res, 200, { id: sid, volume, timing })
+      checkGoals(u.id)   // V5: aviso "meta atingida" nos desafios (assíncrono)
     },
     'GET /api/guided/progress': async (req, res) => {
       const u = await requireTrainee(req, res, json); if (!u) return

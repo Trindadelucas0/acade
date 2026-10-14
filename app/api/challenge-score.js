@@ -103,3 +103,18 @@ export async function snapshot(c, kind = 'final') {
   await q('insert into challenge_results(challenge_id,kind,rules_version,period_start,period_end,data) values($1,$2,$3,$4,$5,$6)', [c.id, kind, c.rules_version, c.starts_at, c.ends_at, r])
   return r
 }
+// notificação "meta atingida" (uma vez por pessoa e desafio); chamada após salvar treino, aprovar comprovante ou ver o ranking
+import { notify } from './pro.js'
+export async function checkGoals(userId) {
+  try {
+    const cs = (await q(`select c.* from challenges c join challenge_members m on m.challenge_id=c.id where m.user_id=$1 and m.status='ativo' and c.status in ('em_andamento','apurando') and c.goal is not null`, [userId])).rows
+    for (const c of cs) {
+      const r = await loadAndCompute(c), link = '/desafio/' + c.id + '?aba=ranking'
+      const hit = r.mode === 'coletivo' ? (r.collective?.reached ? (r.rows || []).map(x => x.user_id) : []) : (r.rows || []).filter(x => x.goal_reached).map(x => x.user_id)
+      for (const uid of hit) {
+        if ((await q(`select 1 from notifications where user_id=$1 and kind='desafio.meta' and link=$2`, [uid, link])).rowCount) continue
+        await notify(uid, 'desafio.meta', r.mode === 'coletivo' ? 'O grupo atingiu a meta!' : 'Você atingiu a meta do desafio!', c.name, link)
+      }
+    }
+  } catch (e) { console.error('[checkGoals]', e.message) }
+}

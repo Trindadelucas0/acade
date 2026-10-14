@@ -25,7 +25,7 @@ export const CF = {
   feed: (id, page = 0) => api(`/api/challenges/feed?id=${id}&page=${page}`), post: b => post('/api/challenges/posts', b), publish: post_id => post('/api/challenges/posts/publish', { post_id }),
   del: (post_id, reason) => post('/api/challenges/posts/delete', { post_id, reason }), pin: (post_id, on) => post('/api/challenges/posts/pin', { post_id, on }),
   like: (post_id, on) => post('/api/challenges/posts/like', { post_id, on }), comment: (post_id, body) => post('/api/challenges/posts/comment', { post_id, body }),
-  media: (id, data) => post('/api/challenges/media', { id, data }), sessions: id => api('/api/challenges/sessions?id=' + id),
+  media: (id, data) => post('/api/challenges/media', { id, data }), stream: (id, file) => api('/api/challenges/media/stream?id=' + id, { method: 'POST', headers: { 'Content-Type': file.type }, body: file }), sessions: id => api('/api/challenges/sessions?id=' + id),
   proofs: (id, mine) => api('/api/challenges/proofs?id=' + id + (mine ? '&mine=1' : '')), sendProof: b => post('/api/challenges/proofs', b),
   review: (proof_id, decision, reason) => post('/api/challenges/proofs/review', { proof_id, decision, reason }), replace: (proof_id, media_url) => post('/api/challenges/proofs/replace', { proof_id, media_url }),
   appeal: (proof_id, text) => post('/api/challenges/proofs/appeal', { proof_id, text }), report: (target_type, target_id, reason, details) => post('/api/reports', { target_type, target_id, reason, details }),
@@ -35,7 +35,7 @@ export const CF = {
 }
 export const PROOF_PT = { enviado: 'Enviado', em_analise: 'Em análise', aprovado: 'Aprovado', rejeitado: 'Rejeitado', substituicao: 'Substituição pedida', recurso: 'Recurso em análise', invalidado: 'Invalidado' }
 export const readFile = f => new Promise((ok, bad) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = () => bad(new Error('Não foi possível ler o arquivo')); r.readAsDataURL(f) })
-export const MAX_MB = { foto: 2.5, video: 3.5 }
+export const MAX_MB = { foto: 2.5, video: 50 }
 export const RK = { get: (id, page = 0) => api(`/api/challenges/ranking?id=${id}&page=${page}`), score: id => api('/api/challenges/score?id=' + id) }
 export const RK_STATE = { nao_iniciado: 'Ainda não começou', provisorio: 'Provisório', apurando: 'Em apuração', final: 'Resultado final', homologado: 'Homologado', cancelado: 'Cancelado' }
 export const WHY_PT = { contou: 'Contou', mesmo_dia: 'Mesmo dia — já contado', anulado: 'Treino anulado', comprovante_pendente: 'Comprovante pendente', sem_comprovante_aprovado: 'Sem comprovante aprovado' }

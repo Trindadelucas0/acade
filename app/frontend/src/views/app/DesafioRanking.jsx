@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { RK, RK_STATE, WHY_PT, PROOF_PT, unitOf, spDate } from '../../lib/challenges.js'
 import { Podium, PodAvatar } from '../../components/Podium.jsx'
 import { Sheet, Empty, Load, Tabs, useLoad, Err } from './kit.jsx'
+import { ReportBtn, ChDialogLite } from './DesafioFeed.jsx'
 
 function Score({ c, close }) {
   const [d, err] = useLoad(() => RK.score(c.id), [c.id])
@@ -23,10 +24,13 @@ function Score({ c, close }) {
   </div></Sheet>
 }
 function Person({ p, unit, close }) {   // só informação pública do desafio
+  const [dlg, setDlg] = useState(null)
   return <Sheet title={p.name} onClose={close}><div style={{ textAlign: 'center' }}><PodAvatar name={p.name} photo={p.photo} size={80} />
     <p className="g-sm">{p.position ? p.position + 'º lugar' : 'Sem posição'}{p.tied ? ' (empate)' : ''} · {p.score} {unit}</p>
     <p className="g-mut g-xs">{p.days} dias com treino válido{p.goal_reached ? ' · meta atingida' : ''}</p>
     {p.contributions && <div className="g-list" style={{ textAlign: 'left' }}>{p.contributions.map((x, i) => <div key={i} className="g-li"><span style={{ flex: 1 }}>{x.name}</span><b className="g-sm">{x.score}</b><span className="g-mut g-xs" style={{ width: 52, textAlign: 'right' }}>{x.share}%</span></div>)}</div>}
+    {p.user_id && !p.me && <ReportBtn type="user" id={p.user_id} setDlg={setDlg} />}
+    {dlg && <ChDialogLite d={dlg} close={() => setDlg(null)} />}
   </div></Sheet>
 }
 export function ChRanking({ c, inIt }) {

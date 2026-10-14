@@ -1,14 +1,14 @@
 // V5-C · Feed do desafio (separado do feed geral; curtir/comentar não pontua) e comprovantes manuais (só aprovado conta).
 import { useState } from 'react'
-import { CF, PROOF_PT, readFile, MAX_MB, spDate } from '../../lib/challenges.js'
-import { Av, Empty, Load, useLoad, Err, Field } from './kit.jsx'
+import { CF, PROOF_PT, MAX_MB, spDate } from '../../lib/challenges.js'
+import { Av, Empty, Load, useLoad, Err, Field, Sheet } from './kit.jsx'
 
 const REASONS = [['spam', 'Spam'], ['ofensivo', 'Ofensivo'], ['prejudicial', 'Prejudicial'], ['privado', 'Expõe dados privados'], ['outro', 'Outro']]
 const sm = { width: 'auto', padding: '0 10px' }
 async function upload(id, file, setSt) {
   const kind = file.type.startsWith('video/') ? 'video' : 'foto'
   if (file.size > MAX_MB[kind] * 1024 * 1024) throw new Error(`${kind === 'foto' ? 'Foto' : 'Vídeo'} acima de ${String(MAX_MB[kind]).replace('.', ',')} MB`)
-  setSt?.('enviando'); return CF.media(id, await readFile(file))
+  setSt?.('enviando'); return CF.stream(id, file)   // envio por streaming (sem base64), validado no servidor
 }
 export function FilePick({ accept, file, onFile, label, testid }) {
   return <label className="g-btn g-ghost g-sm" style={{ display: 'flex', gap: 6, justifyContent: 'center', margin: '8px 0', minWidth: 0, overflow: 'hidden' }}>
@@ -34,7 +34,7 @@ export function ChFeed({ c, setDlg }) {
   return <div data-testid="ch-feed">
     {d.can_post && <div className="g-card">
       <textarea className="g-in" rows={3} maxLength={2000} placeholder="Compartilhe com quem está no desafio" value={txt} onChange={e => setTxt(e.target.value)} data-testid="cf-text" aria-label="Texto da publicação" />
-      <FilePick accept="image/png,image/jpeg,image/webp,video/mp4,video/webm" file={file} onFile={setFile} label="Anexar foto (até 2,5 MB) ou vídeo (até 3,5 MB)" testid="cf-file" />
+      <FilePick accept="image/png,image/jpeg,image/webp,video/mp4,video/webm" file={file} onFile={setFile} label="Anexar foto (até 2,5 MB) ou vídeo (até 50 MB)" testid="cf-file" />
       {st && <p className={st === 'falhou' ? 'g-warn' : 'g-note'} role="status" data-testid="cf-state">{st === 'enviando' ? 'Enviando…' : 'Falhou — toque em Publicar para tentar de novo'}</p>}
       {msg && <p className="g-warn" role="alert">{msg}</p>}
       <div className="g-row" style={{ gap: 8 }}><button className="g-btn g-ghost" disabled={st === 'enviando'} onClick={() => send(true)}>Salvar rascunho</button><button className="g-btn" disabled={st === 'enviando' || (!txt.trim() && !file)} onClick={() => send(false)} data-testid="cf-send">Publicar</button></div>
@@ -88,4 +88,11 @@ export function ChProofs({ c, me, setDlg }) {
         {!p.mine && <ReportBtn type="proof" id={p.id} setDlg={setDlg} />}
       </div></div>)}
   </div>
+}
+// diálogo simples (motivo) usado fora da página do desafio (folhas e grupos)
+export function ChDialogLite({ d, close }) {
+  const [v, setV] = useState(''), [done, setDone] = useState('')
+  return <Sheet title={d.t} onClose={close}><p className="g-sm">{d.x}</p>
+    {done ? <p className="g-note" role="status">{done}</p> : <>{d.input && <input className="g-in" value={v} onChange={e => setV(e.target.value)} placeholder="Motivo" autoFocus data-testid="chdlg-in" />}
+    <div className="g-row" style={{ gap: 8, marginTop: 12 }}><button className="g-btn g-ghost" onClick={close}>Voltar</button><button className="g-btn" disabled={d.input && v.trim().length < 5} onClick={async () => { try { await d.ok(v); setDone('Denúncia enviada. A administração vai avaliar.') } catch (e) { setDone(e.message) } }} data-testid="chdlg-ok">Confirmar</button></div></>}</Sheet>
 }

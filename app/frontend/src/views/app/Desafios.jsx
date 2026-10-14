@@ -40,7 +40,7 @@ export function ChallengeWizard() {
   const isAdmin = !!useStore(s => s.user)?.admin
   const [cats] = useLoad(() => CH.cats()), [groups] = useLoad(() => GR.list({ mine: '1' })), [msg, setMsg] = useState(null), [busy, setBusy] = useState(false)
   useEffect(() => { sessionStorage.setItem(DRAFT_KEY, JSON.stringify(w)) }, [w])
-  useEffect(() => { if (editId && !w.loaded) CH.get(editId).then(r => { const c = r.challenge; setW(x => ({ ...x, ...c, cover_url: c.cover_url || '', group_id: c.group_id || '', max_participants: c.max_participants || '', start: toYmd(c.starts_at), end: toYmd(c.ends_at), duration: 0, teams: r.teams.map(t => t.name), status: c.status, loaded: true })) }).catch(e => setMsg({ bad: true, t: e.message })) }, [editId]) // eslint-disable-line
+  useEffect(() => { if (editId && !w.loaded) Promise.all([CH.get(editId), TR.ofChallenge(editId).catch(() => ({ trophies: [] }))]).then(([r, tr]) => { const c = r.challenge; setW(x => ({ ...x, ...c, cover_url: c.cover_url || '', group_id: c.group_id || '', max_participants: c.max_participants || '', start: toYmd(c.starts_at), end: toYmd(c.ends_at), duration: 0, teams: r.teams.map(t => t.name), status: c.status, trophies: tr.trophies.map(t => t.id), loaded: true })) }).catch(e => setMsg({ bad: true, t: e.message })) }, [editId]) // eslint-disable-line
   const set = (k, v) => setW(x => ({ ...x, [k]: v })), inp = k => e => set(k, e.target.type === 'checkbox' ? e.target.checked : e.target.value)
   const cat = cats?.categories.find(c => c.id === w.category)
   const setDur = n => setW(x => ({ ...x, duration: n, end: n ? addDays(x.start, n - 1) : x.end }))
