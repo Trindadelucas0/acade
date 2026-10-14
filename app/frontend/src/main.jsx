@@ -5,6 +5,7 @@ import { MOBILE } from './lib/mobile.js'
 import '@fontsource-variable/inter'
 import '@fontsource-variable/plus-jakarta-sans'
 import './index.css'
+import './styles/avadesk.css'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode><App /></StrictMode>

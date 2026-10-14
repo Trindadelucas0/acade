@@ -8,7 +8,7 @@ import { Empty, Load, Err, useLoad, Field, Tabs, Sheet } from './kit.jsx'
 const ask = (m, d = '') => { const r = prompt(m, d); return r == null ? null : r }
 const run = (fn, reload) => async (...a) => { try { const r = await fn(...a); reload && reload(); return r } catch (e) { alert(e.reasons ? e.reasons.join('\n') : e.message) } }
 
-function Visao({ go }) {
+export function Visao({ go }) {
   const [d, err, reload] = useLoad(() => C.overview())
   if (err) return <Err msg={err} retry={reload} />
   if (!d) return <Load />
@@ -34,7 +34,7 @@ function UserWorkouts({ id }) {
   if (!d) return <Load />
   return <div className="g-xs g-mut" data-testid="adm-workouts">{d.workouts.length ? d.workouts.slice(0, 20).map((w, i) => <p key={i}>{w.d ? new Date(w.d).toLocaleDateString('pt-BR') : '—'} · {w.name || w.routine || 'Treino'} · {(w.ex || []).length} exercício(s)</p>) : 'Nenhum treino livre sincronizado.'}{d.bodyweight.length ? <p>Peso corporal: {d.bodyweight.length} registro(s)</p> : null}</div>
 }
-function Alunos() {
+export function Alunos() {
   const [st, setSt] = useState('pendente'), [qq, setQq] = useState(''), [open, setOpen] = useState(null)
   const [d, err, reload] = useLoad(() => C.users(st, qq), [st, qq])
   const [pl] = useLoad(() => C.plans())
@@ -55,7 +55,7 @@ function Alunos() {
       </div>{open === u.id && <UserWorkouts id={u.id} />}</div>) : <Empty>Nenhuma conta aqui.</Empty>}</div>}
   </div>
 }
-function Profissionais() {
+export function Profissionais() {
   const [d, err, reload] = useLoad(() => C.admPros())
   if (err) return <Err msg={err} retry={reload} />
   if (!d) return <Load />
@@ -73,7 +73,7 @@ function Profissionais() {
       <button className="g-btn g-ghost g-sm" onClick={run(() => C.updPro({ user_id: p.user_id, can_publish: !p.can_publish }), reload)} data-testid="toggle-publish">{p.can_publish ? 'Revogar publicação' : 'Autorizar publicação'}</button>
     </div></div>) : <Empty>Nenhum profissional. Torne um usuário profissional na aba Alunos.</Empty>}</div>
 }
-function Planos() {
+export function Planos() {
   const [d, err, reload] = useLoad(() => C.plans())
   const [ed, setEd] = useState(null)
   if (err) return <Err msg={err} retry={reload} />
@@ -99,7 +99,7 @@ function Planos() {
     </Sheet>}
   </div>
 }
-function Vinculos() {
+export function Vinculos() {
   const [d, err, reload] = useLoad(() => C.links())
   const [us] = useLoad(() => C.users('ativo', ''))
   const [ps] = useLoad(() => C.admPros())
@@ -121,7 +121,7 @@ function Vinculos() {
     </div>)}</div>}
   </div>
 }
-function Filas() {
+export function Filas() {
   const [d, err, reload] = useLoad(() => C.queue())
   const [ps] = useLoad(() => C.admPros())
   if (err) return <Err msg={err} retry={reload} />
@@ -151,14 +151,14 @@ function Filas() {
     <p className="g-xs g-mut" style={{ marginTop: 8 }}>Prazos vencidos voltam para esta fila. O sistema não responde nem altera treinos automaticamente.</p>
   </div>
 }
-function Auditoria() {
+export function Auditoria() {
   const [d, err, reload] = useLoad(() => C.audit())
   if (err) return <Err msg={err} retry={reload} />
   if (!d) return <Load />
   return <div className="g-card" style={{ overflowX: 'auto' }}><table className="g-tbl"><thead><tr><th>Quando</th><th>Quem</th><th>Ação</th><th>Item</th></tr></thead>
     <tbody>{d.audit.map(a => <tr key={a.id}><td className="g-xs">{dt(a.created_at)}</td><td>{a.actor || 'sistema'}</td><td>{a.action}</td><td className="g-xs g-mut">{a.entity} {String(a.entity_id || '').slice(0, 8)}</td></tr>)}</tbody></table></div>
 }
-function Config() {
+export function Config() {
   const [d, err, reload] = useLoad(() => C.settings())
   const [f, setF] = useState(null), [ok, setOk] = useState('')
   if (err) return <Err msg={err} retry={reload} />
@@ -170,6 +170,8 @@ function Config() {
     <label className="g-row" style={{ marginTop: 12, minHeight: 44 }}><input type="checkbox" checked={!!v.comentarios_alunos} onChange={set('comentarios_alunos')} /> Alunos podem comentar nas publicações</label>
     <Field label="Ranking: % mínimo de exercícios concluídos para validar a sessão"><input className="g-in" type="number" min="50" max="100" value={v.ranking_percentual_sessao} onChange={set('ranking_percentual_sessao')} /></Field>
     <Field label="Fuso horário oficial (semanas e meses do ranking)"><input className="g-in" value={v.fuso_horario} onChange={set('fuso_horario')} /></Field>
+    <Field label="Limite de publicações por profissional a cada 24 h"><input className="g-in" type="number" min="1" max="50" value={v.limite_publicacoes_dia ?? 5} onChange={set('limite_publicacoes_dia')} data-testid="cfg-postlimit" /></Field>
+    <Field label="Nome da comunidade (tenant)"><input className="g-in" value={v.tenant_name || ''} onChange={set('tenant_name')} data-testid="cfg-tenant" /></Field>
     <button className="g-btn" style={{ marginTop: 12 }} onClick={run(async () => { await C.saveSettings(v); setOk('Configurações salvas') }, reload)} data-testid="cfg-save">Salvar</button>
     {ok && <p className="g-acc g-sm" style={{ marginTop: 8 }}>{ok}</p>}
   </div>

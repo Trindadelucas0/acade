@@ -939,7 +939,7 @@ h4.sec{
   --sep:#E2E8F0; --sep-op:#E2E8F0;
   --green:#1C9A8E; --teal:#1C9A8E; --orange:#FE6B00;
 }
-:root[data-accent="avadesk"]{ --acc:#FE6B00; --acc-2:#D95A00; --on-acc:#FFFFFF }
+:root[data-accent="avadesk"]{ --acc:#C8F135; --acc-2:#A6D417; --on-acc:#11140A }
 :root[data-theme="light"][data-accent="avadesk"]{ --on-acc:#FFFFFF }
 h1,h2,h3,h4,.sec{font-family:var(--font-head),var(--font-body),system-ui,sans-serif}
 :root[data-theme="light"] h1,:root[data-theme="light"] h2{color:var(--navy)}

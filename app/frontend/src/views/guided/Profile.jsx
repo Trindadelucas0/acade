@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Icon from '../../components/Icon.jsx'
 import { useStore } from '../../store/useStore.js'
-import { C, exportMyData } from '../../lib/care.js'
+import { C, P, exportMyData } from '../../lib/care.js'
 import { isProAccount } from './TabBar.jsx'
 import { G, GOAL_PT, LEVEL_PT, LOC_PT, RESTR_PT } from '../../lib/guided.js'
 import './guided.css'
@@ -68,12 +68,15 @@ export default function Profile() {
 
 // LGPD: exportação imediata e pedido de exclusão (analisado pela administração)
 function MeusDados() {
-  const [req, setReq] = useState(null), [msg, setMsg] = useState('')
+  const user = useStore(s => s.user)
+  const [req, setReq] = useState(null), [msg, setMsg] = useState(''), [code, setCode] = useState('')
+  useEffect(() => { if (!isProAccount(user) && user?.status === 'ativo') P.myCode().then(r => setCode(r.code)).catch(() => {}) }, [user])
   const load = () => C.myRequests().then(r => setReq(r.requests)).catch(() => {})
   useEffect(() => { load() }, [])
   const open = (req || []).find(r => r.kind === 'exclusao' && r.status === 'pendente')
   return <>
     <h2>Meus dados</h2>
+    {code && <div className="g-card" style={{ marginBottom: 10 }} data-testid="my-code"><span className="g-mut g-xs">Meu código (para um profissional pedir vínculo à administração)</span><br /><b style={{ fontSize: 24, letterSpacing: '.12em' }}>{code}</b></div>}
     <div className="g-card g-list" data-testid="meus-dados">
       <button className="g-li" onClick={async () => { try { await exportMyData(); setMsg('Arquivo gerado.') } catch (e) { setMsg(e.message) } }} data-testid="export-data">
         <span className="g-ico"><Icon name="download" /></span><span><b>Exportar meus dados</b><br /><span className="g-mut g-xs">Arquivo JSON com cadastro, treinos, mensagens e aceites</span></span></button>

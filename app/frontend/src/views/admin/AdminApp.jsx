@@ -1,0 +1,272 @@
+// Central administrativa AVADESK (desktop-first, funciona no celular): barra lateral, KPIs com gráficos,
+// tabelas com busca/filtro/ordenação/paginação/CSV e gavetas de detalhe. O admin é quem decide vínculos, capacidade e liberações.
+import { useMemo, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import Icon from '../../components/Icon.jsx'
+import { C, P, GOALS, REQ_ST, dt, uploadExMedia } from '../../lib/care.js'
+import { useLoad } from '../app/kit.jsx'
+import { Alunos, Profissionais, Planos, Vinculos, Filas, Config, EXTRA } from '../app/AdminPanel.jsx'
+import '../guided/guided.css'
+
+// ---------- utilitários ----------
+const csvEsc = v => { const s = v == null ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v); return /[",;\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s }
+export function downloadCSV(name, cols, rows) {
+  const out = [cols.map(c => csvEsc(c.l)).join(';'), ...rows.map(r => cols.map(c => csvEsc(c.csv ? c.csv(r) : r[c.k])).join(';'))].join('\n')
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + out], { type: 'text/csv;charset=utf-8' })); a.download = name + '.csv'; a.click()
+}
+export function DataTable({ cols, rows, onRow, name, filters, pageSize = 15, empty = 'Nada encontrado.' }) {
+  const [q, setQ] = useState(''), [sort, setSort] = useState(null), [page, setPage] = useState(0)
+  const list = useMemo(() => {
+    let l = rows || []
+    if (q) { const t = q.toLowerCase(); l = l.filter(r => cols.some(c => String(c.csv ? c.csv(r) : r[c.k] ?? '').toLowerCase().includes(t))) }
+    if (sort) { const c = cols.find(x => x.k === sort.k); l = [...l].sort((a, b) => { const va = c.sv ? c.sv(a) : a[c.k], vb = c.sv ? c.sv(b) : b[c.k]; return (va > vb ? 1 : va < vb ? -1 : 0) * sort.d }) }
+    return l
+  }, [rows, q, sort, cols])
+  const pages = Math.max(1, Math.ceil(list.length / pageSize)), pg = Math.min(page, pages - 1)
+  return <div>
+    <div className="adm-tools"><input placeholder="Buscar…" value={q} onChange={e => { setQ(e.target.value); setPage(0) }} data-testid="dt-search" />{filters}
+      <span style={{ flex: 1 }} /><span className="g-mut g-xs">{list.length} registro(s)</span>
+      <button className="adm-btn ghost" onClick={() => downloadCSV(name || 'export', cols, list)} data-testid="dt-csv">Exportar CSV</button></div>
+    <div className="adm-tbl-wrap"><table className="adm-tbl"><thead><tr>{cols.map(c => <th key={c.k} onClick={() => setSort(s => ({ k: c.k, d: s?.k === c.k ? -s.d : 1 }))}>{c.l}{sort?.k === c.k ? (sort.d > 0 ? ' ▲' : ' ▼') : ''}</th>)}</tr></thead>
+      <tbody>{list.slice(pg * pageSize, pg * pageSize + pageSize).map((r, i) => <tr key={r.id ?? i} onClick={() => onRow && onRow(r)} data-testid="dt-row">{cols.map(c => <td key={c.k}>{c.r ? c.r(r) : String(r[c.k] ?? '—')}</td>)}</tr>)}
+        {!list.length && <tr><td colSpan={cols.length} className="g-mut">{empty}</td></tr>}</tbody></table></div>
+    {pages > 1 && <div className="adm-pager"><button className="adm-btn ghost" disabled={pg === 0} onClick={() => setPage(pg - 1)}>Anterior</button>Página {pg + 1} de {pages}<button className="adm-btn ghost" disabled={pg >= pages - 1} onClick={() => setPage(pg + 1)}>Próxima</button></div>}
+  </div>
+}
+const Pill = ({ v, map }) => <span className={'adm-pill ' + ((map || {})[v] || '')}>{v}</span>
+const ST = { ativo: 'ok', pendente: 'warn', bloqueado: 'bad', em_analise: 'warn', suspenso: 'bad', encerrado: '', aprovada: 'ok', rejeitada: 'bad', aguardando_info: 'warn', cancelada: '', concluida: 'ok', recusada: 'bad', rascunho: 'warn', arquivado: '' }
+function Drawer({ title, onClose, children }) {
+  return <><div className="adm-drawer-bg" onClick={onClose} /><aside className="adm-drawer" role="dialog" aria-label={title}>
+    <div className="g-row"><h2 style={{ flex: 1 }}>{title}</h2><button className="adm-btn ghost" onClick={onClose} aria-label="Fechar">✕</button></div>{children}</aside></>
+}
+const act = (fn, reload) => async (...a) => { try { const r = await fn(...a); reload && reload(); return r } catch (e) { alert(e.reasons ? e.reasons.join('\n') : e.message) } }
+
+// ---------- gráficos (SVG, sem dependências) ----------
+function Line({ series, height = 150 }) {
+  const all = series.flatMap(s => s.data.map(d => d.n)), max = Math.max(1, ...all)
+  const keys = [...new Set(series.flatMap(s => s.data.map(d => d.wk)))].sort(), W = 600, H = height
+  const x = i => keys.length < 2 ? W / 2 : 10 + i * (W - 20) / (keys.length - 1), y = n => H - 18 - n / max * (H - 34)
+  return <div><svg viewBox={`0 0 ${W} ${H}`} className="adm-chart" preserveAspectRatio="none" role="img" aria-label="Gráfico de linhas">
+    {[0, .5, 1].map(f => <line key={f} x1="0" x2={W} y1={y(max * f)} y2={y(max * f)} stroke="#ffffff10" />)}
+    {series.map(s => { const by = Object.fromEntries(s.data.map(d => [d.wk, d.n])); return <g key={s.l}>
+      <polyline fill="none" stroke={s.c} strokeWidth="2.5" points={keys.map((k, i) => `${x(i)},${y(by[k] || 0)}`).join(' ')} />
+      {keys.map((k, i) => <circle key={k} cx={x(i)} cy={y(by[k] || 0)} r="3" fill={s.c}><title>{k}: {by[k] || 0}</title></circle>)}</g> })}
+  </svg><div className="adm-legend">{series.map(s => <span key={s.l}><i style={{ background: s.c }} />{s.l}</span>)}</div></div>
+}
+function Bars({ items }) {
+  const max = Math.max(1, ...items.map(i => i.n))
+  return <div>{items.map(i => <div key={i.l} style={{ display: 'grid', gridTemplateColumns: '130px 1fr 40px', gap: 8, alignItems: 'center', margin: '6px 0', fontSize: 12.5 }}>
+    <span className="g-mut">{i.l}</span><div className="av-bar"><i style={{ width: (i.n / max * 100) + '%', background: i.c }} /></div><b>{i.n}</b></div>)}</div>
+}
+
+// ---------- seções ----------
+function Dashboard({ go }) {
+  const [d, err] = useLoad(() => P.kpis())
+  if (err) return <p className="g-warn">{err}</p>
+  if (!d) return <p className="g-mut">Carregando…</p>
+  const by = (arr, k) => Object.fromEntries((arr || []).map(x => [x[k], x.n]))
+  const u = by(d.users, 'status'), p = by(d.pros, 'state'), l = by(d.links, 'status')
+  const reqOpen = (d.requests || []).filter(r => ['pendente', 'em_analise', 'aguardando_info'].includes(r.status)).reduce((a, r) => a + r.n, 0)
+  const occOpen = (d.occurrences || []).filter(o => o.status !== 'encerrada').reduce((a, o) => a + o.n, 0)
+  const thWait = (d.threads || []).filter(o => o.status === 'aguardando').reduce((a, o) => a + o.n, 0)
+  const cap = d.capacity || {}, capPct = cap.capacity ? Math.round(cap.used / cap.capacity * 100) : 0
+  const K = ({ n, l, s, to, cls }) => <button className={'adm-card adm-k ' + (cls || '')} style={{ textAlign: 'left', cursor: 'pointer', color: 'inherit' }} onClick={() => go(to)}><b>{n ?? 0}</b><span>{l}</span>{s && <small>{s}</small>}</button>
+  return <>
+    <div className="adm-grid" data-testid="adm-kpis">
+      <K n={u.pendente} l="Contas aguardando liberação" to="usuarios" cls={u.pendente ? 'warn' : ''} />
+      <K n={u.ativo} l="Usuários ativos" s={`${u.bloqueado || 0} bloqueado(s)`} to="usuarios" />
+      <K n={p.ativo} l="Profissionais ativos" s={`${p.em_analise || 0} em análise · ${p.suspenso || 0} suspenso(s)`} to="profissionais" />
+      <K n={`${capPct}%`} l="Uso da capacidade" s={`${cap.used || 0} de ${cap.capacity || 0} vagas`} to="profissionais" />
+      <K n={l.ativo} l="Vínculos ativos" s={`${l.encerrado || 0} encerrado(s)`} to="vinculos" />
+      <K n={reqOpen} l="Solicitações abertas" to="solicitacoes" cls={reqOpen ? 'warn' : ''} />
+      <K n={occOpen} l="Ocorrências abertas" s={`${d.overdue?.occ || 0} com prazo vencido`} to="filas" cls={d.overdue?.occ ? 'bad' : ''} />
+      <K n={thWait} l="Mensagens aguardando" s={`${d.overdue?.th || 0} fora do prazo (SLA)`} to="filas" cls={d.overdue?.th ? 'bad' : ''} />
+      <K n={d.community?.posts30} l="Publicações (30 dias)" s={`${d.community?.likes30 || 0} curtidas · ${d.community?.reports || 0} denúncia(s)`} to="moderacao" cls={d.community?.reports ? 'warn' : ''} />
+      <K n={d.ranking?.participants} l="Participantes do ranking" to="ranking" />
+    </div>
+    <div className="adm-row2">
+      <div className="adm-card"><h3>Atividade por semana (12 semanas)</h3>
+        <Line series={[{ l: 'Cadastros', c: '#c8f135', data: d.series.signups }, { l: 'Treinos concluídos', c: '#5ec8ff', data: d.series.sessions }, { l: 'Publicações', c: '#ffb547', data: d.series.posts }]} /></div>
+      <div className="adm-card"><h3>Usuários por status</h3><Bars items={[{ l: 'Ativos', n: u.ativo || 0, c: '#c8f135' }, { l: 'Pendentes', n: u.pendente || 0, c: '#ffb547' }, { l: 'Bloqueados', n: u.bloqueado || 0, c: '#ff6b6b' }]} />
+        <h3 style={{ marginTop: 16 }}>Profissionais por situação</h3><Bars items={[{ l: 'Ativos', n: p.ativo || 0, c: '#c8f135' }, { l: 'Em análise', n: p.em_analise || 0, c: '#ffb547' }, { l: 'Suspensos', n: p.suspenso || 0, c: '#ff6b6b' }, { l: 'Encerrados', n: p.encerrado || 0, c: '#6b6e66' }]} /></div>
+    </div>
+  </>
+}
+
+function Usuarios() {
+  const [st, setSt] = useState(''), [d, err, reload] = useLoad(() => C.users(st, ''), [st])
+  const [pl] = useLoad(() => C.plans()), [sel, setSel] = useState(null)
+  const cols = [{ k: 'name', l: 'Nome' }, { k: 'email', l: 'E-mail' }, { k: 'status', l: 'Status', r: r => <Pill v={r.status} map={ST} /> },
+    { k: 'roles', l: 'Papéis', csv: r => r.roles.join(', '), r: r => r.roles.join(', ') }, { k: 'plan_id', l: 'Plano' }, { k: 'links', l: 'Vínculos', r: r => <>{r.links}{r.over_limit ? ' ⚠' : ''}</> },
+    { k: 'created_at', l: 'Cadastro', r: r => r.created_at ? new Date(r.created_at).toLocaleDateString('pt-BR') : '—', sv: r => r.created_at }]
+  const u = sel && (d?.users || []).find(x => x.id === sel)
+  return <>
+    {err ? <p className="g-warn">{err}</p> : <DataTable name="usuarios" cols={cols} rows={d?.users} onRow={r => setSel(r.id)}
+      filters={<select className="adm-in" value={st} onChange={e => setSt(e.target.value)} aria-label="Status"><option value="">Todos os status</option><option value="pendente">Aguardando liberação</option><option value="ativo">Ativos</option><option value="bloqueado">Bloqueados</option></select>} />}
+    {u && <Drawer title={u.name} onClose={() => setSel(null)}>
+      <dl className="adm-dl"><dt>E-mail</dt><dd>{u.email}</dd><dt>Status</dt><dd><Pill v={u.status} map={ST} /></dd><dt>Papéis</dt><dd>{u.roles.join(', ')}</dd><dt>Plano de acesso</dt><dd>{u.plan_id || '—'}</dd><dt>Vínculos ativos</dt><dd>{u.links}{u.over_limit ? ' (acima do limite do plano)' : ''}</dd></dl>
+      <div className="adm-tools" style={{ marginTop: 14 }}>
+        {u.status !== 'ativo' && <button className="adm-btn" onClick={act(() => C.setStatus(u.id, 'ativo'), reload)} data-testid="drw-approve">Liberar acesso</button>}
+        {u.status === 'ativo' && <button className="adm-btn danger" onClick={act(() => { const r = prompt('Motivo da suspensão'); return r && C.setStatus(u.id, 'bloqueado', r) }, reload)}>Suspender</button>}
+        <select className="adm-in" value={u.plan_id || ''} onChange={act(async e => { const r = await C.setPlan(u.id, e.target.value); if (r?.over_limit) alert(`O aluno tem ${r.links} vínculo(s) e o plano permite ${r.max}. Nada foi encerrado.`) }, reload)} aria-label="Plano de acesso">
+          <option value="" disabled>Plano de acesso…</option>{(pl?.plans || []).filter(p => p.active).map(p => <option key={p.id} value={p.id}>{p.name_pt} (até {p.max_professionals})</option>)}</select>
+        <button className="adm-btn ghost" onClick={act(async () => { const r = await C.resetLink(u.id); prompt('Link de redefinição (uso único, 24 h):', r.link) })}>Link de nova senha</button>
+        <button className="adm-btn ghost" onClick={act(() => C.setRole(u.id, 'profissional', !u.roles.includes('profissional')), reload)}>{u.roles.includes('profissional') ? 'Remover papel profissional' : 'Tornar conta profissional'}</button>
+        <button className="adm-btn ghost" onClick={act(() => { const o = prompt('ID da outra conta da mesma pessoa (vazio = desfazer). Só para auditoria; nada é compartilhado.'); return o != null && C.samePerson(u.id, o.trim() || null, 'registro manual') }, reload)}>Mesma pessoa…</button>
+      </div>
+      <p className="g-mut g-xs">Contas profissionais e de treino são separadas (e-mails diferentes). “Mesma pessoa” só fica registrado na auditoria.</p>
+    </Drawer>}
+  </>
+}
+
+function Solicitacoes() {
+  const [type, setType] = useState(''), [group, setGroup] = useState('pendentes')
+  const [d, err, reload] = useLoad(() => P.requests(type, group), [type, group])
+  return <>
+    <div className="adm-tools">
+      {[['', 'Todas'], ['vagas', 'Vagas'], ['vinculo', 'Vínculos']].map(([k, l]) => <button key={k} className={'adm-btn ' + (type === k ? '' : 'ghost')} onClick={() => setType(k)} data-testid={'rq-t-' + (k || 'todas')}>{l}</button>)}
+      <span style={{ width: 16 }} />
+      {[['pendentes', 'Pendentes'], ['em_analise', 'Em análise'], ['concluidas', 'Concluídas']].map(([k, l]) => <button key={k} className={'adm-btn ' + (group === k ? '' : 'ghost')} onClick={() => setGroup(k)}>{l}</button>)}
+    </div>
+    {err ? <p className="g-warn">{err}</p> : !d ? <p className="g-mut">Carregando…</p> : d.requests.length ? <div className="adm-row2">{d.requests.map(r => <div key={r.id} className="adm-card" data-testid="rq-card">
+      <div className="g-row"><b>#{r.id} · {r.type === 'vagas' ? 'Mais vagas' : 'Novo vínculo'}</b><span style={{ flex: 1 }} /><Pill v={REQ_ST[r.status]} map={{ [REQ_ST[r.status]]: ST[r.status] }} /></div>
+      <dl className="adm-dl" style={{ marginTop: 8 }}><dt>Profissional</dt><dd>{r.professional} ({r.pro_state})</dd>
+        <dt>Capacidade atual</dt><dd>{r.live_active}/{r.live_capacity} ({Math.max(0, r.live_capacity - r.live_active)} livre[s])</dd>
+        {r.type === 'vagas' ? <><dt>Pedido</dt><dd>+{r.requested_amount} vaga(s)</dd></> : <><dt>Aluno</dt><dd>{r.student_name}</dd><dt>Especialidade</dt><dd>{r.specialty}</dd></>}
+        <dt>Justificativa</dt><dd>{r.justification}</dd>{r.note && <><dt>Observação</dt><dd style={{ whiteSpace: 'pre-wrap' }}>{r.note}</dd></>}
+        {r.decision_reason && <><dt>Decisão</dt><dd>{r.decision_reason}</dd></>}{r.new_limit != null && <><dt>Limite</dt><dd>{r.previous_limit} → {r.new_limit}</dd></>}
+        <dt>Criada</dt><dd>{dt(r.created_at)}</dd></dl>
+      {(r.history || []).length > 0 && <details style={{ marginTop: 8 }}><summary className="g-mut g-xs">Histórico ({r.history.length})</summary>{r.history.map(h => <p key={h.id} className="g-xs g-mut">{dt(h.created_at)} · {REQ_ST[h.status] || h.status}{h.note ? ' — ' + h.note : ''}</p>)}</details>}
+      {['pendente', 'em_analise', 'aguardando_info'].includes(r.status) && <div className="adm-tools" style={{ marginTop: 10 }}>
+        <button className="adm-btn" data-testid="rq-approve" onClick={act(async () => { const a = r.type === 'vagas' ? prompt('Quantidade aprovada', r.requested_amount) : ''; if (a == null) return; const why = prompt('Observação da aprovação (opcional)') || ''; await P.decide({ id: r.id, action: 'aprovar', amount: a === '' ? undefined : +a, reason: why }) }, reload)}>Aprovar</button>
+        <button className="adm-btn danger" onClick={act(async () => { const why = prompt('Justificativa da rejeição (obrigatória)'); if (why) await P.decide({ id: r.id, action: 'rejeitar', reason: why }) }, reload)}>Rejeitar</button>
+        <button className="adm-btn ghost" onClick={act(async () => { const why = prompt('Qual informação é necessária?'); if (why) await P.decide({ id: r.id, action: 'info', reason: why }) }, reload)}>Pedir informações</button>
+        {r.status === 'pendente' && <button className="adm-btn ghost" onClick={act(() => P.decide({ id: r.id, action: 'analisar' }), reload)}>Marcar em análise</button>}
+      </div>}
+    </div>)}</div> : <p className="g-mut">Nenhuma solicitação neste filtro.</p>}
+  </>
+}
+
+function Modelos() {
+  const [d, err, reload] = useLoad(() => P.admTemplates()), [ed, setEd] = useState(null)
+  const nav = useNavigate()
+  const cols = [{ k: 'title', l: 'Modelo' }, { k: 'goal', l: 'Objetivo', r: r => GOALS[r.goal] || r.goal || '—' }, { k: 'specialty', l: 'Especialidade' }, { k: 'days', l: 'Dias', r: r => r.days.length, csv: r => r.days.length },
+    { k: 'uses', l: 'Usos' }, { k: 'version', l: 'Versão' }, { k: 'status', l: 'Status', r: r => <Pill v={r.status} map={ST} /> }]
+  return <>
+    <div className="adm-tools"><button className="adm-btn" onClick={() => setEd({ title: '', goal: '', specialty: '', description: '', days: [{ name: 'Treino A', exercises: [] }] })} data-testid="tpl-new">Novo modelo</button>
+      <span className="g-mut g-xs">Modelos ficam disponíveis para todos os profissionais em “Criar treino › Usar modelo”.</span></div>
+    {err ? <p className="g-warn">{err}</p> : <DataTable name="modelos" cols={cols} rows={d?.templates} onRow={r => setEd(r)} />}
+    {ed && <Drawer title={ed.id ? 'Editar modelo' : 'Novo modelo'} onClose={() => setEd(null)}><TemplateEditor t={ed} onDone={() => { setEd(null); reload() }} /></Drawer>}
+  </>
+}
+function TemplateEditor({ t, onDone }) {
+  const [f, setF] = useState(t), [qq, setQq] = useState(''), [found, setFound] = useState([]), [day, setDay] = useState(0), [err, setErr] = useState('')
+  const search = async v => { setQq(v); if (v.length < 2) return setFound([]); try { setFound((await P.library({ q: v })).exercises) } catch { /* */ } }
+  const upd = fn => setF(x => { const n = JSON.parse(JSON.stringify(x)); fn(n); return n })
+  return <div>
+    {['title', 'specialty', 'description'].map(k => <label key={k} className="g-field"><span className="g-mut g-xs">{{ title: 'Nome', specialty: 'Especialidade', description: 'Descrição' }[k]}</span><input className="adm-in" value={f[k] || ''} onChange={e => setF({ ...f, [k]: e.target.value })} data-testid={'tpl-' + k} /></label>)}
+    <label className="g-field"><span className="g-mut g-xs">Objetivo</span><select className="adm-in" value={f.goal || ''} onChange={e => setF({ ...f, goal: e.target.value })}><option value="">—</option>{Object.entries(GOALS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
+    <div className="adm-tools" style={{ marginTop: 10 }}>{f.days.map((d, i) => <button key={i} className={'adm-btn ' + (day === i ? '' : 'ghost')} onClick={() => setDay(i)}>{d.name}</button>)}
+      <button className="adm-btn ghost" onClick={() => upd(n => n.days.push({ name: 'Treino ' + String.fromCharCode(65 + n.days.length), exercises: [] }))}>+ Dia</button></div>
+    {f.days[day]?.exercises.map((e, i) => <div key={i} className="adm-tools"><span style={{ flex: 1 }}>{e.name}</span>
+      <input className="adm-in" style={{ width: 64 }} type="number" value={e.sets} onChange={v => upd(n => { n.days[day].exercises[i].sets = +v.target.value })} aria-label="Séries" />
+      <input className="adm-in" style={{ width: 64 }} type="number" value={e.reps_max || ''} onChange={v => upd(n => { n.days[day].exercises[i].reps_max = +v.target.value })} aria-label="Repetições" />
+      <button className="adm-btn ghost" onClick={() => upd(n => { n.days[day].exercises.splice(i, 1) })}>✕</button></div>)}
+    <input className="adm-in" style={{ width: '100%' }} placeholder="Adicionar exercício da biblioteca…" value={qq} onChange={e => search(e.target.value)} data-testid="tpl-search" />
+    {found.slice(0, 8).map(x => <button key={x.id} className="adm-btn ghost" style={{ display: 'block', width: '100%', marginTop: 4, textAlign: 'left' }} onClick={() => { upd(n => { n.days[day].exercises.push({ exercise_id: x.id, name: x.name, sets: 3, reps_max: 10, rest_sec: 60 }) }); setQq(''); setFound([]) }}>+ {x.name}</button>)}
+    {err && <p className="g-warn">{err}</p>}
+    <div className="adm-tools" style={{ marginTop: 14 }}><button className="adm-btn" onClick={async () => { setErr(''); try { await P.saveTemplate(f); onDone() } catch (e) { setErr(e.message) } }} data-testid="tpl-save">Salvar modelo</button>
+      {f.id && <button className="adm-btn ghost" onClick={act(async () => { await P.templateStatus(f.id, f.status === 'ativo' ? 'arquivado' : 'ativo'); onDone() })}>{f.status === 'ativo' ? 'Arquivar' : 'Reativar'}</button>}</div>
+  </div>
+}
+
+function Exercicios() {
+  const [qq, setQq] = useState(''), [d, err] = useLoad(() => C.admExercises(qq), [qq]), [sel, setSel] = useState(null)
+  const cols = [{ k: 'name', l: 'Exercício' }, { k: 'id', l: 'Código' }, { k: 'media_url', l: 'Mídia padrão', r: r => r.media_url ? 'sim' : '—' }, { k: 'extra', l: 'Mídias extras' }]
+  return <>{err ? <p className="g-warn">{err}</p> : <DataTable name="exercicios" cols={cols} rows={d?.exercises} onRow={r => setSel(r)} filters={<input className="adm-in" placeholder="Buscar no servidor" value={qq} onChange={e => setQq(e.target.value)} />} />}
+    {sel && <Drawer title={sel.name} onClose={() => setSel(null)}><ExMedia ex={sel} /></Drawer>}</>
+}
+function ExMedia({ ex }) {
+  const [d, err, reload] = useLoad(() => C.exMedia(ex.id), [ex.id]), [url, setUrl] = useState(''), [kind, setKind] = useState('video'), [cap, setCap] = useState(''), [busy, setBusy] = useState(false), [msg, setMsg] = useState('')
+  return <div>
+    <p className="g-mut g-xs">A mídia padrão (gif/vídeo da base) continua sendo usada. Aqui você adiciona vídeos e fotos extras, por upload local ou link https.</p>
+    {err ? <p className="g-warn">{err}</p> : !d ? <p className="g-mut">Carregando…</p> : <>
+      {d.media.map(m => <div key={m.id} className="adm-card" style={{ marginTop: 8 }}>
+        {m.kind === 'video' ? (/youtube|youtu\.be|vimeo/.test(m.url) ? <a href={m.url} target="_blank" rel="noopener">{m.url}</a> : <video src={m.url} controls style={{ width: '100%', borderRadius: 10 }} />) : <img src={m.url} alt={m.caption || ''} style={{ width: '100%', borderRadius: 10 }} />}
+        <div className="adm-tools" style={{ marginTop: 6 }}><span className="g-xs g-mut" style={{ flex: 1 }}>{m.kind} · {m.source}{m.caption ? ' · ' + m.caption : ''}</span><button className="adm-btn danger" onClick={act(() => C.rmExMedia(m.id), reload)}>Remover</button></div></div>)}
+      {!d.media.length && <p className="g-mut g-xs">Nenhuma mídia extra.</p>}</>}
+    <h3 style={{ marginTop: 16 }}>Adicionar</h3>
+    <div className="adm-tools"><select className="adm-in" value={kind} onChange={e => setKind(e.target.value)}><option value="video">Vídeo</option><option value="foto">Foto</option></select>
+      <input className="adm-in" style={{ flex: 1 }} placeholder="https://…" value={url} onChange={e => setUrl(e.target.value)} data-testid="exm-url" />
+      <button className="adm-btn" disabled={!url} onClick={act(async () => { await C.addExMedia({ exercise_id: ex.id, kind, url, caption: cap }); setUrl(''); setMsg('Link adicionado') }, reload)}>Adicionar link</button></div>
+    <input className="adm-in" style={{ width: '100%' }} placeholder="Legenda (opcional)" value={cap} onChange={e => setCap(e.target.value)} />
+    <label className="adm-btn ghost" style={{ display: 'inline-flex', alignItems: 'center', marginTop: 8 }}>{busy ? 'Enviando…' : 'Enviar arquivo (MP4/WEBM até 60 MB, foto até 5 MB)'}
+      <input type="file" accept="video/mp4,video/webm,image/png,image/jpeg,image/webp,image/gif" hidden onChange={async e => { const f = e.target.files[0]; if (!f) return; setBusy(true); setMsg(''); try { await uploadExMedia(ex.id, f, cap); setMsg('Arquivo enviado'); reload() } catch (er) { setMsg(er.message) } finally { setBusy(false); e.target.value = '' } }} /></label>
+    {msg && <p className="g-acc g-sm">{msg}</p>}
+  </div>
+}
+
+function Lgpd() {
+  const [st, setSt] = useState('pendente'), [d, err, reload] = useLoad(() => C.dataRequests(st), [st])
+  const cols = [{ k: 'id', l: '#' }, { k: 'name', l: 'Titular' }, { k: 'email', l: 'E-mail' }, { k: 'kind', l: 'Tipo' }, { k: 'status', l: 'Status', r: r => <Pill v={r.status} map={ST} /> }, { k: 'reason', l: 'Motivo' },
+    { k: 'created_at', l: 'Pedido em', r: r => dt(r.created_at), sv: r => r.created_at },
+    { k: 'acao', l: 'Ação', csv: () => '', r: r => r.status === 'pendente' ? <span onClick={e => e.stopPropagation()} className="adm-tools" style={{ margin: 0 }}>
+      <button className="adm-btn danger" data-testid="lgpd-del" onClick={act(async () => { const c = prompt('A conta será anonimizada e os dados pessoais apagados. Digite EXCLUIR para confirmar.'); if (c !== 'EXCLUIR') return; await C.decideData({ id: r.id, action: 'excluir', confirm: 'EXCLUIR', note: 'pedido do titular' }) }, reload)}>Excluir (anonimizar)</button>
+      <button className="adm-btn ghost" onClick={act(async () => { const n = prompt('Motivo da recusa'); if (n) await C.decideData({ id: r.id, action: 'recusar', note: n }) }, reload)}>Recusar</button></span> : (r.decision_note || '—') }]
+  return <>{err ? <p className="g-warn">{err}</p> : <DataTable name="lgpd" cols={cols} rows={d?.requests} filters={<select className="adm-in" value={st} onChange={e => setSt(e.target.value)}><option value="pendente">Pendentes</option><option value="">Todos</option><option value="concluida">Concluídos</option><option value="recusada">Recusados</option><option value="cancelada">Cancelados</option></select>} />}
+    <p className="g-mut g-xs">Nada é apagado sem confirmação explícita. Registros de atendimento ficam vinculados à conta anonimizada.</p></>
+}
+function Termos() {
+  const [d, err, reload] = useLoad(() => C.terms()), [f, setF] = useState({ version: '', title: '', body: '' }), [msg, setMsg] = useState('')
+  return <div className="adm-row2"><div>{err ? <p className="g-warn">{err}</p> : <DataTable name="termos" cols={[{ k: 'version', l: 'Versão' }, { k: 'title', l: 'Título' }, { k: 'published_at', l: 'Publicada', r: r => dt(r.published_at) }, { k: 'aceites', l: 'Aceites' }]} rows={d?.versions} />}</div>
+    <div className="adm-card"><h3>Publicar nova versão</h3><p className="g-mut g-xs">Versões publicadas não mudam. Ao publicar, todos aceitam de novo no próximo acesso.</p>
+      <input className="adm-in" style={{ width: '100%' }} placeholder="Versão (ex.: 2026-11-01)" value={f.version} onChange={e => setF({ ...f, version: e.target.value })} />
+      <input className="adm-in" style={{ width: '100%', marginTop: 6 }} placeholder="Título" value={f.title} onChange={e => setF({ ...f, title: e.target.value })} />
+      <textarea className="adm-in" style={{ width: '100%', marginTop: 6, minHeight: 160, padding: 10 }} placeholder="Texto" value={f.body} onChange={e => setF({ ...f, body: e.target.value })} />
+      <button className="adm-btn" style={{ marginTop: 8 }} onClick={act(async () => { if (!confirm('Publicar? Todos os usuários terão de aceitar a nova versão.')) return; await C.publishTerms(f); setMsg('Publicada'); setF({ version: '', title: '', body: '' }) }, reload)}>Publicar</button>{msg && <p className="g-acc g-sm">{msg}</p>}</div></div>
+}
+function AuditoriaT() {
+  const [d, err] = useLoad(() => C.audit())
+  const cols = [{ k: 'created_at', l: 'Quando', r: r => dt(r.created_at), sv: r => r.created_at }, { k: 'actor', l: 'Quem' }, { k: 'action', l: 'Ação' }, { k: 'entity', l: 'Entidade' }, { k: 'entity_id', l: 'ID' }, { k: 'data', l: 'Dados', r: r => r.data ? <code className="g-xs">{JSON.stringify(r.data).slice(0, 80)}</code> : '—' }]
+  return err ? <p className="g-warn">{err}</p> : <DataTable name="auditoria" cols={cols} rows={d?.audit} pageSize={25} />
+}
+function Wrap({ children }) { return <div className="ag">{children}</div> }
+
+const NAV = [
+  ['Visão geral', [['dashboard', 'Dashboard', 'chart']]],
+  ['Pessoas', [['usuarios', 'Usuários', 'person'], ['alunos', 'Liberações rápidas', 'check'], ['profissionais', 'Profissionais e habilitações', 'clipboard'], ['vinculos', 'Vínculos', 'users'], ['solicitacoes', 'Central de solicitações', 'flag']]],
+  ['Operação', [['filas', 'Filas e prazos (SLA)', 'bell'], ['planos', 'Planos de acesso', 'shield'], ['modelos', 'Modelos de treino', 'pencil'], ['exercicios', 'Biblioteca e mídia', 'dumbbell']]],
+  ['Comunidade', [['moderacao', 'Moderação', 'chat'], ['ranking', 'Auditoria do ranking', 'sparkles']]],
+  ['Governança', [['auditoria', 'Auditoria', 'list'], ['lgpd', 'LGPD', 'lock'], ['termos', 'Termos de uso', 'info'], ['config', 'Configurações', 'gear']]]]
+const TITLE = Object.fromEntries(NAV.flatMap(([, it]) => it.map(([k, l]) => [k, l])))
+export default function AdminApp() {
+  const [sp, setSp] = useSearchParams(), nav = useNavigate(), [open, setOpen] = useState(false)
+  const tab = TITLE[sp.get('tab')] ? sp.get('tab') : sp.get('tab') === 'visao' ? 'dashboard' : 'dashboard', go = t => { setSp({ tab: t }); setOpen(false) }
+  const X = EXTRA[tab]
+  return <div className="adm" data-testid="admin-panel">
+    <aside className={'adm-side' + (open ? ' open' : '')} aria-label="Menu administrativo">
+      <div className="adm-brand">AVADESK <b>Admin</b></div>
+      {NAV.map(([g, items]) => <div key={g}><h6>{g}</h6>{items.map(([k, l, ic]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => go(k)} data-testid={'adm-' + k}><Icon name={ic} />{l}</button>)}</div>)}
+      <h6>App</h6><button onClick={() => nav('/perfil')}><Icon name="chevronLeft" />Voltar ao app</button>
+    </aside>
+    <main className="adm-main">
+      <div className="adm-mtop"><button className="adm-btn ghost" onClick={() => setOpen(!open)} aria-label="Menu">☰</button><b>{TITLE[tab]}</b></div>
+      <h1>{TITLE[tab]}</h1><p className="adm-sub">AVADESK Fitness · central administrativa</p>
+      {tab === 'dashboard' && <Dashboard go={go} />}
+      {tab === 'usuarios' && <Usuarios />}
+      {tab === 'alunos' && <Wrap><Alunos /></Wrap>}
+      {tab === 'profissionais' && <Wrap><Profissionais /></Wrap>}
+      {tab === 'vinculos' && <Wrap><Vinculos /></Wrap>}
+      {tab === 'solicitacoes' && <Solicitacoes />}
+      {tab === 'filas' && <Wrap><Filas /></Wrap>}
+      {tab === 'planos' && <Wrap><Planos /></Wrap>}
+      {tab === 'modelos' && <Modelos />}
+      {tab === 'exercicios' && <Exercicios />}
+      {['moderacao', 'ranking'].includes(tab) && (X ? <Wrap><X /></Wrap> : <p className="g-mut">Indisponível.</p>)}
+      {tab === 'auditoria' && <AuditoriaT />}
+      {tab === 'lgpd' && <Lgpd />}
+      {tab === 'termos' && <Termos />}
+      {tab === 'config' && <Wrap><Config /></Wrap>}
+    </main>
+  </div>
+}

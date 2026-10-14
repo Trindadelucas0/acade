@@ -101,6 +101,7 @@ export default function Train() {
     </div> : <div className="g-media g-x g-noimg" data-testid="ex-media-placeholder">
       <Icon name="stretch" /><span className="g-xs g-mut">Sem vídeo para este exercício — siga as instruções abaixo</span>
     </div>}
+    <ExtraMedia id={ex.exercise_id} />
     <div className="g-row"><h1 style={{ fontSize: 24, margin: 0 }} data-testid="ex-name">{ex.name}</h1><span className="g-sp" /><button className="g-link" onClick={() => setHow(h => !h)}>{how ? 'Fechar' : 'Como fazer'}</button></div>
     {(how || !m || bad[ex.exercise_id]) && <p className="g-mut g-sm" style={{ marginTop: 6 }}>{ex.instructions || 'Faça o movimento devagar e com controle. Pare se sentir dor.'}</p>}
     {ex.cautions?.length > 0 && <p className="g-warn" style={{ marginTop: 6 }}>Atenção: faça com cuidado se sente {ex.cautions.map(c => RESTR_PT[c.code]?.toLowerCase()).join(', ')}. Pare se doer.</p>}
@@ -146,4 +147,14 @@ export default function Train() {
       <button className="g-btn" style={{ maxWidth: 360 }} onClick={() => update(x => { x.rest = null })} data-testid="skip-rest">Pular descanso</button>
     </div>}
   </div>
+}
+
+// vídeos e fotos extras cadastrados pela administração (a mídia padrão continua acima)
+function ExtraMedia({ id }) {
+  const [m, setM] = useState([])
+  useEffect(() => { let on = true; C.exMedia(id).then(r => on && setM(r.media)).catch(() => on && setM([])); return () => { on = false } }, [id])
+  if (!m.length) return null
+  return <div className="g-scrollx" style={{ margin: '8px 0 10px', gap: 8 }} data-testid="ex-extra-media">{m.map(x => x.kind === 'video'
+    ? (/youtube|youtu\.be|vimeo/.test(x.url) ? <a key={x.id} className="g-chipbtn" href={x.url} target="_blank" rel="noopener">▶ {x.caption || 'Vídeo'}</a> : <video key={x.id} src={x.url} controls playsInline preload="metadata" style={{ width: 220, borderRadius: 14, flex: 'none' }} />)
+    : <img key={x.id} src={x.url} alt={x.caption || ''} style={{ width: 140, height: 140, objectFit: 'cover', borderRadius: 14, flex: 'none' }} />)}</div>
 }

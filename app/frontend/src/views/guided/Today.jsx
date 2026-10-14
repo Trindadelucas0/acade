@@ -78,10 +78,20 @@ export default function Today() {
       </div>}
     </>}
 
-    <div className="g-card" style={{ marginTop: 14 }}>
-      <div className="g-row"><b>Sua semana</b><span className="g-sp" /><span className="g-acc" style={{ fontWeight: 800 }}>{st.week.done}/{st.week.target} treinos</span></div>
-      <div className="g-bar" style={{ margin: '10px 0 4px' }}><i style={{ width: Math.min(100, st.week.done / Math.max(1, st.week.target) * 100) + '%' }} /></div>
+    <div className="av-hero" style={{ marginTop: 14 }} data-testid="week-ring">
+      <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+        <div className="av-ring"><svg width="132" height="132"><circle cx="66" cy="66" r="56" stroke="#ffffff14" strokeWidth="12" fill="none" />
+          <circle cx="66" cy="66" r="56" stroke="var(--ag-acc)" strokeWidth="12" fill="none" strokeLinecap="round" strokeDasharray={`${2 * Math.PI * 56 * Math.min(1, st.week.done / Math.max(1, st.week.target))} 999`} /></svg>
+          <b>{st.week.done}/{st.week.target}<small>treinos na semana</small></b></div>
+        <div style={{ minWidth: 0 }}><b>Sua semana</b><p className="g-mut g-xs" style={{ margin: '4px 0 0' }}>{st.week.done >= st.week.target ? 'Meta da semana cumprida!' : `Faltam ${Math.max(0, st.week.target - st.week.done)} treino(s) para a meta.`}</p></div>
+      </div>
       <WeekStrip sessions={st.week.sessions} />
+    </div>
+    <div className="av-quick" data-testid="quick-actions">
+      <button onClick={() => nav('/treinos')}><Icon name="dumbbell" />Treinos</button>
+      <button onClick={() => nav('/progresso')}><Icon name="chart" />Progresso</button>
+      <button onClick={() => nav('/muscles')}><Icon name="person" />Corpo 3D</button>
+      <button onClick={() => nav('/acompanhamento')}><Icon name="chat" />Profissional</button>
     </div>
     <div className="g-card g-list" style={{ marginTop: 14 }}>
       <button className="g-li" onClick={() => nav('/acompanhamento')} data-testid="home-care"><span className="g-ico"><Icon name="chat" /></span><span><b>Acompanhamento</b><br /><span className="g-mut g-xs">Profissionais, dúvidas, ocorrências e orientações</span></span></button>

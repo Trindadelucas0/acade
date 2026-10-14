@@ -53,7 +53,7 @@ export default function MuscleMap() {
           <div style={{ fontWeight: 700, fontSize: 17 }}>Mapa muscular</div>
           <div style={{ fontSize: 12, color: '#9fb3c8' }}>Toque num músculo · arraste para girar · pinça para zoom</div>
         </div>
-        <button onClick={() => setHeatOn(h => !h)} style={{ ...btnS, width: 'auto', padding: '0 12px', color: heatOn ? '#04231b' : '#e8f0f8', background: heatOn ? '#22d3a6' : btnS.background }} data-testid="heat-toggle">{heatOn ? 'Treinados ✓' : 'Treinados'}</button>
+        <button onClick={() => setHeatOn(h => !h)} style={{ ...btnS, width: 'auto', padding: '0 12px', color: heatOn ? '#11140a' : '#e8f0f8', background: heatOn ? '#c8f135' : btnS.background }} data-testid="heat-toggle">{heatOn ? 'Treinados ✓' : 'Treinados'}</button>
       </div>
       <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
         <Suspense fallback={<div style={{ padding: 40, textAlign: 'center', color: '#9fb3c8' }}>Carregando 3D…</div>}>
@@ -68,12 +68,12 @@ export default function MuscleMap() {
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 18, fontWeight: 700 }}>{muscle.name_pt}{side(pick) && <span style={{ fontWeight: 400, color: '#9fb3c8', fontSize: 14 }}> · lado {side(pick)}</span>}</div>
             <div style={{ fontSize: 13, color: '#9fb3c8', marginTop: 2 }}>
-              {group ? <>Grupo: <b style={{ color: '#22d3a6' }}>{group.name_pt}</b></> : 'Sem grupo de treino'} · <i>{muscle.name_en}</i></div>
+              {group ? <>Grupo: <b style={{ color: '#c8f135' }}>{group.name_pt}</b></> : 'Sem grupo de treino'} · <i>{muscle.name_en}</i></div>
           </div>
           <button onClick={() => setPick(null)} style={btnS} aria-label="Fechar">✕</button>
         </div>
         {(() => { const slug = Object.keys(SLUG_GROUP).find(s => SLUG_GROUP[s] === muscle.group_id); const x = slug && stats[slug]
-          return <div style={{ marginTop: 10, fontSize: 13, background: '#22d3a614', border: '1px solid #22d3a633', borderRadius: 10, padding: '8px 10px' }}>
+          return <div style={{ marginTop: 10, fontSize: 13, background: '#c8f13514', border: '1px solid #c8f13533', borderRadius: 10, padding: '8px 10px' }}>
             {x ? <>Você treinou <b>{SLUG_PT[slug]}</b>: {Math.round(x.sets * 10) / 10} séries · {Math.round(x.volume)} kg de volume · {x.days.size} dia(s) · último em {new Date(x.last + 'T12:00').toLocaleDateString('pt-BR')}</> : 'Ainda não treinado.'}
           </div> })()}
         <div style={{ marginTop: 12, fontSize: 13, fontWeight: 600, color: '#cfe0f0' }}>Exercícios</div>

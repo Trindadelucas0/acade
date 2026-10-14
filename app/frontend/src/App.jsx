@@ -43,9 +43,10 @@ import './views/app/AdminCommunity.jsx'
 import Gate from './views/app/Locked.jsx'
 import Acompanhamento, { Conversa } from './views/app/Acompanhamento.jsx'
 import Avisos from './views/app/Avisos.jsx'
-import Pro from './views/app/Pro.jsx'
-import AdminPanel from './views/app/AdminPanel.jsx'
+import AdminApp from './views/admin/AdminApp.jsx'
 import { TermsGate } from './views/app/Terms.jsx'
+import ProPortal from './views/pro/Portal.jsx'
+import Builder from './views/pro/Builder.jsx'
 
 bindUI(useUI)   // lets the shared controls open sheets without importing the store at module scope
 
@@ -87,8 +88,21 @@ function Shell() {
           re-mounts the boundary, so the tab bar is always a way out */}
       <div id="app" className="vfade" key={loc.pathname}>
         <ErrorBoundary>
-          {!authed ? <Login /> : user?.needs_terms ? <TermsGate onAccepted={() => useStore.getState().setUser({ ...user, needs_terms: false })} /> : (
+          {!authed ? <Login /> : user?.needs_terms ? <TermsGate onAccepted={() => useStore.getState().setUser({ ...user, needs_terms: false })} /> : isProAccount(user) ? (
             <Routes>
+              <Route path="/pro" element={<Gate title="AVADESK PRO"><ProPortal /></Gate>} />
+              <Route path="/pro/treino" element={<Gate title="AVADESK PRO"><Builder /></Gate>} />
+              <Route path="/comunidade" element={<Gate title="Comunidade"><Comunidade /></Gate>} />
+              <Route path="/post/:id" element={<Gate title="Comunidade"><PostPage /></Gate>} />
+              <Route path="/profissional/:id" element={<Gate title="Comunidade"><ProfessionalPage /></Gate>} />
+              <Route path="/conversa/:id" element={<Gate title="Conversa"><Conversa /></Gate>} />
+              <Route path="/avisos" element={<Avisos />} />
+              <Route path="/perfil" element={<Profile />} />
+              <Route path="*" element={<Navigate to="/pro" replace />} />
+            </Routes>
+          ) : (
+            <Routes>
+              <Route path="/pro/treino" element={user?.admin ? <Builder /> : <Navigate to="/hoje" replace />} />
               <Route path="/hoje" element={<Today />} />
               <Route path="/treinos" element={<Gate title="Treinos"><Treinos /></Gate>} />
               <Route path="/comunidade" element={<Gate title="Comunidade"><Comunidade /></Gate>} />
@@ -98,8 +112,8 @@ function Shell() {
               <Route path="/post/:id" element={<Gate title="Comunidade"><PostPage /></Gate>} />
               <Route path="/profissional/:id" element={<Gate title="Comunidade"><ProfessionalPage /></Gate>} />
               <Route path="/ranking" element={<Gate title="Ranking"><Ranking /></Gate>} />
-              <Route path="/pro" element={user?.pro || user?.admin ? <Gate title="Área profissional"><Pro /></Gate> : <Navigate to="/hoje" replace />} />
-              <Route path="/admin/painel" element={user?.admin ? <AdminPanel /> : <Navigate to="/hoje" replace />} />
+              <Route path="/pro" element={user?.pro || user?.admin ? <Gate title="AVADESK PRO"><ProPortal /></Gate> : <Navigate to="/hoje" replace />} />
+              <Route path="/admin/painel" element={user?.admin ? <AdminApp /> : <Navigate to="/hoje" replace />} />
               <Route path="/onboarding" element={<Gate title="Treinos"><Onboarding /></Gate>} />
               <Route path="/recomendados" element={<Recommendations />} />
               <Route path="/programas" element={<ProgramLibrary />} />
@@ -126,7 +140,7 @@ function Shell() {
         </ErrorBoundary>
       </div>
       {/* barra principal = treino guiado; a antiga só aparece no treino manual em execução */}
-      {authed && <GuidedTabBar />}
+      {authed && !loc.pathname.startsWith('/admin/painel') && <GuidedTabBar />}
       <RestTimer />
       <Modals />
       <Toast />

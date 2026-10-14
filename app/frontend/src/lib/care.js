@@ -58,3 +58,20 @@ export async function exportMyData() {
   const blob = await r.blob(), a = document.createElement('a')
   a.href = URL.createObjectURL(blob); a.download = 'avadesk-meus-dados.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000)
 }
+
+// AVADESK PRO e central administrativa
+export const P = {
+  home: () => api('/api/pro/home'), students: (filter, q) => api('/api/pro/students?' + new URLSearchParams({ filter: filter || 'todos', q: q || '' })),
+  student: id => api('/api/pro/student/full?id=' + id), library: f => api('/api/pro/library?' + new URLSearchParams(f || {})), templates: () => api('/api/pro/templates'),
+  list: f => api('/api/pro/prescriptions?' + new URLSearchParams(f || {})), get: id => api('/api/pro/prescription?id=' + id),
+  save: b => post('/api/pro/prescriptions', b), publish: id => post('/api/pro/prescriptions/publish', { id }), archive: (id, reason) => post('/api/pro/prescriptions/archive', { id, reason }),
+  capacity: () => api('/api/pro/capacity'), request: b => post('/api/pro/requests', b), cancel: id => post('/api/pro/requests/cancel', { id }), reply: (id, note) => post('/api/pro/requests/reply', { id, note }),
+  myCode: () => api('/api/me/code'),
+  // admin
+  kpis: () => api('/api/adm/kpis'), requests: (type, group) => api('/api/adm/requests?' + new URLSearchParams({ ...(type ? { type } : {}), group: group || 'pendentes' })),
+  decide: b => post('/api/adm/requests/decide', b), setCapacity: b => post('/api/adm/capacity', b),
+  admTemplates: () => api('/api/adm/templates'), saveTemplate: b => post('/api/adm/templates', b), templateStatus: (id, status) => post('/api/adm/templates/status', { id, status })
+}
+export const GOALS = { hypertrophy: 'Hipertrofia', weight_loss: 'Emagrecimento', strength: 'Força', conditioning: 'Condicionamento', mobility: 'Mobilidade', home: 'Treino em casa', rehab: 'Reabilitação' }
+export const REQ_ST = { pendente: 'Pendente', em_analise: 'Em análise', aguardando_info: 'Aguardando informações', aprovada: 'Aprovada', rejeitada: 'Rejeitada', cancelada: 'Cancelada' }
+export const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']

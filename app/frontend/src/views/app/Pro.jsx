@@ -72,7 +72,7 @@ function Assess({ o, onClose, onDone }) {
   </Sheet>
 }
 
-function Atendimentos({ d, reload }) {
+export function Atendimentos({ d, reload }) {
   const nav = useNavigate()
   const [assess, setAssess] = useState(null), [prop, setProp] = useState(null)
   return <div>
@@ -106,7 +106,7 @@ function ProposalForm({ o, onDone }) {
     {err && <p className="g-warn">{err}</p>}
     <button className="g-btn" style={{ marginTop: 12 }} onClick={async () => { try { await C.propose({ occurrence_id: o.id, plan_id: o.plan_id, description: desc }); onDone() } catch (e) { setErr(e.message) } }}>Enviar proposta</button></div>
 }
-function ProProfile({ d, reload }) {
+export function ProProfile({ d, reload }) {
   const p = d.profile || {}
   const [f, setF] = useState({ display_name: p.name || '', bio: p.bio || '', photo_url: p.photo_url || '', specialties: (p.specialties || []).join(', '), service_modes: (p.service_modes || []).join(', ') })
   const [ql, setQl] = useState({ kind: '', number: '', area: '' }), [msg, setMsg] = useState('')
