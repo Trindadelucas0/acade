@@ -10,6 +10,7 @@ export async function run({ adm, p1, stu, sid, get, post, check }) {
     { exercise_id: lib[1].id, set_index: 1, weight: 10, reps: 12, started_at: 'lixo', done_at: T(400), rest_sec_real: -5, rest_sec_target: 99999 }]
   const cid = 'tempo-' + Date.now()
   let r = await post(stu, '/api/guided/sessions', { client_id: cid, workout_name: 'Treino cronometrado', started_at: T(0), sets: sets.slice(0, 2), paused_sec: 30 })
+  if (r.s !== 200) console.log('   resposta', r.s, JSON.stringify(r.d))
   check(r.s === 200 && r.d.timing === null, 'sessão em andamento salva sem resumo')
   r = await post(stu, '/api/guided/sessions', { client_id: cid, workout_name: 'Treino cronometrado', started_at: T(0), finished_at: T(500), sets, paused_sec: 100 })
   const t = r.d.timing
