@@ -23,7 +23,7 @@ try {
   const fk = (await c.query(`select distinct cl.relname t from pg_constraint co join pg_class cl on cl.oid=co.conrelid join pg_class r on r.oid=co.confrelid where co.contype='f' and r.relname='users'`)).rows.map(r => r.t).filter(t => !keep.has(t))
   const extra = ['post_likes', 'post_comments', 'content_reports', 'pro_request_history', 'ranking_snapshots', 'workout_templates', 'audit_log', 'password_resets', 'term_acceptances', 'data_requests', 'notifications', 'messages', 'threads']
   const exists = (await c.query(`select tablename from pg_tables where schemaname='public'`)).rows.map(r => r.tablename)
-  const all = [...new Set([...fk, ...extra])].filter(t => exists.includes(t))
+  const all = [...new Set([...fk, ...extra])].filter(t => exists.includes(t) && t !== 'users')
   // fecho: toda tabela que referencia uma tabela zerada também é zerada (as mantidas não podem depender delas)
   const refs = (await c.query(`select cl.relname t, r.relname r from pg_constraint co join pg_class cl on cl.oid=co.conrelid join pg_class r on r.oid=co.confrelid where co.contype='f' and cl.relname<>r.relname`)).rows
   for (let grew = true; grew;) { grew = false
@@ -32,6 +32,7 @@ try {
       all.push(t); grew = true } }
   await c.query(`truncate ${all.map(t => `"${t}"`).join(',')} restart identity`)
   // users: delete (tabelas mantidas ainda referenciam users, com as colunas já anuladas)
+  await c.query('update users set same_person_id=null').catch(() => {})
   await c.query('delete from users')
   await c.query('commit')
   console.log('tabelas zeradas:', ['users', ...all].sort().join(', '))
