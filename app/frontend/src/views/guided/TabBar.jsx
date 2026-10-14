@@ -9,7 +9,7 @@ const HIDE = ['treinar', 'concluido', 'onboarding', 'workout']
 const GROUP = {
   hoje: 'inicio', inicio: 'inicio', avisos: 'inicio', acompanhamento: 'inicio', conversa: 'inicio',
   treinos: 'treinos', 'meu-programa': 'treinos', programas: 'treinos', programa: 'treinos', recomendados: 'treinos', library: 'treinos', plan: 'treinos', home: 'treinos',
-  comunidade: 'comunidade', post: 'comunidade', pro: 'comunidade', ranking: 'comunidade',
+  comunidade: 'comunidade', post: 'comunidade', profissional: 'comunidade', ranking: 'comunidade',
   progresso: 'progresso', stats: 'progresso', history: 'progresso', muscles: 'progresso'
 }
 export const tabOf = path => GROUP[path.split('/')[1] || 'hoje'] || 'perfil'

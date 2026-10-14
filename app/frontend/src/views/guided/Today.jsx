@@ -7,6 +7,7 @@ import { Spin } from './Programs.jsx'
 import MuscleStatus from './MuscleStatus.jsx'
 import { PendingCard, isPending } from '../app/Locked.jsx'
 import { AvisosCard } from '../app/Avisos.jsx'
+import { RankingCard } from '../app/Ranking.jsx'
 import './guided.css'
 
 const DN = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D']
@@ -86,6 +87,7 @@ export default function Today() {
       <button className="g-li" onClick={() => nav('/acompanhamento')} data-testid="home-care"><span className="g-ico"><Icon name="chat" /></span><span><b>Acompanhamento</b><br /><span className="g-mut g-xs">Profissionais, dúvidas, ocorrências e orientações</span></span></button>
       <button className="g-li" onClick={() => nav('/comunidade')}><span className="g-ico"><Icon name="users" /></span><span><b>Comunidade</b><br /><span className="g-mut g-xs">Veja as novas publicações dos profissionais</span></span></button>
     </div>
+    {user?.roles?.includes('aluno') && <RankingCard />}
     <div style={{ marginTop: 14 }}><MuscleStatus compact /></div>
     {st.active && <p className="g-dim g-xs g-center" style={{ marginTop: 14 }}>Semana {st.active.week_index} de {st.active.weeks} · {minutesLabel(st.active)} por treino</p>}
   </div>

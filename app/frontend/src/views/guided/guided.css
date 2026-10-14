@@ -175,3 +175,11 @@ body:has(.ag),html:has(.ag){background:var(--ag-bg)!important}
 .ag .g-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px} .ag .g-actions .g-btn{width:auto;flex:1;min-width:120px}
 .ag .g-blocked{border:1px solid #ff6b7a55;background:#ff6b7a12;border-radius:16px;padding:12px;margin-top:10px}
 .ag table.g-tbl{width:100%;border-collapse:collapse;font-size:14px} .ag .g-tbl td,.ag .g-tbl th{padding:8px 6px;border-top:1px solid var(--ag-line);text-align:left;vertical-align:top}
+/* AVADESK Fitness — fase 2 */
+.ag .g-post+.g-post{margin-top:12px}
+.ag .g-postimg{width:100%;border-radius:14px;margin-top:10px;max-height:420px;object-fit:cover;background:var(--ag-card-2)}
+.ag .g-likebtn{display:inline-flex;align-items:center;gap:6px;min-height:44px;min-width:44px;padding:0 12px;border-radius:12px;border:1px solid var(--ag-line);background:var(--ag-card-2);color:var(--ag-mut);font-weight:700;cursor:pointer;margin-right:6px}
+.ag .g-likebtn.g-on{color:var(--ag-bad);border-color:#ff6b7a55;background:#ff6b7a14}
+.ag .g-rank{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--ag-line)} .ag .g-rank:first-child{border-top:0}
+.ag .g-rank.g-me{background:#22d3a612;border-radius:12px;padding:10px 8px}
+.ag .g-pos{width:34px;font-weight:850;color:var(--ag-acc);text-align:center}

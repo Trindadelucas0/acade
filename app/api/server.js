@@ -5,6 +5,8 @@ import http from 'node:http';
 import { authRoutes, clearTokenCookie, authUser, pub } from './auth.js';
 import { guidedRoutes } from './guided.js';
 import { proRoutes } from './pro.js';
+import { communityRoutes } from './community.js';
+import { rankingRoutes } from './ranking.js';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -561,7 +563,9 @@ function pgBridge(u) {
 }
 Object.assign(routes, authRoutes({ json, readBody, bridge: pgBridge, clearCookies: [clearCookie] }));
 Object.assign(routes, guidedRoutes({ json, readBody }));
-Object.assign(routes, proRoutes({ json, readBody }));        // profissionais, vínculos, atendimento, admin   // treino guiado (onboarding, programas, sessões)
+Object.assign(routes, proRoutes({ json, readBody }));
+Object.assign(routes, communityRoutes({ json, readBody }));  // feed, curtidas, comentários, denúncias, moderação
+Object.assign(routes, rankingRoutes({ json, readBody }));    // ranking semanal/mensal        // profissionais, vínculos, atendimento, admin   // treino guiado (onboarding, programas, sessões)
 
 http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');

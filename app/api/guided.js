@@ -239,12 +239,14 @@ export function guidedRoutes({ json, readBody }) {
         sid = ex.rows[0].id
         await q(`update sessions set finished_at=$2,status=$3,feeling=$4,notes=$5,duration_sec=$6,volume_kg=$7,sets_count=$8,exercises_count=$9 where id=$1`,
           [sid, finished, status, feeling, b.notes ? String(b.notes).slice(0, 500) : null, finished ? Math.round((finished - started) / 1000) : null, volume, sets.length, exCount])
+        await q('update sessions set prescribed_count=$2, pro_plan_id=$3 where id=$1', [sid, +b.prescribed_count || null, isUuid(b.pro_plan_id) ? b.pro_plan_id : null])
         await q('delete from session_sets where session_id=$1', [sid])
       } else {
         sid = (await q(`insert into sessions(tenant_id,user_id,started_at,finished_at,status,feeling,notes,client_id,user_program_id,program_workout_id,workout_name,duration_sec,volume_kg,sets_count,exercises_count)
           values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) returning id`,
           [u.tenant_id, u.id, started, finished, status, feeling, b.notes ? String(b.notes).slice(0, 500) : null, cid, upId, pwId, String(b.workout_name || 'Treino').slice(0, 120),
            finished ? Math.round((finished - started) / 1000) : null, volume, sets.length, exCount])).rows[0].id
+        await q('update sessions set prescribed_count=$2, pro_plan_id=$3 where id=$1', [sid, +b.prescribed_count || null, isUuid(b.pro_plan_id) ? b.pro_plan_id : null])
       }
       const known = new Set((await q('select id from exercises where id = any($1)', [sets.map(s => String(s.exercise_id))])).rows.map(r => r.id))
       for (const s of sets) if (known.has(String(s.exercise_id)))

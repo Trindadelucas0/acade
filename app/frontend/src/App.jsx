@@ -38,7 +38,9 @@ import Profile from './views/guided/Profile.jsx'
 import AdminPrograms from './views/guided/AdminPrograms.jsx'
 // AVADESK Fitness
 import Treinos from './views/app/Treinos.jsx'
-import Comunidade from './views/app/Comunidade.jsx'
+import Comunidade, { PostPage, ProfessionalPage } from './views/app/Comunidade.jsx'
+import Ranking from './views/app/Ranking.jsx'
+import './views/app/AdminCommunity.jsx'
 import Gate from './views/app/Locked.jsx'
 import Acompanhamento, { Conversa } from './views/app/Acompanhamento.jsx'
 import Avisos from './views/app/Avisos.jsx'
@@ -93,6 +95,9 @@ function Shell() {
               <Route path="/acompanhamento" element={<Gate title="Acompanhamento"><Acompanhamento /></Gate>} />
               <Route path="/conversa/:id" element={<Gate title="Conversa"><Conversa /></Gate>} />
               <Route path="/avisos" element={<Avisos />} />
+              <Route path="/post/:id" element={<Gate title="Comunidade"><PostPage /></Gate>} />
+              <Route path="/profissional/:id" element={<Gate title="Comunidade"><ProfessionalPage /></Gate>} />
+              <Route path="/ranking" element={<Gate title="Ranking"><Ranking /></Gate>} />
               <Route path="/pro" element={user?.pro || user?.admin ? <Gate title="Área profissional"><Pro /></Gate> : <Navigate to="/hoje" replace />} />
               <Route path="/admin/painel" element={user?.admin ? <AdminPanel /> : <Navigate to="/hoje" replace />} />
               <Route path="/onboarding" element={<Gate title="Treinos"><Onboarding /></Gate>} />

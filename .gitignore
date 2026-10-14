@@ -30,3 +30,6 @@ CREDENCIAIS-LOCAL.txt
 
 # backups do banco
 backups/
+
+# uploads da comunidade (fotos dos profissionais)
+app/api/uploads/
