@@ -197,3 +197,4 @@ body:has(.ag),html:has(.ag){background:var(--ag-bg)!important}
 .ch-steps li.on button{background:#c8f135;color:#11140a}.ch-steps li.ok button{border-color:#c8f135}
 .g-chipbtn.on{background:#c8f135;color:#11140a}.g-chk{display:flex;gap:8px;align-items:center;min-height:44px}
 .g-field{min-width:0;flex:1}.g-field input[type=date]{min-width:0;width:100%}
+.ag .g-tabs{overflow-x:auto;scrollbar-width:none;max-width:100%}.ag .g-tabs::-webkit-scrollbar{display:none}.ag .g-tabs button{flex:1 0 auto;white-space:nowrap;padding:0 10px}

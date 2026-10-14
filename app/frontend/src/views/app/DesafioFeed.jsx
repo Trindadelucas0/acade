@@ -10,6 +10,11 @@ async function upload(id, file, setSt) {
   if (file.size > MAX_MB[kind] * 1024 * 1024) throw new Error(`${kind === 'foto' ? 'Foto' : 'Vídeo'} acima de ${String(MAX_MB[kind]).replace('.', ',')} MB`)
   setSt?.('enviando'); return CF.media(id, await readFile(file))
 }
+export function FilePick({ accept, file, onFile, label, testid }) {
+  return <label className="g-btn g-ghost g-sm" style={{ display: 'flex', gap: 6, justifyContent: 'center', margin: '8px 0', minWidth: 0, overflow: 'hidden' }}>
+    <input type="file" accept={accept} onChange={e => onFile(e.target.files[0] || null)} data-testid={testid} style={{ position: 'absolute', width: 1, height: 1, opacity: 0 }} />
+    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file ? '📎 ' + file.name : label}</span></label>
+}
 export function ReportBtn({ type, id, setDlg }) {
   return <button className="g-btn g-ghost g-sm" style={sm} onClick={() => setDlg({ t: 'Denunciar', x: 'Motivos: ' + REASONS.map(r => r[1]).join(', ') + '. Escreva o motivo; a administração avalia — nada é removido automaticamente.', input: true, ok: async v => { const r = REASONS.find(([k, l]) => v.toLowerCase().includes(l.toLowerCase().split(' ')[0]))?.[0] || 'outro'; await CF.report(type, id, r, v) } })} data-testid="ch-report">Denunciar</button>
 }
@@ -29,7 +34,7 @@ export function ChFeed({ c, setDlg }) {
   return <div data-testid="ch-feed">
     {d.can_post && <div className="g-card">
       <textarea className="g-in" rows={3} maxLength={2000} placeholder="Compartilhe com quem está no desafio" value={txt} onChange={e => setTxt(e.target.value)} data-testid="cf-text" aria-label="Texto da publicação" />
-      <label className="g-chk"><input type="file" accept="image/png,image/jpeg,image/webp,video/mp4,video/webm" onChange={e => setFile(e.target.files[0] || null)} data-testid="cf-file" /> Foto (até 2,5 MB) ou vídeo (até 3,5 MB)</label>
+      <FilePick accept="image/png,image/jpeg,image/webp,video/mp4,video/webm" file={file} onFile={setFile} label="Anexar foto (até 2,5 MB) ou vídeo (até 3,5 MB)" testid="cf-file" />
       {st && <p className={st === 'falhou' ? 'g-warn' : 'g-note'} role="status" data-testid="cf-state">{st === 'enviando' ? 'Enviando…' : 'Falhou — toque em Publicar para tentar de novo'}</p>}
       {msg && <p className="g-warn" role="alert">{msg}</p>}
       <div className="g-row" style={{ gap: 8 }}><button className="g-btn g-ghost" disabled={st === 'enviando'} onClick={() => send(true)}>Salvar rascunho</button><button className="g-btn" disabled={st === 'enviando' || (!txt.trim() && !file)} onClick={() => send(false)} data-testid="cf-send">Publicar</button></div>
@@ -66,7 +71,7 @@ export function ChProofs({ c, me, setDlg }) {
     {msg && <p className="g-warn" role="alert">{msg}</p>}
     {active && ['em_andamento', 'apurando'].includes(c.status) && <div className="g-card"><b className="g-sm">Enviar comprovante</b>
       <Field label="Treino deste desafio"><select className="g-in" value={sid} onChange={e => setSid(e.target.value)} data-testid="cp-session">{[<option key="" value="">{free.length ? 'Escolha o treino…' : 'Nenhum treino válido sem comprovante'}</option>, ...free.map(s => <option key={s.id} value={s.id}>{new Date(s.started_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })} · {s.workout_name || 'Treino'}</option>)]}</select></Field>
-      <input type="file" accept={accept} onChange={e => setFile(e.target.files[0] || null)} data-testid="cp-file" aria-label="Arquivo do comprovante" />
+      <FilePick accept={accept} file={file} onFile={setFile} label={'Escolher ' + (c.proof_media || []).join(' ou ')} testid="cp-file" />
       <button className="g-btn" style={{ marginTop: 8 }} disabled={busy || !sid || !file} onClick={run(async () => { const m = await upload(c.id, file); await CF.sendProof({ id: c.id, session_id: sid, media_url: m.url }); setSid(''); setFile(null) })} data-testid="cp-send">{busy ? 'Enviando…' : 'Enviar para revisão'}</button></div>}
     {!d.proofs.length ? <Empty>Nenhum comprovante.</Empty> : d.proofs.map(p => <div key={p.id} className="g-card" data-testid="cp-item">
       <div className="g-row" style={{ gap: 8 }}><b className="g-sm" style={{ flex: 1 }}>{p.mine ? 'Meu comprovante' : p.author}</b><span className={'ch-pill' + (p.status === 'aprovado' ? ' lime' : '')}>{PROOF_PT[p.status]}</span></div>

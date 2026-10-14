@@ -118,6 +118,7 @@ export function ChallengeWizard() {
 export function ChallengePage() {
   const { id } = useParams(), [sp] = useSearchParams(), nav = useNavigate(), code = sp.get('convite')
   const [d, err, reload] = useLoad(() => CH.get(id), [id]), [tab, setTab] = useState(sp.get('aba') || 'resumo'), [msg, setMsg] = useState(''), [dlg, setDlg] = useState(null), [team, setTeam] = useState('')
+  useEffect(() => { const a = sp.get('aba'); if (a) setTab(a) }, [sp])
   const act = fn => async (...a) => { setMsg(''); try { await fn(...a); reload() } catch (e) { setMsg(e.problems ? e.problems.join(' · ') : e.message) } }
   if (err) return <div className="ag"><Err msg={err} />{code && <button className="g-btn" onClick={act(() => CH.join(id, { code }))}>Entrar com o convite</button>}</div>
   if (!d) return <div className="ag"><Load /></div>
