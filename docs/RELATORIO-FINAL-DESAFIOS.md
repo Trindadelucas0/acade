@@ -9,14 +9,18 @@ Data: 14/10/2026. Commits locais apenas (sem push, sem deploy). Backups antes de
 - Ranking V6 (016): cálculo no backend, resultado final guardado com versão das regras e período, pódio premium, Geral/Minha posição, Entender pontuação, equipes proporcionais, coletivo, privacidade, desclassificados, 320 px.
 - Troféus e prêmios (017): catálogo (7 de sistema + personalizados moderados), concessão pelo resultado final, vitrine no perfil; prêmios oficiais só admin, sem dinheiro/sorteio, homologação, empates sem sorteio, recálculo só antes de homologar, entregas registradas; painéis admin (KPIs, oficiais, prêmios, vencedores, entregas, comprovantes pendentes, revisores, troféus em moderação, limites) e visão geral do criador.
 
+## Fechado nesta rodada
+- Vídeo de comprovante/feed até 50 MB por rota dedicada em streaming (`POST /api/challenges/media/stream`), com validação de tipo (mp4/webm/png/jpeg/webp), tamanho, assinatura do arquivo e sha256; limite JSON global mantido (rota JSON segue com 3,5 MB).
+- Notificação "meta atingida" (`desafio.meta`, link para o ranking), uma vez por pessoa por desafio.
+- Botões "Denunciar" para usuário (ficha no ranking e membros do grupo) e para grupo.
+- Assistente carrega os troféus já escolhidos ao editar um desafio.
+- Conjunto manual de capturas (88 telas) com dados de demonstração temporários, já removidos.
+
 ## Implementado com lacunas
+- Exclusão LGPD no painel admin ainda usa prompt() do navegador (a exclusão de conta usa o diálogo "digite EXCLUIR").
 - Capa do desafio por link https (sem upload próprio de capa).
-- Notificação "meta atingida" não é enviada (as demais — convite, pedido, aprovação, início, fim/apuração, comprovante recebido/aprovado/rejeitado, resultado, troféu, prêmio, entrega — são).
 - Estados "enviando/falhou" de post existem na tela e no banco, mas não há fila offline persistente.
-- Vídeo limitado a 3,5 MB (limite de 5 MB do corpo da requisição).
 - Política de retenção documentada, sem rotina automática de expurgo de mídias.
-- Botão "Denunciar" na tela existe para desafio, post e comprovante; denúncia de usuário e de grupo existe na API, sem botão dedicado.
-- Ao editar um desafio, o assistente não pré-carrega os troféus já escolhidos (salvar sem mexer mantém os atuais).
 - "Campanhas" do admin = desafios oficiais (sem entidade separada).
 - Numeração dos 36 testes V5 e 25 V6 agrupada por cenário; sem a lista original numerada no repositório para conferência 1-a-1.
 

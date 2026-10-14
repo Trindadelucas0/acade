@@ -951,9 +951,9 @@ Colunas fixas para todas as linhas:
 | V5-14 | NOV | Comprovantes manuais, estados, ninguém aprova o próprio, sem auto-aprovação | challenge-feed.js | smoke-fase11 | Testado |
 | V5-15 | NOV | Integridade: assinatura, tamanho, hash duplicado, dono do arquivo | challenge-feed.js | smoke-fase11 | Testado |
 | V5-16 | NOV | Revisores de oficiais; recurso pelo admin; invalidação | challenge-feed.js; AdminApp.jsx | smoke-fase11 | Testado |
-| V5-17 | NOV | Denúncias post/comentário/usuário/grupo/desafio/comprovante; decisões auditadas | community.js; challenge-feed.js | smoke-fase11 | Testado (botões de usuário/grupo: Parcial) |
+| V5-17 | NOV | Denúncias post/comentário/usuário/grupo/desafio/comprovante; decisões auditadas | community.js; challenge-feed.js | smoke-fase11, smoke-fase14 | Testado |
 | V5-18 | NOV | Silenciar notificações sociais | pro.js; challenge-feed.js | smoke-fase11 | Testado |
-| V5-19 | NOV | Notificações dos eventos com link profundo | challenges.js; challenge-feed.js; prizes.js | smoke-fase13 | Parcial (falta "meta atingida") |
+| V5-19 | NOV | Notificações dos eventos com link profundo | challenges.js; challenge-feed.js; prizes.js | smoke-fase13, smoke-fase14 | Testado |
 | V5-20 | NOV | Equipes: mínimo/máximo/desempate fixos; proporcional | challenge-score.js | challenge-score.test | Testado |
 | V5-21 | NOV | Troféus: catálogo, personalizados moderados, ligados a resultado, perfil | prizes.js; Trofeus.jsx | smoke-fase13 | Testado |
 | V5-22 | NOV | Prêmios oficiais: só admin, sem dinheiro/sorteio, fluxo completo, entrega pós-homologação | prizes.js; AdminApp.jsx | smoke-fase13 | Testado |
