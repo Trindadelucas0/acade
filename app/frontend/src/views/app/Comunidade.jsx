@@ -1,6 +1,7 @@
 // Comunidade AVADESK: feed cronológico de profissionais autorizados, curtidas, comentários conforme regra do admin,
 // seguir profissionais, denúncias. Alunos não publicam. Publicações não criam vínculo nem substituem orientação individual.
 import { Grupos } from './Grupos.jsx'
+import { Desafios } from './Desafios.jsx'
 import { useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import Icon from '../../components/Icon.jsx'
@@ -95,8 +96,8 @@ export default function Comunidade() {
   const isStudent = user?.roles?.includes('aluno')
   return <div className="ag" data-testid="comunidade">
     <span className="g-eyebrow">Comunidade</span><h1>Comunidade</h1>
-    <Tabs cur={tab} set={t => setSp({ tab: t })} tabs={[['feed', 'Feed'], ['grupos', 'Grupos'], ['profissionais', 'Profissionais'], ...(isStudent || user?.admin ? [['ranking', 'Ranking']] : [])]} />
-    {tab === 'feed' && <Feed />}{tab === 'profissionais' && <Profissionais />}{tab === 'ranking' && <Ranking embedded />}{tab === 'grupos' && <Grupos />}
+    <Tabs cur={tab} set={t => setSp({ tab: t })} tabs={[['feed', 'Feed'], ['desafios', 'Desafios'], ['grupos', 'Grupos'], ['profissionais', 'Profissionais'], ...(isStudent || user?.admin ? [['ranking', 'Ranking']] : [])]} />
+    {tab === 'feed' && <Feed />}{tab === 'profissionais' && <Profissionais />}{tab === 'ranking' && <Ranking embedded />}{tab === 'grupos' && <Grupos />}{tab === 'desafios' && <Desafios />}
   </div>
 }
 export function PostPage() {
