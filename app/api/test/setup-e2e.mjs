@@ -12,6 +12,8 @@ for (const [email, name, roles] of [['admin.e2e@avadesk.local', 'Admin E2E', ['a
   for (const r of roles) await q('insert into user_roles values($1,$2,$3) on conflict do nothing', [u.id, t, r])
   // contas de teste já aceitaram a versão vigente dos termos
   await q(`insert into term_acceptances(user_id,version) select $1, version from terms_versions on conflict do nothing`, [u.id])
+  // zera a janela de 24h do limite diário de publicações (repetições do smoke no mesmo dia); não apaga nada
+  if (roles.includes('profissional')) await q(`update posts set created_at = created_at - interval '25 hours' where author_id=$1 and created_at > now() - interval '24 hours'`, [u.id])
   if (roles.includes('profissional')) await q(`insert into professional_profiles(user_id,tenant_id,display_name,specialties) values($1,$2,$3,$4) on conflict (user_id) do nothing`, [u.id, t, name, ['Musculação']])
 }
 console.log('usuários e2e prontos'); await pool.end()
