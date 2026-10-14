@@ -84,10 +84,10 @@ export default function MuscleMap() {
           </ul> : <div style={{ color: '#9fb3c8', fontSize: 13, marginTop: 6 }}>Nenhum exercício cadastrado para este músculo ainda.</div>}
       </div>}
       <div style={{ fontSize: 10.5, color: '#6d849c', textAlign: 'center', padding: '6px 10px 10px', background: muscle ? '#0E2439' : 'transparent' }}>
-        Modelo 3D: <a style={{ color: '#8fb0cf' }} href="https://github.com/LluisV/Z-Anatomy" target="_blank" rel="noopener">Z-Anatomy</a> (BodyParts3D/DBCLS), <a style={{ color: '#8fb0cf' }} href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a> — modificado
+        Modelo 3D: <a style={{ color: '#8fb0cf', display: 'inline-flex', alignItems: 'center', minHeight: 44, padding: '0 4px' }} href="https://github.com/LluisV/Z-Anatomy" target="_blank" rel="noopener">Z-Anatomy</a> (BodyParts3D/DBCLS), <a style={{ color: '#8fb0cf', display: 'inline-flex', alignItems: 'center', minHeight: 44, padding: '0 4px' }} href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a> — modificado
       </div>
     </div>
   )
 }
-const btnS = { background: '#ffffff12', color: '#e8f0f8', border: '1px solid #ffffff22', borderRadius: 10, width: 36, height: 36, fontSize: 16, cursor: 'pointer' }
+const btnS = { background: '#ffffff12', color: '#e8f0f8', border: '1px solid #ffffff22', borderRadius: 10, width: 44, height: 44, fontSize: 16, cursor: 'pointer', minWidth: 44, minHeight: 44 }
 const tipS = { position: 'absolute', top: 10, left: '50%', transform: 'translateX(-50%)', background: '#16365aee', padding: '7px 12px', borderRadius: 10, pointerEvents: 'none', whiteSpace: 'nowrap', fontSize: 14 }

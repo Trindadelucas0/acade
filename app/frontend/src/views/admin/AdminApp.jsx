@@ -250,7 +250,7 @@ export default function AdminApp() {
       <h6>App</h6><button onClick={() => nav('/perfil')}><Icon name="chevronLeft" />Voltar ao app</button>
     </aside>
     <main className="adm-main">
-      <div className="adm-mtop"><button className="adm-btn ghost" onClick={() => setOpen(!open)} aria-label="Menu">☰</button><b>{TITLE[tab]}</b></div>
+      <div className="adm-mtop"><button className="adm-btn ghost" style={{ minWidth: 44, minHeight: 44, fontSize: 18 }} onClick={() => setOpen(!open)} aria-label="Menu">☰</button><b>{TITLE[tab]}</b></div>
       <h1>{TITLE[tab]}</h1><p className="adm-sub">AVADESK Fitness · central administrativa</p>
       {tab === 'dashboard' && <Dashboard go={go} />}
       {tab === 'usuarios' && <Usuarios />}
