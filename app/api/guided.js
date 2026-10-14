@@ -269,7 +269,7 @@ export function guidedRoutes({ json, readBody }) {
       }
       // cronometragem: pausas, descanso real e resumo calculado no servidor
       const paused = Math.max(0, Math.min(86400, Math.round(+b.paused_sec || 0)))
-      const exNames = Object.fromEntries((await q('select id,name from exercises where id = any($1)', [[...known]])).rows.map(r => [r.id, r.name]))
+      const exNames = Object.fromEntries((await q('select id,name_pt as name from exercises where id = any($1)', [[...known]])).rows.map(r => [r.id, r.name]))
       const tsets = sets.filter(s => known.has(String(s.exercise_id))).map(s => ({ exercise_id: String(s.exercise_id), name: exNames[String(s.exercise_id)], started_at: okTs(s.started_at), done_at: okTs(s.done_at), rest_sec_real: okRest(s.rest_sec_real), rest_sec_target: okRest(s.rest_sec_target) }))
       const timing = finished ? summarize({ started_at: started, finished_at: finished, paused_sec: paused, sets: tsets }) : null
       await q('update sessions set paused_sec=$2, active_sec=$3, timing=$4, duration_sec=coalesce($5, duration_sec) where id=$1', [sid, paused, timing?.active_sec ?? null, timing ? JSON.stringify(timing) : null, timing?.total_sec ?? null])
