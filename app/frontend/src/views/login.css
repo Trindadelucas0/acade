@@ -25,3 +25,10 @@
 .lg-credit{margin-top:10px;text-align:center;font-size:11px;color:#6d849c;line-height:1.5}
 .lg-credit a{color:#8fb0cf}
 @media (min-width:900px){.lg-wrap{flex-direction:row;justify-content:center;gap:40px}.lg-hero{height:80vh;max-width:560px}.lg-card{margin-top:0}}
+/* aceite dos termos */
+.lg-terms{font-size:13px;color:var(--label-2,#b8c2cc);margin:4px 0 10px}
+.lg-terms label{display:flex;gap:10px;align-items:flex-start;min-height:44px;cursor:pointer}
+.lg-terms input{width:22px;height:22px;margin-top:2px;accent-color:#22c55e;flex:none}
+.lg-terms .lg-forgot{display:inline;padding:0;min-height:0;text-decoration:underline}
+.lg-terms em{color:#f87171;font-style:normal;display:block;margin-top:4px}
+.lg-terms-box{max-height:220px;overflow:auto;background:rgba(255,255,255,.04);border-radius:12px;padding:10px 12px;margin-top:8px;font-size:12px;line-height:1.5}

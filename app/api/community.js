@@ -81,7 +81,8 @@ export function communityRoutes({ json, readBody }) {
       }
       if (status === 'publicado' && !has(u, 'admin')) {
         const n = +(await q(`select count(*) from posts where author_id=$1 and status<>'rascunho' and created_at > now() - interval '24 hours'`, [u.id])).rows[0].count
-        if (n >= POST_LIMIT_DAY) return json(res, 429, { error: `Limite de ${POST_LIMIT_DAY} publicações por dia atingido.` })
+        const lim = +(await getSettings(u.tenant_id)).limite_publicacoes_dia || POST_LIMIT_DAY
+        if (n >= lim) return json(res, 429, { error: `Limite de ${lim} publicações por dia atingido.` })
       }
       const r = await q('insert into posts(tenant_id,author_id,title,body,category,image_url,status) values($1,$2,$3,$4,$5,$6,$7) returning id', [u.tenant_id, u.id, title, body, cat, img, status])
       await audit(u.tenant_id, u.id, 'post.' + status, 'post', r.rows[0].id)
@@ -170,9 +171,19 @@ export function communityRoutes({ json, readBody }) {
     },
     'GET /api/media': async (req, res) => {
       const f = qs(req).get('f') || ''
-      if (!/^[a-f0-9]{24}\.(png|jpg|webp)$/.test(f) || !fs.existsSync(path.join(UP, f))) return json(res, 404, { error: 'not found' })
-      res.writeHead(200, { 'Content-Type': { png: 'image/png', jpg: 'image/jpeg', webp: 'image/webp' }[f.split('.')[1]], 'Cache-Control': 'public, max-age=86400', 'X-Content-Type-Options': 'nosniff' })
-      fs.createReadStream(path.join(UP, f)).pipe(res)
+      if (!/^[a-f0-9]{24}\.(png|jpg|webp|gif|mp4|webm)$/.test(f) || !fs.existsSync(path.join(UP, f))) return json(res, 404, { error: 'not found' })
+      const file = path.join(UP, f), size = fs.statSync(file).size
+      const type = { png: 'image/png', jpg: 'image/jpeg', webp: 'image/webp', gif: 'image/gif', mp4: 'video/mp4', webm: 'video/webm' }[f.split('.')[1]]
+      const h = { 'Content-Type': type, 'Cache-Control': 'public, max-age=86400', 'X-Content-Type-Options': 'nosniff', 'Accept-Ranges': 'bytes' }
+      const m = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || '')
+      if (m) {   // vídeo: suporte a Range para o player poder avançar/voltar
+        const start = m[1] ? +m[1] : Math.max(0, size - +m[2]), end = m[1] && m[2] ? Math.min(+m[2], size - 1) : size - 1
+        if (start > end || start >= size) { res.writeHead(416, { 'Content-Range': `bytes */${size}` }); return res.end() }
+        res.writeHead(206, { ...h, 'Content-Range': `bytes ${start}-${end}/${size}`, 'Content-Length': end - start + 1 })
+        return fs.createReadStream(file, { start, end }).pipe(res)
+      }
+      res.writeHead(200, { ...h, 'Content-Length': size })
+      fs.createReadStream(file).pipe(res)
     },
 
     // ---------- moderação (admin) ----------

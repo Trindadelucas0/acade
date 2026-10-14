@@ -7,6 +7,8 @@ import { guidedRoutes } from './guided.js';
 import { proRoutes } from './pro.js';
 import { communityRoutes } from './community.js';
 import { rankingRoutes } from './ranking.js';
+import { lgpdRoutes, termsStatus } from './lgpd.js';
+import { exerciseMediaRoutes } from './exmedia.js';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -238,7 +240,7 @@ const routes = {
     const user = readSession(req);
     if (!user) return json(res, 401, { error: 'not signed in' });
     // conta Postgres: devolve papéis/status reais (o JWT é a fonte da verdade)
-    if (user.pg) { const u = await authUser(req).catch(() => null); if (!u) return json(res, 401, { error: 'not signed in' }); return json(res, 200, { user: pub(u) }) }
+    if (user.pg) { const u = await authUser(req).catch(() => null); if (!u) return json(res, 401, { error: 'not signed in' }); return json(res, 200, { user: { ...pub(u), ...(await termsStatus(u.id)) } }) }
     json(res, 200, { user: { id: user.id, name: user.name, admin: isAdmin(user) } });
   },
 
@@ -369,7 +371,9 @@ Object.assign(routes, authRoutes({ json, readBody, bridge: pgBridge, clearCookie
 Object.assign(routes, guidedRoutes({ json, readBody }));
 Object.assign(routes, proRoutes({ json, readBody }));
 Object.assign(routes, communityRoutes({ json, readBody }));  // feed, curtidas, comentários, denúncias, moderação
-Object.assign(routes, rankingRoutes({ json, readBody }));    // ranking semanal/mensal        // profissionais, vínculos, atendimento, admin   // treino guiado (onboarding, programas, sessões)
+Object.assign(routes, lgpdRoutes({ json, readBody, legacyState: readState, legacyErase: uid => { try { fs.unlinkSync(stateFile(uid)) } catch {} db.users = db.users.filter(x => x.id !== uid); saveDb() } }));
+Object.assign(routes, rankingRoutes({ json, readBody }));
+Object.assign(routes, exerciseMediaRoutes({ json, readBody }));   // vídeos e fotos extras dos exercícios (admin)    // ranking semanal/mensal        // profissionais, vínculos, atendimento, admin   // treino guiado (onboarding, programas, sessões)
 
 http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');

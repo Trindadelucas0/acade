@@ -1,0 +1,119 @@
+// AVADESK Fitness · termos de uso versionados e direitos do titular (LGPD): exportação dos dados e pedido de exclusão.
+// Exclusão nunca é automática: entra na fila do admin e só é executada com confirmação explícita (anonimização).
+import { q } from './db/pool.js'
+import { requireAuth, requireRole, audit } from './auth.js'
+
+export async function currentTerms() { return (await q('select version,title,body,published_at from terms_versions order by published_at desc, version desc limit 1')).rows[0] || null }
+export async function termsStatus(userId) {
+  const t = await currentTerms(); if (!t) return { needs_terms: false }
+  const a = await q('select 1 from term_acceptances where user_id=$1 and version=$2', [userId, t.version])
+  return { needs_terms: !a.rowCount, terms_version: t.version }
+}
+export async function acceptTerms(userId, version, req) {
+  await q('insert into term_acceptances(user_id,version,ip,user_agent) values($1,$2,$3,$4) on conflict do nothing',
+    [userId, version, String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').slice(0, 64), String(req.headers['user-agent'] || '').slice(0, 200)])
+}
+// colunas de qualquer tabela que referenciam users(id), descobertas pelo catálogo (nada fica de fora da exportação)
+async function userColumns() {
+  return (await q(`select tc.table_name t, kcu.column_name c, rc.delete_rule r from information_schema.table_constraints tc
+    join information_schema.key_column_usage kcu on kcu.constraint_name=tc.constraint_name and kcu.table_schema=tc.table_schema
+    join information_schema.constraint_column_usage ccu on ccu.constraint_name=tc.constraint_name and ccu.table_schema=tc.table_schema
+    join information_schema.referential_constraints rc on rc.constraint_name=tc.constraint_name and rc.constraint_schema=tc.table_schema
+    where tc.constraint_type='FOREIGN KEY' and ccu.table_name='users' and ccu.column_name='id' and tc.table_schema='public' order by 1,2`)).rows
+}
+const SENSITIVE = /password_hash|token_hash/
+// tabelas de dados pessoais apagadas na exclusão; o restante (atendimento, publicações, auditoria) é mantido vinculado à conta anonimizada
+const PERSONAL = new Set(['post_likes', 'follows', 'notifications', 'ranking_prefs', 'ranking_pref_history', 'password_resets', 'user_access_plans', 'body_goals'])
+
+export function lgpdRoutes({ json, readBody, legacyState, legacyErase }) {
+  return {
+    'GET /api/terms': async (req, res) => json(res, 200, { terms: await currentTerms() }),
+    'POST /api/terms/accept': async (req, res) => {
+      const u = await requireAuth(req, res, json, { allowPending: true }); if (!u) return
+      const b = await readBody(req), t = await currentTerms()
+      if (!t || b.version !== t.version) return json(res, 409, { error: 'Os termos foram atualizados. Leia a versão atual.', version: t && t.version })
+      await acceptTerms(u.id, t.version, req); await audit(u.tenant_id, u.id, 'termos.aceite', 'terms', t.version)
+      json(res, 200, { ok: true, version: t.version })
+    },
+    'POST /api/adm/terms': async (req, res) => {
+      const u = await requireRole('admin')(req, res, json); if (!u) return
+      const b = await readBody(req), version = String(b.version || '').trim().slice(0, 40), title = String(b.title || '').trim().slice(0, 200), body = String(b.body || '').trim()
+      if (!version || title.length < 3 || body.length < 20) return json(res, 400, { error: 'Informe versão, título e texto' })
+      const r = await q('insert into terms_versions(version,title,body,published_by) values($1,$2,$3,$4) on conflict do nothing returning version', [version, title, body, u.id])
+      if (!r.rowCount) return json(res, 409, { error: 'Essa versão já existe (versões publicadas não podem ser alteradas)' })
+      await audit(u.tenant_id, u.id, 'termos.publicacao', 'terms', version); json(res, 200, { ok: true })
+    },
+    'GET /api/adm/terms': async (req, res) => {
+      const u = await requireRole('admin')(req, res, json); if (!u) return
+      const r = await q(`select v.version,v.title,v.published_at,(select count(*)::int from term_acceptances a join users x on x.id=a.user_id where a.version=v.version and x.tenant_id=$1) aceites from terms_versions v order by published_at desc`, [u.tenant_id])
+      json(res, 200, { versions: r.rows })
+    },
+    // exportação imediata (portabilidade): JSON com tudo que referencia a conta
+    'GET /api/me/export': async (req, res) => {
+      const u = await requireAuth(req, res, json, { allowPending: true }); if (!u) return
+      const out = { gerado_em: new Date().toISOString(), conta: null, tabelas: {} }
+      out.conta = (await q('select id,name,email,status,created_at,last_seen_at from users where id=$1', [u.id])).rows[0]
+      for (const { t, c } of await userColumns()) {
+        if (t === 'audit_log' && c !== 'actor_id') continue
+        const rows = (await q(`select * from "${t}" where "${c}"=$1 limit 5000`, [u.id])).rows
+        if (rows.length) out.tabelas[`${t}.${c}`] = rows.map(r => { for (const k of Object.keys(r)) if (SENSITIVE.test(k)) delete r[k]; return r })
+      }
+      if (legacyState) out.treino_livre_local = legacyState(u.id)
+      await audit(u.tenant_id, u.id, 'lgpd.exportacao', 'user', u.id)
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'Content-Disposition': 'attachment; filename="avadesk-meus-dados.json"' })
+      res.end(JSON.stringify(out, null, 2))
+    },
+    'GET /api/me/requests': async (req, res) => {
+      const u = await requireAuth(req, res, json, { allowPending: true }); if (!u) return
+      json(res, 200, { requests: (await q('select id,kind,status,reason,decision_note,created_at,decided_at from data_requests where user_id=$1 order by created_at desc', [u.id])).rows })
+    },
+    'POST /api/me/delete-request': async (req, res) => {
+      const u = await requireAuth(req, res, json, { allowPending: true }); if (!u) return
+      if (u.roles.includes('admin')) return json(res, 400, { error: 'Contas de administração não podem pedir exclusão por aqui.' })
+      const b = await readBody(req)
+      const r = await q(`insert into data_requests(tenant_id,user_id,kind,reason) values($1,$2,'exclusao',$3) on conflict do nothing returning id`, [u.tenant_id, u.id, String(b.reason || '').slice(0, 1000)])
+      if (!r.rowCount) return json(res, 409, { error: 'Você já tem um pedido de exclusão em análise.' })
+      await audit(u.tenant_id, u.id, 'lgpd.exclusao_pedida', 'data_request', r.rows[0].id)
+      for (const a of (await q(`select user_id from user_roles where tenant_id=$1 and role_id='admin'`, [u.tenant_id])).rows)
+        await q('insert into notifications(user_id,kind,title,body,link) values($1,$2,$3,$4,$5)', [a.user_id, 'lgpd', 'Pedido de exclusão de conta', u.name, '/admin/painel?tab=lgpd'])
+      json(res, 200, { ok: true, id: r.rows[0].id })
+    },
+    'POST /api/me/delete-request/cancel': async (req, res) => {
+      const u = await requireAuth(req, res, json, { allowPending: true }); if (!u) return
+      const r = await q(`update data_requests set status='cancelada', decided_at=now() where user_id=$1 and kind='exclusao' and status='pendente' returning id`, [u.id])
+      if (r.rowCount) await audit(u.tenant_id, u.id, 'lgpd.exclusao_cancelada', 'data_request', r.rows[0].id)
+      json(res, 200, { ok: true, cancelled: r.rowCount })
+    },
+    'GET /api/adm/data-requests': async (req, res) => {
+      const u = await requireRole('admin')(req, res, json); if (!u) return
+      const st = new URL(req.url, 'http://x').searchParams.get('status') || 'pendente'
+      const r = await q(`select d.*, x.name, x.email from data_requests d join users x on x.id=d.user_id where d.tenant_id=$1 and ($2='' or d.status=$2) order by d.created_at`, [u.tenant_id, st])
+      json(res, 200, { requests: r.rows })
+    },
+    // decidir: recusar (com motivo) ou executar a exclusão — exige digitar EXCLUIR
+    'POST /api/adm/data-requests/decide': async (req, res) => {
+      const u = await requireRole('admin')(req, res, json); if (!u) return
+      const b = await readBody(req), note = String(b.note || '').slice(0, 1000)
+      const d = (await q(`select * from data_requests where id=$1 and tenant_id=$2 and status='pendente'`, [b.id, u.tenant_id])).rows[0]
+      if (!d) return json(res, 404, { error: 'Pedido não encontrado ou já decidido' })
+      if (b.action === 'recusar') {
+        if (note.length < 5) return json(res, 400, { error: 'Explique o motivo da recusa' })
+        await q(`update data_requests set status='recusada',decision_note=$2,decided_by=$3,decided_at=now() where id=$1`, [d.id, note, u.id])
+        await audit(u.tenant_id, u.id, 'lgpd.exclusao_recusada', 'data_request', d.id, { note })
+        await q('insert into notifications(user_id,kind,title,body,link) values($1,$2,$3,$4,$5)', [d.user_id, 'lgpd', 'Pedido de exclusão recusado', note, '/perfil'])
+        return json(res, 200, { ok: true })
+      }
+      if (b.action !== 'excluir') return json(res, 400, { error: 'Ação inválida' })
+      if (b.confirm !== 'EXCLUIR') return json(res, 400, { error: 'Para confirmar, digite EXCLUIR', needs_confirm: true })
+      if (d.user_id === u.id) return json(res, 400, { error: 'Não é possível excluir a própria conta' })
+      const removed = {}
+      for (const { t, c } of await userColumns()) if (PERSONAL.has(t)) { const r = await q(`delete from "${t}" where "${c}"=$1`, [d.user_id]); removed[t] = (removed[t] || 0) + r.rowCount }
+      await q(`update users set name='Conta excluída', email='excluida-'||id||'@removido.invalid', password_hash=null, status='bloqueado', disabled_at=now() where id=$1`, [d.user_id])
+      if (legacyErase) legacyErase(d.user_id)
+      await q(`update posts set status='removido' where author_id=$1`, [d.user_id]).catch(() => {})
+      await q(`update data_requests set status='concluida',decision_note=$2,decided_by=$3,decided_at=now() where id=$1`, [d.id, note || 'Conta anonimizada', u.id])
+      await audit(u.tenant_id, u.id, 'lgpd.exclusao_executada', 'user', d.user_id, { removed })
+      json(res, 200, { ok: true, removed })
+    }
+  }
+}

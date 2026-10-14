@@ -45,6 +45,7 @@ import Acompanhamento, { Conversa } from './views/app/Acompanhamento.jsx'
 import Avisos from './views/app/Avisos.jsx'
 import Pro from './views/app/Pro.jsx'
 import AdminPanel from './views/app/AdminPanel.jsx'
+import { TermsGate } from './views/app/Terms.jsx'
 
 bindUI(useUI)   // lets the shared controls open sheets without importing the store at module scope
 
@@ -86,7 +87,7 @@ function Shell() {
           re-mounts the boundary, so the tab bar is always a way out */}
       <div id="app" className="vfade" key={loc.pathname}>
         <ErrorBoundary>
-          {!authed ? <Login /> : (
+          {!authed ? <Login /> : user?.needs_terms ? <TermsGate onAccepted={() => useStore.getState().setUser({ ...user, needs_terms: false })} /> : (
             <Routes>
               <Route path="/hoje" element={<Today />} />
               <Route path="/treinos" element={<Gate title="Treinos"><Treinos /></Gate>} />

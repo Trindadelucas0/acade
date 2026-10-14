@@ -5,6 +5,7 @@ import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import crypto from 'node:crypto'
 import { q } from './db/pool.js'
+import { currentTerms, acceptTerms, termsStatus } from './lgpd.js'
 
 const SECRET = process.env.JWT_SECRET
 if (!SECRET || SECRET.length < 32) console.warn('[auth] JWT_SECRET ausente ou curto — defina em app/api/.env')
@@ -69,7 +70,7 @@ export function authRoutes({ json, readBody, bridge, clearCookies }) {
     const u = await loadUser(id)
     const tok = sign(u)
     const extra = bridge ? bridge(u) : []
-    json(res, 200, { user: pub(u), token: tok }, { 'Set-Cookie': [tokenCookie(tok), ...extra] })
+    json(res, 200, { user: { ...pub(u), ...(await termsStatus(u.id)) }, token: tok }, { 'Set-Cookie': [tokenCookie(tok), ...extra] })
   }
 
   return {
@@ -80,6 +81,8 @@ export function authRoutes({ json, readBody, bridge, clearCookies }) {
       if (name.length < 2) errors.name = 'Informe seu nome'
       if (!EMAIL_RE.test(email)) errors.email = 'E-mail inválido'
       if (password.length < 8) errors.password = 'A senha deve ter pelo menos 8 caracteres'
+      const terms = await currentTerms()
+      if (terms && (b.accept_terms !== true || b.terms_version !== terms.version)) errors.terms = 'É preciso aceitar os termos de uso (versão ' + terms.version + ')'
       if (Object.keys(errors).length) return json(res, 400, { error: Object.values(errors)[0], errors })
       const t = await q('select id from tenants where slug=$1 and active', [String(b.tenant || process.env.DEFAULT_TENANT || 'avadesk')])
       if (!t.rowCount) return json(res, 400, { error: 'Academia não encontrada' })
@@ -89,7 +92,8 @@ export function authRoutes({ json, readBody, bridge, clearCookies }) {
       await q(`insert into user_roles values($1,$2,'aluno')`, [u.rows[0].id, t.rows[0].id])
       // APP FLOW: novo aluno aguarda liberação da administração (sem login automático)
       await q(`update users set status='pendente' where id=$1`, [u.rows[0].id])
-      await audit(t.rows[0].id, u.rows[0].id, 'conta.cadastro', 'user', u.rows[0].id, { email })
+      if (terms) await acceptTerms(u.rows[0].id, terms.version, req)
+      await audit(t.rows[0].id, u.rows[0].id, 'conta.cadastro', 'user', u.rows[0].id, { email, termos: terms && terms.version })
       await login(res, u.rows[0].id)
     },
     'POST /api/auth/login': async (req, res) => {
@@ -107,7 +111,7 @@ export function authRoutes({ json, readBody, bridge, clearCookies }) {
     'POST /api/auth/logout': async (req, res) => json(res, 200, { ok: true }, { 'Set-Cookie': [clearTokenCookie, ...(clearCookies || [])] }),
     'GET /api/auth/me': async (req, res) => {
       const u = await requireAuth(req, res, json, { allowPending: true }); if (!u) return
-      json(res, 200, { user: pub(u) })
+      json(res, 200, { user: { ...pub(u), ...(await termsStatus(u.id)) } })
     },
     // recuperação: o pedido avisa a administração, que gera um link de uso único (24 h). Resposta sempre genérica.
     'POST /api/auth/forgot': async (req, res) => {

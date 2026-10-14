@@ -10,7 +10,7 @@ const has = (u, r) => u.roles.includes(r)
 const txt = (s, n = 2000) => String(s ?? '').trim().slice(0, n)
 const CATS = ['dor', 'desconforto', 'dificuldade', 'duvida', 'outro']
 const PRO_STATES = ['em_analise', 'ativo', 'suspenso', 'encerrado']
-export const DEFAULT_SETTINGS = { prazo_ocorrencia_horas: 24, prazo_mensagem_horas: 48, comentarios_alunos: false, ranking_percentual_sessao: 80, fuso_horario: 'America/Sao_Paulo' }
+export const DEFAULT_SETTINGS = { prazo_ocorrencia_horas: 24, prazo_mensagem_horas: 48, comentarios_alunos: false, ranking_percentual_sessao: 80, fuso_horario: 'America/Sao_Paulo', limite_publicacoes_dia: 5 }
 
 export async function getSettings(tid) {
   const r = await q('select key,value from app_settings where tenant_id=$1', [tid])
@@ -230,7 +230,9 @@ export function proRoutes({ json, readBody }) {
         q(`select p.*, coalesce(pp.display_name,o.name) owner_name, (p.owner_id=$2) mine from pro_plans p join users o on o.id=p.owner_id left join professional_profiles pp on pp.user_id=o.id where p.student_id=$1 order by p.status, p.updated_at desc`, [id, u.id]),
         q(`select id,category,exercise_name,status,created_at from occurrences where student_id=$1 order by created_at desc limit 20`, [id]),
         q(`select exercise_id from exercise_blocks where student_id=$1 and active`, [id])])
-      json(res, 200, { student: s.rows[0], sessions: sessions.rows, plans: plans.rows, occurrences: occ.rows, blocks: blocks.rows })
+      const threads = (await q(`select t.id,t.status,t.context_type,t.exercise_name,t.updated_at,(select body from messages m where m.thread_id=t.id order by id desc limit 1) last_body
+        from threads t where t.student_id=$1 and (t.responsible_id=$2 or t.assigned_to=$2) order by t.updated_at desc limit 20`, [id, u.id])).rows
+      json(res, 200, { student: s.rows[0], sessions: sessions.rows, plans: plans.rows, occurrences: occ.rows, blocks: blocks.rows, threads })
     },
     'POST /api/pro/plans': async (req, res) => {
       const u = await guard('profissional')(req, res, json); if (!u) return
@@ -386,11 +388,33 @@ export function proRoutes({ json, readBody }) {
       const b = await readBody(req)
       if (!['aluno', 'profissional', 'admin'].includes(b.role) || !isUuid(b.id)) return json(res, 400, { error: 'Dados inválidos' })
       if (b.id === u.id && b.role === 'admin' && !b.on) return json(res, 400, { error: 'Você não pode remover o próprio acesso de admin' })
+      if (b.on && ['aluno', 'profissional'].includes(b.role)) {
+        // contas separadas: a conta profissional não tem dados de treino; a conta de treino do profissional usa outro e-mail
+        const roles = (await q('select role_id from user_roles where user_id=$1 and tenant_id=$2', [b.id, u.tenant_id])).rows.map(r => r.role_id)
+        if (b.role === 'aluno' && roles.includes('profissional')) return json(res, 409, { error: 'Conta profissional não recebe papel de aluno. Para treinar, o profissional cria uma conta de aluno separada com outro e-mail.' })
+        if (b.role === 'profissional') {
+          const data = +(await q(`select (select count(*) from sessions where user_id=$1) + (select count(*) from coach_students where student_id=$1 and status='ativo') n`, [b.id])).rows[0].n
+          if (data > 0) return json(res, 409, { error: 'Esta conta já tem dados de treino ou vínculos como aluno. Crie uma conta profissional separada (outro e-mail) e, se quiser, registre que pertencem à mesma pessoa.' })
+          await q(`delete from user_roles where user_id=$1 and tenant_id=$2 and role_id='aluno'`, [b.id, u.tenant_id])
+        }
+      }
       if (b.on) {
         await q('insert into user_roles values($1,$2,$3) on conflict do nothing', [b.id, u.tenant_id, b.role])
         if (b.role === 'profissional') await q(`insert into professional_profiles(user_id,tenant_id,display_name) select id,tenant_id,name from users where id=$1 on conflict do nothing`, [b.id])
       } else await q('delete from user_roles where user_id=$1 and tenant_id=$2 and role_id=$3', [b.id, u.tenant_id, b.role])
       await audit(u.tenant_id, u.id, 'papel.' + (b.on ? 'concedido' : 'removido'), 'user', b.id, { role: b.role })
+      json(res, 200, { ok: true })
+    },
+    // registro (só para auditoria) de que duas contas pertencem à mesma pessoa; nenhum dado é compartilhado
+    'POST /api/adm/users/same-person': async (req, res) => {
+      const u = await guard('admin')(req, res, json); if (!u) return
+      const b = await readBody(req)
+      if (!isUuid(b.id) || (b.other_id && !isUuid(b.other_id)) || b.id === b.other_id) return json(res, 400, { error: 'Dados inválidos' })
+      const ids = [b.id, b.other_id].filter(Boolean)
+      if ((await q('select count(*)::int n from users where id = any($1) and tenant_id=$2', [ids, u.tenant_id])).rows[0].n !== ids.length) return json(res, 404, { error: 'Conta não encontrada' })
+      await q('update users set same_person_id=null where same_person_id=$1 or id=$1', [b.id])
+      if (b.other_id) { await q('update users set same_person_id=$2 where id=$1', [b.id, b.other_id]); await q('update users set same_person_id=$1 where id=$2', [b.id, b.other_id]) }
+      await audit(u.tenant_id, u.id, 'conta.mesma_pessoa', 'user', b.id, { other_id: b.other_id || null, note: txt(b.note, 300) || null })
       json(res, 200, { ok: true })
     },
     'POST /api/adm/users/plan': async (req, res) => {
@@ -560,18 +584,34 @@ export function proRoutes({ json, readBody }) {
     },
     'GET /api/adm/settings': async (req, res) => {
       const u = await guard('admin')(req, res, json); if (!u) return
-      json(res, 200, { settings: await getSettings(u.tenant_id) })
+      json(res, 200, { settings: { ...(await getSettings(u.tenant_id)), tenant_name: (await q('select name from tenants where id=$1', [u.tenant_id])).rows[0].name } })
     },
     'POST /api/adm/settings': async (req, res) => {
       const u = await guard('admin')(req, res, json); if (!u) return
       const b = await readBody(req)
       const allowed = { prazo_ocorrencia_horas: v => Math.max(1, Math.min(720, +v | 0)), prazo_mensagem_horas: v => Math.max(1, Math.min(720, +v | 0)), comentarios_alunos: v => !!v,
-        ranking_percentual_sessao: v => Math.max(50, Math.min(100, +v | 0)), fuso_horario: v => txt(v, 60) || 'America/Sao_Paulo' }
+        ranking_percentual_sessao: v => Math.max(50, Math.min(100, +v | 0)), fuso_horario: v => txt(v, 60) || 'America/Sao_Paulo', limite_publicacoes_dia: v => Math.max(1, Math.min(50, +v | 0)) }
       for (const [k, f] of Object.entries(allowed)) if (b[k] !== undefined) {
         await q(`insert into app_settings(tenant_id,key,value,updated_by) values($1,$2,$3,$4) on conflict (tenant_id,key) do update set value=excluded.value, updated_by=excluded.updated_by, updated_at=now()`, [u.tenant_id, k, JSON.stringify(f(b[k])), u.id])
         await audit(u.tenant_id, u.id, 'configuracao', 'setting', k, { value: f(b[k]) })
       }
-      json(res, 200, { settings: await getSettings(u.tenant_id) })
+      if (b.tenant_name !== undefined) {
+        const n = txt(b.tenant_name, 80); if (n.length < 2) return json(res, 400, { error: 'Nome da comunidade muito curto' })
+        await q('update tenants set name=$2 where id=$1', [u.tenant_id, n]); await audit(u.tenant_id, u.id, 'configuracao', 'tenant', u.tenant_id, { name: n })
+      }
+      json(res, 200, { settings: { ...(await getSettings(u.tenant_id)), tenant_name: (await q('select name from tenants where id=$1', [u.tenant_id])).rows[0].name } })
+    },
+    // profissional inicia conversa direta com aluno vinculado
+    'POST /api/pro/threads': async (req, res) => {
+      const u = await guard('profissional')(req, res, json); if (!u) return
+      const b = await readBody(req), body = txt(b.body, 2000)
+      if (!isUuid(b.student_id) || !(await isLinked(u.id, b.student_id))) return json(res, 403, { error: 'Aluno não vinculado a você' })
+      if (body.length < 2) return json(res, 400, { error: 'Escreva a mensagem' })
+      const t = (await q(`insert into threads(tenant_id,student_id,responsible_id,context_type,status) values($1,$2,$3,'geral','respondida') returning *`, [u.tenant_id, b.student_id, u.id])).rows[0]
+      await q('insert into messages(thread_id,author_id,body) values($1,$2,$3)', [t.id, u.id, body])
+      await notify(b.student_id, 'mensagem', 'Mensagem do seu profissional', body.slice(0, 100), '/conversa/' + t.id)
+      await audit(u.tenant_id, u.id, 'mensagem.iniciada', 'thread', t.id)
+      json(res, 201, { thread: t })
     }
   }
 }

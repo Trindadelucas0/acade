@@ -14,11 +14,16 @@ export const ctx = {}
 export async function main() {
   console.log('Fase 0 — contas')
   const email = `aluno${Date.now()}@e2e.local`
-  const reg = await post(null, '/api/auth/register', { name: 'Aluno Teste', email, password: 'senha-forte-1' })
+  const terms = (await get(null, '/api/terms')).d.terms
+  check(terms && terms.version, 'termos de uso versionados publicados')
+  check((await post(null, '/api/auth/register', { name: 'Aluno Teste', email, password: 'senha-forte-1' })).s === 400, 'cadastro sem aceite dos termos é recusado')
+  check((await post(null, '/api/auth/register', { name: 'Aluno Teste', email, password: 'senha-forte-1', accept_terms: true, terms_version: 'velha' })).s === 400, 'aceite de versão desatualizada é recusado')
+  const reg = await post(null, '/api/auth/register', { name: 'Aluno Teste', email, password: 'senha-forte-1', accept_terms: true, terms_version: terms.version })
   check(reg.s === 200 && reg.d.user.status === 'pendente', 'cadastro cria conta pendente com login')
   const stu = reg.d.token
   check((await get(stu, '/api/guided/state')).s === 403, 'pendente: recursos travados (403 no backend)')
-  check((await get(stu, '/api/auth/me')).s === 200, 'pendente: consegue carregar o próprio perfil')
+  const me0 = await get(stu, '/api/auth/me')
+  check(me0.s === 200 && me0.d.user.needs_terms === false, 'pendente: carrega o perfil; aceite dos termos registrado')
   check((await post(null, '/api/login/options')).s === 404 && (await get(null, '/api/admin/users')).s === 404, 'passkey e admin legado removidos (404)')
   const adm = await login('admin.e2e@avadesk.local'), p1 = await login('pro1.e2e@avadesk.local'), p2 = await login('pro2.e2e@avadesk.local')
   check(adm && p1 && p2, 'login admin/profissionais e2e')
@@ -114,7 +119,7 @@ export async function main() {
 const isMain = process.argv[1] && process.argv[1].endsWith('smoke.mjs')
 if (isMain) {
   await main()
-  try { const m = await import('./smoke-fase2.mjs'); await m.run(ctx) } catch (e) { if (e.code !== 'ERR_MODULE_NOT_FOUND') throw e }
+  for (const f of ['./smoke-fase2.mjs', './smoke-fase3.mjs']) { const m = await import(f); await m.run(ctx) }
   console.log(`\n${ok} ok, ${bad} falha(s)`); process.exit(bad ? 1 : 0)
 }
 export const counts = () => ({ ok, bad })

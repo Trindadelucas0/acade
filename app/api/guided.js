@@ -2,6 +2,12 @@
 // Todas as rotas exigem login (requireAuth) e são isoladas por tenant (tenantScope / user_id).
 import { q } from './db/pool.js'
 import { requireAuth, requireRole, tenantScope } from './auth.js'
+// conta profissional não tem treino pessoal (contas separadas); admin e aluno seguem normalmente
+async function requireTrainee(req, res, json) {
+  const u = await requireAuth(req, res, json); if (!u) return null
+  if (u.roles.includes('profissional') && !u.roles.includes('aluno') && !u.roles.includes('admin')) { json(res, 403, { error: 'Conta profissional não registra treino pessoal. Use sua conta de aluno separada.', pro_account: true }); return null }
+  return u
+}
 
 const GOALS = ['hypertrophy', 'weight_loss', 'strength', 'conditioning', 'mobility', 'home', 'rehab']
 const LEVELS = ['beginner', 'intermediate', 'advanced']
@@ -136,7 +142,7 @@ function weekStart(d = new Date()) { const x = new Date(d); x.setHours(0, 0, 0, 
 export function guidedRoutes({ json, readBody }) {
   return {
     'GET /api/guided/state': async (req, res) => {
-      const u = await requireAuth(req, res, json); if (!u) return
+      const u = await requireTrainee(req, res, json); if (!u) return
       const [profile, active] = await Promise.all([profileOf(u.id), activeOf(u)])
       const ws = weekStart()
       const week = (await q(`select started_at, workout_name from sessions where user_id=$1 and tenant_id=$2 and status='done' and started_at >= $3 order by started_at`, [u.id, u.tenant_id, ws])).rows
@@ -150,7 +156,7 @@ export function guidedRoutes({ json, readBody }) {
       json(res, 200, { profile, active: active && { ...active, sessions_done: done, week_index: Math.min(active.weeks || 1, Math.floor((Date.now() - new Date(active.started_at)) / (7 * 864e5)) + 1) }, week: { done: week.length, target: active ? active.days_per_week : (profile ? profile.dias : 3), sessions: week }, streak_weeks: streak })
     },
     'POST /api/guided/onboarding': async (req, res) => {
-      const u = await requireAuth(req, res, json); if (!u) return
+      const u = await requireTrainee(req, res, json); if (!u) return
       const b = await readBody(req)
       const p = { objetivo: b.objetivo, nivel: b.nivel, local: b.local, dias: +b.dias, minutos: +b.minutos, restricoes: (Array.isArray(b.restricoes) ? b.restricoes : []).filter(r => RESTR.includes(r)) }
       if (!GOALS.includes(p.objetivo) || !LEVELS.includes(p.nivel) || !LOCS.includes(p.local) || !(p.dias >= 2 && p.dias <= 6) || ![20, 30, 45, 60].includes(p.minutos))
@@ -161,7 +167,7 @@ export function guidedRoutes({ json, readBody }) {
       json(res, 200, { profile: p })
     },
     'GET /api/guided/recommendations': async (req, res) => {
-      const u = await requireAuth(req, res, json); if (!u) return
+      const u = await requireTrainee(req, res, json); if (!u) return
       const p = await profileOf(u.id); if (!p) return json(res, 400, { error: 'Responda o questionário primeiro' })
       const list = (await q(LIST_SQL + ` and p.status='publicado'`, [u.tenant_id])).rows
       const ranked = scorePrograms(list, p).slice(0, 3)
@@ -172,19 +178,19 @@ export function guidedRoutes({ json, readBody }) {
       json(res, 200, { profile: p, recommendations: ranked.map(r => ({ ...by.get(r.id), score: r.score, why: r.why })), notes })
     },
     'GET /api/guided/programs': async (req, res) => {
-      const u = await requireAuth(req, res, json); if (!u) return
+      const u = await requireTrainee(req, res, json); if (!u) return
       const goal = qs(req).get('goal')
       const r = await q(LIST_SQL + ` and p.status='publicado'` + (GOALS.includes(goal) ? ` and p.goal=$2` : '') + ' order by p.is_rehab, p.goal, p.level, p.days_per_week', GOALS.includes(goal) ? [u.tenant_id, goal] : [u.tenant_id])
       json(res, 200, { programs: r.rows })
     },
     'GET /api/guided/program': async (req, res) => {
-      const u = await requireAuth(req, res, json); if (!u) return
+      const u = await requireTrainee(req, res, json); if (!u) return
       const id = qs(req).get('id'); if (!isUuid(id)) return json(res, 400, { error: 'id inválido' })
       const p = await programFull(id, u.tenant_id); if (!p) return json(res, 404, { error: 'Programa não encontrado' })
       json(res, 200, { program: p })
     },
     'POST /api/guided/start': async (req, res) => {
-      const u = await requireAuth(req, res, json); if (!u) return
+      const u = await requireTrainee(req, res, json); if (!u) return
       const b = await readBody(req); if (!isUuid(b.program_id)) return json(res, 400, { error: 'id inválido' })
       const p = await q(`select id from programs p where id=$1 and status='publicado' and ${tenantScope('p', 2)}`, [b.program_id, u.tenant_id])
       if (!p.rowCount) return json(res, 404, { error: 'Programa não encontrado' })
@@ -193,14 +199,14 @@ export function guidedRoutes({ json, readBody }) {
       json(res, 200, { user_program_id: r.rows[0].id })
     },
     'POST /api/guided/abandon': async (req, res) => {
-      const u = await requireAuth(req, res, json); if (!u) return
+      const u = await requireTrainee(req, res, json); if (!u) return
       const b = await readBody(req)
       await q(`update user_programs set status='abandoned', ended_at=now(), end_reason=$2 where user_id=$1 and status='active'`, [u.id, String(b.reason || '').slice(0, 200) || null])
       json(res, 200, { ok: true })
     },
     // treino de hoje = próximo na sequência do programa ativo (ou ?workout=<id> para escolher outro)
     'GET /api/guided/today': async (req, res) => {
-      const u = await requireAuth(req, res, json); if (!u) return
+      const u = await requireTrainee(req, res, json); if (!u) return
       const a = await activeOf(u); if (!a) return json(res, 200, { active: null })
       const p = await programFull(a.program_id, u.tenant_id)
       const done = await sessionsDoneIn(a.id)
@@ -220,7 +226,7 @@ export function guidedRoutes({ json, readBody }) {
     },
     // sincronização idempotente da sessão (client_id gerado no aparelho)
     'POST /api/guided/sessions': async (req, res) => {
-      const u = await requireAuth(req, res, json); if (!u) return
+      const u = await requireTrainee(req, res, json); if (!u) return
       const b = await readBody(req)
       const cid = String(b.client_id || '').slice(0, 64); if (!cid) return json(res, 400, { error: 'client_id obrigatório' })
       const sets = (Array.isArray(b.sets) ? b.sets : []).slice(0, 300)
@@ -260,7 +266,7 @@ export function guidedRoutes({ json, readBody }) {
       json(res, 200, { id: sid, volume })
     },
     'GET /api/guided/progress': async (req, res) => {
-      const u = await requireAuth(req, res, json); if (!u) return
+      const u = await requireTrainee(req, res, json); if (!u) return
       const weeks = (await q(`select date_trunc('week', started_at at time zone 'America/Sao_Paulo')::date wk, count(*)::int n, coalesce(sum(volume_kg),0)::float vol
         from sessions where user_id=$1 and tenant_id=$2 and status='done' and started_at > now() - interval '8 weeks' group by 1 order by 1`, [u.id, u.tenant_id])).rows
       const history = (await q(`select s.id,s.workout_name,s.started_at,s.duration_sec,s.volume_kg::float volume,s.sets_count,s.exercises_count,s.feeling,
@@ -274,7 +280,7 @@ export function guidedRoutes({ json, readBody }) {
     },
     // carga muscular dos treinos guiados: por dia × exercício × grupo (o app soma com o histórico antigo e filtra o período)
     'GET /api/guided/muscle-load': async (req, res) => {
-      const u = await requireAuth(req, res, json); if (!u) return
+      const u = await requireTrainee(req, res, json); if (!u) return
       const r = await q(`select (s.started_at at time zone 'America/Sao_Paulo')::date::text d, ss.exercise_id, e.name_pt name, eg.group_id, eg.role,
           count(*)::int sets, coalesce(sum(coalesce(ss.weight,0)*coalesce(ss.reps,0)),0)::float volume
         from session_sets ss join sessions s on s.id=ss.session_id join exercises e on e.id=ss.exercise_id

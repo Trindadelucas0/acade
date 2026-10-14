@@ -4,6 +4,7 @@ import { authLogin, authRegister, api } from '../lib/api.js'
 import { t } from '../lib/i18n.js'
 import { DEMO, REPO } from '../lib/demo.js'
 import { useState, useEffect, lazy, Suspense } from 'react'
+import { useTerms, TermsText } from './app/Terms.jsx'
 import InstallButton from '../components/InstallButton.jsx'
 import './login.css'
 
@@ -50,7 +51,11 @@ function ResetPassword({ token }) {
 
 export default function Login() {
   const resetToken = /^#\/redefinir\?t=([\w-]+)/.exec(location.hash)?.[1]
-  if (resetToken) return <ResetPassword token={resetToken} />
+  return resetToken ? <ResetPassword token={resetToken} /> : <LoginForm />
+}
+
+function LoginForm() {
+  const terms = useTerms(), [agree, setAgree] = useState(false), [readTerms, setReadTerms] = useState(false)
   const { setUser, pullState, setGuest } = useStore()
   const [mode, setMode] = useState('login')       // 'login' | 'register'
   const [f, setF] = useState({ name: '', email: '', password: '', confirm: '' })
@@ -69,6 +74,7 @@ export default function Login() {
     if (!f.password) e.password = 'Informe sua senha'
     else if (reg && f.password.length < 8) e.password = 'A senha deve ter pelo menos 8 caracteres'
     if (reg && f.confirm !== f.password) e.confirm = 'As senhas não conferem'
+    if (reg && terms && !agree) e.terms = 'Aceite os termos de uso para criar a conta'
     setErrs(e); return !Object.keys(e).length
   }
   const submit = async ev => {
@@ -76,7 +82,7 @@ export default function Login() {
     if (busy || !validate()) return
     setBusy(true); setMsg('')
     try {
-      const u = reg ? await authRegister(f.name.trim(), f.email.trim(), f.password) : await authLogin(f.email.trim(), f.password)
+      const u = reg ? await authRegister(f.name.trim(), f.email.trim(), f.password, terms && agree ? terms.version : undefined) : await authLogin(f.email.trim(), f.password)
       setUser(u); await pullState()
       useUI.getState().toast(reg ? `Bem-vindo(a), ${u.name}!` : `Bem-vindo(a) de volta, ${u.name}!`)
     } catch (e) {
@@ -117,6 +123,12 @@ export default function Login() {
         {field('email', 'E-mail', 'email', 'email', { inputMode: 'email', placeholder: 'voce@email.com' })}
         {field('password', 'Senha', showPw ? 'text' : 'password', reg ? 'new-password' : 'current-password')}
         {reg && field('confirm', 'Confirmar senha', showPw ? 'text' : 'password', 'new-password')}
+        {reg && terms && <div className={'lg-terms' + (errs.terms ? ' err' : '')}>
+          <label><input type="checkbox" checked={agree} onChange={e => { setAgree(e.target.checked); setErrs({ ...errs, terms: undefined }) }} data-testid="accept-terms" />
+            <span>Li e aceito os <button type="button" className="lg-forgot" onClick={() => setReadTerms(!readTerms)}>termos de uso e a política de privacidade</button> (versão {terms.version})</span></label>
+          {readTerms && <div className="lg-terms-box"><TermsText terms={terms} /></div>}
+          {errs.terms && <em>{errs.terms}</em>}
+        </div>}
         {!reg && <button type="button" className="lg-forgot" onClick={async () => {
           if (!EMAIL_RE.test(f.email.trim())) return setErrs({ ...errs, email: 'Informe seu e-mail acima para recuperar o acesso' })
           try { const r = await api('/api/auth/forgot', { method: 'POST', body: JSON.stringify({ email: f.email.trim() }) }); setMsg(r.message) } catch (e) { setMsg(e.message) } }}>Esqueci a senha</button>}
