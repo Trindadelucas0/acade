@@ -24,7 +24,9 @@ try {
   const extra = ['post_likes', 'post_comments', 'content_reports', 'pro_request_history', 'ranking_snapshots', 'workout_templates', 'audit_log', 'password_resets', 'term_acceptances', 'data_requests', 'notifications', 'messages', 'threads']
   const exists = (await c.query(`select tablename from pg_tables where schemaname='public'`)).rows.map(r => r.tablename)
   const all = [...new Set([...fk, ...extra])].filter(t => exists.includes(t))
-  await c.query(`truncate ${['users', ...all].map(t => `"${t}"`).join(',')} restart identity`)
+  await c.query(`truncate ${all.map(t => `"${t}"`).join(',')} restart identity`)
+  // users: delete (tabelas mantidas ainda referenciam users, com as colunas já anuladas)
+  await c.query('delete from users')
   await c.query('commit')
   console.log('tabelas zeradas:', ['users', ...all].sort().join(', '))
 } catch (e) { await c.query('rollback'); console.error('falhou, nada foi apagado:', e.message); process.exitCode = 1 }
