@@ -99,3 +99,17 @@ body{background:var(--ag-bg)}
 .adm-main .ag h1{display:none}
 .adm-main .ag .g-eyebrow{display:none}
 #app:has(.adm){max-width:none;padding:0;margin:0}
+
+/* ===== telas herdadas do openGym (Home, Plan, Stats, History, Library, Settings, Workout) no novo sistema visual ===== */
+#app:not(:has(.ag)):not(:has(.adm)){max-width:560px;margin:0 auto;padding-left:18px;padding-right:18px;padding-bottom:calc(110px + env(safe-area-inset-bottom))}
+#app .hdr h1{font-size:28px;font-weight:800;letter-spacing:-.02em}
+#app .hdr .sub{color:var(--ag-mut)}
+#app .card,#app .sect-b,#app .tile,#app .item{background:var(--ag-card);border:1px solid var(--ag-line);border-radius:var(--ag-radius)}
+#app .sect-t{color:var(--ag-dim);text-transform:uppercase;letter-spacing:.07em;font-size:11.5px;font-weight:700}
+#app .btn{border-radius:16px;min-height:48px;font-weight:750}
+#app .btn.primary,#app .btn-primary{background:linear-gradient(135deg,var(--ag-acc),var(--ag-acc-2));color:var(--ag-on);box-shadow:0 10px 28px -10px #c8f13588}
+#app .iconbtn,#app .chip,#app .seg button{min-height:44px;min-width:44px}
+#app .chip.on,#app .seg .on{background:var(--ag-acc);color:var(--ag-on)}
+#app input,#app select,#app textarea{border-radius:12px}
+#app .chart path[stroke],#app .chart polyline{stroke:var(--ag-acc)}
+@media (min-width: 900px){ #app:not(:has(.ag)):not(:has(.adm)){max-width:760px} }
