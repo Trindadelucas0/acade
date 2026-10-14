@@ -13,6 +13,7 @@ const reg = await j('/api/auth/register', { name: 'Marina Souza', email, passwor
 const adm = (await j('/api/auth/login', { email: 'admin.e2e@avadesk.local', password: PASS })).token
 await j('/api/adm/users/status', { id: reg.user.id, status: 'ativo' }, adm)
 await j('/api/adm/users/plan', { id: reg.user.id, plan_id: 'plus' }, adm)
+await j('/api/guided/onboarding', { objetivo: 'hypertrophy', nivel: 'beginner', local: 'gym', dias: 3, minutos: 45, restricoes: [] }, reg.token)
 const pros = (await j('/api/adm/professionals', null, adm)).professionals
 const P1 = pros.find(p => p.email === 'pro1.e2e@avadesk.local')
 await j('/api/adm/links', { student_id: reg.user.id, coach_id: P1.user_id, confirm: true }, adm)
