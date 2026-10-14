@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import TimingSummary from '../../components/TimingSummary.jsx'
 import { useNavigate } from 'react-router-dom'
 import Icon from '../../components/Icon.jsx'
 import { G, mediaOf, fmtMin, fmtKg } from '../../lib/guided.js'
@@ -41,7 +42,7 @@ export default function Progress() {
     <h2>Histórico</h2>
     <div className="g-card g-list">{d.history.length ? d.history.map(h => <div key={h.id} className="g-li">
         <span className="g-ico"><Icon name="check" /></span>
-        <span style={{ minWidth: 0 }}><b>{h.workout_name}</b><br /><span className="g-mut g-xs">{new Date(h.started_at).toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'short' })} · {fmtMin(h.duration_sec)} · {h.sets_count} séries{h.pain ? ' · dor registrada' : ''}</span></span>
+        <span style={{ minWidth: 0 }}><b>{h.workout_name}</b><br /><span className="g-mut g-xs">{new Date(h.started_at).toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'short' })} · {fmtMin(h.duration_sec)} · {h.sets_count} séries{h.pain ? ' · dor registrada' : ''}</span>{h.timing && <><br /><TimingSummary t={h.timing} compact /></>}</span>
         <span className="g-mut g-sm" style={{ marginLeft: 'auto', whiteSpace: 'nowrap' }}>{fmtKg(h.volume)}</span></div>)
       : <><p className="g-mut g-sm">Nenhum treino ainda.</p><button className="g-btn" style={{ marginTop: 10 }} onClick={() => nav('/hoje')}>Começar agora</button></>}</div>
   </div>

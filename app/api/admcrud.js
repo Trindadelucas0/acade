@@ -145,7 +145,7 @@ export function adminCrudRoutes({ json, readBody }) {
       const [plans, progs, sess, links] = await Promise.all([
         q(`select p.id,p.title,p.goal,p.status,p.version,p.days,p.notes,p.owner_id,o.name owner,p.updated_at from pro_plans p join users o on o.id=p.owner_id where p.student_id=$1 order by p.updated_at desc`, [id]),
         q(`select up.id, up.status, up.started_at, up.ended_at, pr.title from user_programs up left join programs pr on pr.id=up.program_id where up.user_id=$1 order by up.started_at desc nulls last`, [id]),
-        q(`select id, workout_name, started_at, status, voided_at, void_reason, ranking_invalid_at from sessions where user_id=$1 order by started_at desc limit 50`, [id]),
+        q(`select id, workout_name, started_at, status, duration_sec, timing, voided_at, void_reason, ranking_invalid_at from sessions where user_id=$1 order by started_at desc limit 50`, [id]),
         q(`select c.id, c.coach_id, x.name coach, c.area, c.status, c.since from coach_students c join users x on x.id=c.coach_id where c.student_id=$1 order by c.status, c.since desc`, [id])])
       json(res, 200, { plans: plans.rows, programs: progs.rows, sessions: sess.rows, links: links.rows })
     },

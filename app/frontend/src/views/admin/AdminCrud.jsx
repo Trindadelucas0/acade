@@ -1,4 +1,5 @@
 // Admin gestor: editar e excluir (toda exclusão passa por um diálogo de confirmação; o backend exige 'EXCLUIR').
+import TimingSummary from '../../components/TimingSummary.jsx'
 import { useState } from 'react'
 import { C } from '../../lib/care.js'
 import { useLoad } from '../app/kit.jsx'
@@ -143,7 +144,7 @@ export function StudentTraining({ u, pros }) {
         {p.status === 'active' && <button className="adm-btn danger" onClick={() => confirm({ title: 'Encerrar programa', text: 'O programa sai do aluno; sessões feitas continuam no histórico.', needReason: false, onConfirm: async reason => { await C.endProgram({ id: p.id, confirm: 'EXCLUIR', reason }); reload() } })}>Encerrar</button>}</div>)}
       {!d.programs.length && <p className="g-mut g-xs">Nenhum programa.</p>}</div>
     <div className="adm-card" style={{ marginTop: 12 }}><h3>Sessões (últimas 50)</h3>
-      {d.sessions.map(s => <div key={s.id} className="adm-tools" style={{ marginTop: 6 }}><span style={{ flex: 1 }}>{fmt(s.started_at)} · {s.workout_name || 'Treino'} · {s.status}{s.voided_at ? ` · anulada (${s.void_reason})` : ''}</span>
+      {d.sessions.map(s => <div key={s.id} className="adm-tools" style={{ marginTop: 6 }}><span style={{ flex: 1 }}>{fmt(s.started_at)} · {s.workout_name || 'Treino'} · {s.status}{s.voided_at ? ` · anulada (${s.void_reason})` : ''}{s.timing && <><br /><TimingSummary t={s.timing} compact /></>}</span>
         {!s.voided_at && <button className="adm-btn danger" onClick={() => confirm({ title: 'Anular sessão', text: 'A sessão fica no histórico marcada como anulada e deixa de pontuar no ranking.', needReason: true, onConfirm: async reason => { await C.voidSession({ id: s.id, confirm: 'EXCLUIR', reason }); reload() } })}>Anular</button>}</div>)}
       {!d.sessions.length && <p className="g-mut g-xs">Nenhuma sessão.</p>}</div>
     <div className="adm-card" style={{ marginTop: 12 }}><h3>Vínculos</h3>

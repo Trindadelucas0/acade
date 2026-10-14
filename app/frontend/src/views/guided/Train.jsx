@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import Icon from '../../components/Icon.jsx'
+import { clock, elapsedOf } from '../../lib/timing.js'
 import { planExercises, groupsOf, afterSet, restAfter, targetFor, SIDE_PT, TECH_PT } from '../../lib/workout.js'
 import { G, loadSession, saveSessionLocal, newSession, payloadOf, mediaOf, RESTR_PT } from '../../lib/guided.js'
 import { Spin } from './Programs.jsx'
@@ -8,6 +9,8 @@ import { C } from '../../lib/care.js'
 import { ReportSheet, AskSheet } from '../app/Acompanhamento.jsx'
 import './guided.css'
 
+// fim do descanso = início da próxima série (pode ser reiniciado com "Iniciar série")
+const endRest = (x, at = Date.now()) => { x.rest = null; if (!x.cur_start) x.cur_start = at }
 const mmss = s => { s = Math.max(0, Math.round(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0') }
 const beep = () => { try { const c = new (window.AudioContext || window.webkitAudioContext)(), o = c.createOscillator(), g = c.createGain(); o.connect(g); g.connect(c.destination); o.frequency.value = 880; g.gain.value = .15; o.start(); o.stop(c.currentTime + .25); navigator.vibrate?.(200) } catch { /* */ } }
 
@@ -48,7 +51,7 @@ export default function Train() {
   useEffect(() => { const i = setInterval(() => tick(x => x + 1), 500); return () => clearInterval(i) }, [])
   // fim do descanso -> aviso sonoro e segue
   useEffect(() => {
-    if (s?.rest && Date.now() >= s.rest.until) { beep(); update(x => { x.rest = null }) }
+    if (s?.rest && !s.paused_at && Date.now() >= s.rest.until) { beep(); update(x => endRest(x, x.rest.until)) }
   })
 
   if (err) return <div className="ag g-full"><p className="g-warn">{err}</p><button className="g-btn" style={{ marginTop: 16 }} onClick={() => nav('/hoje')}>Voltar</button></div>
@@ -68,7 +71,8 @@ export default function Train() {
   const allDoneEx = ex.done.length >= ex.sets
   const totalSets = s.exercises.reduce((a, e) => a + e.sets, 0), doneSets = s.exercises.reduce((a, e) => a + e.done.length, 0)
   const m = mediaOf(ex.media)
-  const elapsed = (Date.now() - new Date(s.started_at)) / 1000
+  const elapsed = elapsedOf(s)
+  const setRunning = s.cur_start && !s.rest ? Math.max(0, ((s.paused_at ? new Date(s.paused_at).getTime() : Date.now()) - s.cur_start) / 1000) : null
   const isLastEx = s.exIdx >= s.exercises.length - 1
   const restLeft = s.rest ? (s.rest.until - Date.now()) / 1000 : 0
   const grp = groupsOf(s.exercises)[s.exIdx]
@@ -76,29 +80,36 @@ export default function Train() {
   const wStep = (ex.weight || 0) >= 20 ? 2 : 1
 
   const adj = (k, d) => update(x => { const e = x.exercises[x.exIdx]; e[k] = Math.max(0, Math.round(((+e[k] || 0) + d) * 10) / 10) })
-  const goNext = () => update(x => { x.rest = null; if (x.exIdx < x.exercises.length - 1) x.exIdx++ ; else x.finishing = true })
+  const goNext = () => update(x => { endRest(x); x.cur_start = Date.now(); if (x.exIdx < x.exercises.length - 1) x.exIdx++ ; else x.finishing = true })
   const finishSet = () => {
     update(x => {
       const e = x.exercises[x.exIdx]
-      e.done.push({ weight: e.weight, reps: e.reps, at: new Date().toISOString() })
+      const now = Date.now(), st = x.cur_start || x.last_end || new Date(x.started_at).getTime()
+      e.done.push({ weight: e.weight, reps: e.reps, at: new Date(now).toISOString(), started_at: new Date(st).toISOString(),
+        rest_sec_real: x.last_end ? Math.max(0, Math.round((st - x.last_end) / 1000)) : null, rest_sec_target: x.last_end ? (x.pending_target ?? null) : null })
+      x.last_end = now; x.cur_start = null
       const r = afterSet(x.exercises, x.exIdx)
       if (r.done) { x.finishing = true; x.rest = null; return }
       const sec = groupsOf(x.exercises)[x.exIdx] ? restAfter(x.exercises, x.exIdx) : (e.rest_sec ?? 60)
       const ne = x.exercises[r.next]
       if (ne.per_set?.length) { const t = targetFor(ne, ne.done.length); if (t.load_kg != null && t.load_kg !== '') ne.weight = +t.load_kg; if (!ne.timed && (t.reps_max || t.reps_min)) ne.reps = t.reps_max || t.reps_min }
       x.rest = r.rest && sec > 0 ? { until: Date.now() + sec * 1000, total: sec, afterNext: r.next !== x.exIdx } : null
+      x.pending_target = r.rest ? sec : 0; if (!x.rest) x.cur_start = now
       x.exIdx = r.next
     })
   }
   if (s.finishing) return <Spin />
-  const pause = () => nav('/hoje')
+  const pause = () => update(x => { x.paused_at = new Date().toISOString() })
+  const resume = () => update(x => { const d = Date.now() - new Date(x.paused_at).getTime(); x.paused_sec = (x.paused_sec || 0) + d / 1000; x.paused_at = null
+    if (x.cur_start) x.cur_start += d; if (x.last_end) x.last_end += d; if (x.rest) x.rest.until += d })
+  const startSet = () => update(x => { x.rest = null; x.cur_start = Date.now() })
   const quit = () => { if (confirm('Encerrar o treino agora? As séries feitas serão salvas.')) update(x => { x.finishing = true }) }
 
   return <div className="ag g-full g-run" data-testid="train">
     <div className="g-runtop">
-      <button className="g-icbtn" onClick={pause} aria-label="Pausar e sair"><Icon name="pause" /></button>
+      <button className="g-icbtn" onClick={pause} aria-label="Pausar treino" data-testid="pause"><Icon name="pause" /></button>
       <div style={{ flex: 1 }}>
-        <div className="g-row g-xs g-mut"><span>Exercício {s.exIdx + 1} de {s.exercises.length}</span><span className="g-sp" /><span><Icon name="g-clock" /> {mmss(elapsed)}</span></div>
+        <div className="g-row g-xs g-mut"><span>Exercício {s.exIdx + 1} de {s.exercises.length}</span><span className="g-sp" /><span><Icon name="g-clock" /> <b data-testid="stopwatch">{clock(elapsed)}</b></span></div>
         <div className="g-bar" style={{ marginTop: 6 }}><i style={{ width: doneSets / totalSets * 100 + '%' }} /></div>
       </div>
       <button className="g-icbtn" onClick={quit} aria-label="Encerrar treino"><Icon name="flag" /></button>
@@ -138,6 +149,7 @@ export default function Train() {
 
     {isBlocked && <div className="g-blocked" data-testid="ex-blocked"><b>Exercício pausado</b><p className="g-mut g-sm">Você relatou dor ou desconforto. Ele fica bloqueado até seu profissional registrar uma orientação explícita. Siga para o próximo exercício.</p></div>}
     {flash && <p className="g-note" style={{ marginTop: 8 }}>{flash}</p>}
+    {!isBlocked && !allDoneEx && <div className="g-row g-xs g-mut" style={{ marginTop: 8 }} data-testid="set-timer"><span>{setRunning != null ? <>Série em andamento · <b>{clock(setRunning)}</b></> : 'Série ainda não iniciada'}</span><span className="g-sp" /><button className="g-link" onClick={startSet} data-testid="start-set">{setRunning != null ? 'Reiniciar cronômetro da série' : 'Iniciar série'}</button></div>}
     {isBlocked ? null : !allDoneEx ? <button className="g-btn g-xl" onClick={finishSet} data-testid="finish-set"><Icon name="check" /> CONCLUIR SÉRIE</button>
       : <button className="g-btn g-xl" onClick={goNext}>{isLastEx ? 'FINALIZAR TREINO' : 'PRÓXIMO EXERCÍCIO'}</button>}
     <button className="g-btn g-ghost g-sm" style={{ marginTop: 10 }} onClick={goNext} data-testid="next-ex">{isLastEx ? 'Finalizar treino' : 'Pular para o próximo exercício'}</button>
@@ -148,8 +160,11 @@ export default function Train() {
     </div>
     {sheet === 'ask' && <AskSheet ctx={{ exercise_id: ex.exercise_id, exercise_name: ex.name, plan_id: s.plan_id, context_type: 'exercicio' }} onClose={() => setSheet(null)} onDone={() => { setSheet(null); setFlash('Dúvida enviada ao profissional responsável.') }} />}
     {sheet === 'report' && <ReportSheet ctx={{ exercise_id: ex.exercise_id, exercise_name: ex.name, plan_id: s.plan_id, session_client_id: s.client_id }} onClose={() => setSheet(null)}
-      onDone={r => { setSheet(null); if (r.blocked) setBlocks(b => new Set([...b, ex.exercise_id])); setFlash(r.blocked ? 'Relato enviado. O exercício foi pausado até a orientação profissional.' : 'Relato enviado ao profissional responsável.'); update(x => { x.rest = null }) }} />}
-    {s.rest && <div className="g-rest" data-testid="rest">
+      onDone={r => { setSheet(null); if (r.blocked) setBlocks(b => new Set([...b, ex.exercise_id])); setFlash(r.blocked ? 'Relato enviado. O exercício foi pausado até a orientação profissional.' : 'Relato enviado ao profissional responsável.'); update(x => endRest(x)) }} />}
+    {s.paused_at && <div className="g-rest" data-testid="paused"><span className="g-eyebrow">Treino pausado</span><div className="g-clock">{clock(elapsed)}</div><p className="g-mut g-sm">O cronômetro está parado. O tempo pausado não conta.</p>
+      <button className="g-btn" style={{ maxWidth: 360 }} onClick={resume} data-testid="resume">Retomar treino</button>
+      <button className="g-btn g-ghost" style={{ maxWidth: 360 }} onClick={() => nav('/hoje')}>Sair (o treino continua pausado)</button></div>}
+    {s.rest && !s.paused_at && <div className="g-rest" data-testid="rest">
       <span className="g-eyebrow">Descanse</span>
       <div className="g-clock" data-testid="rest-clock">{mmss(restLeft)}</div>
       <div className="g-bar" style={{ width: '100%', maxWidth: 360, flex: 'none' }}><i style={{ width: (1 - restLeft / s.rest.total) * 100 + '%' }} /></div>
@@ -158,7 +173,7 @@ export default function Train() {
         <button className="g-btn g-ghost" onClick={() => update(x => { x.rest.until += 15000; x.rest.total += 15 })}>+15 s</button>
       </div>
       <div className="g-nextup g-card"><span className="g-mut g-xs">{s.rest.afterNext ? 'Próximo exercício' : 'Próxima série'}</span><br /><b>{ex.name}</b> · série {setNo} de {ex.sets}</div>
-      <button className="g-btn" style={{ maxWidth: 360 }} onClick={() => update(x => { x.rest = null })} data-testid="skip-rest">Pular descanso</button>
+      <button className="g-btn" style={{ maxWidth: 360 }} onClick={() => update(x => endRest(x))} data-testid="skip-rest">Pular descanso</button>
     </div>}
   </div>
 }

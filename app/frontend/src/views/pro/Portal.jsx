@@ -1,5 +1,6 @@
 // AVADESK PRO — ambiente do profissional (conta separada da conta de treino). Mobile-first.
 // O profissional só vê os próprios alunos vinculados; vínculos e capacidade são decididos pelo admin (aqui ele apenas solicita).
+import TimingSummary from '../../components/TimingSummary.jsx'
 import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import Icon from '../../components/Icon.jsx'
@@ -101,7 +102,7 @@ function StudentDetail({ id, go, sub }) {
     {tab === 'treinos' && <div className="g-card g-list">{d.plans.length ? d.plans.map(p => <button key={p.id} className="g-li" onClick={() => p.mine && go('novo', { id: p.id })}>
       <span className="g-ico"><Icon name="clipboard" /></span><span><b>{p.title}</b><br /><span className="g-mut g-xs">v{p.version} · {p.mine ? 'seu' : 'de outro profissional (leitura)'} · {dt(p.updated_at)}</span></span>
       <span className={'g-pill ' + (p.status === 'ativo' ? 'g-ok' : p.status === 'rascunho' ? 'g-warn2' : '')} style={{ marginLeft: 'auto' }}>{p.status}</span></button>) : <Empty>Nenhum treino. Crie o primeiro.</Empty>}</div>}
-    {tab === 'historico' && <div className="g-card g-list">{d.sessions.length ? d.sessions.map(x => <div key={x.id} className="g-li"><span><b>{x.workout_name || 'Treino'}</b><br /><span className="g-mut g-xs">{dt(x.started_at)} · {x.sets_count || 0} séries · {Math.round((x.duration_sec || 0) / 60)} min{x.prescribed_count ? ` · ${x.exercises_count}/${x.prescribed_count} exercícios` : ''}</span></span></div>) : <Empty>Sem sessões registradas.</Empty>}</div>}
+    {tab === 'historico' && <div className="g-card g-list">{d.sessions.length ? d.sessions.map(x => <div key={x.id} className="g-li"><span><b>{x.workout_name || 'Treino'}</b><br /><span className="g-mut g-xs">{dt(x.started_at)} · {x.sets_count || 0} séries · {Math.round((x.duration_sec || 0) / 60)} min{x.prescribed_count ? ` · ${x.exercises_count}/${x.prescribed_count} exercícios` : ''}</span>{x.timing && <><br /><TimingSummary t={x.timing} compact /></>}</span></div>) : <Empty>Sem sessões registradas.</Empty>}</div>}
     {tab === 'evolucao' && <div className="g-card"><b className="g-sm">Sessões por semana (12 semanas)</b>{d.evolution.length ? <MiniBars data={d.evolution} k="sessions" /> : <Empty>Sem dados ainda.</Empty>}
       {d.evolution.some(x => x.volume) && <><b className="g-sm" style={{ display: 'block', marginTop: 14 }}>Volume (kg) por semana</b><MiniBars data={d.evolution} k="volume" /></>}</div>}
     {tab === 'conversas' && <div className="g-card g-list">{d.threads.length ? d.threads.map(t => <button key={t.id} className="g-li" onClick={() => nav('/conversa/' + t.id)}><span className="g-ico"><Icon name="chat" /></span>

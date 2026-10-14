@@ -52,7 +52,7 @@ export function newSession(today) {
   return {
     client_id: (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2)),
     user_program_id: today.active.id, program_workout_id: w.id, workout_name: w.name, program_title: today.active.title,
-    started_at: new Date().toISOString(), exIdx: 0, rest: null,
+    started_at: new Date().toISOString(), exIdx: 0, rest: null, cur_start: Date.now(), last_end: null, pending_target: null, paused_sec: 0, paused_at: null,
     exercises: w.exercises.map(e => ({
       exercise_id: e.exercise_id, name: e.name, media: e.media, sets: e.sets || 3, reps_min: e.reps_min, reps_max: e.reps_max,
       duration_sec: e.duration_sec, rest_sec: e.rest_sec || 60, instructions: e.instructions, cautions: e.cautions || [],
@@ -61,10 +61,10 @@ export function newSession(today) {
     }))
   }
 }
-export const sessionSets = s => s.exercises.flatMap(e => e.done.map((d, i) => ({ exercise_id: e.exercise_id, set_index: i, weight: e.timed ? null : d.weight, reps: e.timed ? null : d.reps, duration_sec: e.timed ? d.reps : null, done_at: d.at, target_reps: e.reps_max || e.reps_min || null })))
+export const sessionSets = s => s.exercises.flatMap(e => e.done.map((d, i) => ({ exercise_id: e.exercise_id, set_index: i, weight: e.timed ? null : d.weight, reps: e.timed ? null : d.reps, duration_sec: e.timed ? d.reps : null, done_at: d.at, target_reps: e.reps_max || e.reps_min || null, started_at: d.started_at || null, rest_sec_real: d.rest_sec_real ?? null, rest_sec_target: d.rest_sec_target ?? null, name: e.name })))
 export const payloadOf = (s, extra = {}) => ({
   client_id: s.client_id, user_program_id: s.user_program_id, program_workout_id: s.program_workout_id, workout_name: s.workout_name,
-  started_at: s.started_at, sets: sessionSets(s), prescribed_count: s.exercises.length, pro_plan_id: s.plan_id || null, ...extra
+  started_at: s.started_at, sets: sessionSets(s), prescribed_count: s.exercises.length, pro_plan_id: s.plan_id || null, paused_sec: Math.round(s.paused_sec || 0), ...extra
 })
 
 // fila de sincronização: sessões concluídas que ainda não chegaram ao servidor

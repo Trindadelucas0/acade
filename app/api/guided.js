@@ -1,4 +1,5 @@
 // AVAGYM — Treino guiado: onboarding, recomendação determinística, programa ativo, sessões e progresso.
+import { summarize } from './timing.js'
 // Todas as rotas exigem login (requireAuth) e são isoladas por tenant (tenantScope / user_id).
 import { q } from './db/pool.js'
 import { requireAuth, requireRole, tenantScope } from './auth.js'
@@ -28,6 +29,8 @@ const isUuid = s => /^[0-9a-f-]{36}$/i.test(String(s || ''))
 
 // ---------- recomendação (pura, determinística) ----------
 // programs: [{ id, goal, level, location, days_per_week, minutes, minutes_max, is_rehab, tags, caution: {code:n}, avoid: [codes] }]
+const okTs = v => { const d = v ? new Date(v) : null; return d && !isNaN(d) ? d.toISOString() : null }
+const okRest = v => v == null || v === '' || isNaN(+v) ? null : Math.max(0, Math.min(3600, Math.round(+v)))
 export function scorePrograms(programs, p) {
   const strict = rank(programs, p, false)
   if (strict.length >= 3) return strict
@@ -257,20 +260,26 @@ export function guidedRoutes({ json, readBody }) {
       }
       const known = new Set((await q('select id from exercises where id = any($1)', [sets.map(s => String(s.exercise_id))])).rows.map(r => r.id))
       for (const s of sets) if (known.has(String(s.exercise_id)))
-        await q('insert into session_sets(session_id,exercise_id,set_index,weight,reps,duration_sec,done_at,target_reps) values($1,$2,$3,$4,$5,$6,$7,$8)',
-          [sid, String(s.exercise_id), +s.set_index || 0, s.weight == null || s.weight === '' ? null : +s.weight, s.reps == null ? null : Math.round(+s.reps), s.duration_sec ? +s.duration_sec : null, s.done_at ? new Date(s.done_at) : null, s.target_reps ? +s.target_reps : null])
+        await q('insert into session_sets(session_id,exercise_id,set_index,weight,reps,duration_sec,done_at,target_reps,started_at,rest_sec_real,rest_sec_target) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)',
+          [sid, String(s.exercise_id), +s.set_index || 0, s.weight == null || s.weight === '' ? null : +s.weight, s.reps == null ? null : Math.round(+s.reps), s.duration_sec ? +s.duration_sec : null, s.done_at ? new Date(s.done_at) : null, s.target_reps ? +s.target_reps : null, okTs(s.started_at), okRest(s.rest_sec_real), okRest(s.rest_sec_target)])
       if (b.pain && RESTR.concat('general').includes(b.pain.code)) {
         await q(`insert into session_pain_reports(session_id,restriction_code,intensity,notes) values($1,$2,$3,$4)
           on conflict (session_id,restriction_code) do update set intensity=excluded.intensity, notes=excluded.notes`,
           [sid, b.pain.code, Math.max(0, Math.min(10, +b.pain.intensity || 0)), b.pain.notes ? String(b.pain.notes).slice(0, 500) : null])
       }
-      json(res, 200, { id: sid, volume })
+      // cronometragem: pausas, descanso real e resumo calculado no servidor
+      const paused = Math.max(0, Math.min(86400, Math.round(+b.paused_sec || 0)))
+      const exNames = Object.fromEntries((await q('select id,name from exercises where id = any($1)', [[...known]])).rows.map(r => [r.id, r.name]))
+      const tsets = sets.filter(s => known.has(String(s.exercise_id))).map(s => ({ exercise_id: String(s.exercise_id), name: exNames[String(s.exercise_id)], started_at: okTs(s.started_at), done_at: okTs(s.done_at), rest_sec_real: okRest(s.rest_sec_real), rest_sec_target: okRest(s.rest_sec_target) }))
+      const timing = finished ? summarize({ started_at: started, finished_at: finished, paused_sec: paused, sets: tsets }) : null
+      await q('update sessions set paused_sec=$2, active_sec=$3, timing=$4, duration_sec=coalesce($5, duration_sec) where id=$1', [sid, paused, timing?.active_sec ?? null, timing ? JSON.stringify(timing) : null, timing?.total_sec ?? null])
+      json(res, 200, { id: sid, volume, timing })
     },
     'GET /api/guided/progress': async (req, res) => {
       const u = await requireTrainee(req, res, json); if (!u) return
       const weeks = (await q(`select date_trunc('week', started_at at time zone 'America/Sao_Paulo')::date wk, count(*)::int n, coalesce(sum(volume_kg),0)::float vol
         from sessions where user_id=$1 and tenant_id=$2 and status='done' and started_at > now() - interval '8 weeks' group by 1 order by 1`, [u.id, u.tenant_id])).rows
-      const history = (await q(`select s.id,s.workout_name,s.started_at,s.duration_sec,s.volume_kg::float volume,s.sets_count,s.exercises_count,s.feeling,
+      const history = (await q(`select s.id,s.workout_name,s.started_at,s.duration_sec,s.timing,s.volume_kg::float volume,s.sets_count,s.exercises_count,s.feeling,
           exists(select 1 from session_pain_reports pr where pr.session_id=s.id) pain
         from sessions s where s.user_id=$1 and s.tenant_id=$2 and s.status='done' order by s.started_at desc limit 30`, [u.id, u.tenant_id])).rows
       const records = (await q(`select distinct on (ss.exercise_id) ss.exercise_id, e.name_pt name, e.media_url media, ss.weight::float weight, ss.reps, s.started_at

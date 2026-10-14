@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Icon from '../../components/Icon.jsx'
 import { G, loadSession, saveSessionLocal, payloadOf, enqueue, setLastFinished, lastFinished, fmtMin, fmtKg } from '../../lib/guided.js'
+import TimingSummary from '../../components/TimingSummary.jsx'
+import { summarize } from '../../lib/timing.js'
+import { sessionSets } from '../../lib/guided.js'
 import './guided.css'
 
 const FEEL = [[1, 'Muito fácil'], [2, 'Fácil'], [3, 'Na medida'], [4, 'Difícil'], [5, 'Muito difícil']]
@@ -32,7 +35,8 @@ export default function Done() {
   const sets = src.exercises.reduce((a, e) => a + e.done.length, 0)
   const exs = src.exercises.filter(e => e.done.length).length
   const vol = src.exercises.reduce((a, e) => a + (e.timed ? 0 : e.done.reduce((b, d) => b + (+d.weight || 0) * (+d.reps || 0), 0)), 0)
-  const dur = (new Date(src.finished_at || finishedAt) - new Date(src.started_at)) / 1000
+  const timing = summarize({ started_at: src.started_at, finished_at: src.finished_at || finishedAt, paused_sec: src.paused_sec || 0, sets: sessionSets(src) })
+  const dur = timing.total_sec
   const ups = src.exercises.map(e => [e.name, nextTime(e)]).filter(x => x[1])
 
   const save = async () => {
@@ -55,6 +59,7 @@ export default function Done() {
       <div><b>{fmtMin(dur)}</b><span>Tempo</span></div><div><b>{exs}</b><span>Exercícios</span></div>
       <div><b>{sets}</b><span>Séries</span></div><div><b>{fmtKg(vol)}</b><span>Volume (carga × repetições)</span></div>
     </div>
+    <TimingSummary t={timing} />
 
     {!(saved || view) ? <>
       <h2>Como você se sentiu?</h2>
