@@ -1,7 +1,7 @@
 // Central administrativa AVADESK (desktop-first, funciona no celular): barra lateral, KPIs com gráficos,
 // tabelas com busca/filtro/ordenação/paginação/CSV e gavetas de detalhe. O admin é quem decide vínculos, capacidade e liberações.
 import { GR } from '../../lib/groups.js'
-import { CH, CAT, STATUS_PT } from '../../lib/challenges.js'
+import { CH, CAT, CF, PROOF_PT, STATUS_PT } from '../../lib/challenges.js'
 import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import Icon from '../../components/Icon.jsx'
@@ -223,11 +223,26 @@ function AdmDesafios() {
     <div className="adm-tools"><button className="adm-btn" onClick={() => nav('/desafios/criar')} data-testid="c-official">+ Criar desafio oficial</button>{[['', 'Todos'], ['em_andamento', 'Em andamento'], ['suspenso', 'Suspensos'], ['concluido', 'Concluídos']].map(([s, l]) => <button key={s} className={'adm-btn ' + (st === s ? '' : 'ghost')} onClick={() => setSt(s)}>{l}</button>)}</div>
     {msg && <p className="g-warn">{msg}</p>}
     {err ? <p className="g-warn">{err}</p> : <DataTable name="desafios" cols={cols} rows={rows} onRow={r => nav('/desafio/' + r.id)} />}
+    <AdmComprovantes />
     <AdmCategorias />
     {why && <Drawer title={(why.restore ? 'Reativar ' : 'Suspender ') + why.name} onClose={() => setWhy(null)}><p className="g-sm">Informe o motivo (fica na auditoria e o organizador é avisado).</p>
       <textarea className="g-in" rows={3} value={why.reason} onChange={e => setWhy({ ...why, reason: e.target.value })} />
       <div className="adm-tools"><button className="adm-btn danger" disabled={why.reason.trim().length < 3} onClick={async () => { try { await CH.transition(why.restore ? { id: why.id, restore: true, reason: why.reason } : { id: why.id, to: 'suspenso', reason: why.reason }); setWhy(null); reload() } catch (e) { setMsg(e.message) } }}>Confirmar</button></div></Drawer>}
   </>
+}
+function AdmComprovantes() {
+  const nav = useNavigate(), [d, err, reload] = useLoad(() => CF.admProofs()), [rv, , reloadR] = useLoad(() => CF.reviewers()), [email, setEmail] = useState(''), [msg, setMsg] = useState('')
+  const act = fn => async () => { setMsg(''); try { await fn(); reload(); reloadR() } catch (e) { setMsg(e.message) } }
+  const cols = [{ k: 'challenge', l: 'Desafio' }, { k: 'official', l: 'Oficial', r: r => r.official ? 'Sim' : '—' }, { k: 'author', l: 'Participante' }, { k: 'status', l: 'Status', r: r => PROOF_PT[r.status] },
+    { k: 'motivo', l: 'Origem', r: r => r.status === 'recurso' ? 'Recurso: ' + (r.appeal_text || '') : r.routed_to_admin ? 'Sem outro revisor (organizador é participante)' : 'Desafio oficial' },
+    { k: 'created_at', l: 'Enviado', r: r => new Date(r.created_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) }]
+  return <div className="adm-card" data-testid="adm-proofs"><h3>Comprovantes pendentes ({d?.proofs?.length ?? '…'})</h3>
+    {msg && <p className="g-warn">{msg}</p>}
+    {err ? <p className="g-warn">{err}</p> : <DataTable name="comprovantes" cols={cols} rows={d?.proofs} onRow={r => nav('/desafio/' + r.challenge_id + '?aba=comprovantes')} />}
+    <h3 style={{ marginTop: 16 }}>Revisores de desafios oficiais</h3><p className="g-mut g-sm">Revisam comprovantes dos desafios oficiais junto com o admin. Nunca revisam os próprios.</p>
+    <div className="adm-tools"><input className="g-in" style={{ maxWidth: 280 }} placeholder="E-mail do revisor" value={email} onChange={e => setEmail(e.target.value)} /><button className="adm-btn" disabled={!email.includes('@')} onClick={act(async () => { await CF.setReviewer(email, true); setEmail('') })}>Designar</button></div>
+    {(rv?.reviewers || []).map(r => <div key={r.user_id} className="adm-tools"><span style={{ flex: 1 }}>{r.name} · {r.email}</span><button className="adm-btn ghost danger" onClick={act(() => CF.setReviewer(r.email, false))}>Remover</button></div>)}
+  </div>
 }
 function AdmCategorias() {
   const [d, err, reload] = useLoad(() => CAT.list()), [ed, setEd] = useState({}), [msg, setMsg] = useState('')

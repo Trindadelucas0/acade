@@ -4,6 +4,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { CH, TYPE_PT, METRIC_PT, STATUS_PT, AUD_PT, MEM_PT, spDate, spInput, spEnd, toYmd, addDays } from '../../lib/challenges.js'
 import { GR } from '../../lib/groups.js'
 import { useStore } from '../../store/useStore.js'
+import { ChFeed, ChProofs, ReportBtn } from './DesafioFeed.jsx'
 import { Sheet, Av, Empty, Load, Tabs, useLoad, Err, Field } from './kit.jsx'
 
 const VIEWS = [['explorar', 'Explorar'], ['participando', 'Participando'], ['criados', 'Criados por mim'], ['convites', 'Convites'], ['historico', 'Histórico']]
@@ -113,12 +114,13 @@ export function ChallengeWizard() {
 // ---------- página do desafio ----------
 export function ChallengePage() {
   const { id } = useParams(), [sp] = useSearchParams(), nav = useNavigate(), code = sp.get('convite')
-  const [d, err, reload] = useLoad(() => CH.get(id), [id]), [tab, setTab] = useState('resumo'), [msg, setMsg] = useState(''), [dlg, setDlg] = useState(null), [team, setTeam] = useState('')
+  const [d, err, reload] = useLoad(() => CH.get(id), [id]), [tab, setTab] = useState(sp.get('aba') || 'resumo'), [msg, setMsg] = useState(''), [dlg, setDlg] = useState(null), [team, setTeam] = useState('')
   const act = fn => async (...a) => { setMsg(''); try { await fn(...a); reload() } catch (e) { setMsg(e.problems ? e.problems.join(' · ') : e.message) } }
   if (err) return <div className="ag"><Err msg={err} />{code && <button className="g-btn" onClick={act(() => CH.join(id, { code }))}>Entrar com o convite</button>}</div>
   if (!d) return <div className="ag"><Load /></div>
   const c = d.challenge, me = d.me, inIt = me && ['ativo', 'aprovado'].includes(me.status), open = ['inscricoes_abertas', 'em_andamento'].includes(c.status)
-  const tabs = [['resumo', 'Resumo'], ['pessoas', c.type === 'competicao_equipes' ? 'Equipes' : 'Participantes'], ['regras', 'Regras'], ...(d.manage ? [['gestao', 'Gestão']] : [])]
+  const canFeed = d.manage || inIt || c.audience !== 'convite'
+  const tabs = [['resumo', 'Resumo'], ...(canFeed && c.status !== 'rascunho' ? [['feed', 'Feed']] : []), ...(c.proof !== 'nenhuma' && (inIt || d.manage) && c.status !== 'rascunho' ? [['comprovantes', 'Comprovantes']] : []), ['pessoas', c.type === 'competicao_equipes' ? 'Equipes' : 'Participantes'], ['regras', 'Regras'], ...(d.manage ? [['gestao', 'Gestão']] : [])]
   return <div className="ag" data-testid="desafio">
     {c.cover_url && <img src={c.cover_url} alt="" style={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: 16 }} />}
     <div className="g-row" style={{ gap: 6, flexWrap: 'wrap', marginTop: 8 }}>{c.official && <span className="ch-pill lime">Oficial</span>}<span className="ch-pill" data-testid="ch-status">{STATUS_PT[c.status]}</span><span className="ch-pill">{AUD_PT[c.audience]}</span></div>
@@ -134,10 +136,13 @@ export function ChallengePage() {
     {me?.status === 'solicitado' && <p className="g-note">Pedido enviado ao organizador.</p>}
     {me && ['removido', 'desclassificado', 'rejeitado'].includes(me.status) && <p className="g-warn">Situação: {MEM_PT[me.status]}</p>}
     <Tabs cur={tab} set={setTab} tabs={tabs} />
+    {tab === 'feed' && <ChFeed c={c} setDlg={setDlg} />}
+    {tab === 'comprovantes' && <ChProofs c={c} me={me} setDlg={setDlg} />}
     {tab === 'resumo' && <div className="g-card"><p className="g-sm" style={{ whiteSpace: 'pre-wrap' }}>{c.description || 'Sem descrição.'}</p>
       <p className="g-sm"><b>Métrica:</b> {METRIC_PT[c.metric]}{c.goal ? ' · meta ' + (+c.goal) : ''}</p>
       {inIt && <><label className="g-chk"><input type="checkbox" checked={!!me.ranking_optout} onChange={e => act(() => CH.optout(id, e.target.checked))()} data-testid="ch-optout" /> Não mostrar meu nome e foto no ranking</label>
-        <button className="g-btn g-ghost g-sm" onClick={() => setDlg({ t: 'Sair do desafio', x: 'Seu progresso deixa de contar.', ok: act(() => CH.leave(id)) })} data-testid="ch-leave">Sair do desafio</button></>}</div>}
+        <button className="g-btn g-ghost g-sm" onClick={() => setDlg({ t: 'Sair do desafio', x: 'Seu progresso deixa de contar.', ok: act(() => CH.leave(id)) })} data-testid="ch-leave">Sair do desafio</button></>}
+      {!d.manage && <div style={{ marginTop: 8 }}><ReportBtn type="challenge" id={c.id} setDlg={setDlg} /></div>}</div>}
     {tab === 'pessoas' && (c.type === 'competicao_equipes'
       ? <div className="g-card g-list">{d.teams.map(t => <div key={t.id} className="g-li"><b style={{ flex: 1 }}>{t.name}</b><span className="g-mut g-xs">{t.size} membros</span></div>)}</div>
       : <div className="g-card g-list">{d.members.length ? d.members.map(m => <div key={m.user_id} className="g-li"><Av name={m.name} url={m.photo} size={36} /><b className="g-sm" style={{ flex: 1 }}>{m.name}</b>
@@ -167,7 +172,7 @@ export function ChallengePage() {
     <button className="g-btn g-ghost g-sm" style={{ marginTop: 16 }} onClick={() => nav('/comunidade?tab=desafios')}>← Desafios</button>
   </div>
 }
-function ChDialog({ d, close }) {
+export function ChDialog({ d, close }) {
   const [v, setV] = useState('')
   return <Sheet title={d.t} onClose={close}><p className="g-sm">{d.x}</p>{d.input && <input className="g-in" value={v} onChange={e => setV(e.target.value)} placeholder="Motivo" autoFocus data-testid="chdlg-in" />}
     <div className="g-row" style={{ gap: 8, marginTop: 12 }}><button className="g-btn g-ghost" onClick={close}>Voltar</button><button className="g-btn" disabled={d.input && v.trim().length < 5} onClick={() => { d.ok(v); close() }} data-testid="chdlg-ok">Confirmar</button></div></Sheet>
