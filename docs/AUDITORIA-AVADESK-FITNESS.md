@@ -1,18 +1,31 @@
 # Auditoria AVADESK Fitness (antigo AVAGYM)
 
 Data: 14/10/2026 · Branch: `feat/avadesk-fitness` · Commit de segurança: `9040aa2` (main, só local, sem push)
-Escopo: auditoria somente leitura. Nada foi implementado.
+Escopo: começou como auditoria; agora registra a execução por fases (ver §0).
 
-## 0. Registro de status
-| Item | Status |
-|---|---|
-| Commit de segurança + .gitignore (.env, *.bak*) | concluído |
-| Branch feat/avadesk-fitness | concluído |
-| Busca de PDFs | concluído (parcial: 1 de 4 encontrado) |
-| Auditoria do repositório | concluído |
-| Inspeção do Postgres ao vivo (psql não está no PATH) | bloqueado: o esquema foi lido pelas migrations |
-| Decisões pendentes (seção 9) | aguardando aprovação |
-| Implementação (fases 1 a 5) | não iniciado |
+## 0. Registro de status (atualizado em 14/10/2026)
+| Item | Status | Commit |
+|---|---|---|
+| Commit de segurança, .gitignore, branch, auditoria | concluído | 9040aa2, 61f049a |
+| PDFs (4 de 4 em docs/fontes) | concluído | — |
+| Fase 0: identidade, 5 abas, tema | concluído | c5c3df1 |
+| Fase 1: contas pendentes, planos de acesso, profissionais, vínculos, ocorrências, propostas, filas, auditoria (migrations 003–004) | concluído | 6a699c2 |
+| Fase 2: comunidade, moderação, ranking (migration 005) | concluído | a45ce85 |
+| Fase 3: recuperação de senha (migration 006), alvos de toque | concluído | 2400cf5 |
+| Matriz de rastreabilidade e inventário | concluído (matriz automática; revisão regra a regra em andamento) | este commit |
+| Redesenho das telas legadas do OpenGym | em andamento (só herdam o tema) | — |
+| Remoção do worker Cloudflare | não iniciado (passkey já desativado por flag) | — |
+| Aceite de termos, notificações push/e-mail, LGPD (exportar/excluir) | não iniciado | — |
+| Push e deploy na VPS | bloqueado por política (exige permissão explícita) | — |
+
+**Como testar (no PC):**
+- `cd app\api; node test/setup-e2e.mjs; node test/smoke.mjs; node test/smoke-fase2.mjs; node test/ranking.test.mjs`
+- `cd app\frontend; npx vitest run`
+- Screenshots: `node C:\Users\trind\shots\screens.mjs`
+- App em http://localhost:4449. Usuários de teste: admin.e2e@ / pro1.e2e@ / pro2.e2e@avadesk.local.
+- Último resultado: smoke 89 ok / 0 falhas; vitest 196/196.
+
+Backups criados antes de cada migration: `backups/avagym_*_antes_003..006.dump`. Os scripts de reversão ficam em `app/api/db/down/`.
 
 ## 1. Documentos de referência
 - `C:\Users\trind\Downloads\funcionamento fase 01 .pdf` → "APP FLOW — AVADESK". Encontrado e lido.
@@ -153,16 +166,16 @@ Legenda: ✅ EXISTENTE E FUNCIONAL · 🟡 EXISTENTE MAS INCOMPLETA · ❌ AUSEN
 - Perfis públicos dos profissionais.
 - Observabilidade, testes E2E, LGPD (exportar e excluir dados), revisão de segurança e permissões por endpoint, empacotamento Capacitor.
 
-## 9. Decisões pendentes (precisam de aprovação)
-1. Aposentar a autenticação legada (passkey + `/api/data` + worker Cloudflare) e migrar os dados locais para o Postgres?
-2. Destino das rotas legadas do OpenGym (/plan, /stats…): integrar dentro de Treinos/Progresso ou remover?
-3. Regras de pontuação do ranking e do feed: faltam os PDFs `RANKING.pdf` e `FEED ACAD.pdf`, e o usuário precisa indicar onde estão.
-4. Comunidade: haverá seguir/seguidores? Posts com fotos (exige armazenamento de mídia)? Moderação feita por quem?
-5. O cadastro precisa de aprovação do admin para todo aluno, ou o modo local é liberado direto?
-6. Manter os 11 idiomas ou só pt-BR?
-7. Um único tenant ("avadesk") ou multi-academia?
-8. Prazos (SLA) das filas de ocorrências e mensagens.
-9. Rebranding: o domínio, o RP_ID e o nome do banco (`avagym`) também mudam?
+## 9. Decisões (respostas do usuário: provisórias até a validação final)
+1. Só e-mail e senha; passkey e Cloudflare aposentados (o histórico git fica). → passkey retorna 410 sem `LEGACY_PASSKEY`.
+2. Telas antigas do OpenGym redesenhadas dentro das novas abas. → em andamento.
+3. Só profissionais publicam (com limite); alunos seguem, curtem e não postam fotos; comentários de aluno configuráveis (padrão desligado); moderação pelo admin. → implementado.
+4. Aluno novo entra, mas fica bloqueado até a liberação do admin. → implementado.
+5. Idiomas: pt e en. → implementado.
+6. Comunidade/marketplace multiprofissional, não academia. → modelo implementado; o nome do tenant está pendente.
+7. Prazos configuráveis no admin (padrões 24 h e 48 h). → implementado.
+8. Domínio e nomes do banco mantidos.
+Pendentes: a lista completa está na tabela de conflitos da MATRIZ-RASTREABILIDADE-COMPLETA.md (C4–C10, C12).
 
 ## 10. Conflitos encontrados
 - O programa guiado (Postgres) e o legado (blob local) guardam treinos e histórico em lugares diferentes, sem sincronização entre eles.
