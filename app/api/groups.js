@@ -14,7 +14,7 @@ export const newCode = () => crypto.randomBytes(6).toString('base64url').replace
 
 // convite válido (grupo ou desafio): não expirado, não revogado, com usos disponíveis
 export async function useInvite(tid, type, targetId, code) {
-  const r = await q(`update invites set uses=uses+1 where tenant_id=$1 and target_type=$2 and target_id=$3 and upper(code)=upper($4) and revoked_at is null
+  const r = await q(`update share_invites set uses=uses+1 where tenant_id=$1 and target_type=$2 and target_id=$3 and upper(code)=upper($4) and revoked_at is null
     and (expires_at is null or expires_at > now()) and (max_uses is null or uses < max_uses) returning id`, [tid, type, targetId, txt(code, 20)])
   return r.rowCount > 0
 }
@@ -54,7 +54,7 @@ export function groupRoutes({ json, readBody }) {
       if (!g || (!admin && !member && (g.privacy === 'privado' || g.status !== 'ativo'))) return json(res, 404, { error: 'Grupo não encontrado' })
       const members = (member || admin || g.privacy === 'aberto') ? (await q(`select ${pub}, gm.role, gm.joined_at from group_members gm join users u on u.id=gm.user_id where gm.group_id=$1 and gm.status='ativo' order by case gm.role when 'dono' then 0 when 'moderador' then 1 else 2 end, gm.joined_at limit 200`, [g.id])).rows : []
       const requests = isMod(m) || admin ? (await q(`select ${pub}, gm.updated_at from group_members gm join users u on u.id=gm.user_id where gm.group_id=$1 and gm.status='solicitado'`, [g.id])).rows : []
-      const invites = isMod(m) || admin ? (await q(`select id,code,expires_at,max_uses,uses,revoked_at,created_at from invites where target_type='grupo' and target_id=$1 order by created_at desc`, [g.id])).rows : []
+      const invites = isMod(m) || admin ? (await q(`select id,code,expires_at,max_uses,uses,revoked_at,created_at from share_invites where target_type='grupo' and target_id=$1 order by created_at desc`, [g.id])).rows : []
       json(res, 200, { group: { ...g, status_reason: admin || isMod(m) ? g.status_reason : null }, me: m ? { role: m.role, status: m.status } : null, members, requests, invites, count: await activeCount(g.id) })
     },
     'POST /api/groups': async (req, res) => {
@@ -141,12 +141,12 @@ export function groupRoutes({ json, readBody }) {
       const b = await readBody(req), { u, g } = await load(req, res, b, true); if (!g) return
       const days = b.expires_days == null ? 7 : Math.max(1, Math.min(90, +b.expires_days | 0)), max = b.max_uses ? Math.max(1, Math.min(1000, +b.max_uses | 0)) : null
       const code = newCode()
-      const r = await q(`insert into invites(tenant_id,target_type,target_id,code,created_by,expires_at,max_uses) values($1,'grupo',$2,$3,$4,now() + ($5 || ' days')::interval,$6) returning id,code,expires_at,max_uses`, [u.tenant_id, g.id, code, u.id, String(days), max])
+      const r = await q(`insert into share_invites(tenant_id,target_type,target_id,code,created_by,expires_at,max_uses) values($1,'grupo',$2,$3,$4,now() + ($5 || ' days')::interval,$6) returning id,code,expires_at,max_uses`, [u.tenant_id, g.id, code, u.id, String(days), max])
       await audit(u.tenant_id, u.id, 'convite.criado', 'group', g.id, { invite: r.rows[0].id }); json(res, 201, { invite: r.rows[0], link: `#/grupo/${g.id}?convite=${code}` })
     },
     'POST /api/groups/invites/revoke': async (req, res) => {
       const b = await readBody(req), { u, g } = await load(req, res, b, true); if (!g) return
-      const r = await q(`update invites set revoked_at=now() where id=$1 and target_type='grupo' and target_id=$2 and revoked_at is null`, [b.invite_id, g.id])
+      const r = await q(`update share_invites set revoked_at=now() where id=$1 and target_type='grupo' and target_id=$2 and revoked_at is null`, [b.invite_id, g.id])
       if (!r.rowCount) return json(res, 404, { error: 'Convite não encontrado' })
       await audit(u.tenant_id, u.id, 'convite.revogado', 'group', g.id, { invite: b.invite_id }); json(res, 200, { ok: true })
     },

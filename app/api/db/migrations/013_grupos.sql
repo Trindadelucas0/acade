@@ -21,7 +21,7 @@ create table if not exists group_members (
   joined_at timestamptz, updated_at timestamptz not null default now(), removed_by uuid references users on delete set null, reason text,
   primary key (group_id, user_id)
 );
-create table if not exists invites (
+create table if not exists share_invites (
   id uuid primary key default gen_random_uuid(),
   tenant_id uuid not null references tenants on delete cascade,
   target_type text not null check (target_type in ('grupo','desafio')),
@@ -31,4 +31,4 @@ create table if not exists invites (
   expires_at timestamptz, max_uses int check (max_uses is null or max_uses > 0), uses int not null default 0,
   revoked_at timestamptz, created_at timestamptz not null default now()
 );
-create index if not exists invites_target_idx on invites(target_type, target_id);
+create index if not exists invites_target_idx on share_invites(target_type, target_id);
