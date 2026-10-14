@@ -10,7 +10,8 @@
     "migrate": "node db/migrate.js",
     "dev": "node server.js",
     "create-admin": "node scripts/create-admin.mjs",
-    "zerar-dados": "node scripts/zerar-dados.mjs"
+    "zerar-dados": "node scripts/zerar-dados.mjs",
+    "remover-usuarios": "node scripts/remover-usuarios.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

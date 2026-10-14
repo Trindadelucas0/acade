@@ -100,7 +100,10 @@ function Usuarios() {
     { k: 'roles', l: 'Papéis', csv: r => r.roles.join(', '), r: r => r.roles.join(', ') }, { k: 'plan_id', l: 'Plano' }, { k: 'links', l: 'Vínculos', r: r => <>{r.links}{r.over_limit ? ' ⚠' : ''}</> },
     { k: 'created_at', l: 'Cadastro', r: r => r.created_at ? new Date(r.created_at).toLocaleDateString('pt-BR') : '—', sv: r => r.created_at }]
   const u = sel && (d?.users || []).find(x => x.id === sel)
+  const [novo, setNovo] = useState(false)
   return <>
+    <div className="adm-tools"><button className="adm-btn" onClick={() => setNovo(true)} data-testid="nu-open">+ Novo usuário</button></div>
+    {novo && <NovoUsuario plans={(pl?.plans || []).filter(p => p.active)} onClose={() => setNovo(false)} onDone={reload} />}
     {err ? <p className="g-warn">{err}</p> : <DataTable name="usuarios" cols={cols} rows={d?.users} onRow={r => setSel(r.id)}
       filters={<select className="adm-in" value={st} onChange={e => setSt(e.target.value)} aria-label="Status"><option value="">Todos os status</option><option value="pendente">Aguardando liberação</option><option value="ativo">Ativos</option><option value="bloqueado">Bloqueados</option></select>} />}
     {u && <Drawer title={u.name} onClose={() => setSel(null)}>
@@ -117,6 +120,58 @@ function Usuarios() {
       <p className="g-mut g-xs">Contas profissionais e de treino são separadas (e-mails diferentes). “Mesma pessoa” só fica registrado na auditoria.</p>
     </Drawer>}
   </>
+}
+
+// Admin cria conta já liberada. Contas separadas: cada conta é aluno OU profissional.
+function NovoUsuario({ plans, onClose, onDone }) {
+  const [f, setF] = useState({ type: 'aluno', name: '', email: '', password: '', plan_id: '', coach_id: '', area: '', capacity: 10, can_publish: false, q_kind: 'CREF', q_number: '', q_verified: false })
+  const [errs, setErrs] = useState({}), [msg, setMsg] = useState(''), [busy, setBusy] = useState(false), [res, setRes] = useState(null)
+  const [pros] = useLoad(() => C.admPros(), [])
+  const set = k => e => { const v = e.target.type === 'checkbox' ? e.target.checked : e.target.value; setF(x => ({ ...x, [k]: v })) }
+  const err = k => errs[k] && <span className="g-warn g-xs" role="alert">{errs[k]}</span>
+  const submit = async e => {
+    e.preventDefault(); setBusy(true); setErrs({}); setMsg('')
+    const b = { type: f.type, name: f.name, email: f.email, password: f.password || undefined }
+    if (f.type === 'aluno') Object.assign(b, { plan_id: f.plan_id || undefined, coach_id: f.coach_id || undefined, area: f.coach_id ? f.area : undefined })
+    else Object.assign(b, { capacity: +f.capacity, can_publish: f.can_publish, area: f.area, qualification: f.q_number || f.q_verified ? { kind: f.q_kind, number: f.q_number, area: f.area, verified: f.q_verified } : undefined })
+    try { const r = await C.createUser(b); setRes(r); onDone && onDone() }
+    catch (x) { setErrs(x.errors || {}); setMsg(x.message) } finally { setBusy(false) }
+  }
+  if (res) return <Drawer title="Conta criada" onClose={onClose}>
+    <div data-testid="nu-done"><p><b>{res.email}</b> foi criada como <b>{res.type}</b>, já liberada.</p>
+      {res.temp_password ? <><p>Senha temporária (aparece só agora; copie e entregue à pessoa):</p><p className="adm-card" style={{ fontFamily: 'monospace', fontSize: 18, userSelect: 'all' }} data-testid="nu-pass">{res.temp_password}</p></> : <p>Senha: a que você definiu.</p>}
+      {res.link && (res.link.ok ? <p>Vínculo criado.</p> : <p className="g-warn">A conta foi criada, mas o vínculo não: {res.link.error}. Crie-o depois em Vínculos.</p>)}
+      <p className="g-mut g-xs">No primeiro acesso a pessoa aceita os termos de uso.</p>
+      <div className="adm-tools"><button className="adm-btn" onClick={() => { setRes(null); setF(x => ({ ...x, name: '', email: '', password: '' })) }}>Criar outra</button><button className="adm-btn ghost" onClick={onClose}>Fechar</button></div></div>
+  </Drawer>
+  const L = (l, el, k) => <label className="adm-field" style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 10 }}><span className="g-xs">{l}</span>{el}{k && err(k)}</label>
+  return <Drawer title="Novo usuário" onClose={onClose}>
+    <form onSubmit={submit} data-testid="nu-form" noValidate>
+      <div className="adm-tools" role="radiogroup" aria-label="Tipo de conta">{[['aluno', 'Aluno'], ['profissional', 'Profissional']].map(([k, l]) =>
+        <button type="button" key={k} role="radio" aria-checked={f.type === k} className={'adm-btn ' + (f.type === k ? '' : 'ghost')} onClick={() => setF(x => ({ ...x, type: k }))} data-testid={'nu-type-' + k}>{l}</button>)}</div>
+      {err('type')}
+      {L('Nome', <input className="adm-in" value={f.name} onChange={set('name')} required data-testid="nu-name" />, 'name')}
+      {L('E-mail', <input className="adm-in" type="email" value={f.email} onChange={set('email')} required data-testid="nu-email" />, 'email')}
+      {L('Senha temporária (vazio = gerar automaticamente)', <input className="adm-in" type="text" autoComplete="new-password" value={f.password} onChange={set('password')} data-testid="nu-pass-in" />, 'password')}
+      {f.type === 'aluno' ? <>
+        {L('Plano de acesso (opcional)', <select className="adm-in" value={f.plan_id} onChange={set('plan_id')} data-testid="nu-plan"><option value="">Sem plano por enquanto</option>{plans.map(p => <option key={p.id} value={p.id}>{p.name_pt} (até {p.max_professionals})</option>)}</select>, 'plan_id')}
+        {L('Vincular a um profissional (opcional, exige plano)', <select className="adm-in" value={f.coach_id} onChange={set('coach_id')} data-testid="nu-coach"><option value="">Sem vínculo por enquanto</option>{(pros?.professionals || []).filter(p => p.state === 'ativo').map(p => <option key={p.user_id} value={p.user_id}>{p.display_name || p.name} ({p.available} vaga[s])</option>)}</select>, 'coach_id')}
+        {f.coach_id && L('Área do vínculo', <input className="adm-in" value={f.area} onChange={set('area')} placeholder="ex.: Musculação" data-testid="nu-area" />, 'area')}
+      </> : <>
+        {L('Capacidade (alunos)', <input className="adm-in" type="number" min="0" max="500" value={f.capacity} onChange={set('capacity')} data-testid="nu-cap" />, 'capacity')}
+        {L('Área / especialidade', <input className="adm-in" value={f.area} onChange={set('area')} placeholder="ex.: Musculação" data-testid="nu-area" />, 'area')}
+        <label className="g-row" style={{ gap: 8, minHeight: 44 }}><input type="checkbox" checked={f.can_publish} onChange={set('can_publish')} data-testid="nu-pub" /> Pode publicar na comunidade</label>
+        <div className="g-row" style={{ gap: 8 }}>
+          {L('Registro', <select className="adm-in" value={f.q_kind} onChange={set('q_kind')}><option>CREF</option><option>CREFITO</option></select>)}
+          {L('Número', <input className="adm-in" value={f.q_number} onChange={set('q_number')} placeholder="000000-G/UF" data-testid="nu-qnum" />, 'qualification')}
+        </div>
+        <label className="g-row" style={{ gap: 8, minHeight: 44 }}><input type="checkbox" checked={f.q_verified} onChange={set('q_verified')} data-testid="nu-qver" /> Habilitação conferida pelo admin (verificada)</label>
+      </>}
+      {msg && <p className="g-warn" role="alert">{msg}</p>}
+      <div className="adm-tools"><button className="adm-btn" disabled={busy} data-testid="nu-submit">{busy ? 'Criando…' : 'Criar conta liberada'}</button><button type="button" className="adm-btn ghost" onClick={onClose}>Cancelar</button></div>
+      <p className="g-mut g-xs">Cada conta tem um papel só. Se um profissional também treina, crie outra conta de aluno com outro e-mail.</p>
+    </form>
+  </Drawer>
 }
 
 function Solicitacoes() {

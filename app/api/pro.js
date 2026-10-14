@@ -3,6 +3,9 @@
 // filas com prazo configurável e auditoria. Todas as permissões são verificadas AQUI (backend), nunca só na tela.
 import { q, pool } from './db/pool.js'
 import { requireAuth, audit } from './auth.js'
+import bcrypt from 'bcryptjs'
+import crypto from 'node:crypto'
+const genPassword = () => { const A = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'; let p; do { p = Array.from({ length: 14 }, () => A[crypto.randomInt(A.length)]).join('') } while (!/\d/.test(p) || !/[a-z]/.test(p) || !/[A-Z]/.test(p)); return p }
 
 const qs = req => new URL(req.url, 'http://x').searchParams
 const isUuid = s => /^[0-9a-f-]{36}$/i.test(String(s || ''))
@@ -431,6 +434,59 @@ export function proRoutes({ json, readBody }) {
       json(res, 200, { ok: true })
     },
     // registro (só para auditoria) de que duas contas pertencem à mesma pessoa; nenhum dado é compartilhado
+    // Admin cria conta já liberada: aluno OU profissional (contas separadas, um papel por conta)
+    'POST /api/adm/users/create': async (req, res) => {
+      const u = await guard('admin')(req, res, json); if (!u) return
+      const b = await readBody(req), errors = {}
+      const name = txt(b.name, 120), email = String(b.email || '').trim().toLowerCase(), type = b.type
+      let password = String(b.password || ''), generated = false
+      if (name.length < 2) errors.name = 'Informe o nome'
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || email.length > 200) errors.email = 'E-mail inválido'
+      if (!['aluno', 'profissional'].includes(type)) errors.type = 'Escolha aluno ou profissional'
+      if (!password) { password = genPassword(); generated = true } else if (password.length < 8) errors.password = 'A senha deve ter pelo menos 8 caracteres'
+      let plan = null, coach = null
+      if (type === 'aluno' && b.plan_id) { plan = (await q('select * from access_plans where id=$1 and active', [b.plan_id])).rows[0]; if (!plan) errors.plan_id = 'Plano inválido ou inativo' }
+      if (type === 'aluno' && b.coach_id) {
+        if (!plan) errors.coach_id = 'Para vincular, atribua um plano de acesso'
+        else if (!isUuid(b.coach_id) || !(coach = (await q(`select pp.* from professional_profiles pp join users x on x.id=pp.user_id where pp.user_id=$1 and x.tenant_id=$2`, [b.coach_id, u.tenant_id])).rows[0])) errors.coach_id = 'Profissional não encontrado'
+        else if (!txt(b.area, 80)) errors.area = 'Informe a área do vínculo'
+      }
+      const cap = b.capacity == null || b.capacity === '' ? 10 : +b.capacity
+      if (type === 'profissional') {
+        if (!Number.isInteger(cap) || cap < 0 || cap > 500) errors.capacity = 'Capacidade entre 0 e 500'
+        if (b.qualification && !txt(b.qualification.kind, 40)) errors.qualification = 'Informe o tipo (CREF/CREFITO)'
+      }
+      if (Object.keys(errors).length) return json(res, 400, { error: Object.values(errors)[0], errors })
+      if ((await q('select 1 from users where lower(email)=$1', [email])).rowCount) return json(res, 409, { error: 'Já existe uma conta com esse e-mail', errors: { email: 'E-mail já cadastrado' } })
+      const c = await pool.connect(); let id
+      try {
+        await c.query('begin')
+        id = (await c.query(`insert into users(tenant_id,name,email,password_hash,status) values($1,$2,$3,$4,'ativo') returning id`, [u.tenant_id, name, email, await bcrypt.hash(password, 12)])).rows[0].id
+        await c.query('insert into user_roles values($1,$2,$3)', [id, u.tenant_id, type])
+        if (type === 'aluno' && plan) {
+          await c.query('insert into user_access_plans(user_id,plan_id,assigned_by) values($1,$2,$3)', [id, plan.id, u.id])
+          await c.query('insert into access_plan_history(plan_id,user_id,action,actor_id) values($1,$2,$3,$4)', [plan.id, id, 'atribuido', u.id])
+        }
+        if (type === 'profissional') {
+          const area = txt(b.area, 80)
+          await c.query(`insert into professional_profiles(user_id,tenant_id,display_name,specialties,capacity,state,can_publish) values($1,$2,$3,$4,$5,'ativo',$6)`, [id, u.tenant_id, name, area ? [area] : [], cap, !!b.can_publish])
+          if (b.qualification) {
+            const ver = !!b.qualification.verified
+            await c.query(`insert into professional_qualifications(user_id,kind,number,area,status,verified_by,verified_at) values($1,$2,$3,$4,$5,$6,$7)`,
+              [id, txt(b.qualification.kind, 40), txt(b.qualification.number, 40) || null, txt(b.qualification.area, 80) || area || null, ver ? 'verificada' : 'pendente', ver ? u.id : null, ver ? new Date() : null])
+          }
+        }
+        await c.query('commit')
+      } catch (e) { await c.query('rollback'); c.release(); if (e.code === '23505') return json(res, 409, { error: 'Já existe uma conta com esse e-mail' }); throw e }
+      c.release()
+      await audit(u.tenant_id, u.id, 'usuario.criado_admin', 'user', id, { type, plan: plan?.id || null, verified: !!b.qualification?.verified })
+      let link = null
+      if (coach) {
+        const fail = await linkFailures(u.tenant_id, id, coach.user_id, b.area)
+        link = fail.length ? { ok: false, error: fail[0], reasons: fail } : { ok: true, id: await createLink(u, id, coach.user_id, b.area) }
+      }
+      json(res, 201, { id, email, type, temp_password: generated ? password : undefined, link })
+    },
     'POST /api/adm/users/same-person': async (req, res) => {
       const u = await guard('admin')(req, res, json); if (!u) return
       const b = await readBody(req)

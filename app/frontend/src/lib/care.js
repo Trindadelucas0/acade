@@ -16,7 +16,7 @@ export const C = {
   overview: () => api('/api/adm/overview'), users: (status, q) => api('/api/adm/users?' + new URLSearchParams({ ...(status ? { status } : {}), q: q || '' })),
   setStatus: (id, status, reason) => post('/api/adm/users/status', { id, status, reason }), setRole: (id, role, on) => post('/api/adm/users/role', { id, role, on }),
   setPlan: (id, plan_id) => post('/api/adm/users/plan', { id, plan_id }), plans: () => api('/api/adm/plans'), savePlanAcc: b => post('/api/adm/plans', b),
-  admPros: () => api('/api/adm/professionals'), updPro: b => post('/api/adm/professionals', b), verify: (id, status, note) => post('/api/adm/qualifications/verify', { id, status, note }),
+  admPros: () => api('/api/adm/professionals'), createUser: b => post('/api/adm/users/create', b), updPro: b => post('/api/adm/professionals', b), verify: (id, status, note) => post('/api/adm/qualifications/verify', { id, status, note }),
   links: () => api('/api/adm/links'), link: b => post('/api/adm/links', b), endLink: (id, reason) => post('/api/adm/links/end', { id, reason }),
   queue: () => api('/api/adm/queue'), assign: b => post('/api/adm/assign', b), admClose: (id, reason) => post('/api/adm/close-occurrence', { id, reason }),
   live: () => api('/api/adm/live'), userWorkouts: id => api('/api/adm/users/workouts?id=' + id),
