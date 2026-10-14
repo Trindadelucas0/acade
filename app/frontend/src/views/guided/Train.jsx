@@ -3,6 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import Icon from '../../components/Icon.jsx'
 import { G, loadSession, saveSessionLocal, newSession, payloadOf, mediaOf, RESTR_PT } from '../../lib/guided.js'
 import { Spin } from './Programs.jsx'
+import { C } from '../../lib/care.js'
+import { ReportSheet, AskSheet } from '../app/Acompanhamento.jsx'
 import './guided.css'
 
 const mmss = s => { s = Math.max(0, Math.round(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0') }
@@ -14,10 +16,16 @@ export default function Train() {
   const [s, setS] = useState(() => loadSession())
   const [err, setErr] = useState(''), [, tick] = useState(0), [how, setHow] = useState(false), [bad, setBad] = useState({})
   const syncTm = useRef(null)
+  const [blocks, setBlocks] = useState(new Set()), [sheet, setSheet] = useState(null), [flash, setFlash] = useState('')
+  useEffect(() => { C.blocks().then(r => setBlocks(new Set(r.blocks.map(b => b.exercise_id)))).catch(() => {}) }, [])
 
   // carrega o treino de hoje se não houver sessão salva no aparelho
   useEffect(() => {
     if (s) return
+    // plano prescrito por um profissional (Treinos → plano do profissional)
+    if (sp.get('plan')) { C.plan(sp.get('plan')).then(({ plan }) => {
+      const n = newSession({ active: { id: null, title: plan.title + ' · ' + plan.owner_name }, workout: { id: null, name: plan.title, exercises: plan.exercises.map(e => ({ ...e, reps_min: e.reps_min, reps_max: e.reps_max })) } })
+      n.plan_id = plan.id; saveSessionLocal(n); setS(n) }).catch(e => setErr(e.message || 'Plano indisponível')); return }
     G.today(sp.get('w')).then(t => {
       if (!t.active) return nav('/recomendados', { replace: true })
       if (!t.workout) return setErr('Este programa não tem treinos.')
@@ -51,6 +59,7 @@ export default function Train() {
     })
   }
   const ex = s.exercises[s.exIdx]
+  const isBlocked = blocks.has(ex.exercise_id)
   const setNo = Math.min(ex.done.length + 1, ex.sets)
   const allDoneEx = ex.done.length >= ex.sets
   const totalSets = s.exercises.reduce((a, e) => a + e.sets, 0), doneSets = s.exercises.reduce((a, e) => a + e.done.length, 0)
@@ -112,10 +121,19 @@ export default function Train() {
         <div className="g-pm"><button onClick={() => adj('reps', ex.timed ? -5 : -1)} aria-label="Diminuir">−</button><button onClick={() => adj('reps', ex.timed ? 5 : 1)} aria-label="Aumentar">+</button></div></div>
     </div>
 
-    {!allDoneEx ? <button className="g-btn g-xl" onClick={finishSet} data-testid="finish-set"><Icon name="check" /> CONCLUIR SÉRIE</button>
+    {isBlocked && <div className="g-blocked" data-testid="ex-blocked"><b>Exercício pausado</b><p className="g-mut g-sm">Você relatou dor ou desconforto. Ele fica bloqueado até seu profissional registrar uma orientação explícita. Siga para o próximo exercício.</p></div>}
+    {flash && <p className="g-note" style={{ marginTop: 8 }}>{flash}</p>}
+    {isBlocked ? null : !allDoneEx ? <button className="g-btn g-xl" onClick={finishSet} data-testid="finish-set"><Icon name="check" /> CONCLUIR SÉRIE</button>
       : <button className="g-btn g-xl" onClick={goNext}>{isLastEx ? 'FINALIZAR TREINO' : 'PRÓXIMO EXERCÍCIO'}</button>}
     <button className="g-btn g-ghost g-sm" style={{ marginTop: 10 }} onClick={goNext} data-testid="next-ex">{isLastEx ? 'Finalizar treino' : 'Pular para o próximo exercício'}</button>
 
+    <div className="g-actions">
+      <button className="g-btn g-ghost g-sm" onClick={() => setSheet('ask')} data-testid="ask"><Icon name="chat" /> Tenho uma dúvida</button>
+      <button className="g-btn g-ghost g-sm" onClick={() => setSheet('report')} data-testid="report"><Icon name="flag" /> Relatar problema</button>
+    </div>
+    {sheet === 'ask' && <AskSheet ctx={{ exercise_id: ex.exercise_id, exercise_name: ex.name, plan_id: s.plan_id, context_type: 'exercicio' }} onClose={() => setSheet(null)} onDone={() => { setSheet(null); setFlash('Dúvida enviada ao profissional responsável.') }} />}
+    {sheet === 'report' && <ReportSheet ctx={{ exercise_id: ex.exercise_id, exercise_name: ex.name, plan_id: s.plan_id, session_client_id: s.client_id }} onClose={() => setSheet(null)}
+      onDone={r => { setSheet(null); if (r.blocked) setBlocks(b => new Set([...b, ex.exercise_id])); setFlash(r.blocked ? 'Relato enviado. O exercício foi pausado até a orientação profissional.' : 'Relato enviado ao profissional responsável.'); update(x => { x.rest = null }) }} />}
     {s.rest && <div className="g-rest" data-testid="rest">
       <span className="g-eyebrow">Descanse</span>
       <div className="g-clock" data-testid="rest-clock">{mmss(restLeft)}</div>

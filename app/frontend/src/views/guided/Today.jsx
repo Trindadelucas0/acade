@@ -6,6 +6,7 @@ import { G, loadSession, flushQueue, pendingCount, mediaOf, minutesLabel } from 
 import { Spin } from './Programs.jsx'
 import MuscleStatus from './MuscleStatus.jsx'
 import { PendingCard, isPending } from '../app/Locked.jsx'
+import { AvisosCard } from '../app/Avisos.jsx'
 import './guided.css'
 
 const DN = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D']
@@ -47,6 +48,7 @@ export default function Today() {
       <span className="g-sp" />
       {st.streak_weeks > 0 && <span className="g-ring" title="Semanas seguidas treinando"><Icon name="flame" /> {st.streak_weeks} sem.</span>}
     </div>
+    <AvisosCard />
     {pend > 0 && <p className="g-note" style={{ margin: '8px 0' }}>{pend} treino(s) aguardando conexão para sincronizar.</p>}
 
     {!st.active ? <div className="g-hero" style={{ marginTop: 14 }}>
@@ -79,6 +81,10 @@ export default function Today() {
       <div className="g-row"><b>Sua semana</b><span className="g-sp" /><span className="g-acc" style={{ fontWeight: 800 }}>{st.week.done}/{st.week.target} treinos</span></div>
       <div className="g-bar" style={{ margin: '10px 0 4px' }}><i style={{ width: Math.min(100, st.week.done / Math.max(1, st.week.target) * 100) + '%' }} /></div>
       <WeekStrip sessions={st.week.sessions} />
+    </div>
+    <div className="g-card g-list" style={{ marginTop: 14 }}>
+      <button className="g-li" onClick={() => nav('/acompanhamento')} data-testid="home-care"><span className="g-ico"><Icon name="chat" /></span><span><b>Acompanhamento</b><br /><span className="g-mut g-xs">Profissionais, dúvidas, ocorrências e orientações</span></span></button>
+      <button className="g-li" onClick={() => nav('/comunidade')}><span className="g-ico"><Icon name="users" /></span><span><b>Comunidade</b><br /><span className="g-mut g-xs">Veja as novas publicações dos profissionais</span></span></button>
     </div>
     <div style={{ marginTop: 14 }}><MuscleStatus compact /></div>
     {st.active && <p className="g-dim g-xs g-center" style={{ marginTop: 14 }}>Semana {st.active.week_index} de {st.active.weeks} · {minutesLabel(st.active)} por treino</p>}

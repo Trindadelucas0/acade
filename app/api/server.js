@@ -4,6 +4,7 @@ import './env.js';
 import http from 'node:http';
 import { authRoutes, clearTokenCookie, authUser, pub } from './auth.js';
 import { guidedRoutes } from './guided.js';
+import { proRoutes } from './pro.js';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -559,7 +560,8 @@ function pgBridge(u) {
   return [sessionCookie(x)];
 }
 Object.assign(routes, authRoutes({ json, readBody, bridge: pgBridge, clearCookies: [clearCookie] }));
-Object.assign(routes, guidedRoutes({ json, readBody }));   // treino guiado (onboarding, programas, sessões)
+Object.assign(routes, guidedRoutes({ json, readBody }));
+Object.assign(routes, proRoutes({ json, readBody }));        // profissionais, vínculos, atendimento, admin   // treino guiado (onboarding, programas, sessões)
 
 http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');

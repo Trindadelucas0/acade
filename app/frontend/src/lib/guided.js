@@ -64,7 +64,7 @@ export function newSession(today) {
 export const sessionSets = s => s.exercises.flatMap(e => e.done.map((d, i) => ({ exercise_id: e.exercise_id, set_index: i, weight: e.timed ? null : d.weight, reps: e.timed ? null : d.reps, duration_sec: e.timed ? d.reps : null, done_at: d.at, target_reps: e.reps_max || e.reps_min || null })))
 export const payloadOf = (s, extra = {}) => ({
   client_id: s.client_id, user_program_id: s.user_program_id, program_workout_id: s.program_workout_id, workout_name: s.workout_name,
-  started_at: s.started_at, sets: sessionSets(s), ...extra
+  started_at: s.started_at, sets: sessionSets(s), prescribed_count: s.exercises.length, pro_plan_id: s.plan_id || null, ...extra
 })
 
 // fila de sincronização: sessões concluídas que ainda não chegaram ao servidor

@@ -161,3 +161,17 @@ body:has(.ag),html:has(.ag){background:var(--ag-bg)!important}
 .ag .g-tabs button.g-on{background:var(--ag-acc);color:var(--ag-on)}
 .ag .g-av{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#22d3a633,#16212d);color:var(--ag-acc);display:flex;align-items:center;justify-content:center;font-weight:800;flex:none}
 @media (max-width:360px){.ag{padding-left:14px;padding-right:14px}.ag h1{font-size:24px}#agtab button span{font-size:10px}}
+/* AVADESK Fitness — fase 1 */
+.ag-sheet-bg{position:fixed;inset:0;z-index:100;background:#000a;display:flex;align-items:flex-end;justify-content:center}
+.ag.ag-sheet{min-height:0;max-height:88vh;overflow:auto;width:100%;max-width:560px;border-radius:24px 24px 0 0;padding:18px 18px calc(22px + env(safe-area-inset-bottom));background:var(--ag-card);border-top:1px solid var(--ag-line)}
+.ag .g-empty{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;padding:24px 12px;color:var(--ag-dim)}
+.ag .g-empty .icn{font-size:28px}
+.ag .g-field{display:flex;flex-direction:column;gap:6px;margin-top:12px}
+.ag .g-opt.g-sel{border-color:var(--ag-acc);background:#22d3a614}
+.ag .g-msg{padding:10px 12px;border-radius:14px;background:var(--ag-card-2);margin-top:8px;max-width:88%}
+.ag .g-msg.g-mine{margin-left:auto;background:#22d3a61f}
+.ag .g-pill{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;padding:3px 9px;border-radius:99px;background:var(--ag-card-2);color:var(--ag-mut)}
+.ag .g-pill.g-ok{background:#22d3a61f;color:var(--ag-acc)} .ag .g-pill.g-warn2{background:#ffb5471f;color:var(--ag-warn)} .ag .g-pill.g-bad2{background:#ff6b7a1f;color:var(--ag-bad)}
+.ag .g-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px} .ag .g-actions .g-btn{width:auto;flex:1;min-width:120px}
+.ag .g-blocked{border:1px solid #ff6b7a55;background:#ff6b7a12;border-radius:16px;padding:12px;margin-top:10px}
+.ag table.g-tbl{width:100%;border-collapse:collapse;font-size:14px} .ag .g-tbl td,.ag .g-tbl th{padding:8px 6px;border-top:1px solid var(--ag-line);text-align:left;vertical-align:top}

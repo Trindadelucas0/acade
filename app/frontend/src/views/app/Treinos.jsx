@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Icon from '../../components/Icon.jsx'
 import { G, loadSession, minutesLabel } from '../../lib/guided.js'
+import { C } from '../../lib/care.js'
 import '../guided/guided.css'
 
 export const Li = ({ icon, t, s, to, onClick, testid, badge }) => { const nav = useNavigate()
@@ -14,7 +15,8 @@ export default function Treinos() {
   const nav = useNavigate()
   const [st, setSt] = useState(null)
   const live = loadSession()
-  useEffect(() => { G.state().then(setSt).catch(() => setSt(false)) }, [])
+  const [care, setCare] = useState(null)
+  useEffect(() => { G.state().then(setSt).catch(() => setSt(false)); C.care().then(setCare).catch(() => {}) }, [])
   const a = st && st.active
   return <div className="ag" data-testid="treinos">
     <span className="g-eyebrow">Treinos</span>
@@ -26,6 +28,11 @@ export default function Treinos() {
       <button className="g-btn" style={{ marginTop: 12 }} onClick={() => nav(live || a ? '/treinar' : '/recomendados')} data-testid="treinos-start">
         <Icon name={live ? 'play' : 'dumbbell'} /> {live ? 'Continuar treino' : a ? 'Começar treino' : 'Escolher programa'}</button>
     </div>
+    {care?.plans?.length > 0 && <><h2>Planos dos seus profissionais</h2>
+      <div className="g-card g-list">{care.plans.map(p => <div key={p.id} className="g-li" style={{ display: 'block' }} data-testid="pro-plan">
+        <b>{p.title}</b><br /><span className="g-mut g-xs">Responsável: {p.owner_name} · {p.exercises.length} exercícios</span>
+        {p.notes && <p className="g-sm g-mut" style={{ marginTop: 4 }}>{p.notes}</p>}
+        <button className="g-btn g-sm" style={{ marginTop: 8 }} disabled={!!live} onClick={() => nav('/treinar?plan=' + p.id)}>Abrir treino</button></div>)}</div></>}
     <h2>Programa guiado</h2>
     <div className="g-card g-list">
       <Li icon="calendar" t="Meu programa" s="Treinos da semana e progresso" to="/meu-programa" />
