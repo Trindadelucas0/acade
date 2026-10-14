@@ -25,7 +25,7 @@ import Library from './views/Library.jsx'
 import Settings from './views/Settings.jsx'
 const MuscleMap = lazy(() => import('./views/MuscleMap.jsx'))
 // treino guiado (AVAGYM)
-import GuidedTabBar, { isProAccount } from './views/guided/TabBar.jsx'
+import GuidedTabBar, { isProAccount, isAdminAccount } from './views/guided/TabBar.jsx'
 import Onboarding from './views/guided/Onboarding.jsx'
 import Today from './views/guided/Today.jsx'
 import { Recommendations, Library as ProgramLibrary, ProgramDetail } from './views/guided/Programs.jsx'
@@ -88,7 +88,20 @@ function Shell() {
           re-mounts the boundary, so the tab bar is always a way out */}
       <div id="app" className="vfade" key={loc.pathname}>
         <ErrorBoundary>
-          {!authed ? <Login /> : user?.needs_terms ? <TermsGate onAccepted={() => useStore.getState().setUser({ ...user, needs_terms: false })} /> : isProAccount(user) ? (
+          {!authed ? <Login /> : user?.needs_terms ? <TermsGate onAccepted={() => useStore.getState().setUser({ ...user, needs_terms: false })} /> : isAdminAccount(user) ? (
+            <Routes>
+              <Route path="/admin/painel" element={<AdminApp />} />
+              <Route path="/pro/treino" element={<Builder />} />
+              <Route path="/admin/programas" element={<AdminPrograms />} />
+              <Route path="/comunidade" element={<Gate title="Comunidade"><Comunidade /></Gate>} />
+              <Route path="/post/:id" element={<Gate title="Comunidade"><PostPage /></Gate>} />
+              <Route path="/profissional/:id" element={<Gate title="Comunidade"><ProfessionalPage /></Gate>} />
+              <Route path="/conversa/:id" element={<Gate title="Conversa"><Conversa /></Gate>} />
+              <Route path="/avisos" element={<Avisos />} />
+              <Route path="/perfil" element={<Profile />} />
+              <Route path="*" element={<Navigate to="/admin/painel" replace />} />
+            </Routes>
+          ) : isProAccount(user) ? (
             <Routes>
               <Route path="/pro" element={<Gate title="AVADESK PRO"><ProPortal /></Gate>} />
               <Route path="/pro/treino" element={<Gate title="AVADESK PRO"><Builder /></Gate>} />
@@ -140,7 +153,8 @@ function Shell() {
         </ErrorBoundary>
       </div>
       {/* barra principal = treino guiado; a antiga só aparece no treino manual em execução */}
-      {authed && !loc.pathname.startsWith('/admin/painel') && <GuidedTabBar />}
+      {authed && !isAdminAccount(user) && !loc.pathname.startsWith('/admin/painel') && <GuidedTabBar />}
+      {authed && isAdminAccount(user) && !user?.needs_terms && !loc.pathname.startsWith('/admin/painel') && <button className="adm-btn" style={{ position: 'fixed', left: 12, bottom: 12, minHeight: 44, zIndex: 50 }} onClick={() => navigate('/admin/painel')} data-testid="back-admin">← Painel admin</button>}
       <RestTimer />
       <Modals />
       <Toast />

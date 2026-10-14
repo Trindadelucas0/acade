@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import Icon from '../../components/Icon.jsx'
+import { useStore } from '../../store/useStore.js'
 import { C, P, GOALS, REQ_ST, dt, uploadExMedia } from '../../lib/care.js'
 import { useLoad } from '../app/kit.jsx'
 import { Alunos, Profissionais, Planos, Vinculos, Filas, Config, EXTRA } from '../app/AdminPanel.jsx'
@@ -302,7 +303,7 @@ export default function AdminApp() {
     <aside className={'adm-side' + (open ? ' open' : '')} aria-label="Menu administrativo">
       <div className="adm-brand">AVADESK <b>Admin</b></div>
       {NAV.map(([g, items]) => <div key={g}><h6>{g}</h6>{items.map(([k, l, ic]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => go(k)} data-testid={'adm-' + k}><Icon name={ic} />{l}</button>)}</div>)}
-      <h6>App</h6><button onClick={() => nav('/perfil')}><Icon name="chevronLeft" />Voltar ao app</button>
+      <h6>Conta</h6><button onClick={() => nav('/comunidade')} data-testid="adm-comunidade-app"><Icon name="chevronLeft" />Ver comunidade</button><button onClick={() => nav('/perfil')}><Icon name="chevronLeft" />Minha conta</button><button onClick={() => useStore.getState().signOut()} data-testid="adm-sair"><Icon name="chevronLeft" />Sair</button>
     </aside>
     <main className="adm-main">
       <div className="adm-mtop"><button className="adm-btn ghost" style={{ minWidth: 44, minHeight: 44, fontSize: 18 }} onClick={() => setOpen(!open)} aria-label="Menu">☰</button><b>{TITLE[tab]}</b></div>

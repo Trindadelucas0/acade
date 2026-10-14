@@ -29,3 +29,16 @@ export async function run({ adm, p1, stu, P1, get, post, check }) {
   const au = (await get(adm, '/api/adm/audit')).d
   check(JSON.stringify(au).includes('usuario.criado_admin'), 'criação registrada na auditoria')
 }
+export async function run2({ adm, p1, get, post, check }) {
+  console.log('Fase 5 — conta admin sem fluxo de aluno')
+  let r = await get(adm, '/api/guided/state')
+  check(r.s === 403 && r.d.admin_account, 'admin não recebe questionário nem estado de treino')
+  check((await post(adm, '/api/guided/onboarding', { goal: 'strength' })).s === 403, 'admin não grava onboarding')
+  check((await get(adm, '/api/guided/today')).s === 403, 'admin não tem "Hoje" de treino')
+  check((await post(adm, '/api/ranking/prefs', { public: true })).s === 403, 'admin não participa do ranking')
+  r = await get(p1, '/api/guided/state')
+  check(r.s === 403 && r.d.pro_account, 'profissional não recebe o questionário do aluno')
+  check((await post(p1, '/api/ranking/prefs', { public: true })).s === 403, 'profissional não participa do ranking')
+  const me = (await get(adm, '/api/auth/me')).d.user
+  check(me.admin && !me.roles.includes('aluno'), 'conta admin sem papel de aluno (app abre no painel)')
+}

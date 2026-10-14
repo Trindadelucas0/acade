@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import Icon from '../../components/Icon.jsx'
 import { useStore } from '../../store/useStore.js'
 import { C, P, exportMyData } from '../../lib/care.js'
-import { isProAccount } from './TabBar.jsx'
+import { isProAccount, isNonTrainee } from './TabBar.jsx'
 import { G, GOAL_PT, LEVEL_PT, LOC_PT, RESTR_PT } from '../../lib/guided.js'
 import './guided.css'
 
@@ -13,7 +13,7 @@ export default function Profile() {
   const user = useStore(s => s.user)
   const signOut = useStore(s => s.signOut)
   const [st, setSt] = useState(null)
-  const proAcc = isProAccount(user)
+  const proAcc = isNonTrainee(user)
   useEffect(() => { if (!proAcc) G.state().then(setSt).catch(() => {}) }, [proAcc])
   const p = st?.profile
   const pro = user?.roles?.some(r => r === 'admin' || r === 'profissional')
@@ -70,7 +70,7 @@ export default function Profile() {
 function MeusDados() {
   const user = useStore(s => s.user)
   const [req, setReq] = useState(null), [msg, setMsg] = useState(''), [code, setCode] = useState('')
-  useEffect(() => { if (!isProAccount(user) && user?.status === 'ativo') P.myCode().then(r => setCode(r.code)).catch(() => {}) }, [user])
+  useEffect(() => { if (!isNonTrainee(user) && user?.status === 'ativo') P.myCode().then(r => setCode(r.code)).catch(() => {}) }, [user])
   const load = () => C.myRequests().then(r => setReq(r.requests)).catch(() => {})
   useEffect(() => { load() }, [])
   const open = (req || []).find(r => r.kind === 'exclusao' && r.status === 'pendente')

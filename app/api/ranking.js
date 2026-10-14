@@ -107,6 +107,7 @@ export function rankingRoutes({ json, readBody }) {
     },
     'POST /api/ranking/prefs': async (req, res) => {
       const u = await requireAuth(req, res, json); if (!u) return
+      if (!u.roles.includes('aluno') && (u.roles.includes('admin') || u.roles.includes('profissional'))) return json(res, 403, { error: 'Só contas de aluno participam do ranking' })
       const b = await readBody(req), name = txt(b.display_name, 40)
       if (b.public && name && name.length < 2) return json(res, 400, { error: 'Nome de exibição muito curto' })
       await q(`insert into ranking_prefs(user_id,public,display_name) values($1,$2,$3) on conflict (user_id) do update set public=excluded.public, display_name=excluded.display_name, updated_at=now()`, [u.id, !!b.public, name || null])

@@ -5,7 +5,8 @@ import { requireAuth, requireRole, tenantScope } from './auth.js'
 // conta profissional não tem treino pessoal (contas separadas); admin e aluno seguem normalmente
 async function requireTrainee(req, res, json) {
   const u = await requireAuth(req, res, json); if (!u) return null
-  if (u.roles.includes('profissional') && !u.roles.includes('aluno') && !u.roles.includes('admin')) { json(res, 403, { error: 'Conta profissional não registra treino pessoal. Use sua conta de aluno separada.', pro_account: true }); return null }
+  if (u.roles.includes('admin') && !u.roles.includes('aluno')) { json(res, 403, { error: 'Conta administrativa não tem fluxo de treino nem questionário.', admin_account: true }); return null }
+  if (u.roles.includes('profissional') && !u.roles.includes('aluno')) { json(res, 403, { error: 'Conta profissional não registra treino pessoal. Use sua conta de aluno separada.', pro_account: true }); return null }
   return u
 }
 

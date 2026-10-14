@@ -15,6 +15,9 @@ const GROUP = {
 }
 // conta profissional (separada da conta de treino): navegação própria, sem a experiência de treino do aluno
 export const isProAccount = u => !!u && !!u.pro && !u.admin && !(u.roles || []).includes('aluno')
+// conta de gestão: admin sem papel de aluno; nunca vê onboarding nem o fluxo de treino
+export const isAdminAccount = u => !!u && !!u.admin && !(u.roles || []).includes('aluno')
+export const isNonTrainee = u => isProAccount(u) || isAdminAccount(u)
 export const tabOf = path => GROUP[path.split('/')[1] || 'hoje'] || 'perfil'
 export default function GuidedTabBar() {
   const nav = useNavigate(), loc = useLocation(), user = useStore(s => s.user)
