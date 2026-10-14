@@ -20,6 +20,8 @@ export default function WorkoutBuilder() {
   const [w, setW] = useState({ title: '', specialty: '', goal: '', description: '', days: [blankDay(0)] })
   const [meta, setMeta] = useState({ planId: sp.get('id') || sp.get('plan') || null, templateId: sp.get('template') || null, templateScope: sp.get('scope') || (isAdmin ? 'global' : 'pessoal'), student: sp.get('student') || '' })
   const [day, setDay] = useState(0), [sel, setSel] = useState(new Set()), [msg, setMsg] = useState(null), [busy, setBusy] = useState(''), [libOpen, setLibOpen] = useState(false)
+  const [dlg, setDlg] = useState(null)
+  const ask = (title, text, onOk, input) => setDlg({ title, text, onOk, input, val: input ?? '' })
   const [students, setStudents] = useState([]), [templates, setTemplates] = useState([])
   // carrega ficha, modelo, alunos e modelos disponíveis
   useEffect(() => {
@@ -59,8 +61,8 @@ export default function WorkoutBuilder() {
   const addSelected = list => { setD(d => ({ ...d, exercises: [...d.exercises, ...list.map(newEx)] })); setMsg({ t: `${list.length} exercício(s) adicionado(s) a ${D.name}` }); setLibOpen(false) }
   // dias
   const addDay = () => { setW(x => ({ ...x, days: [...x.days, blankDay(x.days.length)] })); setDay(w.days.length); setSel(new Set()) }
-  const renameDay = () => { const n = prompt('Nome do dia', D.name); if (n && n.trim()) setD(d => ({ ...d, name: n.trim().slice(0, 60) })) }
-  const removeDay = () => { if (w.days.length === 1) return setMsg({ bad: true, t: 'O treino precisa de pelo menos um dia' }); if (!confirm(`Remover ${D.name} e seus ${D.exercises.length} exercício(s)?`)) return; setW(x => ({ ...x, days: x.days.filter((_, i) => i !== day) })); setDay(0) }
+  const renameDay = () => ask('Renomear dia', 'Novo nome do dia', n => { if (n && n.trim()) setD(d => ({ ...d, name: n.trim().slice(0, 60) })) }, D.name)
+  const removeDay = () => { if (w.days.length === 1) return setMsg({ bad: true, t: 'O treino precisa de pelo menos um dia' }); ask('Remover dia', `Remover ${D.name} e seus ${D.exercises.length} exercício(s)?`, () => { setW(x => ({ ...x, days: x.days.filter((_, i) => i !== day) })); setDay(0) }) }
   // salvar
   const body = () => ({ title: w.title, specialty: w.specialty, goal: w.goal, description: w.description, days: clean(w.days) })
   const fail = e => setMsg({ bad: true, t: e.problems ? 'Não foi salvo: ' + e.problems.join(' · ') : 'Não foi salvo: ' + e.message })
@@ -86,7 +88,7 @@ export default function WorkoutBuilder() {
     <header className="wb-top">
       <button className="wb-btn ghost" onClick={back} aria-label="Voltar">←</button>
       <div className="wb-ttl"><b>Construtor de treino</b><span>{w.days.length} dia(s) · {total} exercício(s){meta.planId ? ' · editando ficha' : meta.templateId ? ' · a partir de modelo' : ''}</span></div>
-      <select className="wb-in" value="" onChange={e => { const t = templates.find(x => x.id === e.target.value); if (t && (!total || confirm('Substituir a ficha atual pelo modelo?'))) { useTemplate(t); setMeta(m => ({ ...m, templateId: t.id, templateScope: t.scope || 'global' })); setDay(0) } }} aria-label="Usar modelo" data-testid="wb-template">
+      <select className="wb-in" value="" onChange={e => { const t = templates.find(x => x.id === e.target.value); if (!t) return; const go = () => { useTemplate(t); setMeta(m => ({ ...m, templateId: t.id, templateScope: t.scope || 'global' })); setDay(0) }; total ? ask('Usar modelo', 'Substituir a ficha atual pelo modelo “' + t.title + '”?', go) : go() }} aria-label="Usar modelo" data-testid="wb-template">
         <option value="">Usar modelo…</option>{templates.map(t => <option key={t.id} value={t.id}>{t.scope === 'pessoal' ? '★ ' : ''}{t.title}</option>)}</select>
     </header>
     <section className="wb-head">
@@ -111,10 +113,14 @@ export default function WorkoutBuilder() {
         </div>
         {!D.exercises.length && <div className="wb-empty">Nenhum exercício em {D.name}. Escolha na biblioteca e toque em “Adicionar selecionados”.</div>}
         <ol className="wb-list">{D.exercises.map((e, i) => <ExCard key={i + e.exercise_id} e={e} i={i} g={groups[i]} n={D.exercises.length} sel={sel.has(i)} toggle={() => toggle(i)} set={p => setEx(i, p)} move={d => move(i, d)} ungroup={() => ungroup(i)}
-          remove={() => { if (confirm(`Remover ${e.name}?`)) setD(d => ({ ...d, exercises: d.exercises.filter((_, k) => k !== i).map((x, k, arr) => x.group != null && arr.filter(y => y.group === x.group).length < 2 ? { ...x, group: null } : x) })) }}
+          remove={() => ask('Remover exercício', `Remover ${e.name} de ${D.name}?`, () => setD(d => ({ ...d, exercises: d.exercises.filter((_, k) => k !== i).map((x, k, arr) => x.group != null && arr.filter(y => y.group === x.group).length < 2 ? { ...x, group: null } : x) })))}
           onDragStart={() => { drag.current = i }} onDrop={() => drop(i)} />)}</ol>
       </main>
     </div>
+    {dlg && <div className="wb-dlg-bg" role="presentation" onClick={() => setDlg(null)}><div className="wb-dlg" role="dialog" aria-modal="true" aria-labelledby="wb-dlg-t" onClick={e => e.stopPropagation()} data-testid="wb-dialog">
+      <h3 id="wb-dlg-t">{dlg.title}</h3><p>{dlg.text}</p>
+      {dlg.input != null && <input className="wb-in" autoFocus value={dlg.val} onChange={e => setDlg({ ...dlg, val: e.target.value })} onKeyDown={e => { if (e.key === 'Enter') { dlg.onOk(dlg.val); setDlg(null) } }} data-testid="wb-dialog-in" />}
+      <div className="wb-actions"><button className="wb-btn ghost" onClick={() => setDlg(null)}>Cancelar</button><button className="wb-btn" onClick={() => { dlg.onOk(dlg.val); setDlg(null) }} data-testid="wb-dialog-ok">Confirmar</button></div></div></div>}
     <footer className="wb-foot">
       {msg && <p className={'wb-msg' + (msg.bad ? ' bad' : msg.ok ? ' ok' : '')} role={msg.bad ? 'alert' : 'status'} data-testid="wb-msg">{msg.t}</p>}
       <div className="wb-actions">

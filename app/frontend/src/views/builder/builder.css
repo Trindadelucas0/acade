@@ -49,3 +49,4 @@ textarea.wb-in{padding:8px 10px}.wb-in.err{border-color:#ff6b6b}
   .wb-days .wb-btn{padding:0 10px}
 }
 #app:has(.wb){max-width:none !important;padding:0 !important;margin:0 !important}
+.wb-dlg-bg{position:fixed;inset:0;background:#000a;display:grid;place-items:center;z-index:40;padding:16px}.wb-dlg{background:#14181d;border:1px solid #2a3038;border-radius:16px;padding:18px;width:100%;max-width:420px;display:flex;flex-direction:column;gap:10px}.wb-dlg h3{margin:0}.wb-dlg p{margin:0;color:#c3cad1}
