@@ -12,10 +12,12 @@ Escopo: começou como auditoria; agora registra a execução por fases (ver §0)
 | Fase 1: contas pendentes, planos de acesso, profissionais, vínculos, ocorrências, propostas, filas, auditoria (migrations 003–004) | concluído | 6a699c2 |
 | Fase 2: comunidade, moderação, ranking (migration 005) | concluído | a45ce85 |
 | Fase 3: recuperação de senha (migration 006), alvos de toque | concluído | 2400cf5 |
-| Matriz de rastreabilidade e inventário | concluído (matriz automática; revisão regra a regra em andamento) | este commit |
-| Redesenho das telas legadas do OpenGym | em andamento (só herdam o tema) | — |
-| Remoção do worker Cloudflare | não iniciado (passkey já desativado por flag) | — |
-| Aceite de termos, notificações push/e-mail, LGPD (exportar/excluir) | não iniciado | — |
+| Matriz de rastreabilidade e inventário | concluído; revisão regra a regra das 95 regras críticas com evidência de teste | este commit |
+| Remoção do worker Cloudflare e do passkey; admin legado incorporado | concluído | bf228d6 |
+| Aceite versionado dos termos, LGPD (exportar/pedido de exclusão), mídia dos exercícios, contas separadas, tenant AVAGYM (migrations 007–008) | concluído | 4e50193 |
+| Portal AVADESK PRO, prescrições com versões, solicitações, modelos, KPIs (migration 009); painel admin desktop | concluído | 7064f5a e seguinte |
+| Telas legadas do OpenGym no sistema visual grafite/limão | concluído via CSS (estrutura original mantida) | bca4958, 026d6f9 |
+| Notificações push/e-mail | não iniciado (só internas) | — |
 | Push e deploy na VPS | bloqueado por política (exige permissão explícita) | — |
 
 **Como testar (no PC):**
@@ -23,9 +25,9 @@ Escopo: começou como auditoria; agora registra a execução por fases (ver §0)
 - `cd app\frontend; npx vitest run`
 - Screenshots: `node C:\Users\trind\shots\screens.mjs`
 - App em http://localhost:4449. Usuários de teste: admin.e2e@ / pro1.e2e@ / pro2.e2e@avadesk.local.
-- Último resultado: smoke 89 ok / 0 falhas; vitest 196/196.
+- Último resultado: smoke 174 ok / 0 falhas (fases 0–4); ranking ok; vitest 196/196; build ok.
 
-Backups criados antes de cada migration: `backups/avagym_*_antes_003..006.dump`. Os scripts de reversão ficam em `app/api/db/down/`.
+Backups criados antes de cada migration: `backups/avagym_*_antes_003..009.dump` (inclui antes_007_008 e antes_009). Os scripts de reversão ficam em `app/api/db/down/`.
 
 ## 1. Documentos de referência
 - `C:\Users\trind\Downloads\funcionamento fase 01 .pdf` → "APP FLOW — AVADESK". Encontrado e lido.
@@ -167,15 +169,20 @@ Legenda: ✅ EXISTENTE E FUNCIONAL · 🟡 EXISTENTE MAS INCOMPLETA · ❌ AUSEN
 - Observabilidade, testes E2E, LGPD (exportar e excluir dados), revisão de segurança e permissões por endpoint, empacotamento Capacitor.
 
 ## 9. Decisões (respostas do usuário: provisórias até a validação final)
-1. Só e-mail e senha; passkey e Cloudflare aposentados (o histórico git fica). → passkey retorna 410 sem `LEGACY_PASSKEY`.
-2. Telas antigas do OpenGym redesenhadas dentro das novas abas. → em andamento.
+1. Só e-mail e senha; passkey e Cloudflare aposentados (o histórico git fica). → worker e passkey removidos do código (404).
+2. Telas antigas do OpenGym redesenhadas dentro das novas abas. → concluído via sistema visual (CSS).
 3. Só profissionais publicam (com limite); alunos seguem, curtem e não postam fotos; comentários de aluno configuráveis (padrão desligado); moderação pelo admin. → implementado.
 4. Aluno novo entra, mas fica bloqueado até a liberação do admin. → implementado.
 5. Idiomas: pt e en. → implementado.
-6. Comunidade/marketplace multiprofissional, não academia. → modelo implementado; o nome do tenant está pendente.
+6. Comunidade/marketplace multiprofissional, não academia. → implementado; tenant AVAGYM.
 7. Prazos configuráveis no admin (padrões 24 h e 48 h). → implementado.
 8. Domínio e nomes do banco mantidos.
-Pendentes: a lista completa está na tabela de conflitos da MATRIZ-RASTREABILIDADE-COMPLETA.md (C4–C10, C12).
+9. Ranking: regra dos 80%, pontos e fuso America/Sao_Paulo confirmados (C6–C8).
+10. Admin adiciona vídeos e fotos aos exercícios (upload local ou URL); gif/vídeo atual continua padrão (C4).
+11. Tenant renomeado para AVAGYM (C5). Limite de 5 publicações/dia, configurável (C12).
+12. Profissional tem duas contas separadas: conta PRO sem dados de treino e conta de aluno opcional com outro e-mail; o admin pode registrar "mesma pessoa" só para auditoria (C13).
+13. PROMPT MASTER V3/V4: três ambientes; só o admin cria/encerra vínculos, define capacidade e aprova solicitações; o profissional só solicita (vagas ou vínculo pelo código do aluno).
+Pendentes: C9 (foto no ranking) e C10 (retenção do histórico), texto definitivo dos termos.
 
 ## 10. Conflitos encontrados
 - O programa guiado (Postgres) e o legado (blob local) guardam treinos e histórico em lugares diferentes, sem sincronização entre eles.
