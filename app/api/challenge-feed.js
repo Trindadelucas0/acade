@@ -207,9 +207,9 @@ export function challengeFeedRoutes({ json, readBody }) {
         return { id: s.id, started_at: s.started_at, workout_name: s.workout_name, proof: s.proof || null, counted: why === 'contou', why }
       })
       const pr = (await q(`select status, count(*)::int n from challenge_proofs where challenge_id=$1 and user_id=$2 group by status`, [c.id, u.id])).rows, pc = k => pr.filter(x => k.includes(x.status)).reduce((a, x) => a + x.n, 0)
-      const r = await loadAndCompute(c), me = (r.rows || []).find(x => x.user_id === u.id)
+      const r = await loadAndCompute(c), me = (r.rows || []).find(x => x.user_id === u.id) || (r.disqualified || []).find(x => x.user_id === u.id)
       json(res, 200, { formula: formulaOf(c), metric: c.metric, goal: c.goal ? +c.goal : null, planned: c.planned_sessions || c.goal || null, weekly_goal: c.weekly_goal, rules_version: c.rules_version, period: { start: c.starts_at, end: c.ends_at },
-        valid_days: seen.size, score: me ? me.score : 0, position: me?.position ?? null, sessions, proofs: { aprovado: pc(['aprovado']), pendente: pc(['enviado', 'em_analise', 'recurso', 'substituicao']), rejeitado: pc(['rejeitado', 'invalidado']) } })
+        valid_days: seen.size, score: me ? me.score : 0, position: me?.position ?? null, disqualified: me?.status === 'desclassificado', member_status: m.status, sessions, proofs: { aprovado: pc(['aprovado']), pendente: pc(['enviado', 'em_analise', 'recurso', 'substituicao']), rejeitado: pc(['rejeitado', 'invalidado']) } })
     },
     // ---------- comprovantes ----------
     'GET /api/challenges/sessions': async (req, res) => {   // sessões elegíveis do próprio usuário para comprovar

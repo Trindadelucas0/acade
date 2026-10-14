@@ -9,6 +9,7 @@ function Score({ c, close }) {
   const [d, err] = useLoad(() => RK.score(c.id), [c.id])
   return <Sheet title="Entender pontuação" onClose={close}><div data-testid="rk-score">
     {err ? <Err msg={err} /> : !d ? <Load /> : <>
+      {d.disqualified && <p className="g-warn">Você foi desclassificado: seus treinos não entram na classificação.</p>}
       <p className="g-sm">{d.formula}</p>
       <p className="g-mut g-xs">Regras versão {d.rules_version} · {spDate(d.period.start)} a {spDate(d.period.end)} (até 23:59 de Brasília)</p>
       <div className="g-row" style={{ gap: 8, margin: '10px 0' }}>

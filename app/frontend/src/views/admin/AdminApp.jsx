@@ -228,7 +228,7 @@ function AdmDesafios() {
     <AdmTrofeus />
     <AdmCategorias />
     {why && <Drawer title={(why.restore ? 'Reativar ' : 'Suspender ') + why.name} onClose={() => setWhy(null)}><p className="g-sm">Informe o motivo (fica na auditoria e o organizador é avisado).</p>
-      <textarea className="g-in" rows={3} value={why.reason} onChange={e => setWhy({ ...why, reason: e.target.value })} />
+      <textarea className="adm-in" rows={3} value={why.reason} onChange={e => setWhy({ ...why, reason: e.target.value })} />
       <div className="adm-tools"><button className="adm-btn danger" disabled={why.reason.trim().length < 3} onClick={async () => { try { await CH.transition(why.restore ? { id: why.id, restore: true, reason: why.reason } : { id: why.id, to: 'suspenso', reason: why.reason }); setWhy(null); reload() } catch (e) { setMsg(e.message) } }}>Confirmar</button></div></Drawer>}
   </>
 }
@@ -252,16 +252,16 @@ function AdmPremios({ challenges }) {
       {p.winners.map(w => <div key={w.id} className="adm-tools"><span style={{ flex: 1 }}>{w.position ? w.position + 'º · ' : ''}{w.name} · {w.email}</span><span>{w.status === 'entregue' ? 'Entregue ' + new Date(w.delivered_at).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) + (w.note ? ' — ' + w.note : '') : w.status}</span>
         {w.status === 'pendente' && p.status === 'entrega_pendente' && <button className="adm-btn" onClick={() => setAsk({ deliver: w.id, msg: 'Registrar entrega para ' + w.name + ': como foi entregue?', reason: '' })} data-testid="pz-deliver">Registrar entrega</button>}</div>)}</div>)}
     {ed && <Drawer title={ed.id ? 'Editar prêmio' : 'Novo prêmio'} onClose={() => setEd(null)}>
-      {!ed.id && <label className="g-field"><span>Desafio oficial</span><select className="g-in" value={ed.challenge_id} onChange={e => setEd({ ...ed, challenge_id: e.target.value })}>{off.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>}
+      {!ed.id && <label className="g-field"><span>Desafio oficial</span><select className="adm-in" value={ed.challenge_id} onChange={e => setEd({ ...ed, challenge_id: e.target.value })}>{off.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>}
       {[['name', 'Nome'], ['description', 'Descrição'], ['image_url', 'Imagem (https)'], ['eligibility', 'Elegibilidade'], ['availability', 'Disponibilidade'], ['owner', 'Responsável pela entrega'], ['logistics', 'Logística de entrega'], ['rules', 'Regras']].map(([k, l]) =>
-        <label key={k} className="g-field"><span>{l}</span><input className="g-in" value={ed[k] || ''} onChange={e => setEd({ ...ed, [k]: e.target.value })} data-testid={'pz-' + k} /></label>)}
-      <label className="g-field"><span>Critério</span><select className="g-in" value={ed.criterion} onChange={e => setEd({ ...ed, criterion: e.target.value })}>{['primeiro', 'segundo', 'terceiro', 'top3', 'meta_atingida', 'equipe_vencedora'].map(k => <option key={k} value={k}>{CRIT_PT[k]}</option>)}</select></label>
-      <label className="g-field"><span>Quantidade</span><input className="g-in" type="number" min={1} value={ed.quantity} onChange={e => setEd({ ...ed, quantity: e.target.value })} /></label>
-      <label className="g-field"><span>Prazo de entrega</span><input className="g-in" type="date" value={ed.delivery_deadline || ''} onChange={e => setEd({ ...ed, delivery_deadline: e.target.value })} data-testid="pz-deadline" /></label>
-      {ed.id && ed.status !== 'configurado' && <label className="g-field"><span>Justificativa da alteração</span><input className="g-in" value={ed.reason || ''} onChange={e => setEd({ ...ed, reason: e.target.value })} /></label>}
+        <label key={k} className="g-field"><span>{l}</span><input className="adm-in" value={ed[k] || ''} onChange={e => setEd({ ...ed, [k]: e.target.value })} data-testid={'pz-' + k} /></label>)}
+      <label className="g-field"><span>Critério</span><select className="adm-in" value={ed.criterion} onChange={e => setEd({ ...ed, criterion: e.target.value })}>{['primeiro', 'segundo', 'terceiro', 'top3', 'meta_atingida', 'equipe_vencedora'].map(k => <option key={k} value={k}>{CRIT_PT[k]}</option>)}</select></label>
+      <label className="g-field"><span>Quantidade</span><input className="adm-in" type="number" min={1} value={ed.quantity} onChange={e => setEd({ ...ed, quantity: e.target.value })} /></label>
+      <label className="g-field"><span>Prazo de entrega</span><input className="adm-in" type="date" value={ed.delivery_deadline || ''} onChange={e => setEd({ ...ed, delivery_deadline: e.target.value })} data-testid="pz-deadline" /></label>
+      {ed.id && ed.status !== 'configurado' && <label className="g-field"><span>Justificativa da alteração</span><input className="adm-in" value={ed.reason || ''} onChange={e => setEd({ ...ed, reason: e.target.value })} /></label>}
       <div className="adm-tools"><button className="adm-btn" onClick={act(async () => { await PZ.save({ ...ed, quantity: +ed.quantity }); setEd(null) })} data-testid="pz-save">Salvar</button></div></Drawer>}
     {ask && <Drawer title="Confirmar" onClose={() => setAsk(null)}><p className="g-sm">{ask.msg}</p>
-      {(ask.cancel || ask.deliver) && <textarea className="g-in" rows={3} value={ask.reason} onChange={e => setAsk({ ...ask, reason: e.target.value })} data-testid="pz-reason" />}
+      {(ask.cancel || ask.deliver) && <textarea className="adm-in" rows={3} value={ask.reason} onChange={e => setAsk({ ...ask, reason: e.target.value })} data-testid="pz-reason" />}
       <div className="adm-tools"><button className="adm-btn" disabled={(ask.cancel || ask.deliver) && ask.reason.trim().length < 3} onClick={async () => { const a = ask; setAsk(null); if (a.cancel) await act(() => PZ.transition(a.cancel, 'cancelado', a.reason))(); else if (a.deliver) await act(() => PZ.deliver(a.deliver, a.reason))(); else homolog(a.cid, a.extra) }} data-testid="pz-confirm">Confirmar</button></div></Drawer>}
   </div>
 }
@@ -284,7 +284,7 @@ function AdmComprovantes() {
     {msg && <p className="g-warn">{msg}</p>}
     {err ? <p className="g-warn">{err}</p> : <DataTable name="comprovantes" cols={cols} rows={d?.proofs} onRow={r => nav('/desafio/' + r.challenge_id + '?aba=comprovantes')} />}
     <h3 style={{ marginTop: 16 }}>Revisores de desafios oficiais</h3><p className="g-mut g-sm">Revisam comprovantes dos desafios oficiais junto com o admin. Nunca revisam os próprios.</p>
-    <div className="adm-tools"><input className="g-in" style={{ maxWidth: 280 }} placeholder="E-mail do revisor" value={email} onChange={e => setEmail(e.target.value)} /><button className="adm-btn" disabled={!email.includes('@')} onClick={act(async () => { await CF.setReviewer(email, true); setEmail('') })}>Designar</button></div>
+    <div className="adm-tools"><input className="adm-in" style={{ maxWidth: 280 }} placeholder="E-mail do revisor" value={email} onChange={e => setEmail(e.target.value)} /><button className="adm-btn" disabled={!email.includes('@')} onClick={act(async () => { await CF.setReviewer(email, true); setEmail('') })}>Designar</button></div>
     {(rv?.reviewers || []).map(r => <div key={r.user_id} className="adm-tools"><span style={{ flex: 1 }}>{r.name} · {r.email}</span><button className="adm-btn ghost danger" onClick={act(() => CF.setReviewer(r.email, false))}>Remover</button></div>)}
   </div>
 }
@@ -295,8 +295,8 @@ function AdmCategorias() {
   return <div className="adm-card"><h3>Limites de duração por categoria</h3><p className="g-mut g-sm">Padrão: 7 a 90 dias. Vale para novos desafios; os publicados mantêm as regras congeladas.</p>
     {msg && <p className="g-warn" role="status">{msg}</p>}
     <table style={{ width: "100%", borderCollapse: "collapse" }}><thead><tr><th>Categoria</th><th>Mínimo (dias)</th><th>Máximo (dias)</th><th /></tr></thead><tbody>{rows.map(c => { const v = ed[c.id] || c; return <tr key={c.id}><td>{c.name_pt}</td>
-      <td><input className="g-in" type="number" min={1} max={365} style={{ width: 90 }} value={v.min_days} onChange={e => setEd({ ...ed, [c.id]: { ...v, min_days: e.target.value } })} data-testid={'cat-min-' + c.id} /></td>
-      <td><input className="g-in" type="number" min={1} max={365} style={{ width: 90 }} value={v.max_days} onChange={e => setEd({ ...ed, [c.id]: { ...v, max_days: e.target.value } })} data-testid={'cat-max-' + c.id} /></td>
+      <td><input className="adm-in" type="number" min={1} max={365} style={{ width: 90 }} value={v.min_days} onChange={e => setEd({ ...ed, [c.id]: { ...v, min_days: e.target.value } })} data-testid={'cat-min-' + c.id} /></td>
+      <td><input className="adm-in" type="number" min={1} max={365} style={{ width: 90 }} value={v.max_days} onChange={e => setEd({ ...ed, [c.id]: { ...v, max_days: e.target.value } })} data-testid={'cat-max-' + c.id} /></td>
       <td><button className="adm-btn" disabled={!ed[c.id]} onClick={async () => { try { await CAT.save({ id: c.id, min_days: +v.min_days, max_days: +v.max_days }); setMsg('Limites de ' + c.name_pt + ' salvos'); setEd(x => { const n = { ...x }; delete n[c.id]; return n }); reload() } catch (e) { setMsg(e.message) } }} data-testid={'cat-save-' + c.id}>Salvar</button></td></tr> })}</tbody></table></div>
 }
 function AdmGrupos() {
