@@ -19,10 +19,23 @@ function Visao({ go }) {
     <I n={c.ocorrencias} l="Ocorrências abertas" t="filas" /><I n={c.atrasadas} l="Com prazo vencido" t="filas" />
     <I n={c.mensagens} l="Mensagens aguardando" t="filas" /><I n={c.propostas} l="Propostas pendentes" t="filas" />
     <I n={c.revisoes} l="Revisões obrigatórias" t="filas" />
+    <div style={{ gridColumn: '1 / -1' }}><Live /></div>
   </div>
 }
+// Incorporado do painel legado do openGym: quem está treinando agora e o histórico sincronizado.
+function Live() {
+  const [d] = useLoad(() => C.live())
+  const live = d?.live || []
+  return <div className="g-card"><b>Treinando agora</b>{live.length ? live.map(p => <p key={p.user_id} className="g-mut g-xs">{p.name} · exercício {p.exIdx + 1}/{p.exTotal} · séries {p.setsDone}/{p.setsTotal}</p>) : <p className="g-mut g-xs">Ninguém treinando neste momento.</p>}</div>
+}
+function UserWorkouts({ id }) {
+  const [d, err] = useLoad(() => C.userWorkouts(id), [id])
+  if (err) return <p className="g-mut g-xs">{err}</p>
+  if (!d) return <Load />
+  return <div className="g-xs g-mut" data-testid="adm-workouts">{d.workouts.length ? d.workouts.slice(0, 20).map((w, i) => <p key={i}>{w.d ? new Date(w.d).toLocaleDateString('pt-BR') : '—'} · {w.name || w.routine || 'Treino'} · {(w.ex || []).length} exercício(s)</p>) : 'Nenhum treino livre sincronizado.'}{d.bodyweight.length ? <p>Peso corporal: {d.bodyweight.length} registro(s)</p> : null}</div>
+}
 function Alunos() {
-  const [st, setSt] = useState('pendente'), [qq, setQq] = useState('')
+  const [st, setSt] = useState('pendente'), [qq, setQq] = useState(''), [open, setOpen] = useState(null)
   const [d, err, reload] = useLoad(() => C.users(st, qq), [st, qq])
   const [pl] = useLoad(() => C.plans())
   return <div>
@@ -38,7 +51,8 @@ function Alunos() {
           <option value="" disabled>Plano de acesso…</option>{(pl?.plans || []).filter(p => p.active).map(p => <option key={p.id} value={p.id}>{p.name_pt} (até {p.max_professionals})</option>)}</select>
         <button className="g-btn g-ghost g-sm" onClick={run(async () => { const r = await C.resetLink(u.id); prompt('Link de redefinição (uso único, 24 h). Envie ao usuário:', r.link) })}>Link de nova senha</button>
         <button className="g-btn g-ghost g-sm" onClick={run(() => C.setRole(u.id, 'profissional', !u.roles.includes('profissional')), reload)}>{u.roles.includes('profissional') ? 'Remover profissional' : 'Tornar profissional'}</button>
-      </div></div>) : <Empty>Nenhuma conta aqui.</Empty>}</div>}
+        <button className="g-btn g-ghost g-sm" onClick={() => setOpen(open === u.id ? null : u.id)}>Histórico de treinos</button>
+      </div>{open === u.id && <UserWorkouts id={u.id} />}</div>) : <Empty>Nenhuma conta aqui.</Empty>}</div>}
   </div>
 }
 function Profissionais() {

@@ -19,6 +19,7 @@ export const C = {
   admPros: () => api('/api/adm/professionals'), updPro: b => post('/api/adm/professionals', b), verify: (id, status, note) => post('/api/adm/qualifications/verify', { id, status, note }),
   links: () => api('/api/adm/links'), link: b => post('/api/adm/links', b), endLink: (id, reason) => post('/api/adm/links/end', { id, reason }),
   queue: () => api('/api/adm/queue'), assign: b => post('/api/adm/assign', b), admClose: (id, reason) => post('/api/adm/close-occurrence', { id, reason }),
+  live: () => api('/api/adm/live'), userWorkouts: id => api('/api/adm/users/workouts?id=' + id),
   resetLink: id => post('/api/adm/users/reset-link', { id }),
   audit: () => api('/api/adm/audit'), settings: () => api('/api/adm/settings'), saveSettings: b => post('/api/adm/settings', b)
 }

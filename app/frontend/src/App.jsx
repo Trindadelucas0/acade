@@ -23,7 +23,6 @@ import Stats from './views/Stats.jsx'
 import History from './views/History.jsx'
 import Library from './views/Library.jsx'
 import Settings from './views/Settings.jsx'
-import Admin from './views/Admin.jsx'
 const MuscleMap = lazy(() => import('./views/MuscleMap.jsx'))
 // treino guiado (AVAGYM)
 import GuidedTabBar from './views/guided/TabBar.jsx'
@@ -119,7 +118,7 @@ function Shell() {
               <Route path="/library" element={<Library />} />
               <Route path="/muscles" element={<Suspense fallback={null}><MuscleMap /></Suspense>} />
               <Route path="/settings" element={<Settings />} />
-              <Route path="/admin" element={user?.admin ? <Admin /> : <Navigate to="/hoje" replace />} />
+              <Route path="/admin" element={<Navigate to={user?.admin ? '/admin/painel' : '/hoje'} replace />} />
               <Route path="*" element={<Navigate to="/hoje" replace />} />
             </Routes>
           )}

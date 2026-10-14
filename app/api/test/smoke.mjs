@@ -19,9 +19,10 @@ export async function main() {
   const stu = reg.d.token
   check((await get(stu, '/api/guided/state')).s === 403, 'pendente: recursos travados (403 no backend)')
   check((await get(stu, '/api/auth/me')).s === 200, 'pendente: consegue carregar o próprio perfil')
-  check((await post(null, '/api/login/options')).s === 410, 'passkey desativada (410)')
+  check((await post(null, '/api/login/options')).s === 404 && (await get(null, '/api/admin/users')).s === 404, 'passkey e admin legado removidos (404)')
   const adm = await login('admin.e2e@avadesk.local'), p1 = await login('pro1.e2e@avadesk.local'), p2 = await login('pro2.e2e@avadesk.local')
   check(adm && p1 && p2, 'login admin/profissionais e2e')
+  check((await get(adm, '/api/adm/live')).s === 200 && (await get(p1, '/api/adm/live')).s === 403, 'admin legado incorporado: /api/adm/live só para admin')
   check((await get(stu, '/api/adm/overview')).s === 403, 'aluno não acessa rota admin')
   check((await get(p1, '/api/adm/links')).s === 403, 'profissional não acessa rota admin')
   const sid = reg.d.user.id
