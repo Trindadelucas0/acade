@@ -65,3 +65,15 @@ export function timeStatus(c, now = Date.now()) {
 }
 export const RULE_FIELDS = ['name', 'category', 'type', 'metric', 'goal', 'weekly_goal', 'planned_sessions', 'starts_at', 'ends_at', 'audience', 'max_participants', 'late_entry', 'proof', 'proof_media', 'manual_validation', 'team_min', 'team_max', 'tie_break']
 export const rulesOf = c => Object.fromEntries(RULE_FIELDS.map(k => [k, c[k] instanceof Date ? c[k].toISOString() : c[k] ?? null]))
+// comprovantes: validação manual, sem IA. Pendente nunca conta; só "aprovado" pontua.
+export const PROOF_FLOW = {
+  enviado: ['em_analise', 'aprovado', 'rejeitado', 'substituicao'],
+  em_analise: ['aprovado', 'rejeitado', 'substituicao'],
+  substituicao: ['enviado'],
+  rejeitado: ['recurso'],
+  recurso: ['aprovado', 'rejeitado'],
+  aprovado: ['invalidado'],
+  rejeitado_final: [], invalidado: []
+}
+export const canMoveProof = (from, to) => (PROOF_FLOW[from] || []).includes(to)
+export const PROOF_COUNTS = s => s === 'aprovado'

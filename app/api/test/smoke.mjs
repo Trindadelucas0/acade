@@ -119,7 +119,7 @@ export async function main() {
 const isMain = process.argv[1] && process.argv[1].endsWith('smoke.mjs')
 if (isMain) {
   await main()
-  for (const f of ['./smoke-fase2.mjs', './smoke-fase3.mjs', './smoke-fase4.mjs', './smoke-fase5.mjs', './smoke-fase6.mjs', './smoke-fase7.mjs', './smoke-fase8.mjs', './smoke-fase9.mjs', './smoke-fase10.mjs']) { const m = await import(f); await m.run(ctx); if (m.run2) await m.run2(ctx) }
+  for (const f of ['./smoke-fase2.mjs', './smoke-fase3.mjs', './smoke-fase4.mjs', './smoke-fase5.mjs', './smoke-fase6.mjs', './smoke-fase7.mjs', './smoke-fase8.mjs', './smoke-fase9.mjs', './smoke-fase10.mjs', './smoke-fase11.mjs']) { const m = await import(f); await m.run(ctx); if (m.run2) await m.run2(ctx) }
   console.log(`\n${ok} ok, ${bad} falha(s)`); process.exit(bad ? 1 : 0)
 }
 export const counts = () => ({ ok, bad })

@@ -22,6 +22,8 @@ export async function getSettings(tid) {
 }
 export async function notify(userId, kind, title, body, link) {
   if (!userId) return
+  // notificações sociais (curtidas, comentários, posts) respeitam o silenciar do usuário
+  if ((String(kind).startsWith('social') || kind === 'feed') && (await q('select 1 from notification_prefs where user_id=$1 and mute_social', [userId]).catch(() => ({ rowCount: 0 }))).rowCount) return
   await q('insert into notifications(user_id,kind,title,body,link) values($1,$2,$3,$4,$5)', [userId, kind, title, body || null, link || null]).catch(e => console.error('[notify]', e.message))
 }
 export async function notifyAdmins(tid, kind, title, body, link) {

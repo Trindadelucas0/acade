@@ -7,12 +7,14 @@ import { fileURLToPath } from 'node:url'
 import { q } from './db/pool.js'
 import { requireAuth, audit } from './auth.js'
 import { getSettings, notify } from './pro.js'
+import { extTarget, extDecide } from './challenge-feed.js'
 
 const UP = path.join(path.dirname(fileURLToPath(import.meta.url)), 'uploads')
 const qs = req => new URL(req.url, 'http://x').searchParams
 const isUuid = s => /^[0-9a-f-]{36}$/i.test(String(s || ''))
 const has = (u, r) => u.roles.includes(r)
 const txt = (s, n = 2000) => String(s ?? '').trim().slice(0, n)
+const EXT = ['ch_post', 'ch_comment', 'challenge', 'group', 'user', 'proof']
 const REASONS = ['ofensivo', 'prejudicial', 'privado', 'spam', 'outro']
 const PAIN_RE = /\b(dor|doendo|doeu|dói|lesão|lesionei|machuquei|desconforto|inchad)/i
 const POST_LIMIT_DAY = 5
@@ -138,7 +140,7 @@ export function communityRoutes({ json, readBody }) {
     'POST /api/reports': async (req, res) => {
       const u = await requireAuth(req, res, json); if (!u) return
       const b = await readBody(req)
-      if (!['post', 'comment'].includes(b.target_type) || !REASONS.includes(b.reason)) return json(res, 400, { error: 'Escolha um motivo' })
+      if (!['post', 'comment', ...EXT].includes(b.target_type) || !REASONS.includes(b.reason)) return json(res, 400, { error: 'Escolha um motivo' })
       if ((await q(`select 1 from content_reports where reporter_id=$1 and target_type=$2 and target_id=$3 and status<>'resolvida'`, [u.id, b.target_type, String(b.target_id)])).rowCount) return json(res, 200, { ok: true, duplicate: true })
       const r = await q('insert into content_reports(tenant_id,target_type,target_id,reporter_id,reason,details) values($1,$2,$3,$4,$5,$6) returning id', [u.tenant_id, b.target_type, String(b.target_id).slice(0, 64), u.id, b.reason, txt(b.details, 1000) || null])
       await audit(u.tenant_id, u.id, 'denuncia.criada', 'report', r.rows[0].id)
@@ -194,6 +196,7 @@ export function communityRoutes({ json, readBody }) {
       const r = await q(`select r.*, x.name reporter, case when r.target_type='post' then (select json_build_object('title',p.title,'body',left(p.body,300),'status',p.status,'author',a.name,'author_id',p.author_id) from posts p join users a on a.id=p.author_id where p.id::text=r.target_id)
           else (select json_build_object('body',c.body,'status',c.status,'author',a.name,'author_id',c.author_id,'post_id',c.post_id) from post_comments c join users a on a.id=c.author_id where c.id::text=r.target_id) end target
         from content_reports r join users x on x.id=r.reporter_id where r.tenant_id=$1 and r.status=$2 order by r.created_at`, [u.tenant_id, st])
+      for (const x of r.rows) if (EXT.includes(x.target_type)) { const t = await extTarget(x.target_type, x.target_id, u.tenant_id); x.target = t && { body: t.body, status: t.status, author_id: t.author_id, challenge_id: t.challenge_id } }
       json(res, 200, { reports: r.rows })
     },
     'POST /api/adm/reports/decide': async (req, res) => {
@@ -204,6 +207,15 @@ export function communityRoutes({ json, readBody }) {
       if (b.decision !== 'em_analise' && reason.length < 3) return json(res, 400, { error: 'Registre o motivo da decisão' })
       const r = (await q('select * from content_reports where id=$1 and tenant_id=$2', [+b.id, u.tenant_id])).rows[0]
       if (!r) return json(res, 404, { error: 'Denúncia não encontrada' })
+      if (EXT.includes(r.target_type)) {
+        if (b.decision === 'em_analise') { await q(`update content_reports set status='em_analise' where id=$1`, [r.id]); return json(res, 200, { ok: true }) }
+        const t = await extTarget(r.target_type, r.target_id, u.tenant_id)
+        await extDecide(r.target_type, t, b.decision, reason, u)
+        if (t && t.author_id && b.decision !== 'manter') await notify(t.author_id, 'moderacao', 'Moderação: ' + b.decision, reason, t.challenge_id ? '/desafio/' + t.challenge_id : '/comunidade')
+        await q(`update content_reports set status='resolvida', decision=$2, decided_by=$3, decision_reason=$4, decided_at=now() where id=$1`, [r.id, b.decision, u.id, reason])
+        await audit(u.tenant_id, u.id, 'moderacao.' + b.decision, r.target_type, r.target_id, { report: r.id, reason })
+        return json(res, 200, { ok: true })
+      }
       const t = r.target_type === 'post' ? (await q('select id, author_id from posts where id::text=$1', [r.target_id])).rows[0] : (await q('select id, author_id from post_comments where id::text=$1', [r.target_id])).rows[0]
       if (b.decision === 'em_analise') { await q(`update content_reports set status='em_analise' where id=$1`, [r.id]); return json(res, 200, { ok: true }) }
       if (t && ['ocultar', 'remover'].includes(b.decision)) {
