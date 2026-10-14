@@ -196,3 +196,4 @@ body:has(.ag),html:has(.ag){background:var(--ag-bg)!important}
 .ch-steps{display:flex;gap:6px;list-style:none;padding:0;margin:10px 0}.ch-steps button{width:44px;height:44px;border-radius:50%;border:1px solid #2a3038;background:#14181d;color:#e9ecef;font-weight:700}
 .ch-steps li.on button{background:#c8f135;color:#11140a}.ch-steps li.ok button{border-color:#c8f135}
 .g-chipbtn.on{background:#c8f135;color:#11140a}.g-chk{display:flex;gap:8px;align-items:center;min-height:44px}
+.g-field{min-width:0;flex:1}.g-field input[type=date]{min-width:0;width:100%}
