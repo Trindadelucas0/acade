@@ -44,7 +44,7 @@ if (!process.exitCode) {
   for (const f of fs.existsSync(DATA) ? fs.readdirSync(DATA) : []) if (/^state-.*\.json$/.test(f)) fs.unlinkSync(path.join(DATA, f))
   const dbf = path.join(DATA, 'db.json'); if (fs.existsSync(dbf)) { const d = JSON.parse(fs.readFileSync(dbf, 'utf8')); d.users = []; fs.writeFileSync(dbf, JSON.stringify(d)) }
   const UP = path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/(\w:)/, '$1')), '..', 'uploads')
-  const keepFiles = new Set((await q(`select url from exercise_media`)).rows.map(r => path.basename(r.url || '')))
+  const keepFiles = new Set((await q(`select url from exercise_media`)).rows.map(r => { const u = r.url || ''; const m = u.match(/[?&]f=([^&]+)/); return m ? decodeURIComponent(m[1]) : path.basename(u) }))
   let n = 0; for (const f of fs.existsSync(UP) ? fs.readdirSync(UP) : []) if (!keepFiles.has(f)) { fs.unlinkSync(path.join(UP, f)); n++ }
   const k = (await q(`select (select count(*) from users) u, (select count(*) from exercises) e, (select count(*) from exercise_media) m, (select count(*) from muscles) mu, (select count(*) from programs) p, (select count(*) from terms_versions) t, (select string_agg(name, ',') from tenants) tn`)).rows[0]
   console.log(`ok: ${k.u} usuários; mantidos ${k.e} exercícios, ${k.m} mídias, ${k.mu} músculos, ${k.p} programas, ${k.t} versões de termos, tenant ${k.tn}; ${n} arquivos de publicações removidos`)
