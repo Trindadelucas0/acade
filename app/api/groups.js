@@ -43,8 +43,8 @@ export function groupRoutes({ json, readBody }) {
       const r = await q(`select g.id,g.name,g.description,g.cover_url,g.icon,g.privacy,g.join_policy,g.member_limit,g.status,
           (select count(*)::int from group_members x where x.group_id=g.id and x.status='ativo') members, m.role my_role, m.status my_status
         from groups g left join group_members m on m.group_id=g.id and m.user_id=$2
-        where g.tenant_id=$1 and ($3 ? m.status in ('ativo','solicitado') : (g.status='ativo' and g.privacy<>'privado'))
-          and ($4='' or g.name ilike '%'||$4||'%') order by g.created_at desc limit 20 offset $5`, [u.tenant_id, u.id, mine, term, page * 20])
+        where g.tenant_id=$1 and (($3::boolean and m.status in ('ativo','solicitado')) or (not $3::boolean and g.status='ativo' and g.privacy<>'privado'))
+          and ($4::text='' or g.name ilike '%'||$4::text||'%') order by g.created_at desc limit 20 offset $5`, [u.tenant_id, u.id, mine, term, page * 20])
       json(res, 200, { groups: r.rows, page })
     },
     'GET /api/group': async (req, res) => {
