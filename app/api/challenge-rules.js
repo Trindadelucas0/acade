@@ -11,7 +11,7 @@ export const CH_FLOW = {
   concluido: [], cancelado: [], suspenso: []
 }
 export const MEM_FLOW = {
-  convidado: ['ativo', 'aprovado', 'rejeitado'], solicitado: ['aprovado', 'rejeitado'], aprovado: ['ativo', 'saiu', 'removido'],
+  convidado: ['ativo', 'aprovado', 'rejeitado'], solicitado: ['aprovado', 'rejeitado'], aprovado: ['ativo', 'saiu', 'removido', 'desclassificado'],
   ativo: ['saiu', 'removido', 'desclassificado'], rejeitado: ['solicitado'], saiu: ['solicitado', 'ativo'], removido: [], desclassificado: []
 }
 export const canMove = (from, to) => (CH_FLOW[from] || []).includes(to)
