@@ -3,21 +3,42 @@ import { useUI } from '../store/useUI.js'
 import { authLogin, authRegister, api } from '../lib/api.js'
 import { t } from '../lib/i18n.js'
 import { DEMO, REPO } from '../lib/demo.js'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useTerms, TermsText } from './app/Terms.jsx'
 import InstallButton from '../components/InstallButton.jsx'
 import './login.css'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 
-// Foto de capa da tela de login (Pexels License). O modelo 3D continua no resto do app.
+const mq = q => typeof window !== 'undefined' && window.matchMedia ? window.matchMedia(q) : null
+function useMedia(q) {
+  const [on, setOn] = useState(() => !!mq(q)?.matches)
+  useEffect(() => {
+    const m = mq(q); if (!m) return
+    const f = () => setOn(m.matches); f()
+    m.addEventListener?.('change', f); return () => m.removeEventListener?.('change', f)
+  }, [q])
+  return on
+}
+
+// Capa do login: no desktop, vídeo de fundo em tela cheia (poster se reduced-motion);
+// no mobile, foto (Pexels License). O vídeo só é renderizado no desktop, então o mobile não o baixa.
+// O modelo 3D continua no resto do app.
 function Hero() {
+  const desk = useMedia('(min-width: 900px)')
+  const still = useMedia('(prefers-reduced-motion: reduce)')
   return (
-    <div className="lg-hero" aria-hidden="true">
-      <picture>
-        <source srcSet="/img/login-hero.webp" type="image/webp" />
-        <img src="/img/login-hero.jpg" alt="" width="1200" height="1800" fetchpriority="high" decoding="async" />
-      </picture>
+    <div className={'lg-hero' + (desk ? ' lg-hero-video' : '')} aria-hidden="true">
+      {desk ? (still
+        ? <img src="/img/login-bg-poster.jpg" alt="" />
+        : <video autoPlay muted loop playsInline preload="auto" poster="/img/login-bg-poster.jpg">
+            <source src="/video/login-bg.webm" type="video/webm" />
+            <source src="/video/login-bg.mp4" type="video/mp4" />
+          </video>)
+        : <picture>
+            <source srcSet="/img/login-hero.webp" type="image/webp" />
+            <img src="/img/login-hero.jpg" alt="" width="1200" height="1800" fetchpriority="high" decoding="async" />
+          </picture>}
       <div className="lg-shade" />
     </div>
   )

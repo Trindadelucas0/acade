@@ -28,10 +28,9 @@
 .lg-credit a{color:#8fb0cf}
 @media (min-width:900px){
   .lg-wrap{flex-direction:row;align-items:center;justify-content:flex-end;padding-right:max(48px,calc((50vw - 420px)/2))}
-  .lg-hero{position:fixed;inset:16px auto 16px 16px;width:calc(52vw - 16px);border-radius:28px;box-shadow:0 30px 80px #00000080}
-  .lg-hero img{object-position:40% 25%}
-  .lg-shade{background:linear-gradient(90deg,#0b122000 55%,#0b1220b3 100%),linear-gradient(180deg,#0b122000 60%,#0b1220cc 100%)}
-  .lg-card,.lg-hero~.lg-card{margin:auto 0;padding:28px 22px}
+  .lg-hero video,.lg-hero-video img{display:block;width:100%;height:100%;object-fit:cover;object-position:center}
+  .lg-shade{background:linear-gradient(90deg,#0b122040 0%,#0b122080 45%,#0b1220e0 75%,#0b1220f2 100%),linear-gradient(180deg,#0b122033 0%,#0b122000 40%,#0b1220b3 100%)}
+  .lg-card,.lg-hero~.lg-card{margin:auto 0;padding:32px 28px;background:#0e243999;border:1px solid #ffffff14;border-radius:24px;backdrop-filter:blur(14px) saturate(1.2);-webkit-backdrop-filter:blur(14px) saturate(1.2);box-shadow:0 24px 60px #0000006b}
 }
 /* aceite dos termos */
 .lg-terms{font-size:13px;color:var(--label-2,#b8c2cc);margin:4px 0 10px}
