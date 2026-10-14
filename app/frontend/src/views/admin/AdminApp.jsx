@@ -126,7 +126,7 @@ function Usuarios() {
 function NovoUsuario({ plans, onClose, onDone }) {
   const [f, setF] = useState({ type: 'aluno', name: '', email: '', password: '', plan_id: '', coach_id: '', area: '', capacity: 10, can_publish: false, q_kind: 'CREF', q_number: '', q_verified: false })
   const [errs, setErrs] = useState({}), [msg, setMsg] = useState(''), [busy, setBusy] = useState(false), [res, setRes] = useState(null)
-  const [pros] = useLoad(() => C.admPros(), [])
+  const [n, setN] = useState(0), [pros] = useLoad(() => C.admPros(), [n])
   const set = k => e => { const v = e.target.type === 'checkbox' ? e.target.checked : e.target.value; setF(x => ({ ...x, [k]: v })) }
   const err = k => errs[k] && <span className="g-warn g-xs" role="alert">{errs[k]}</span>
   const submit = async e => {
@@ -134,7 +134,7 @@ function NovoUsuario({ plans, onClose, onDone }) {
     const b = { type: f.type, name: f.name, email: f.email, password: f.password || undefined }
     if (f.type === 'aluno') Object.assign(b, { plan_id: f.plan_id || undefined, coach_id: f.coach_id || undefined, area: f.coach_id ? f.area : undefined })
     else Object.assign(b, { capacity: +f.capacity, can_publish: f.can_publish, area: f.area, qualification: f.q_number || f.q_verified ? { kind: f.q_kind, number: f.q_number, area: f.area, verified: f.q_verified } : undefined })
-    try { const r = await C.createUser(b); setRes(r); onDone && onDone() }
+    try { const r = await C.createUser(b); setRes(r); setN(x => x + 1); onDone && onDone() }
     catch (x) { setErrs(x.errors || {}); setMsg(x.message) } finally { setBusy(false) }
   }
   if (res) return <Drawer title="Conta criada" onClose={onClose}>
