@@ -1,4 +1,5 @@
 export { isProAccount, isAdminAccount, isNonTrainee } from '../../lib/accounts.js'
+import { isProAccount, isAdminAccount, isNonTrainee } from '../../lib/accounts.js'
 // AVADESK Fitness — navegação principal: 5 abas (Início, Treinos, Comunidade, Progresso, Perfil).
 import { useLocation, useNavigate } from 'react-router-dom'
 import Icon from '../../components/Icon.jsx'
