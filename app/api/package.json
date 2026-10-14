@@ -8,7 +8,9 @@
   "scripts": {
     "start": "node server.js",
     "migrate": "node db/migrate.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "create-admin": "node scripts/create-admin.mjs",
+    "zerar-dados": "node scripts/zerar-dados.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

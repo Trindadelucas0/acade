@@ -109,18 +109,20 @@ async function seed(c) {
       where p.id=$1`, [pid])
   }
   // usuário admin
-  const email = process.env.ADMIN_EMAIL || 'admin@avagym.local'
-  const ex = await c.query('select id from users where lower(email)=lower($1)', [email])
+  // só cria admin automático quando ADMIN_EMAIL e ADMIN_PASSWORD estão definidos; o caminho padrão é `npm run create-admin`
+  const email = process.env.ADMIN_EMAIL
+  const ex = email ? await c.query('select id from users where lower(email)=lower($1)', [email]) : { rowCount: 1 }
   let adminPass = null
-  if (!ex.rowCount) {
-    adminPass = process.env.ADMIN_PASSWORD || ('Ava@' + crypto.randomBytes(6).toString('base64url'))
+  if (!ex.rowCount && process.env.ADMIN_PASSWORD) {
+    adminPass = process.env.ADMIN_PASSWORD
     const u = await c.query('insert into users(tenant_id,name,email,password_hash) values($1,$2,$3,$4) returning id', [tenantId, 'Administrador', email, await bcrypt.hash(adminPass, 12)])
-    for (const r of ['admin', 'profissional']) await c.query('insert into user_roles values($1,$2,$3) on conflict do nothing', [u.rows[0].id, tenantId, r])
+    for (const r of ['admin']) await c.query('insert into user_roles values($1,$2,$3) on conflict do nothing', [u.rows[0].id, tenantId, r])
   }
   await c.query('commit')
   const counts = (await c.query(`select (select count(*) from muscles) m, (select count(*) from exercises) e, (select count(*) from programs) p`)).rows[0]
   console.log(`seed ok: ${counts.m} músculos, ${counts.e} exercícios, ${counts.p} programas`)
-  if (adminPass) console.log(`ADMIN CRIADO: ${email} / ${adminPass}`)
+  if (adminPass) console.log(`ADMIN CRIADO: ${email}`)
+  else if (!+(await c.query(`select count(*) from user_roles where role_id='admin'`)).rows[0].count) console.log('nenhum administrador: rode npm run create-admin')
 }
 
 await ensureDatabase()
