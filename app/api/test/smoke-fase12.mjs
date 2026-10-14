@@ -34,9 +34,10 @@ export async function run({ adm, p1, p2, stu, sid, P1, P2, get, post, check }) {
   await post(stu, '/api/challenges/transition', { id: c, to: 'concluido' })
   const snap = (await q('select * from challenge_results where challenge_id=$1', [c])).rows
   check(snap.length === 1 && snap[0].kind === 'final' && snap[0].rules_version >= 1 && snap[0].period_start, 'ao concluir: resultado guardado com versão das regras e período')
+  const before = (await get(p2, '/api/challenges/ranking?id=' + c)).d.me.score
   await mk(p2id, '1 hour')
   r = (await get(p2, '/api/challenges/ranking?id=' + c)).d
-  check(r.state === 'final' && r.me.score === 1, 'resultado final não muda depois de concluído')
+  check(r.state === 'final' && r.me.score === before, 'resultado final não muda depois de concluído')
   // coletivo e equipes pela API
   r = await post(stu, '/api/challenges', { name: 'Coletivo ' + t, category: 'geral', type: 'meta_coletiva', metric: 'soma_coletiva', goal: 10, starts_at: iso(day), ends_at: iso(10 * day), audience: 'aberto', proof: 'nenhuma' }); const cc = r.d.id
   await post(stu, '/api/challenges/publish', { id: cc }); await post(p2, '/api/challenges/join', { id: cc }); await q(`update challenges set starts_at=now() - interval '3 days' where id=$1`, [cc])
