@@ -930,3 +930,42 @@ Colunas fixas para todas as linhas:
 | RNK-150 | RANKING.pdf | p.18 · 15 DECISÕES PENDENTES PARA VALIDAÇÃO | 6. Qual fuso horário será utilizado para encerrar semanas e meses. | Não analisado | — | — | — | — | Não analisado | a revisar | módulo: Não analisado |
 | RNK-151 | RANKING.pdf | p.18 · 15 DECISÕES PENDENTES PARA VALIDAÇÃO | 7. Se as notificações de mudança de posição estarão habilitadas inicialmente. | Habilitações verificadas | profissional/admin | Pro › Perfil; Admin › Profissionais | api/pro.js | api/test/smoke.mjs | Parcial (auto) | a revisar | módulo: Testado |
 | RNK-152 | RANKING.pdf | p.18 · 15 DECISÕES PENDENTES PARA VALIDAÇÃO | Recomendação: implementar primeiro o ranking global semanal e mensal, com pontuação transparente e privacidade opcional. Depois de observar como os alunos utilizam o recurso, a equipe poderá decidir se vale a pena adicionar desafios, equipes ou recompensas. | Ranking | aluno/admin | Comunidade › Ranking; Admin › Ranking | api/ranking.js; views/app/Ranking.jsx; views/app/AdminCommunity.jsx | test/ranking.test.mjs; api/test/smoke-fase2.mjs | Parcial (auto) | a revisar | módulo: Testado |
+
+## V5/V6 — Grupos, Desafios e Ranking premium (verificado manualmente, 14/10/2026)
+
+| ID | Origem | Regra | Arquivos | Teste | Status |
+|---|---|---|---|---|---|
+| V5-01 | NOV | Comunidade: Feed / Desafios / Grupos | views/app/Comunidade.jsx | captura 01-desafios | Testado |
+| V5-02 | NOV | Explorar sem privados/suspensos; filtros oficial/público/semana/mês/equipes; paginação | api/challenges.js | smoke-fase10 | Testado |
+| V5-03 | NOV | Grupos aberto/aprovação/convite; papéis; convites 7 dias | api/groups.js; views/app/Grupos.jsx | smoke-fase9 | Testado |
+| V5-04 | NOV | Assistente 5 etapas mantém estado | views/app/Desafios.jsx | captura ch.mjs (recarregar) | Testado |
+| V5-05 | NOV | Tipos × métricas; meta semanal ≤ 7 | api/challenge-rules.js | challenge-rules.test | Testado |
+| V5-06 | NOV | Fim inclusivo 23:59:59 Brasília | challenge-rules.js; lib/challenges.js | challenge-rules.test | Testado |
+| V5-07 | NOV | Limites min/max por categoria editáveis pelo admin (padrão 7–90) | challenges.js; AdminApp.jsx | smoke-fase10 | Testado |
+| V5-08 | NOV | Estados do desafio e da inscrição com transições aplicadas | challenge-rules.js | challenge-rules.test; smoke-fase10 | Testado |
+| V5-09 | NOV | Regras congeladas e versionadas com justificativa | challenges.js | smoke-fase10 | Testado |
+| V5-10 | NOV | Convites link/código, validade, usos, revogação, sem dados pessoais | groups.js; challenges.js | smoke-fase9/10 | Testado |
+| V5-11 | NOV | Profissional convida só alunos vinculados; sem saúde/prescrição | challenges.js | smoke-fase10 | Testado |
+| V5-12 | NOV | Feed do desafio separado; privado não vaza; curtir/comentar não pontua | challenge-feed.js | smoke-fase11 | Testado |
+| V5-13 | NOV | Fixar (organizador), estados de post | challenge-feed.js; DesafioFeed.jsx | smoke-fase11 | Testado |
+| V5-14 | NOV | Comprovantes manuais, estados, ninguém aprova o próprio, sem auto-aprovação | challenge-feed.js | smoke-fase11 | Testado |
+| V5-15 | NOV | Integridade: assinatura, tamanho, hash duplicado, dono do arquivo | challenge-feed.js | smoke-fase11 | Testado |
+| V5-16 | NOV | Revisores de oficiais; recurso pelo admin; invalidação | challenge-feed.js; AdminApp.jsx | smoke-fase11 | Testado |
+| V5-17 | NOV | Denúncias post/comentário/usuário/grupo/desafio/comprovante; decisões auditadas | community.js; challenge-feed.js | smoke-fase11 | Testado (botões de usuário/grupo: Parcial) |
+| V5-18 | NOV | Silenciar notificações sociais | pro.js; challenge-feed.js | smoke-fase11 | Testado |
+| V5-19 | NOV | Notificações dos eventos com link profundo | challenges.js; challenge-feed.js; prizes.js | smoke-fase13 | Parcial (falta "meta atingida") |
+| V5-20 | NOV | Equipes: mínimo/máximo/desempate fixos; proporcional | challenge-score.js | challenge-score.test | Testado |
+| V5-21 | NOV | Troféus: catálogo, personalizados moderados, ligados a resultado, perfil | prizes.js; Trofeus.jsx | smoke-fase13 | Testado |
+| V5-22 | NOV | Prêmios oficiais: só admin, sem dinheiro/sorteio, fluxo completo, entrega pós-homologação | prizes.js; AdminApp.jsx | smoke-fase13 | Testado |
+| V5-23 | NOV | Admin: KPIs, oficiais, comprovantes, prêmios, vencedores, entregas, revisores, limites | AdminApp.jsx | captura 1440-08 | Implementado |
+| V5-24 | NOV | Painel do criador (visão geral, membros, convites, pedidos, feed, comprovantes, ranking, regras, histórico) | Desafios.jsx | captura 06-gestao | Implementado |
+| V5-25 | NOV | Capa por upload | — | — | Não implementado (link https) |
+| V6-01 | NOV | Ranking calculado só no backend; versão e período guardados | challenge-score.js; challenge-feed.js | challenge-score.test; smoke-fase12 | Testado |
+| V6-02 | NOV | 1 contagem/dia; sem dupla contagem; anuladas/pendentes não contam | challenge-score.js | challenge-score.test | Testado |
+| V6-03 | NOV | Pódio premium (ordem, medalhas, troféu, iniciais, empates, <3, reduced-motion) | components/Podium.jsx | Podium.test | Testado |
+| V6-04 | NOV | Geral / Minha posição (posição, pontos, meta, falta, pendentes) | DesafioRanking.jsx | smoke-fase12; captura | Testado |
+| V6-05 | NOV | Entender pontuação (fórmula real, válidos × previstos, comprovantes) | challenge-feed.js; DesafioRanking.jsx | smoke-fase12; captura | Testado |
+| V6-06 | NOV | Equipes (pódio de equipes, contribuições) e coletivo (painel) | challenge-score.js; DesafioRanking.jsx | challenge-score.test; smoke-fase12 | Testado |
+| V6-07 | NOV | Prêmios na tela só reais, com estados provisório/apuração/homologado/pendente/entregue | prizes.js; Trofeus.jsx | smoke-fase13 | Testado |
+| V6-08 | NOV | Privacidade: Participante sem foto/id; sem dados sensíveis | challenge-score.js | smoke-fase12 | Testado |
+| V6-09 | NOV | 320 px e acessibilidade | podium.css; guided.css | rk.mjs (overflow=false) | Testado |
