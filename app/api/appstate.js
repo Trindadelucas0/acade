@@ -72,7 +72,12 @@ export function appStateRoutes({ json, readBody, readSession, dataDir }) {
       const b = await readBody(req)
       if (!b || !b.state || typeof b.state !== 'object' || Array.isArray(b.state)) return json(res, 400, { error: 'state required' })
       if (JSON.stringify(b.state).length > MAX) return json(res, 413, { error: 'Estado grande demais' })
-      const active = b.state.active && typeof b.state.active === 'object' ? b.state.active : null
+      let active = b.state.active && typeof b.state.active === 'object' ? b.state.active : null
+      // V4.3 R13: treino livre antigo não fica ativo junto com programa/ficha — vai para a quarentena (nada é descartado)
+      let freeArchived = false
+      if (active && (await q(`select (exists(select 1 from user_programs where user_id=$1 and status='active') or exists(select 1 from pro_plans where student_id=$1 and status='ativo')) x`, [id])).rows[0].x) {
+        await q(`insert into user_app_state_rejections(tenant_id,user_id,kind,payload) select tenant_id,id,'active_workout',$2 from users where id=$1`, [id, JSON.stringify(active)]); active = null; freeArchived = true
+      }
       // V4 Fase 3: rotinas e exercícios próprios do aluno são somente leitura. O que já existia é preservado como está;
       // rotina/exercício novo, alterado ou removido pelo aparelho é recusado (o resto do estado sincroniza normalmente).
       const prev = (await readStateRow(id))?.state || {}
@@ -81,7 +86,7 @@ export function appStateRoutes({ json, readBody, readSession, dataDir }) {
       // quarentena: o que foi recusado fica guardado (auditável), nunca é descartado
       for (const k of ['routines', 'customEx']) if (ro.items[k].length)
         await q(`insert into user_app_state_rejections(tenant_id,user_id,kind,payload) select tenant_id,id,$2,$3 from users where id=$1`, [id, k, JSON.stringify(ro.items[k])]).catch(e => console.error('[appstate] quarentena', e.message))
-      json(res, 200, { ok: true, ts: b.state._ts || null, ...(ro.rejected.routines || ro.rejected.customEx ? { code: 'ROUTINES_READ_ONLY', rejected: ro.rejected, routines: ro.state.routines, customEx: ro.state.customEx } : {}) })
+      json(res, 200, { ok: true, ts: b.state._ts || null, ...(freeArchived ? { free_workout_archived: true } : {}), ...(ro.rejected.routines || ro.rejected.customEx ? { code: 'ROUTINES_READ_ONLY', rejected: ro.rejected, routines: ro.state.routines, customEx: ro.state.customEx } : {}) })
       // V4: treino livre concluído na janela de transição entra no Postgres como histórico legado (idempotente)
       importLegacyFor(id).catch(e => console.error('[legacy-import]', e.message))
     },

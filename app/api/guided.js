@@ -261,7 +261,7 @@ export function guidedRoutes({ json, readBody }) {
       if (!p.rowCount) return json(res, 404, { error: 'Programa não encontrado' })
       // V4.1: uma ficha por vez — aluno com ficha de profissional não escolhe programa avulso; quem tem programa precisa desvincular antes
       { const at = await activeTrainingOf(u.id)
-        if (at.locked_to_pro) return json(res, 409, { error: 'Você treina com a ficha do seu profissional. Programas avulsos do sistema ficam bloqueados enquanto houver ficha ativa.', code: 'COACH_LOCKED' })
+        if (at.locked_to_pro) return json(res, 409, at.can_detach ? { error: 'Você tem uma ficha do personal ativa. Desvincule a ficha primeiro para ativar um programa do sistema (só um treino por vez).', code: 'MUST_DETACH' } : { error: 'Você treina com a ficha do seu personal. Programas do sistema ficam travados enquanto a sua conta for coberta por ele.', code: 'COACH_LOCKED' })
         if (at.kind === 'sistema') { if (at.program.program_id === b.program_id) return json(res, 200, { user_program_id: at.program.id, already: true })
           return json(res, 409, { error: 'Desvincule seu programa atual antes de escolher outro.', code: 'MUST_DETACH' }) } }
       const r = await q(`insert into user_programs(tenant_id,user_id,program_id,start_date,status,started_at,schedule) values($1,$2,$3,current_date,'active',now(),'{}') returning id`, [u.tenant_id, u.id, b.program_id])

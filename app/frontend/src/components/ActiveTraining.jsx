@@ -1,6 +1,6 @@
 // V4.1 — treino ativo (UMA ficha por vez) e como trocar. Regras do Lucas:
 // programa do sistema → o aluno pode desvincular (arquiva) e escolher outro ou aceitar a ficha do profissional;
-// ficha do profissional → catálogo bloqueado; só o profissional retira a ficha (decisão do Lucas).
+// V4.3 R13: ficha do personal tem prioridade; desvincular a ficha só com mensalidade própria (coberto pelo personal não desvincula).
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Icon from './Icon.jsx'
@@ -12,11 +12,16 @@ export async function detachSystem(at, then) {
   try { const r = await AT.detach(); notify('Programa desvinculado.'); then?.(r); return r } catch (e) { notifyError(e); return null }
 }
 
+export async function detachPro(at, then) {
+  if (!await ask('Desvincular a ficha do personal?', { text: `"${at?.pro_plan?.title || 'Ficha'}" sai do seu treino ativo e fica no histórico, só para consulta (nada é apagado). Você continua vinculado ao personal e pode ativar um programa do sistema. Só um treino fica ativo por vez.`, ok: 'Desvincular ficha', cancel: 'Manter', danger: true })) return null
+  try { const r = await AT.detach(); notify('Ficha desvinculada. Agora você pode escolher um programa do sistema.'); then?.(r); return r } catch (e) { notifyError(e); return null }
+}
+
 export function CoachLockNote() {
   const [at, setAt] = useState(null)
   useEffect(() => { AT.get().then(setAt).catch(() => {}) }, [])
   if (!at?.locked_to_pro) return null
-  return <p className="g-note" style={{ margin: '10px 0' }} role="note" data-testid="coach-lock">Você treina com a ficha de <b>{at.pro_plan?.owner_name}</b>. Programas avulsos do sistema ficam bloqueados enquanto ela estiver ativa — você pode consultá-los, mas não iniciar. Para trocar, fale com seu profissional.</p>
+  return <p className="g-note" style={{ margin: '10px 0' }} role="note" data-testid="coach-lock">Você treina com a ficha de <b>{at.pro_plan?.owner_name}</b>. Só um treino fica ativo por vez: os programas do sistema podem ser consultados, mas não iniciados enquanto ela estiver ativa. {at.can_detach ? 'Para trocar, desvincule a ficha no seu treino ativo.' : 'Sua conta é coberta pelo personal; para usar o sistema, solicite a liberação.'}</p>
 }
 
 export default function ActiveTrainingBanner({ at, compact, onChange }) {
@@ -33,7 +38,13 @@ export default function ActiveTrainingBanner({ at, compact, onChange }) {
       {at.pending_pro_plans?.length > 0 && <p className="g-note" style={{ marginTop: 8 }} data-testid="pending-pro">Seu profissional enviou a ficha <b>{at.pending_pro_plans[0].title}</b>. Você só pode ter uma ficha por vez: desvincule o programa atual para aceitá-la.</p>}
       <button className="g-link" onClick={() => detachSystem(at, onChange)} data-testid="active-detach">Desvincular programa</button>
     </>}
-    {at.kind === 'profissional' && <p className="g-mut g-xs" style={{ marginTop: 6 }} data-testid="pro-locked">Ficha passada pelo seu profissional. Só ele pode retirá-la ou trocá-la; enquanto isso, programas avulsos do sistema ficam bloqueados.</p>}
+    {at.kind === 'profissional' && <>
+      <p className="g-mut g-xs" style={{ marginTop: 6 }} data-testid="pro-locked">{at.can_detach
+        ? 'Ficha do seu personal: é o seu único treino ativo. Para usar um programa do sistema, desvincule a ficha (ela fica no histórico).'
+        : 'Ficha do seu personal: é o seu único treino ativo. A sua conta é coberta pelo personal, por isso os programas do sistema ficam travados.'}</p>
+      {at.paused_program && <p className="g-xs g-mut" data-testid="paused-program">Programa pausado: {at.paused_program.title} (a ficha do personal tem prioridade).</p>}
+      {at.can_detach && <button className="g-link" onClick={() => detachPro(at, onChange)} data-testid="active-detach-pro">Desvincular ficha do personal</button>}
+    </>}
     {!at.kind && <button className="g-link" onClick={() => nav('/recomendados')}>Escolher um programa</button>}
   </div>
 }

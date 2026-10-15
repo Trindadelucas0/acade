@@ -1,6 +1,7 @@
 // AVADESK Fitness — comunidade multiprofissional: perfis/habilitações, planos de acesso, vínculos (com limites),
 // prescrições por profissional, mensagens contextuais, ocorrências, propostas de alteração, notificações,
 // filas com prazo configurável e auditoria. Todas as permissões são verificadas AQUI (backend), nunca só na tela.
+import { enforceOneActive } from './active-training.js'
 import { countsInMetrics } from './metrics.js'
 import { q, pool } from './db/pool.js'
 import { requireAuth, audit } from './auth.js'
@@ -27,6 +28,7 @@ export async function getSettings(tid) {
 export async function supersedeOthers(studentId, newId, actorId, title) {
   const old = (await q(`update pro_plans set status='arquivado', superseded_by=$2, archived_at=now(), updated_at=now() where student_id=$1 and id<>$2 and status='ativo' returning id`, [studentId, newId])).rows
   for (const o of old) await q('insert into pro_plan_history(plan_id,actor_id,action,reason) values($1,$2,$3,$4)', [o.id, actorId, 'substituido', 'substituída pela ficha ' + (title || '')])
+  await enforceOneActive(studentId, 'ficha nova do personal')   // V4.3 R13: programa do sistema pausado
   return old.length
 }
 export async function notify(userId, kind, title, body, link, dedupeKey) {

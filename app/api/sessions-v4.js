@@ -27,6 +27,7 @@ export async function authorizeOrigin(u, b, { mode = 'start', startedAt = new Da
     const planOk = r.status === 'ativo' || (mode === 'sync' && new Date(r.updated_at) > startedAt)
     if (!planOk) return { ok: false, code: 'ORIGIN_NOT_ALLOWED', reason: 'plan_inactive' }
     if (!r.link) return { ok: false, code: 'LINK_INACTIVE' }
+    if (mode === 'start') { const at = await activeTrainingOf(u.id); if (at.kind !== 'profissional' || at.pro_plan?.id !== ppId) return { ok: false, code: 'ONE_ACTIVE', reason: 'not_active_training' } }   // V4.3 R13
     return { ok: true, origin: 'ficha', ppId, upId: null, pwId: null, pro_plan_version: r.version, snapshot: { kind: 'ficha', pro_plan_id: ppId, plan_status: r.status, plan_version: r.version, link: r.link, coach_id: r.owner_id, mode, checked_at: new Date().toISOString() } }
   }
   if (upId && pwId) {
@@ -39,11 +40,13 @@ export async function authorizeOrigin(u, b, { mode = 'start', startedAt = new Da
     const progOk = r.p_status === 'publicado' || (mode === 'sync' && r.p_status === 'arquivado')
     const upOk = r.up_status === 'active' || (mode === 'sync' && r.ended_at && new Date(r.ended_at) > startedAt)
     if (!progOk || !upOk) return { ok: false, code: 'ORIGIN_NOT_ALLOWED' }
+    if (mode === 'start') { const at = await activeTrainingOf(u.id); if (at.kind !== 'sistema') return { ok: false, code: 'ONE_ACTIVE', reason: 'not_active_training' } }   // V4.3 R13
     return { ok: true, origin: 'programa', upId, pwId, ppId: null, program_version: r.version, snapshot: { kind: 'programa', program_id: r.program_id, user_program_id: upId, program_workout_id: pwId, program_status: r.p_status, program_version: r.version, mode, checked_at: new Date().toISOString() } }
   }
   return { ok: false, code: 'ORIGIN_NOT_ALLOWED' }
 }
 export const ORIGIN_MSG = {
+  ONE_ACTIVE: 'Você só pode treinar o seu treino ativo (um por vez). Veja em Treinos qual está ativo.',
   ORIGIN_NOT_ALLOWED: 'Só é possível treinar um programa publicado ativo ou uma ficha enviada pelo seu profissional.',
   LINK_INACTIVE: 'O vínculo com o profissional desta ficha não está ativo.',
   PROGRAM_REVOKED: 'Este programa foi revogado e não pode mais ser executado.'
