@@ -1,5 +1,6 @@
 // Autenticação email+senha (bcrypt) com JWT (cookie httpOnly "avagym_token" ou Authorization: Bearer)
 // + middlewares requireAuth / requireRole / escopo por tenant + rotas de catálogo (músculos, exercícios, programas).
+import { autoUnlockForTests } from './accounts-v42.js'
 import './env.js'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
@@ -32,7 +33,7 @@ export async function authUser(req) {
   return u
 }
 async function loadUser(id) {
-  const r = await q(`select u.id,u.name,u.email,u.tenant_id,u.disabled_at,u.status,u.active_context,u.token_version,(select pp.verification_status from professional_profiles pp where pp.user_id=u.id) verification,t.slug tenant_slug,t.name tenant_name,
+  const r = await q(`select u.id,u.name,u.email,u.tenant_id,u.disabled_at,u.status,u.active_context,u.token_version,u.account_type,u.must_change_password,u.managed_by,u.access_unlocked_at,(select pp.verification_status from professional_profiles pp where pp.user_id=u.id) verification,t.slug tenant_slug,t.name tenant_name,
       coalesce(array_agg(ur.role_id) filter (where ur.role_id is not null),'{}') roles
     from users u join tenants t on t.id=u.tenant_id left join user_roles ur on ur.user_id=u.id and ur.tenant_id=u.tenant_id
     where u.id=$1 group by u.id,t.slug,t.name`, [id])
@@ -45,6 +46,8 @@ async function loadUser(id) {
 export async function requireAuth(req, res, json, opts) {
   const u = await authUser(req)
   if (!u) { json(res, 401, { error: 'Não autenticado' }); return null }
+  // V4.2: conta criada pelo personal com senha provisória — só troca de senha/termos/sair até trocar
+  if (u.must_change_password && !(opts && opts.allowPending)) { json(res, 403, { error: 'Troque a senha provisória para continuar.', code: 'MUST_CHANGE_PASSWORD' }); return null }
   if (u.status !== 'ativo' && !(opts && opts.allowPending)) { json(res, 403, { pending: true, error: 'Esta conta não está ativa. Fale com o suporte.' }); return null }
   req.user = u; req.tenantId = u.tenant_id
   return u
@@ -70,7 +73,10 @@ export const contextOf = u => (u.active_context && u.roles.includes(u.active_con
 const sign = u => jwt.sign({ sub: u.id, tid: u.tenant_id, roles: u.roles, tv: u.token_version || 0 }, SECRET, { expiresIn: TTL_H + 'h' })
 export const pub = u => ({ id: u.id, name: u.name, email: u.email, roles: u.roles, admin: u.roles.includes('admin'), pro: u.roles.includes('profissional'), status: u.status,
   capacities: u.roles.filter(r => r === 'aluno' || r === 'profissional'), context: contextOf(u), verification: u.verification || null,
-  tenant: { id: u.tenant_id, slug: u.tenant_slug, name: u.tenant_name } })
+  tenant: { id: u.tenant_id, slug: u.tenant_slug, name: u.tenant_name },
+  // V4.2: tipo de conta. Aluno do personal fica restrito (fichas, comunidade e desafios do personal) até a liberação do admin
+  account_type: u.account_type || 'normal', must_change_password: !!u.must_change_password,
+  client_locked: u.account_type === 'personal_client' && !u.access_unlocked_at, access_locked: !u.access_unlocked_at, managed_by: u.managed_by || null })
 
 export function authRoutes({ json, readBody, bridge, clearCookies }) {
   const login = async (res, id) => {
@@ -108,6 +114,7 @@ export function authRoutes({ json, readBody, bridge, clearCookies }) {
       }
       // V3 (decisão Lucas 15/10): SaaS aberto — conta nasce ativa, sem aprovação do admin (admin ainda pode bloquear)
       if (terms) await acceptTerms(u.rows[0].id, terms.version, req)
+      await autoUnlockForTests(u.rows[0].id, email)   // só em teste local (E2E_AUTO_UNLOCK_DOMAIN)
       await audit(t.rows[0].id, u.rows[0].id, 'conta.cadastro', 'user', u.rows[0].id, { intent, termos: terms && terms.version })
       await login(res, u.rows[0].id)
     },
@@ -138,7 +145,8 @@ export function authRoutes({ json, readBody, bridge, clearCookies }) {
       const row = (await q('select password_hash from users where id=$1', [u.id])).rows[0]
       if (!row?.password_hash || !(await bcrypt.compare(String(b.current_password || ''), row.password_hash))) return json(res, 400, { error: 'Senha atual incorreta', errors: { current_password: 'Senha atual incorreta' } })
       if (pw.length < 8) return json(res, 400, { error: 'A nova senha deve ter pelo menos 8 caracteres', errors: { new_password: 'Mínimo de 8 caracteres' } })
-      await q('update users set password_hash=$2, token_version=token_version+1 where id=$1', [u.id, await bcrypt.hash(pw, 12)])
+      if (await bcrypt.compare(pw, row.password_hash)) return json(res, 400, { error: 'A nova senha precisa ser diferente da atual', errors: { new_password: 'Use uma senha diferente' } })
+      await q('update users set password_hash=$2, token_version=token_version+1, must_change_password=false where id=$1', [u.id, await bcrypt.hash(pw, 12)])
       await audit(u.tenant_id, u.id, 'senha.alterada', 'user', u.id)
       await login(res, u.id)
     },

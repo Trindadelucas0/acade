@@ -1,6 +1,7 @@
 // AVADESK Fitness · portal do profissional (AVADESK PRO) e central administrativa (V3/V4).
 // Regra V4: só o admin cria/encerra vínculos e define capacidade; o profissional apenas SOLICITA.
 // Prescrição normal do responsável (vínculo ativo + habilitação verificada) não depende do admin.
+import { supersedeOthers } from './pro.js'
 import { countsInMetrics } from './metrics.js'
 import { q } from './db/pool.js'
 import { requireAuth, audit } from './auth.js'
@@ -199,6 +200,7 @@ export function portalRoutes({ json, readBody }) {
       const r = await q(`update pro_plans set status='ativo', published_at=now(), published_version=version, updated_at=now() where id=$1 and status='rascunho' returning id, version`, [p.id])
       if (!r.rowCount) return json(res, 409, { error: 'A prescrição mudou enquanto você publicava. Atualize e tente de novo.' })
       await q('insert into pro_plan_history(plan_id,actor_id,action,reason) values($1,$2,$3,$4)', [p.id, u.id, 'publicado', 'v' + r.rows[0].version])
+      await supersedeOthers(p.student_id, p.id, u.id, p.title)   // V4.2
       await notify(p.student_id, 'plano', 'Novo treino do seu profissional', p.title, '/treinos')
       await audit(u.tenant_id, u.id, 'prescricao.publicada', 'pro_plan', p.id, { student: p.student_id, version: r.rows[0].version })
       json(res, 200, { ok: true, id: p.id, version: r.rows[0].version, delivered_to: p.student_id })

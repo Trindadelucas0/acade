@@ -1,5 +1,6 @@
 // V5 fase B · Desafios: assistente (rascunho/publicar), estados com transições validadas, regras versionadas e congeladas no início,
 // inscrições (convite, pedido, aprovação), equipes, convites por código. Nunca expõe peso, cargas, saúde, prescrições ou conversas.
+import { coachOf } from './accounts-v42.js'
 import { q } from './db/pool.js'
 import { requireAuth, audit } from './auth.js'
 import { notify, isLinked } from './pro.js'
@@ -87,6 +88,7 @@ export function challengeRoutes({ json, readBody }) {
       if (p.get('official') === '1') f.push('c.official'); if (p.get('public') === '1') f.push(`c.audience='aberto'`)
       if (p.get('dur') === 'semana') f.push(`c.ends_at - c.starts_at <= interval '8 days'`); if (p.get('dur') === 'mes') f.push(`c.ends_at - c.starts_at between interval '8 days' and interval '32 days'`)
       if (p.get('team') === '1') f.push(`c.type='competicao_equipes'`)
+      { const cc = coachOf(u); if (cc) { v.push(cc); f.push(`c.creator_id=$${v.length}`) } }   // V4.2: aluno do personal só vê desafios do personal
       const r = await q(`select c.id,c.name,c.description,c.cover_url,c.category,c.type,c.metric,c.goal,c.starts_at,c.ends_at,c.audience,c.official,c.status,c.max_participants,c.creator_id=$2 mine, m.status my_status,
           (select count(*)::int from challenge_members x where x.challenge_id=c.id and x.status in ('ativo','aprovado')) participants
         from challenges c left join challenge_members m on m.challenge_id=c.id and m.user_id=$2
@@ -182,6 +184,7 @@ export function challengeRoutes({ json, readBody }) {
     'POST /api/challenges/join': async (req, res) => {
       const u = await auth(req, res); if (!u) return
       const b = await readBody(req), c = await getChallenge(b.id, u.tenant_id)
+      if (c && coachOf(u) && c.creator_id !== coachOf(u)) return json(res, 403, { error: 'Você só participa dos desafios do seu personal. Solicite a liberação para os demais.', code: 'CLIENT_SCOPE' })
       if (!c || !['inscricoes_abertas', 'agendado', 'em_andamento'].includes(c.status)) return json(res, 404, { error: 'Desafio indisponível para inscrição' })
       if (c.status === 'agendado') return json(res, 409, { error: 'As inscrições foram encerradas' })
       if (c.status === 'em_andamento' && !c.late_entry) return json(res, 409, { error: 'Este desafio não aceita entrada depois do início' })

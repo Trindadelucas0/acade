@@ -23,6 +23,12 @@ export async function getSettings(tid) {
   return s
 }
 // V4 F7: dedupeKey opcional — a mesma chave para o mesmo usuário gera uma notificação só
+// V4.2: ficha nova SEMPRE substitui a anterior como ativa — as antigas ficam arquivadas (histórico somente leitura)
+export async function supersedeOthers(studentId, newId, actorId, title) {
+  const old = (await q(`update pro_plans set status='arquivado', superseded_by=$2, archived_at=now(), updated_at=now() where student_id=$1 and id<>$2 and status='ativo' returning id`, [studentId, newId])).rows
+  for (const o of old) await q('insert into pro_plan_history(plan_id,actor_id,action,reason) values($1,$2,$3,$4)', [o.id, actorId, 'substituido', 'substituída pela ficha ' + (title || '')])
+  return old.length
+}
 export async function notify(userId, kind, title, body, link, dedupeKey) {
   if (!userId) return
   // notificações sociais (curtidas, comentários, posts) respeitam o silenciar do usuário
@@ -111,7 +117,10 @@ export function proRoutes({ json, readBody }) {
         q(`select exercise_id, occurrence_id from exercise_blocks where student_id=$1 and active`, [u.id]),
         q(`select p.id,p.title,p.notes,p.exercises,p.days,p.description,p.goal,p.specialty,p.version,p.updated_at, coalesce(pp.display_name,o.name) owner_name, p.owner_id from pro_plans p join users o on o.id=p.owner_id
            left join professional_profiles pp on pp.user_id=o.id where p.student_id=$1 and p.status='ativo' order by p.updated_at desc`, [u.id])])
-      json(res, 200, { professionals: pros.rows, occurrences: occ.rows, threads: th.rows, blocks: blocks.rows, plans: plans.rows })
+      // V4.2: fichas antigas (substituídas/arquivadas) — histórico somente leitura
+      const hist = (await q(`select p.id,p.title,p.version,p.created_at,p.archived_at,p.updated_at,p.superseded_by,coalesce(pp.display_name,o.name) owner_name, jsonb_array_length(coalesce(p.exercises,'[]'::jsonb)) n_ex
+        from pro_plans p join users o on o.id=p.owner_id left join professional_profiles pp on pp.user_id=o.id where p.student_id=$1 and p.status='arquivado' order by coalesce(p.archived_at,p.updated_at) desc limit 50`, [u.id])).rows
+      json(res, 200, { professionals: pros.rows, occurrences: occ.rows, threads: th.rows, blocks: blocks.rows, plans: plans.rows, plan_history: hist })
     },
     'GET /api/plan': async (req, res) => {
       const u = await requireAuth(req, res, json); if (!u) return
@@ -307,6 +316,7 @@ export function proRoutes({ json, readBody }) {
       if (!isUuid(b.student_id) || !(await isLinked(u.id, b.student_id))) return json(res, 403, { error: 'Aluno não vinculado a você' })
       const r = await q(`insert into pro_plans(tenant_id,owner_id,student_id,title,notes,exercises) values($1,$2,$3,$4,$5,$6) returning id`, [u.tenant_id, u.id, b.student_id, title, txt(b.notes, 1500) || null, JSON.stringify(exs)])
       await q('insert into pro_plan_history(plan_id,actor_id,action,after) values($1,$2,$3,$4)', [r.rows[0].id, u.id, 'criado', JSON.stringify(exs)])
+      await supersedeOthers(b.student_id, r.rows[0].id, u.id, title)   // V4.2: ficha nova substitui a anterior
       await audit(u.tenant_id, u.id, 'plano.criado', 'pro_plan', r.rows[0].id, { student: b.student_id })
       await notify(b.student_id, 'plano', 'Novo plano do seu profissional', title, '/treinos')
       json(res, 201, { id: r.rows[0].id })

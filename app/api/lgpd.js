@@ -25,6 +25,21 @@ const SENSITIVE = /password_hash|token_hash/
 // tabelas de dados pessoais apagadas na exclusão; o restante (atendimento, publicações, auditoria) é mantido vinculado à conta anonimizada
 const PERSONAL = new Set(['post_likes', 'follows', 'notifications', 'ranking_prefs', 'ranking_pref_history', 'password_resets', 'user_access_plans', 'body_goals'])
 
+// V4.2: monta o JSON da exportação (restaurado da V4 f05b4cc) — usado pelo pedido por e-mail
+let _legacyState = null
+export async function buildExport(u) {
+  const out = { gerado_em: new Date().toISOString(), conta: null, tabelas: {} }
+  out.conta = (await q('select id,name,email,status,account_type,created_at,last_seen_at from users where id=$1', [u.id])).rows[0]
+  for (const { t, c } of await userColumns()) {
+    if (t === 'audit_log' && c !== 'actor_id') continue
+    if (t === 'email_outbox' || t === 'data_export_requests') continue   // não reexporta exportações anteriores
+    const rows = (await q(`select * from "${t}" where "${c}"=$1 limit 5000`, [u.id])).rows
+    if (rows.length) out.tabelas[`${t}.${c}`] = rows.map(r => { for (const k of Object.keys(r)) if (SENSITIVE.test(k)) delete r[k]; return r })
+  }
+  if (_legacyState) out.treino_livre_local = await _legacyState(u.id).catch(() => null)
+  return out
+}
+
 let _legacyErase = null
 // Exclusão = anonimização: apaga dados pessoais, mantém sessões/ranking/auditoria sem identificação; encerra vínculos; remove posts
 export async function anonymizeUser(uid) {
@@ -38,6 +53,7 @@ export async function anonymizeUser(uid) {
   return removed
 }
 export function lgpdRoutes({ json, readBody, legacyState, legacyErase }) {
+  _legacyState = legacyState || null
   _legacyErase = legacyErase
   return {
     'GET /api/terms': async (req, res) => json(res, 200, { terms: await currentTerms() }),
@@ -61,7 +77,8 @@ export function lgpdRoutes({ json, readBody, legacyState, legacyErase }) {
       const r = await q(`select v.version,v.title,v.published_at,(select count(*)::int from term_acceptances a join users x on x.id=a.user_id where a.version=v.version and x.tenant_id=$1) aceites from terms_versions v order by published_at desc`, [u.tenant_id])
       json(res, 200, { versions: r.rows })
     },
-    // V4.1: 'GET /api/me/export' (exportar dados) REMOVIDO a pedido do Lucas (autorização explícita). Código anterior no git (f05b4cc).
+    // V4.2: exportação reativada SÓ por e-mail (POST /api/me/export-request em accounts-v42.js: senha + e-mail, 1/24 h, auditoria).
+    // O download direto (GET /api/me/export) continua desativado.
     'GET /api/me/requests': async (req, res) => {
       const u = await requireAuth(req, res, json, { allowPending: true }); if (!u) return
       json(res, 200, { requests: (await q('select id,kind,status,reason,decision_note,created_at,decided_at from data_requests where user_id=$1 order by created_at desc', [u.id])).rows })

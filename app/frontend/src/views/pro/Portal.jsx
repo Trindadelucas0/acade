@@ -1,5 +1,6 @@
 // AVADESK PRO — contexto profissional da mesma identidade (a pessoa também pode treinar como aluno). Mobile-first.
 // O profissional só vê os próprios alunos vinculados; vínculos e capacidade são decididos pelo admin (aqui ele apenas solicita).
+import { ProClients } from '../v3/V42.jsx'
 import Bell from '../../components/Bell.jsx'
 import TimingSummary from '../../components/TimingSummary.jsx'
 import { useState } from 'react'
@@ -217,7 +218,7 @@ export default function ProPortal() {
       {tab === 'perfil' && <ContextSwitch />}
       {tab === 'perfil' && (dash ? <ProProfile d={dash} reload={reloadDash} /> : <Load />)}
       {tab === 'verificacao' && <Verification />}
-      {tab === 'convites' && <Invites />}
+      {tab === 'convites' && <><ProClients /><div style={{ height: 12 }} /><Invites /></>}
     </div>
   </div>
 }

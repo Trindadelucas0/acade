@@ -6,6 +6,7 @@ import Icon from '../../components/Icon.jsx'
 import { useStore } from '../../store/useStore.js'
 import { G, minutesLabel } from '../../lib/guided.js'
 import { C, P } from '../../lib/care.js'
+import { PlanHistory } from '../v3/V42.jsx'
 import { TREINO_TABS, defaultTab, validTab, normTab } from '../../lib/start.js'
 import { glyphOf } from '../../lib/glyphs.js'
 import { Tabs, Empty, Err } from './kit.jsx'
@@ -85,6 +86,7 @@ export default function Treinos() {
           {p.days?.length > 1 ? <div className="g-row" style={{ gap: 8, flexWrap: 'wrap', marginTop: 8 }}>{p.days.map((d, i) => <button key={i} className="g-btn g-ghost g-sm" style={{ width: 'auto', padding: '0 14px' }} disabled={!!live} onClick={() => startPlan(p, `/treinar?plan=${p.id}&day=${i}`)} data-testid="plan-day">{d.name} · {d.exercises.length}</button>)}</div>
             : <button className="g-btn g-sm" style={{ marginTop: 8 }} disabled={!!live || (at?.kind === 'profissional' && at.pro_plan?.id !== p.id)} onClick={() => startPlan(p, '/treinar?plan=' + p.id)} data-testid="plan-start">{at?.kind === 'profissional' && at.pro_plan?.id === p.id ? 'Começar este treino' : at?.kind === 'sistema' ? 'Desvincular programa e aceitar' : 'Aceitar e começar'}</button>}</div>)}</div>
           : <NoPro />}
+        <PlanHistory plans={care?.plan_history} />
       </section>}
 
       <h2>Explorar</h2>

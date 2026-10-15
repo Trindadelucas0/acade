@@ -1,0 +1,6 @@
+/* V4.2 · cadeado e liberação */
+.v42-banner{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 14px;font-size:13px;background:var(--ag-card,#1b1f24);border-bottom:1px solid var(--ag-line,#ffffff1f);color:var(--ag-fg,inherit)}
+.v42-banner svg{width:16px;height:16px;flex:none}
+.v42-banner a{margin-left:auto;font-weight:700;color:var(--ag-acc);min-height:32px;display:inline-flex;align-items:center;text-decoration:underline}
+.v42-lock .g-ico{color:var(--ag-acc)}
+.v42-cred code{display:block;padding:10px;border-radius:10px;background:#00000033;letter-spacing:.06em;user-select:all;word-break:break-all}

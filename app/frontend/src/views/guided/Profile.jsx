@@ -1,3 +1,4 @@
+import { UnlockRequest, ExportRequest } from '../v3/V42.jsx'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Icon from '../../components/Icon.jsx'
@@ -95,8 +96,10 @@ function MeusDados() {
   useEffect(() => { load() }, [])
   const open = (req || []).find(r => r.kind === 'exclusao' && r.status === 'pendente')
   return <>
+    <div id="liberacao"><UnlockRequest /></div>
     <h2>Meus dados</h2>
     {code && <MyCode code={code} />}
+    <div className="g-card" style={{ marginBottom: 10 }}><ExportRequest /></div>
     <div className="g-card g-list" data-testid="meus-dados">
       {open ? <div className="g-li" style={{ display: 'block' }}><b>Pedido de exclusão em análise</b><p className="g-mut g-xs">Enviado em {new Date(open.created_at).toLocaleDateString('pt-BR')}. A administração confirma antes de excluir.</p>
         <button className="g-btn g-ghost g-sm" onClick={async () => { await C.cancelDelete(); load() }}>Cancelar pedido</button></div>

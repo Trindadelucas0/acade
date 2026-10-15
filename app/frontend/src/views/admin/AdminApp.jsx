@@ -1,5 +1,6 @@
 // Central administrativa AVADESK (desktop-first, funciona no celular): barra lateral, KPIs com gráficos,
 // tabelas com busca/filtro/ordenação/paginação/CSV e gavetas de detalhe. O admin é quem decide vínculos, capacidade e liberações.
+import { AdmLiberacoes } from '../v3/V42.jsx'
 import { GR } from '../../lib/groups.js'
 import { CH, CAT, CF, TR, PZ, CRIT_PT, PRIZE_PT, PROOF_PT, STATUS_PT } from '../../lib/challenges.js'
 import { useMemo, useState } from 'react'
@@ -405,7 +406,7 @@ function Wrap({ children }) { return <div className="ag">{children}</div> }
 
 const NAV = [
   ['Visão geral', [['dashboard', 'Dashboard', 'chart']]],
-  ['Pessoas', [['usuarios', 'Usuários', 'person'], ['alunos', 'Liberações rápidas', 'check'], ['profissionais', 'Profissionais e habilitações', 'clipboard'], ['verificacoes', 'Verificação profissional', 'check'], ['vinculos', 'Vínculos', 'users'], ['solicitacoes', 'Central de solicitações', 'flag']]],
+  ['Pessoas', [['usuarios', 'Usuários', 'person'], ['alunos', 'Liberações rápidas', 'check'], ['liberacoes', 'Liberação de contas', 'lock'], ['profissionais', 'Profissionais e habilitações', 'clipboard'], ['verificacoes', 'Verificação profissional', 'check'], ['vinculos', 'Vínculos', 'users'], ['solicitacoes', 'Central de solicitações', 'flag']]],
   ['Operação', [['filas', 'Filas e prazos (SLA)', 'bell'], ['planos', 'Planos de acesso', 'shield'], ['assinaturas', 'Planos SaaS e assinaturas', 'sparkles'], ['modelos', 'Modelos de treino', 'pencil'], ['grupos', 'Grupos', 'users'], ['desafios', 'Desafios', 'trophy'], ['exercicios', 'Biblioteca e mídia', 'dumbbell']]],
   ['Comunidade', [['publicacoes', 'Publicações e comentários', 'pencil'], ['moderacao', 'Moderação', 'chat'], ['ranking', 'Auditoria do ranking', 'sparkles']]],
   ['Governança', [['auditoria', 'Auditoria', 'list'], ['lgpd', 'LGPD', 'lock'], ['termos', 'Termos de uso', 'info'], ['config', 'Configurações', 'gear']]]]
@@ -425,6 +426,7 @@ export default function AdminApp() {
       <h1>{TITLE[tab]}</h1><p className="adm-sub">AVADESK Fitness · central administrativa</p>
       {tab === 'dashboard' && <Dashboard go={go} />}
       {tab === 'usuarios' && <Usuarios />}
+      {tab === 'liberacoes' && <AdmLiberacoes />}
       {tab === 'verificacoes' && <AdmVerifications />}
       {tab === 'assinaturas' && <AdmSubscriptions />}
       {tab === 'publicacoes' && <Publicacoes DataTable={DataTable} Drawer={Drawer} />}

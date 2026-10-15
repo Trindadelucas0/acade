@@ -1,5 +1,6 @@
 // AVADESK Fitness · admin gestor: editar e excluir tudo (usuários, profissionais, fichas, treinos, vínculos, comunidade, exercícios).
 // Regras: só admin; validação no backend; toda exclusão exige confirm 'EXCLUIR'; soft delete onde há histórico; tudo na auditoria.
+import { supersedeOthers } from './pro.js'
 import { q } from './db/pool.js'
 import { requireAuth, audit } from './auth.js'
 import { linkFailures, createLink, notify } from './pro.js'
@@ -171,6 +172,7 @@ export function adminCrudRoutes({ json, readBody }) {
       const r = await q(`insert into pro_plans(tenant_id,owner_id,student_id,title,goal,notes,days,exercises,status,specialty,description,template_id,format_version${status === 'ativo' ? ',published_at' : ''}) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,2${status === 'ativo' ? ',now()' : ''}) returning id`,
         [u.tenant_id, owner, b.student_id, title, txt(b.goal, 40) || null, txt(b.notes, 2000) || null, JSON.stringify(days), JSON.stringify(flat(days)), status, txt(b.specialty, 60) || null, txt(b.description, 1500) || null, isUuid(b.template_id) ? b.template_id : null])
       await q('insert into pro_plan_history(plan_id,actor_id,action,after) values($1,$2,$3,$4)', [r.rows[0].id, u.id, 'criado_admin', JSON.stringify({ title, days, status })])
+      if (status === 'ativo') await supersedeOthers(b.student_id, r.rows[0].id, u.id, title)   // V4.2
       await audit(u.tenant_id, u.id, 'treino.criado_admin', 'pro_plan', r.rows[0].id, { student: b.student_id, owner, status })
       if (status === 'ativo') await notify(b.student_id, 'treino', 'Novo treino disponível', title, '/treinos').catch(() => {})
       json(res, 201, { id: r.rows[0].id })

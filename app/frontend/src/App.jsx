@@ -51,6 +51,8 @@ import { GroupPage } from './views/app/Grupos.jsx'
 import { ChallengePage, ChallengeWizard } from './views/app/Desafios.jsx'
 import Builder from './views/builder/WorkoutBuilder.jsx'
 import PlanErrorHost from './views/v3/PlanErrorHost.jsx'
+import { MustChangePassword, AccessLockHost, LockBanner, ScopeGate } from './views/v3/V42.jsx'
+import './styles/v42.css'
 import Plans from './views/v3/Plans.jsx'
 import AcceptInvite from './views/v3/AcceptInvite.jsx'
 
@@ -89,8 +91,9 @@ function Shell() {
       {/* keyed on the route: a view that throws is contained, and switching tabs
           re-mounts the boundary, so the tab bar is always a way out */}
       <div id="app" className="vfade" key={loc.pathname}>
+        {authed && !user?.must_change_password && <LockBanner />}
         <ErrorBoundary>
-          {!authed ? <Login /> : user?.needs_terms ? <TermsGate onAccepted={() => useStore.getState().setUser({ ...user, needs_terms: false })} /> : isAdminAccount(user) ? (
+          {!authed ? <Login /> : user?.must_change_password ? <MustChangePassword /> : user?.needs_terms ? <TermsGate onAccepted={() => useStore.getState().setUser({ ...user, needs_terms: false })} /> : isAdminAccount(user) ? (
             <Routes>
               <Route path="/admin/painel" element={<AdminApp />} />
               <Route path="/pro/treino" element={<Builder />} />
@@ -135,25 +138,25 @@ function Shell() {
               <Route path="/acompanhamento" element={<Gate title="Acompanhamento"><Acompanhamento /></Gate>} />
               <Route path="/conversa/:id" element={<Gate title="Conversa"><Conversa /></Gate>} />
               <Route path="/avisos" element={<Avisos />} />
-              <Route path="/grupo/:id" element={<Gate title="Comunidade"><GroupPage /></Gate>} />
+              <Route path="/grupo/:id" element={<ScopeGate title="Grupos"><Gate title="Comunidade"><GroupPage /></Gate></ScopeGate>} />
               <Route path="/desafio/:id" element={<Gate title="Comunidade"><ChallengePage /></Gate>} />
               <Route path="/desafios/criar" element={<Gate title="Comunidade"><ChallengeWizard /></Gate>} />
               <Route path="/post/:id" element={<Gate title="Comunidade"><PostPage /></Gate>} />
               <Route path="/profissional/:id" element={<Gate title="Comunidade"><ProfessionalPage /></Gate>} />
-              <Route path="/ranking" element={<Gate title="Ranking"><Ranking /></Gate>} />
+              <Route path="/ranking" element={<ScopeGate title="Ranking"><Gate title="Ranking"><Ranking /></Gate></ScopeGate>} />
               <Route path="/pro" element={user?.pro || user?.admin ? <Gate title="AVADESK PRO"><ProPortal /></Gate> : <Navigate to="/hoje" replace />} />
               <Route path="/pro/programas" element={<Gate title="AVADESK PRO"><MyPrograms /></Gate>} />
               <Route path="/admin/painel" element={user?.admin ? <AdminApp /> : <Navigate to="/hoje" replace />} />
               <Route path="/onboarding" element={<Gate title="Treinos"><Onboarding /></Gate>} />
-              <Route path="/recomendados" element={<Recommendations />} />
-              <Route path="/programas" element={<ProgramLibrary />} />
-              <Route path="/programa/:id" element={<ProgramDetail />} />
-              <Route path="/meu-programa" element={<MyProgram />} />
+              <Route path="/recomendados" element={<ScopeGate title="Recomendados"><Recommendations /></ScopeGate>} />
+              <Route path="/programas" element={<ScopeGate title="Programas"><ProgramLibrary /></ScopeGate>} />
+              <Route path="/programa/:id" element={<ScopeGate title="Programa"><ProgramDetail /></ScopeGate>} />
+              <Route path="/meu-programa" element={<ScopeGate title="Meu programa"><MyProgram /></ScopeGate>} />
               <Route path="/treinar" element={<Gate title="Treinos"><Train /></Gate>} />
               <Route path="/concluido" element={<Done />} />
               <Route path="/progresso" element={<Gate title="Progresso"><Progress /></Gate>} />
               <Route path="/perfil" element={<Profile />} />
-              <Route path="/perfil/equipamentos" element={<MyEquipment />} />
+              <Route path="/perfil/equipamentos" element={<ScopeGate title="Equipamentos"><MyEquipment /></ScopeGate>} />
               <Route path="/planos" element={<Plans />} />
               <Route path="/convite/:code" element={<AcceptInvite />} />
               <Route path="/admin/programas" element={user ? <AdminPrograms /> : <Navigate to="/hoje" replace />} />
@@ -165,8 +168,8 @@ function Shell() {
               <Route path="/workout" element={S.active ? <Workout /> : <Navigate to="/treinos" replace />} />
               <Route path="/stats" element={<Stats />} />
               <Route path="/history" element={<History />} />
-              <Route path="/library" element={<Library />} />
-              <Route path="/muscles" element={<Suspense fallback={null}><MuscleMap /></Suspense>} />
+              <Route path="/library" element={<ScopeGate title="Biblioteca"><Library /></ScopeGate>} />
+              <Route path="/muscles" element={<ScopeGate title="Músculos"><Suspense fallback={null}><MuscleMap /></Suspense></ScopeGate>} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/admin" element={<Navigate to={user?.admin ? '/admin/painel' : '/hoje'} replace />} />
               <Route path="*" element={<Navigate to="/hoje" replace />} />
@@ -180,6 +183,7 @@ function Shell() {
       <RestTimer />
       <Modals />
       {authed && <PlanErrorHost />}
+      {authed && <AccessLockHost />}
       <Toast />
       <DialogHost />
     </>

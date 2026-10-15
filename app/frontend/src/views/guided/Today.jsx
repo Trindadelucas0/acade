@@ -36,7 +36,7 @@ export default function Today() {
   useEffect(() => {
     flushQueue().then(setPend).catch(() => {})
     G.state().then(s => {
-      if (!s.profile && !s.onboarding_skipped) return nav('/onboarding', { replace: true })
+      if (!s.profile && !s.onboarding_skipped && !user?.client_locked) return nav('/onboarding', { replace: true })   // V4.2: aluno do personal não passa pelo onboarding do sistema
       setSt(s)
       if (s.active) G.today().then(setToday).catch(() => {})
     }).catch(e => setErr(e.status === 401 ? 'Entre com sua conta para usar os programas guiados.' : 'Sem conexão. Você ainda pode continuar um treino salvo no aparelho.'))
@@ -117,9 +117,11 @@ function StartHere({ profile, at }) {
     </div></div>
       : <div className="g-hero"><div className="g-in" style={{ maxWidth: '100%' }}>
         <span className="g-eyebrow">Comece por aqui</span>
+        {useStore.getState().user?.client_locked ? <><h2 style={{ marginTop: 6 }}>Aguardando sua ficha</h2>
+        <p className="g-mut g-sm" data-testid="client-wait">Seu personal ainda não enviou uma ficha. Ela aparece aqui assim que for publicada.</p></> : <>
         <h2 style={{ marginTop: 6 }}>Escolha seu treino</h2>
         <p className="g-mut g-sm">Programas publicados pelo AVAGYM e por profissionais verificados.</p>
-        <button className="g-btn" style={{ marginTop: 12 }} onClick={() => nav(profile ? '/recomendados' : '/onboarding')} data-testid="start-choose">ESCOLHER MEU TREINO</button>
+        <button className="g-btn" style={{ marginTop: 12 }} onClick={() => nav(profile ? '/recomendados' : '/onboarding')} data-testid="start-choose">ESCOLHER MEU TREINO</button></>}
       </div></div>}
     <div className="g-card g-list" style={{ marginTop: 10 }}>
       <Li icon="clipboard" t="Todos os programas" s="Catálogo publicado" to="/programas" testid="start-catalog" />

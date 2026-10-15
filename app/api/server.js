@@ -5,6 +5,8 @@ import http from 'node:http';
 import { authRoutes, clearTokenCookie, authUser, pub, requireRole } from './auth.js';
 import { guidedRoutes } from './guided.js';
 import { activeTrainingRoutes } from './active-training.js';
+import { accountRoutes, accessGate } from './accounts-v42.js';
+import { startMailer } from './mailer.js';
 import { sessionsV4Routes, forgottenSweep } from './sessions-v4.js';
 import { editorialRoutes } from './programs-editorial.js';
 import { proRoutes } from './pro.js';
@@ -365,7 +367,8 @@ function pgBridge(u) {
 }
 Object.assign(routes, authRoutes({ json, readBody, bridge: pgBridge, clearCookies: [clearCookie] }));
 Object.assign(routes, guidedRoutes({ json, readBody }));
-Object.assign(routes, activeTrainingRoutes({ json, readBody }));  // V4.1: treino ativo único + tema
+Object.assign(routes, activeTrainingRoutes({ json, readBody }));
+Object.assign(routes, accountRoutes({ json, readBody }));  // V4.2: aluno do personal, liberação, exportação LGPD por e-mail  // V4.1: treino ativo único + tema
 Object.assign(routes, sessionsV4Routes({ json, readBody }));
 Object.assign(routes, editorialRoutes({ json, readBody }));  // V4 F3: fluxo editorial de programas
 // V4: treino esquecido — varredura a cada 5 min; lembrete a cada SESSION_REMINDER_MIN (padrão 60) até finalizar/corrigir/descartar
@@ -396,7 +399,9 @@ http.createServer(async (req, res) => {
   if (!handler) return json(res, 404, { error: 'not found' });
   try {
     // V3: checagem central de entitlements (recurso, assinatura ativa, verificação) antes da rota
-    if (!(await entitlementGate(key, await authUser(req).catch(() => null), res, json))) return;
+    const gu = await authUser(req).catch(() => null);
+    if (!(await entitlementGate(key, gu, res, json))) return;
+    if (!(await accessGate(key, gu, res, json))) return;   // V4.2: conta não liberada vê tudo, mas ações ficam travadas
     await handler(req, res);
   }
   catch (e) {
@@ -406,3 +411,4 @@ http.createServer(async (req, res) => {
     if (!res.headersSent) json(res, 500, { error: 'server error' });
   }
 }).listen(PORT, () => console.log(`gym-api on :${PORT} (origin=${ORIGIN})`));
+startMailer();   // V4.2: fila de e-mail (só envia com SMTP configurado)

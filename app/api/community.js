@@ -1,5 +1,6 @@
 // AVADESK Fitness — Comunidade: feed de profissionais autorizados (cronológico), curtidas, comentários (alunos conforme
 // configuração do admin), seguir profissionais, denúncias e moderação registrada. Alunos não publicam nem enviam fotos.
+import { coachOf } from './accounts-v42.js'
 import fs from 'node:fs'
 import path from 'node:path'
 import crypto from 'node:crypto'
@@ -44,6 +45,7 @@ export function communityRoutes({ json, readBody }) {
       const cat = qs(req).get('cat'), author = qs(req).get('author'), mine = qs(req).get('mine') === '1', following = qs(req).get('following') === '1'
       const before = qs(req).get('before')
       const params = [u.tenant_id, u.id]; const w = []
+      { const cc = coachOf(u); if (cc) { params.push(cc); w.push(`p.author_id=$${params.length}`) } }   // V4.2: aluno do personal vê a comunidade do personal
       if (mine) w.push(`p.author_id=$2 and p.status in ('publicado','rascunho','oculto')`)
       else w.push(`p.status='publicado'`)
       if (cat) { params.push(cat); w.push(`p.category=$${params.length}`) }
