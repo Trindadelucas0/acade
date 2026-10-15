@@ -3,12 +3,13 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import Icon from '../../components/Icon.jsx'
 import { clock, elapsedOf } from '../../lib/timing.js'
 import { planExercises, groupsOf, afterSet, restAfter, targetFor, SIDE_PT, TECH_PT } from '../../lib/workout.js'
-import { G, loadSession, saveSessionLocal, newSession, payloadOf, mediaOf, RESTR_PT } from '../../lib/guided.js'
+import { G, loadSession, saveSessionLocal, newSession, payloadOf, mediaOf, RESTR_PT, startRemote, logEvent, enqueue, idleMin, FORGOTTEN_MIN, restoreLiveSession, setLastFinished } from '../../lib/guided.js'
+import { OpenSessionScreen, TimeFix } from './SessionRecovery.jsx'
 import { Spin } from './Programs.jsx'
 import { C } from '../../lib/care.js'
 import { ReportSheet, AskSheet } from '../app/Acompanhamento.jsx'
 import './guided.css'
-import { ask } from '../../lib/dialog.js'
+import { ask, notify } from '../../lib/dialog.js'
 
 // fim do descanso = início da próxima série (pode ser reiniciado com "Iniciar série")
 const endRest = (x, at = Date.now()) => { x.rest = null; if (!x.cur_start) x.cur_start = at }
@@ -19,27 +20,42 @@ export default function Train() {
   const nav = useNavigate()
   const [sp] = useSearchParams()
   const [s, setS] = useState(() => loadSession())
+  // V4: treino aberto há ≥ 1h sem atividade (local) ou aberto no servidor (outro aparelho) → "Treino ainda em aberto"
+  const [recover, setRecover] = useState(() => { const x = loadSession(); return x && !x.finishing && !x.finished_at && idleMin(x) >= FORGOTTEN_MIN ? { local: true } : null })
+  const [fix, setFix] = useState(false), [rbusy, setRbusy] = useState(false)
   const [err, setErr] = useState(''), [, tick] = useState(0), [how, setHow] = useState(false), [bad, setBad] = useState({})
   const syncTm = useRef(null)
   const [blocks, setBlocks] = useState(new Set()), [sheet, setSheet] = useState(null), [flash, setFlash] = useState('')
   useEffect(() => { C.blocks().then(r => setBlocks(new Set(r.blocks.map(b => b.exercise_id)))).catch(() => {}) }, [])
 
+  // início autorizado no servidor (offline: segue no aparelho e o servidor valida na sincronização)
+  const starting = useRef(false)
+  const begin = async n => {
+    if (starting.current) return   // StrictMode/efeito repetido: um único início por montagem
+    starting.current = true
+    const r = await startRemote(n)
+    if (!r.ok && r.open) { setRecover({ remote: r.open }); return }
+    if (!r.ok) { setErr(r.error || 'Este treino não pode ser iniciado.'); return }
+    n.server = !!r.server; n.offline_start = !!r.offline; n.last_activity = Date.now()
+    if (r.started_at) n.started_at = r.started_at
+    saveSessionLocal(n); setS(n)
+  }
   // carrega o treino de hoje se não houver sessão salva no aparelho
   useEffect(() => {
-    if (s) return
+    if (s || recover) return
     // plano prescrito por um profissional (Treinos → plano do profissional)
     if (sp.get('plan')) { C.plan(sp.get('plan')).then(({ plan }) => {
       const day = +(sp.get('day') || 0), exs = planExercises(plan, day), dd = plan.days?.[Math.min(day, (plan.days?.length || 1) - 1)]
       const n = newSession({ active: { id: null, title: plan.title + ' · ' + plan.owner_name }, workout: { id: null, name: plan.title + (dd?.name && plan.days.length > 1 ? ' · ' + dd.name : ''), exercises: exs.map(e => ({ ...e, suggestion: { weight: e.weight, reps: e.reps } })) } })
       n.exercises = n.exercises.map((e, i) => { const o = exs[i]; return { ...e, timed: o.timed, rest_sec: o.rest_sec ?? 60, group: o.group ?? null, per_set: o.per_set || [], tempo: o.tempo || '', rpe: o.rpe ?? null, rir: o.rir ?? null, side: o.side || 'bilateral', technique: o.technique || 'normal', notes: o.notes || '', reps_label: o.reps || '', load_kg: o.load_kg ?? null } })
       n.plan_desc = plan.description || plan.notes || ''; n.day_desc = dd?.description || ''
-      n.plan_id = plan.id; saveSessionLocal(n); setS(n) }).catch(e => setErr(e.message || 'Plano indisponível')); return }
+      n.plan_id = plan.id; begin(n) }).catch(e => setErr(e.message || 'Plano indisponível')); return }
     G.today(sp.get('w')).then(t => {
       if (!t.active) return nav('/recomendados', { replace: true })
       if (!t.workout) return setErr('Este programa não tem treinos.')
-      const n = newSession(t); saveSessionLocal(n); setS(n)
+      begin(newSession(t))
     }).catch(() => setErr('Sem conexão para baixar o treino. Tente de novo.'))
-  }, [s, sp, nav])
+  }, [s, sp, nav, recover]) // eslint-disable-line
   // sessão retomada criada antes de a mídia existir: completa mídia/instruções pelo servidor
   useEffect(() => {
     if (!s || !s.exercises.some(e => !e.media)) return
@@ -55,12 +71,43 @@ export default function Train() {
     if (s?.rest && !s.paused_at && Date.now() >= s.rest.until) { beep(); update(x => endRest(x, x.rest.until)) }
   })
 
+  // ---------- V4: treino ainda em aberto / ajustar tempo ----------
+  const rinfo = recover?.local ? { workout_name: s?.workout_name, started_at: s?.started_at, sets: s?.exercises.reduce((a, e) => a + e.done.length, 0) } : recover?.remote ? { ...recover.remote, sets: recover.remote.sets_count } : null
+  const recContinue = async () => {
+    if (recover.remote) {
+      await restoreLiveSession(); const x = loadSession()
+      if (!x || x.client_id !== recover.remote.client_id) { notify('As séries deste treino estão em outro aparelho. Continue por lá, ou corrija o tempo ou descarte aqui.', 'error'); return }
+      setS(x)
+    }
+    const x = loadSession(); if (x) { x.last_activity = Date.now(); saveSessionLocal(x); setS(x); logEvent(x, 'resume', { from: 'recovery' }) }
+    setRecover(null)
+  }
+  const recDiscard = async () => {
+    if (!(await ask('Descartar este treino?', { text: 'Ele fica registrado como descartado e não conta no seu progresso.', ok: 'Descartar treino', cancel: 'Voltar', danger: true }))) return
+    setRbusy(true)
+    try {
+      if (recover.remote) await G.sessionEvents(recover.remote.client_id, [{ id: 'discard:' + Date.now(), type: 'discard', at: new Date().toISOString() }], 'treino em aberto')
+      else { const p = payloadOf(s, { discard: true, discard_reason: 'treino em aberto' }); try { await G.saveSession(p) } catch { await enqueue(p) } saveSessionLocal(null) }
+      notify('Treino descartado.'); nav('/hoje', { replace: true })
+    } catch (e) { notify(e.message || 'Não foi possível descartar agora.', 'error') } finally { setRbusy(false) }
+  }
+  const recCorrect = async c => {
+    setRbusy(true)
+    try {
+      if (recover?.remote) { await G.correctTime({ client_id: recover.remote.client_id, ...c }); notify('Tempo corrigido. Treino finalizado.'); nav('/progresso', { replace: true }); return }
+      // sessão do aparelho: segue para a tela de conclusão com a correção (vai junto ao salvar)
+      update(x => { x.time_correction = c; x.finishing = true })
+    } catch (e) { notify(e.message || 'Não foi possível corrigir agora.', 'error') } finally { setRbusy(false) }
+  }
+  if (fix && (recover || s)) return <TimeFix initialMin={null} busy={rbusy} onCancel={() => setFix(false)} onConfirm={recCorrect} />
+  if (recover && rinfo) return <OpenSessionScreen info={rinfo} busy={rbusy} onContinue={recContinue} onCorrect={() => setFix(true)} onDiscard={recDiscard} />
+
   if (err) return <div className="ag g-full"><p className="g-warn">{err}</p><button className="g-btn" style={{ marginTop: 16 }} onClick={() => nav('/hoje')}>Voltar</button></div>
   if (!s) return <Spin />
 
   function update(fn) {
     setS(prev => {
-      const n = JSON.parse(JSON.stringify(prev)); fn(n); saveSessionLocal(n)
+      const n = JSON.parse(JSON.stringify(prev)); fn(n); n.last_activity = Date.now(); saveSessionLocal(n)
       // sincronização em segundo plano (melhor esforço): o aparelho é a fonte da verdade até concluir
       clearTimeout(syncTm.current); syncTm.current = setTimeout(() => { G.saveSession(payloadOf(n)).catch(() => {}) }, 1500)
       return n
@@ -83,6 +130,7 @@ export default function Train() {
   const adj = (k, d) => update(x => { const e = x.exercises[x.exIdx]; e[k] = Math.max(0, Math.round(((+e[k] || 0) + d) * 10) / 10) })
   const goNext = () => update(x => { endRest(x); x.cur_start = Date.now(); if (x.exIdx < x.exercises.length - 1) x.exIdx++ ; else x.finishing = true })
   const finishSet = () => {
+    logEvent(s, 'set_done', { exercise_id: ex.exercise_id, set_index: ex.done.length, weight: ex.timed ? null : ex.weight, reps: ex.reps })
     update(x => {
       const e = x.exercises[x.exIdx]
       const now = Date.now(), st = x.cur_start || x.last_end || new Date(x.started_at).getTime()
@@ -100,9 +148,9 @@ export default function Train() {
     })
   }
   if (s.finishing) return <Spin />
-  const pause = () => update(x => { x.paused_at = new Date().toISOString() })
-  const resume = () => update(x => { const d = Date.now() - new Date(x.paused_at).getTime(); x.paused_sec = (x.paused_sec || 0) + d / 1000; x.paused_at = null
-    if (x.cur_start) x.cur_start += d; if (x.last_end) x.last_end += d; if (x.rest) x.rest.until += d })
+  const pause = () => { logEvent(s, 'pause'); update(x => { x.paused_at = new Date().toISOString() }) }
+  const resume = () => { logEvent(s, 'resume'); update(x => { const d = Date.now() - new Date(x.paused_at).getTime(); x.paused_sec = (x.paused_sec || 0) + d / 1000; x.paused_at = null
+    if (x.cur_start) x.cur_start += d; if (x.last_end) x.last_end += d; if (x.rest) x.rest.until += d }) }
   const startSet = () => update(x => { x.rest = null; x.cur_start = Date.now() })
   const quit = async () => { if (await ask('Encerrar o treino agora?', { text: 'As séries feitas serão salvas.', ok: 'Encerrar treino', cancel: 'Continuar treinando', danger: true })) update(x => { x.finishing = true }) }
 
@@ -164,17 +212,18 @@ export default function Train() {
       onDone={r => { setSheet(null); if (r.blocked) setBlocks(b => new Set([...b, ex.exercise_id])); setFlash(r.blocked ? 'Relato enviado. O exercício foi pausado até a orientação profissional.' : 'Relato enviado ao profissional responsável.'); update(x => endRest(x)) }} />}
     {s.paused_at && <div className="g-rest" data-testid="paused"><span className="g-eyebrow">Treino pausado</span><div className="g-clock">{clock(elapsed)}</div><p className="g-mut g-sm">O cronômetro está parado. O tempo pausado não conta.</p>
       <button className="g-btn" style={{ maxWidth: 360 }} onClick={resume} data-testid="resume">Retomar treino</button>
+      <button className="g-btn g-ghost" style={{ maxWidth: 360 }} onClick={() => setFix(true)} data-testid="adjust-time">Ajustar tempo e finalizar</button>
       <button className="g-btn g-ghost" style={{ maxWidth: 360 }} onClick={() => nav('/hoje')}>Sair (o treino continua pausado)</button></div>}
     {s.rest && !s.paused_at && <div className="g-rest" data-testid="rest">
       <span className="g-eyebrow">Descanse</span>
       <div className="g-clock" data-testid="rest-clock">{mmss(restLeft)}</div>
       <div className="g-bar" style={{ width: '100%', maxWidth: 360, flex: 'none' }}><i style={{ width: (1 - restLeft / s.rest.total) * 100 + '%' }} /></div>
       <div className="g-pmrow">
-        <button className="g-btn g-ghost" onClick={() => update(x => { x.rest.until -= 15000 })}>−15 s</button>
-        <button className="g-btn g-ghost" onClick={() => update(x => { x.rest.until += 15000; x.rest.total += 15 })}>+15 s</button>
+        <button className="g-btn g-ghost" onClick={() => { logEvent(s, 'rest_adjust', { delta: -15 }); update(x => { x.rest.until -= 15000 }) }}>−15 s</button>
+        <button className="g-btn g-ghost" onClick={() => { logEvent(s, 'rest_adjust', { delta: 15 }); update(x => { x.rest.until += 15000; x.rest.total += 15 }) }}>+15 s</button>
       </div>
       <div className="g-nextup g-card"><span className="g-mut g-xs">{s.rest.afterNext ? 'Próximo exercício' : 'Próxima série'}</span><br /><b>{ex.name}</b> · série {setNo} de {ex.sets}</div>
-      <button className="g-btn" style={{ maxWidth: 360 }} onClick={() => update(x => endRest(x))} data-testid="skip-rest">Pular descanso</button>
+      <button className="g-btn" style={{ maxWidth: 360 }} onClick={() => { logEvent(s, 'rest_skip'); update(x => endRest(x)) }} data-testid="skip-rest">Pular descanso</button>
     </div>}
   </div>
 }

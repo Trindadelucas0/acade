@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Icon from '../../components/Icon.jsx'
-import { G, loadSession, saveSessionLocal, payloadOf, enqueue, setLastFinished, lastFinished, fmtMin, fmtKg } from '../../lib/guided.js'
+import { G, loadSession, saveSessionLocal, payloadOf, enqueue, flushQueue, setLastFinished, lastFinished, fmtMin, fmtKg } from '../../lib/guided.js'
 import TimingSummary from '../../components/TimingSummary.jsx'
 import { summarize } from '../../lib/timing.js'
 import { sessionSets } from '../../lib/guided.js'
@@ -36,15 +36,17 @@ export default function Done() {
   const exs = src.exercises.filter(e => e.done.length).length
   const vol = src.exercises.reduce((a, e) => a + (e.timed ? 0 : e.done.reduce((b, d) => b + (+d.weight || 0) * (+d.reps || 0), 0)), 0)
   const timing = summarize({ started_at: src.started_at, finished_at: src.finished_at || finishedAt, paused_sec: src.paused_sec || 0, sets: sessionSets(src) })
-  const dur = timing.total_sec
+  const corr = src.time_correction || null
+  const dur = corr ? corr.manual_sec : timing.total_sec
   const ups = src.exercises.map(e => [e.name, nextTime(e)]).filter(x => x[1])
 
   const save = async () => {
     setBusy(true)
-    const p = payloadOf(s, { finished_at: finishedAt, feeling: feel, pain: pain ? { code: area, intensity: inten, notes } : null })
+    const p = payloadOf(s, { finished_at: finishedAt, feeling: feel, pain: pain ? { code: area, intensity: inten, notes } : null, time_correction: s.time_correction || null })
     let synced = true
-    try { await G.saveSession(p) } catch { enqueue(p); synced = false }
-    const rec = { session: { ...s, finished_at: finishedAt }, synced, pain: !!pain }
+    let rejected = null
+    try { await G.saveSession(p) } catch (e) { await enqueue(p); synced = false; if (e.status && e.status < 500 && e.status !== 401) { rejected = e.message; flushQueue().catch(() => {}) } }
+    const rec = { session: { ...s, finished_at: finishedAt }, synced, rejected, pain: !!pain }
     setLastFinished(rec); saveSessionLocal(null); setSaved(rec); setBusy(false)
   }
 
@@ -59,7 +61,7 @@ export default function Done() {
       <div><b>{fmtMin(dur)}</b><span>Tempo</span></div><div><b>{exs}</b><span>Exercícios</span></div>
       <div><b>{sets}</b><span>Séries</span></div><div><b>{fmtKg(vol)}</b><span>Volume (carga × repetições)</span></div>
     </div>
-    <TimingSummary t={timing} />
+    {corr ? <p className="g-note" style={{ marginTop: 12 }} data-testid="done-corrected">Tempo corrigido por você ({fmtMin(corr.manual_sec)}). Este treino fica no histórico, mas não conta para ranking, desafios, prêmios nem para os números do progresso.</p> : <TimingSummary t={timing} />}
 
     {!(saved || view) ? <>
       <h2>Como você se sentiu?</h2>
@@ -79,7 +81,7 @@ export default function Done() {
       </div>}
       <div className="g-bottom"><button className="g-btn g-xl" disabled={busy} onClick={save} data-testid="save-session">{busy ? 'Salvando…' : 'SALVAR TREINO'}</button></div>
     </> : <>
-      {!(saved || view).synced && <p className="g-note" style={{ marginTop: 14 }}>Sem conexão agora: o treino ficou salvo no aparelho e será enviado automaticamente.</p>}
+      {!(saved || view).synced && <p className="g-note" style={{ marginTop: 14 }} data-testid="done-pending">{(saved || view).rejected ? `O servidor não aceitou este treino (${(saved || view).rejected}). Ele continua guardado no aparelho — nada foi apagado.` : 'Sem conexão agora: o treino ficou salvo no aparelho e será enviado automaticamente.'}</p>}
       {(saved || view).pain && <p className="g-note" style={{ marginTop: 14 }}>Registramos sua dor. Se ela continuar, procure um profissional de saúde antes do próximo treino.</p>}
       <h2>Para a próxima vez</h2>
       <div className="g-card">{ups.length ? ups.map(([n, u]) => <div key={n} className="g-row g-sm" style={{ padding: '6px 0' }}><span className="g-acc"><Icon name="bolt" /></span>{n}<span className="g-sp" /><b className="g-acc">{u}</b></div>)

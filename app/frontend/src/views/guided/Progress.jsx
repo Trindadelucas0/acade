@@ -42,7 +42,7 @@ export default function Progress() {
     <h2>Histórico</h2>
     <div className="g-card g-list">{d.history.length ? d.history.map(h => <div key={h.id} className="g-li">
         <span className="g-ico"><Icon name="check" /></span>
-        <span style={{ minWidth: 0 }}><b>{h.workout_name}</b><br /><span className="g-mut g-xs">{new Date(h.started_at).toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'short' })} · {fmtMin(h.duration_sec)} · {h.sets_count} séries{h.pain ? ' · dor registrada' : ''}</span>{h.timing && <><br /><TimingSummary t={h.timing} compact /></>}</span>
+        <span style={{ minWidth: 0 }}><b>{h.workout_name}</b><br /><span className="g-mut g-xs">{new Date(h.started_at).toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'short' })} · {fmtMin(h.corrected && h.manual_sec != null ? h.manual_sec : h.duration_sec)}{h.corrected ? ' (tempo corrigido)' : ''} · {h.sets_count} séries{h.pain ? ' · dor registrada' : ''}{h.origin === 'legado' ? ' · treino livre antigo' : ''}{h.counts_in_metrics === false ? ' · fora das métricas' : ''}</span>{h.timing && !h.corrected && <><br /><TimingSummary t={h.timing} compact /></>}</span>
         <span className="g-mut g-sm" style={{ marginLeft: 'auto', whiteSpace: 'nowrap' }}>{fmtKg(h.volume)}</span></div>)
       : <><p className="g-mut g-sm">Nenhum treino ainda.</p><button className="g-btn" style={{ marginTop: 10 }} onClick={() => nav('/hoje')}>Começar agora</button></>}</div>
   </div>

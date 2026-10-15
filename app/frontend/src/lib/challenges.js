@@ -38,7 +38,7 @@ export const readFile = f => new Promise((ok, bad) => { const r = new FileReader
 export const MAX_MB = { foto: 2.5, video: 50 }
 export const RK = { get: (id, page = 0) => api(`/api/challenges/ranking?id=${id}&page=${page}`), score: id => api('/api/challenges/score?id=' + id) }
 export const RK_STATE = { nao_iniciado: 'Ainda não começou', provisorio: 'Provisório', apurando: 'Em apuração', final: 'Resultado final', homologado: 'Homologado', cancelado: 'Cancelado' }
-export const WHY_PT = { contou: 'Contou', mesmo_dia: 'Mesmo dia — já contado', anulado: 'Treino anulado', comprovante_pendente: 'Comprovante pendente', sem_comprovante_aprovado: 'Sem comprovante aprovado' }
+export const WHY_PT = { contou: 'Contou', mesmo_dia: 'Mesmo dia — já contado', anulado: 'Treino anulado', tempo_corrigido: 'Tempo corrigido à mão — não conta', comprovante_pendente: 'Comprovante pendente', sem_comprovante_aprovado: 'Sem comprovante aprovado' }
 export const unitOf = m => m === 'consistencia' ? '%' : m === 'semanas_meta' ? 'sem.' : 'pts'
 export const TR = {
   list: () => api('/api/trophies'), create: b => post('/api/trophies', b), ofChallenge: id => api('/api/challenges/trophies?id=' + id), set: (id, template_ids) => post('/api/challenges/trophies', { id, template_ids }),

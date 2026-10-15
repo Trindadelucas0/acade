@@ -233,12 +233,13 @@ export function challengeFeedRoutes({ json, readBody }) {
     'GET /api/challenges/score': async (req, res) => {   // "Entender pontuação": só os próprios treinos (sem cargas, peso ou saúde)
       const { u, c, m } = await ctx(req, res, qs(req).get('id')); if (!u) return
       if (!m) return json(res, 403, { error: 'Só participantes veem a própria pontuação' })
-      const ss = (await q(`select s.id, s.started_at, s.workout_name, s.voided_at is not null voided, s.ranking_invalid_at is not null invalid,
+      const ss = (await q(`select s.id, s.started_at, s.workout_name, s.voided_at is not null voided, s.ranking_invalid_at is not null invalid, s.time_corrected_at is not null corrected,
           (select p.status from challenge_proofs p where p.challenge_id=$2 and p.session_id=s.id order by (p.status='aprovado') desc, p.created_at desc limit 1) proof
-        from sessions s where s.user_id=$1 and ${countsInMetrics('s')} and s.finished_at is not null and s.started_at between $3 and $4 order by s.started_at`, [u.id, c.id, c.starts_at, c.ends_at])).rows
+        from sessions s where s.user_id=$1 and s.status='done' and coalesce(s.origin,'') <> 'legado' and s.finished_at is not null and s.started_at between $3 and $4 order by s.started_at`, [u.id, c.id, c.starts_at, c.ends_at])).rows
       const seen = new Set(), sessions = ss.map(s => {
         const d = spDay(s.started_at); let why = 'contou'
         if (s.voided || s.invalid) why = 'anulado'
+        else if (s.corrected) why = 'tempo_corrigido'   // V4: tempo ajustado à mão não conta em nenhuma métrica
         else if (c.proof === 'obrigatoria' && s.proof !== 'aprovado') why = s.proof && ['enviado', 'em_analise', 'recurso', 'substituicao'].includes(s.proof) ? 'comprovante_pendente' : 'sem_comprovante_aprovado'
         else if (seen.has(d)) why = 'mesmo_dia'
         if (why === 'contou') seen.add(d)

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Icon from '../../components/Icon.jsx'
 import { useStore } from '../../store/useStore.js'
-import { G, loadSession, flushQueue, pendingCount, mediaOf, minutesLabel } from '../../lib/guided.js'
+import { G, loadSession, flushQueue, pendingCount, rejectedCount, mediaOf, minutesLabel } from '../../lib/guided.js'
 import { Spin } from './Programs.jsx'
 import MuscleStatus from './MuscleStatus.jsx'
 import { PendingCard, isPending } from '../app/Locked.jsx'
@@ -54,7 +54,7 @@ export default function Today() {
       {st.streak_weeks > 0 && <span className="g-ring" title="Semanas seguidas treinando"><Icon name="flame" /> {st.streak_weeks} sem.</span>}
     </div>
     <AvisosCard />
-    {pend > 0 && <p className="g-note" style={{ margin: '8px 0' }}>{pend} treino(s) aguardando conexão para sincronizar.</p>}
+    {pend > 0 && <p className="g-note" style={{ margin: '8px 0' }} data-testid="pending-sync">{rejectedCount() > 0 ? `${rejectedCount()} registro(s) recusado(s) pelo servidor ficam guardados no aparelho (nada é apagado). ` : ''}{pend - rejectedCount() > 0 ? `${pend - rejectedCount()} registro(s) aguardando conexão para sincronizar.` : ''}</p>}
 
     {!st.active ? <><ResumeBar /><StartHere profile={!!st.profile} /></> : <>
       <div className="g-hero" style={{ marginTop: 14 }} data-testid="today-card">

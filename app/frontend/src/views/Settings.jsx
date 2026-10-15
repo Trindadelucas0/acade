@@ -12,7 +12,16 @@ import { DEMO, REPO } from '../lib/demo.js'
 import { MOBILE, shareExport, syncReminder } from '../lib/mobile.js'
 import { loadStarterPlan, confirmSheet, importFromApp } from '../sheets.jsx'
 import Icon from '../components/Icon.jsx'
+import { ask, notify } from '../lib/dialog.js'
 import { Section, Row, SelectRow, Switch, Segmented, Button, TextField } from '../components/ui.jsx'
+
+// Limpeza segura: só o Cache Storage (arquivos/imagens baixados). Não toca no estado, no histórico nem na fila offline.
+async function clearDeviceCache() {
+  if (!(await ask('Limpar o cache deste aparelho?', { text: 'Imagens e arquivos baixados serão baixados de novo quando precisar. Seus treinos e o que ainda não sincronizou continuam aqui.', ok: 'Limpar cache', cancel: 'Cancelar' }))) return
+  let n = 0
+  try { if (window.caches) for (const k of await caches.keys()) { await caches.delete(k); n++ } } catch { /* sem Cache Storage */ }
+  notify(n ? 'Cache limpo.' : 'Não havia cache para limpar.')
+}
 
 export default function Settings() {
   const nav = useNavigate()
@@ -156,7 +165,8 @@ export default function Settings() {
         accessory="chevron" onClick={() => importRef.current.click()} />
       <Row icon="upload" iconTint="var(--blue)" title={t('Import backup')} accessory="chevron" onClick={() => fileRef.current.click()} />
       <Row icon="download" iconTint="var(--blue)" title={t('Export backup (JSON)')} accessory="chevron" onClick={doExport} />
-      <Row icon="trash" iconTint="var(--red)" title={t('Reset everything')} danger onClick={() => confirmSheet({ title: t('Reset everything?'), message: t('Deletes your plan, workouts and body weight on this device. This cannot be undone.'), confirmText: t('Delete everything'), danger: true, onConfirm: () => { replaceState(JSON.parse(JSON.stringify(DEF)), true); nav('/perfil'); toast(t('All data reset')) } })} />
+      {/* V4 (doc 4.5): "Apagar tudo" saiu — nada do aluno é apagado. Limpa só o cache de arquivos do aparelho; a fila de sincronização e o histórico ficam. */}
+      <Row icon="trash" iconTint="var(--blue)" title="Limpar cache deste aparelho" subtitle="Libera espaço. Seus treinos e o que ainda não sincronizou não são apagados." accessory="chevron" onClick={clearDeviceCache} data-testid="clear-cache" />
     </Section>
     <input ref={fileRef} type="file" accept=".json,application/json" style={{ display: 'none' }} onChange={doImport} />
     {/* Reset after reading so picking the same file twice still fires onChange. */}
