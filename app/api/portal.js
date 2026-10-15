@@ -42,7 +42,8 @@ async function publishProblems(u, plan) {
   const p = []
   const st = await proState(u.id)
   if (!st || st.state !== 'ativo') p.push('Seu perfil profissional não está ativo')
-  if (!st || !(st.verified || []).length) p.push('Você não tem habilitação verificada')
+  // V4 F5: a exigência é a verificação profissional atual (não mais professional_qualifications antigas)
+  if (!st || st.verification_status !== 'verificado') p.push('Seu cadastro profissional ainda não foi verificado')
   if (!(await isLinked(u.id, plan.student_id))) p.push('Não há vínculo ativo com este aluno')
   if (!plan.title || plan.title.length < 2) p.push('Dê um nome ao treino')
   if (!plan.goal) p.push('Informe o objetivo')

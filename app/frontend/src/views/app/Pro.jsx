@@ -124,16 +124,10 @@ export function ProProfile({ d, reload }) {
       <button className="g-btn" style={{ marginTop: 12 }} onClick={async () => { await C.saveProfile(f); setMsg('Perfil salvo'); reload() }}>Salvar perfil</button>
       {msg && <p className="g-acc g-sm" style={{ marginTop: 8 }}>{msg}</p>}
     </div>
-    <h2>Habilitações e registros</h2>
-    <div className="g-card g-list">{d.qualifications.map(q => <div key={q.id} className="g-li"><span><b>{q.kind} {q.number}</b><br /><span className="g-mut g-xs">{q.area}</span></span>
-      <span className={'g-pill ' + (q.status === 'verificada' ? 'g-ok' : q.status === 'rejeitada' ? 'g-bad2' : 'g-warn2')} style={{ marginLeft: 'auto' }}>{q.status}</span></div>)}
-      {!d.qualifications.length && <Empty>Envie seus registros para a administração verificar.</Empty>}</div>
-    <div className="g-card" style={{ marginTop: 10 }}>
-      <p className="g-xs g-mut">Selecionar uma habilitação não a verifica: ela fica pendente até a conferência da administração.</p>
-      <div className="g-row" style={{ marginTop: 8 }}><input className="g-in" placeholder="Tipo (CREF…)" value={ql.kind} onChange={e => setQl({ ...ql, kind: e.target.value })} /><input className="g-in" placeholder="Número" value={ql.number} onChange={e => setQl({ ...ql, number: e.target.value })} /></div>
-      <input className="g-in" style={{ marginTop: 8 }} placeholder="Área de atuação" value={ql.area} onChange={e => setQl({ ...ql, area: e.target.value })} />
-      <button className="g-btn g-ghost g-sm" style={{ marginTop: 8 }} onClick={async () => { try { await C.addQual(ql); setQl({ kind: '', number: '', area: '' }); reload() } catch (e) { notifyError(e) } }}>Enviar para verificação</button>
-    </div>
+    <h2>Verificação profissional</h2>
+    <div className="g-card"><p className="g-sm">Seu registro (CREF/CREFITO) agora é enviado e conferido em <b>Verificação profissional</b>.</p>
+      <button className="g-btn g-ghost g-sm" style={{ marginTop: 8 }} onClick={() => { location.hash = '#/pro?tab=verificacao' }}>Abrir verificação</button>
+      {d.qualifications.length > 0 && <p className="g-xs g-mut" style={{ marginTop: 8 }}>Registros antigos (só consulta): {d.qualifications.map(q => `${q.kind} ${q.number || ''} (${q.status})`).join(' · ')}</p>}</div>
   </div>
 }
 
