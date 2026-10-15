@@ -394,9 +394,39 @@ Object.assign(routes, inviteRoutes({ json, readBody }));  // V3 F4: convites do 
 Object.assign(routes, saasRoutes({ json }));
 Object.assign(routes, appStateRoutes({ json, readBody, readSession, dataDir: DATA }));  // V3 F7: estado do usuário no Postgres  // V3 F5: código público do aluno + visão 360° do admin
 
+/* ---------- segurança: headers + rate limit (auditoria 2026-10) ---------- */
+const SEC_HEADERS = {
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Cross-Origin-Resource-Policy': 'same-origin',
+  ...(SECURE ? { 'Strict-Transport-Security': 'max-age=31536000; includeSubDomains' } : {})
+};
+// IP real: Cloudflare manda cf-connecting-ip; depois o primeiro x-forwarded-for; por fim o socket.
+const clientIp = req => String(req.headers['cf-connecting-ip'] || (req.headers['x-forwarded-for'] || '').split(',')[0] || req.socket?.remoteAddress || '').trim().slice(0, 64);
+// Janela fixa em memória. Rotas sensíveis (login, cadastro, recuperação) por IP; RATE_LIMIT=off desliga (testes locais).
+const RL_RULES = {
+  'POST /api/auth/login': [20, 15 * 60e3],
+  'POST /api/auth/register': [10, 60 * 60e3],
+  'POST /api/auth/forgot': [5, 15 * 60e3],
+  'POST /api/auth/reset': [10, 15 * 60e3],
+  'POST /api/auth/password': [10, 15 * 60e3],
+};
+const rlHits = new Map();
+function rateLimited(key, req) {
+  const rule = RL_RULES[key]; if (!rule || process.env.RATE_LIMIT === 'off') return 0;
+  const k = key + '|' + clientIp(req), now = Date.now();
+  let e = rlHits.get(k); if (!e || e.reset < now) { e = { n: 0, reset: now + rule[1] }; rlHits.set(k, e); }
+  return ++e.n > rule[0] ? Math.ceil((e.reset - now) / 1000) : 0;
+}
+setInterval(() => { const now = Date.now(); for (const [k, e] of rlHits) if (e.reset < now) rlHits.delete(k); }, 60e3).unref();
+
 http.createServer(async (req, res) => {
+  for (const [h, v] of Object.entries(SEC_HEADERS)) res.setHeader(h, v);
   const url = new URL(req.url, 'http://x');
   const key = req.method + ' ' + url.pathname;
+  const retry = rateLimited(key, req);
+  if (retry) return json(res, 429, { error: 'Muitas tentativas. Aguarde alguns minutos e tente de novo.' }, { 'Retry-After': String(retry) });
   const handler = routes[key];
   if (!handler) return json(res, 404, { error: 'not found' });
   try {
@@ -412,5 +442,6 @@ http.createServer(async (req, res) => {
     console.error(key, e);
     if (!res.headersSent) json(res, 500, { error: 'server error' });
   }
-}).listen(PORT, () => console.log(`gym-api on :${PORT} (origin=${ORIGIN})`));
+// HOST: em produção use 127.0.0.1 (só o gateway/túnel acessa). Padrão 0.0.0.0 mantém o docker-compose funcionando.
+}).listen(PORT, process.env.HOST || '0.0.0.0', () => console.log(`gym-api on ${process.env.HOST || '0.0.0.0'}:${PORT} (origin=${ORIGIN})`));
 startMailer();   // V4.2: fila de e-mail (só envia com SMTP configurado)
