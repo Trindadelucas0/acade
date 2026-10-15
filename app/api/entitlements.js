@@ -56,16 +56,29 @@ export async function checkFeature(userId, audience, feature, c) {
 
 // checagem de limite concorrência-segura: TEM de rodar dentro de uma transação (client c). Trava a linha da assinatura
 // (select … for update) para serializar aceites simultâneos e reconta o uso real depois do bloqueio.
-export async function checkLimitLocked(c, userId, metric, { adding = 1, cap } = {}) {
+// V4 F5 (opção B): o limite é SÓ plano + concessões. O antigo "cap" (professional_profiles.capacity) é ignorado de propósito.
+export async function checkLimitLocked(c, userId, metric, { adding = 1 } = {}) {
   const m = METRICS[metric]
   const e = await resolve(userId, m.audience, c, { lock: true })
   if (!e) return { code: 'FEATURE_NOT_INCLUDED', error: 'Sem plano para esta área.' }
   if (!e.active) return { code: 'SUBSCRIPTION_INACTIVE', error: 'Sua assinatura está ' + e.status + '.', status: e.status }
-  const used = await m.count(c, userId)
-  let limit = e.limits[metric] == null ? null : +e.limits[metric]
-  if (cap != null) limit = limit == null ? cap : Math.min(limit, cap)   // ex.: capacidade operacional definida pelo admin
-  if (limit != null && used + adding > limit) return { code: 'LIMIT_REACHED', error: `Limite do plano atingido: ${used} de ${limit} (${metric.replace('_', ' ')}).`, metric, used, limit, plan: e.plan_id }
+  const s = summarize(e, metric, await m.count(c, userId))
+  if (s.effective_limit != null && s.used + adding > s.effective_limit) return { code: 'LIMIT_REACHED', error: `Limite atingido: ${s.used} de ${s.effective_limit} alunos ativos.`, ...s, limit: s.effective_limit, plan: e.plan_id }
   return null
+}
+function summarize(e, metric, used) {
+  const extra = (e.grants || []).filter(g => g.kind === 'limit' && g.key === metric).reduce((n, g) => n + (+g.value || 0), 0)
+  const eff = e.limits[metric] == null ? null : +e.limits[metric]   // já inclui as concessões (resolve soma)
+  const base = eff == null ? null : eff - extra
+  return { metric, plan_limit: base, granted_extra: extra, effective_limit: eff, used, available: eff == null ? null : Math.max(0, eff - used), over_limit: eff != null && used > eff,
+    plan_id: e.plan_id, plan_name: e.plan_name, subscription_status: e.status }
+}
+// resposta única de capacidade, usada por todas as telas (profissional e admin)
+export async function capacitySummary(userId, metric = 'alunos_ativos', c) {
+  const m = METRICS[metric]
+  const e = await resolve(userId, m.audience, c)
+  if (!e) return { metric, plan_limit: 0, granted_extra: 0, effective_limit: 0, used: 0, available: 0, over_limit: false }
+  return summarize(e, metric, await m.count(db(c), userId))
 }
 
 // atualiza o espelho de uso e o estado OVER_LIMIT (usado após downgrade: dados preservados, novas criações bloqueadas)

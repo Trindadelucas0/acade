@@ -31,7 +31,7 @@ export async function verifiedPro(adm, label) {
   await post(p.tok, '/api/pro/verification/document', { data: 'data:application/pdf;base64,' + Buffer.from('%PDF-1.4\n%%EOF').toString('base64'), file_name: 'cref.pdf' })
   const v = (await get(adm, '/api/adm/verifications?status=pendente')).d.verifications.find(x => x.user_id === p.id)
   await post(adm, '/api/adm/verifications/decide', { id: v.id, status: 'verificado' })
-  await post(adm, '/api/adm/professionals', { user_id: p.id, state: 'ativo', capacity: 50 })
+  await post(adm, '/api/adm/professionals', { user_id: p.id, state: 'ativo' })
   return p
 }
 // aluno ativo com plano de acesso (regra antiga do vínculo pelo admin)

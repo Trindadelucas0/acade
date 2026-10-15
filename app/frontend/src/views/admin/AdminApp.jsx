@@ -123,10 +123,11 @@ function Usuarios() {
         <select className="adm-in" value={u.plan_id || ''} onChange={act(async e => { const r = await C.setPlan(u.id, e.target.value); if (r?.over_limit) notify(`O aluno tem ${r.links} vínculo(s) e o plano permite ${r.max}. Nada foi encerrado.`) }, reload)} aria-label="Plano de acesso">
           <option value="" disabled>Plano de acesso…</option>{(pl?.plans || []).filter(p => p.active).map(p => <option key={p.id} value={p.id}>{p.name_pt} (até {p.max_professionals})</option>)}</select>
         <button className="adm-btn ghost" onClick={act(async () => { const r = await C.resetLink(u.id); await showValue('Link de redefinição (uso único, 24 h)', r.link) })}>Link de nova senha</button>
-        <button className="adm-btn ghost" onClick={act(() => C.setRole(u.id, 'profissional', !u.roles.includes('profissional')), reload)}>{u.roles.includes('profissional') ? 'Remover papel profissional' : 'Tornar conta profissional'}</button>
+        <button className="adm-btn ghost" onClick={act(() => C.setRole(u.id, 'profissional', !u.roles.includes('profissional')), reload)}>{u.roles.includes('profissional') ? 'Remover papel profissional' : 'Dar papel profissional'}</button>
+        {!u.roles.includes('aluno') && <button className="adm-btn ghost" onClick={act(() => C.setRole(u.id, 'aluno', true), reload)}>Dar papel de aluno</button>}
         <button className="adm-btn ghost" onClick={act(async () => { const o = await askText('ID da outra conta da mesma pessoa (vazio = desfazer). Só para auditoria; nada é compartilhado.'); return o != null && C.samePerson(u.id, o.trim() || null, 'registro manual') }, reload)}>Mesma pessoa…</button>
       </div>
-      <p className="g-mut g-xs">Contas profissionais e de treino são separadas (e-mails diferentes). “Mesma pessoa” só fica registrado na auditoria.</p>
+      <p className="g-mut g-xs">Uma pessoa, uma conta: a mesma conta pode treinar (aluno) e atender (profissional). Cada área tem seu próprio plano.</p>
       <div className="adm-tools" role="tablist" style={{ marginTop: 12 }}>{[['v360', 'Visão 360°'], ['conta', 'Conta'], ...(u.roles.includes('profissional') ? [['pro', 'Profissional']] : []), ...(u.roles.includes('aluno') ? [['ficha', 'Ficha'], ['treinos', 'Treinos e vínculos']] : [])].map(([k, l]) =>
         <button key={k} role="tab" aria-selected={dtab === k} className={'adm-btn ' + (dtab === k ? '' : 'ghost')} onClick={() => setDt(k)} data-testid={'udt-' + k}>{l}</button>)}</div>
       {dtab === 'v360' && <AdmUser360 key={u.id} id={u.id} onChanged={reload} />}
@@ -174,7 +175,6 @@ function NovoUsuario({ plans, onClose, onDone }) {
         {L('Vincular a um profissional (opcional, exige plano)', <select className="adm-in" value={f.coach_id} onChange={set('coach_id')} data-testid="nu-coach"><option value="">Sem vínculo por enquanto</option>{(pros?.professionals || []).filter(p => p.state === 'ativo').map(p => <option key={p.user_id} value={p.user_id}>{p.display_name || p.name} ({p.available} vaga[s])</option>)}</select>, 'coach_id')}
         {f.coach_id && L('Área do vínculo', <input className="adm-in" value={f.area} onChange={set('area')} placeholder="ex.: Musculação" data-testid="nu-area" />, 'area')}
       </> : <>
-        {L('Capacidade (alunos)', <input className="adm-in" type="number" min="0" max="500" value={f.capacity} onChange={set('capacity')} data-testid="nu-cap" />, 'capacity')}
         {L('Área / especialidade', <input className="adm-in" value={f.area} onChange={set('area')} placeholder="ex.: Musculação" data-testid="nu-area" />, 'area')}
         <label className="g-row" style={{ gap: 8, minHeight: 44 }}><input type="checkbox" checked={f.can_publish} onChange={set('can_publish')} data-testid="nu-pub" /> Pode publicar na comunidade</label>
         <div className="g-row" style={{ gap: 8 }}>
@@ -185,7 +185,7 @@ function NovoUsuario({ plans, onClose, onDone }) {
       </>}
       {msg && <p className="g-warn" role="alert">{msg}</p>}
       <div className="adm-tools"><button className="adm-btn" disabled={busy} data-testid="nu-submit">{busy ? 'Criando…' : 'Criar conta liberada'}</button><button type="button" className="adm-btn ghost" onClick={onClose}>Cancelar</button></div>
-      <p className="g-mut g-xs">Cada conta tem um papel só. Se um profissional também treina, crie outra conta de aluno com outro e-mail.</p>
+      <p className="g-mut g-xs">O limite de alunos do profissional vem do plano dele. Para dar vagas extras, use uma concessão (com motivo e validade).</p>
     </form>
   </Drawer>
 }
@@ -209,7 +209,7 @@ function Solicitacoes() {
         <dt>Criada</dt><dd>{dt(r.created_at)}</dd></dl>
       {(r.history || []).length > 0 && <details style={{ marginTop: 8 }}><summary className="g-mut g-xs">Histórico ({r.history.length})</summary>{r.history.map(h => <p key={h.id} className="g-xs g-mut">{dt(h.created_at)} · {REQ_ST[h.status] || h.status}{h.note ? ' — ' + h.note : ''}</p>)}</details>}
       {r.type === 'vagas' && ['pendente', 'em_analise', 'aguardando_info'].includes(r.status) && <div className="adm-tools" style={{ marginTop: 10 }}>
-        <button className="adm-btn" data-testid="rq-approve" onClick={act(async () => { const a = r.type === 'vagas' ? await askText('Quantidade aprovada', { def: String(r.requested_amount ?? '') }) : ''; if (a == null) return; const why = await askText('Observação da aprovação (opcional)') || ''; await P.decide({ id: r.id, action: 'aprovar', amount: a === '' ? undefined : +a, reason: why }) }, reload)}>Aprovar</button>
+        <button className="adm-btn" data-testid="rq-approve" onClick={act(async () => { const a = r.type === 'vagas' ? await askText('Quantidade aprovada', { def: String(r.requested_amount ?? '') }) : ''; if (a == null) return; const days = r.type === 'vagas' ? await askText('Validade da concessão (dias, de 1 a 365)', { required: true }) : null; if (r.type === 'vagas' && !days) return; const why = await askText('Observação da aprovação (opcional)') || ''; await P.decide({ id: r.id, action: 'aprovar', amount: a === '' ? undefined : +a, days: days ? +days : undefined, reason: why }) }, reload)}>Aprovar</button>
         <button className="adm-btn danger" onClick={act(async () => { const why = await askText('Justificativa da rejeição', { required: true, multiline: true, ok: 'Rejeitar', danger: true }); if (why) await P.decide({ id: r.id, action: 'rejeitar', reason: why }) }, reload)}>Rejeitar</button>
         <button className="adm-btn ghost" onClick={act(async () => { const why = await askText('Qual informação é necessária?'); if (why) await P.decide({ id: r.id, action: 'info', reason: why }) }, reload)}>Pedir informações</button>
         {r.status === 'pendente' && <button className="adm-btn ghost" onClick={act(() => P.decide({ id: r.id, action: 'analisar' }), reload)}>Marcar em análise</button>}

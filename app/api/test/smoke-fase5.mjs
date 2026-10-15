@@ -18,7 +18,7 @@ export async function run({ adm, p1, stu, P1, get, post, check }) {
   check(pm && pm.status === 'ativo' && pm.roles.join() === 'profissional', 'profissional nasce liberado e só com o papel profissional')
   const pros = (await get(adm, '/api/adm/professionals')).d.professionals || []
   const pp = pros.find(x => x.user_id === proId)
-  check(pp && pp.capacity === 3 && pp.can_publish && pp.state === 'ativo', 'capacidade, publicação e estado definidos')
+  check(pp && pp.legacy_capacity === 3 && pp.capacity === pp.limit.effective_limit && pp.can_publish && pp.state === 'ativo', 'capacidade, publicação e estado definidos')
   r = await post(adm, '/api/adm/users/create', { name: 'Aluno Novo', email: ae, type: 'aluno', password: 'temporaria-123', plan_id: 'basico', coach_id: proId, area: 'Musculação' })
   check(r.s === 201 && r.d.link && r.d.link.ok, 'cria aluno com plano e vínculo (validações do vínculo aplicadas)')
   const at = await le(ae, 'temporaria-123'), am = (await get(at, '/api/auth/me')).d.user

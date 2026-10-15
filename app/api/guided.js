@@ -8,7 +8,7 @@ import { pausedFromEvents } from './session-machine.js'
 // Todas as rotas exigem login (requireAuth) e são isoladas por tenant (tenantScope / user_id).
 import { q } from './db/pool.js'
 import { requireAuth, requireRole, tenantScope } from './auth.js'
-// conta profissional não tem treino pessoal (contas separadas); admin e aluno seguem normalmente
+// V4 F5: identidade única — treino pessoal exige o papel aluno (a mesma conta pode ter também o papel profissional)
 export async function requireTrainee(req, res, json) {
   const u = await requireAuth(req, res, json); if (!u) return null
   if (u.roles.includes('admin') && !u.roles.includes('aluno')) { json(res, 403, { error: 'Conta administrativa não tem fluxo de treino nem questionário.', admin_account: true }); return null }

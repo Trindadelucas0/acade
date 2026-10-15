@@ -46,7 +46,7 @@ export function inviteRoutes({ json, readBody }) {
       if (!p || p.state !== 'ativo') return fail(json, res, 'PERMISSION_DENIED', 'Seu perfil profissional precisa estar ativo para convidar alunos')
       // bloqueio antecipado: sem vaga no plano não adianta convidar (a checagem definitiva é no aceite)
       const c = await pool.connect()
-      try { await c.query('begin'); const lim = await checkLimitLocked(c, u.id, 'alunos_ativos', { cap: p.capacity }); await c.query('rollback'); if (lim) return fail(json, res, lim.code, lim.error, lim) }
+      try { await c.query('begin'); const lim = await checkLimitLocked(c, u.id, 'alunos_ativos'); await c.query('rollback'); if (lim) return fail(json, res, lim.code, lim.error, lim) }
       finally { c.release() }
       let studentId = null
       if (b.student_code) {
@@ -120,8 +120,7 @@ export function inviteRoutes({ json, readBody }) {
           if (s && s.max_professionals != null && links >= s.max_professionals) bad(409, { error: `Seu plano de acesso permite no máximo ${s.max_professionals} profissional(is)`, code: 'LIMIT_REACHED', metric: 'profissionais_do_aluno', used: links, limit: s.max_professionals })
         }
         if (!out) {
-          const cap = (await c.query(`select capacity from professional_profiles where user_id=$1`, [i.professional_id])).rows[0].capacity
-          const lim = await checkLimitLocked(c, i.professional_id, 'alunos_ativos', { cap })   // trava + reconta após o bloqueio
+          const lim = await checkLimitLocked(c, i.professional_id, 'alunos_ativos')   // trava + reconta após o bloqueio
           if (lim) bad(lim.code === 'LIMIT_REACHED' ? 409 : 402, { ...lim, error: lim.code === 'LIMIT_REACHED' ? 'O profissional atingiu o limite de alunos do plano dele. Peça para ele liberar uma vaga ou fazer upgrade.' : lim.error })
         }
         if (out) { await c.query('rollback'); return json(res, out[0], out[1]) }

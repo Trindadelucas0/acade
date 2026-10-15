@@ -56,11 +56,10 @@ export function ProEdit({ u, pro, onChanged }) {
     <F l="Apresentação"><textarea className="adm-in" rows={3} value={f.bio} onChange={set('bio')} /></F>
     <F l="Especialidades (separadas por vírgula)"><input className="adm-in" value={f.specialties} onChange={set('specialties')} /></F>
     <div className="g-row" style={{ gap: 8 }}>
-      <F l="Capacidade (alunos)"><input className="adm-in" type="number" min="0" max="500" value={f.capacity} onChange={set('capacity')} data-testid="pe-cap" /></F>
       <F l="Situação"><select className="adm-in" value={f.state} onChange={set('state')} data-testid="pe-state"><option value="ativo">Ativo</option><option value="em_analise">Em análise</option><option value="suspenso">Suspenso</option><option value="encerrado">Desativado</option></select></F></div>
     <label className="g-row" style={{ gap: 8, minHeight: 44 }}><input type="checkbox" checked={f.can_publish} onChange={set('can_publish')} /> Pode publicar na comunidade</label>
     {msg && <p className="g-sm" role="status">{msg}</p>}
-    <Save busy={busy} onClick={() => run(async () => { await C.proProfile({ user_id: u.id, display_name: f.display_name, bio: f.bio, specialties: f.specialties }); await C.updPro({ user_id: u.id, capacity: +f.capacity, state: f.state, can_publish: f.can_publish }); onChanged && onChanged() })} data-testid="pe-save" />
+    <Save busy={busy} onClick={() => run(async () => { await C.proProfile({ user_id: u.id, display_name: f.display_name, bio: f.bio, specialties: f.specialties }); await C.updPro({ user_id: u.id, state: f.state, can_publish: f.can_publish }); onChanged && onChanged() })} data-testid="pe-save" />
     <h3 style={{ marginTop: 16 }}>Habilitações</h3>
     {qerr ? <p className="g-warn">{qerr}</p> : (q?.qualifications || []).map(x => <QualRow key={x.id} x={x} reload={reload} confirmDel={confirmDel} />)}
     {q && !q.qualifications.length && <p className="g-mut g-xs">Nenhuma habilitação.</p>}

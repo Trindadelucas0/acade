@@ -4,7 +4,7 @@
 import { countsInMetrics } from './metrics.js'
 import { q, pool } from './db/pool.js'
 import { requireAuth, audit } from './auth.js'
-import { resolve as resolveEnt, checkLimitLocked, refreshUsage } from './entitlements.js'
+import { resolve as resolveEnt, checkLimitLocked, refreshUsage, capacitySummary } from './entitlements.js'
 import bcrypt from 'bcryptjs'
 import crypto from 'node:crypto'
 const genPassword = () => { const A = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'; let p; do { p = Array.from({ length: 14 }, () => A[crypto.randomInt(A.length)]).join('') } while (!/\d/.test(p) || !/[a-z]/.test(p) || !/[A-Z]/.test(p)); return p }
@@ -49,7 +49,7 @@ async function sweepOverdue(tid) {
   if (a.rowCount || b.rowCount) await notifyAdmins(tid, 'prazo', 'Pendências com prazo vencido', `${a.rowCount} ocorrência(s) e ${b.rowCount} mensagem(ns) voltaram para a fila administrativa.`, '/admin/painel?tab=filas')
 }
 const proView = r => ({ id: r.user_id, name: r.display_name || r.name, bio: r.bio, photo_url: r.photo_url, specialties: r.specialties, service_modes: r.service_modes,
-  state: r.state, accepting: r.state === 'ativo' && (r.capacity - (+r.active_links || 0)) > 0, verified: r.verified || [], followers: +r.followers || 0, following: !!r.following })
+  state: r.state, accepting: r.state === 'ativo', verified: r.verified || [], followers: +r.followers || 0, following: !!r.following })
 const PRO_SQL = `select pp.*, u.name, (select count(*) from coach_students cs where cs.coach_id=pp.user_id and cs.status='ativo') active_links,
   coalesce((select json_agg(json_build_object('kind',pq.kind,'number',pq.number,'area',pq.area)) from professional_qualifications pq where pq.user_id=pp.user_id and pq.status='verificada'),'[]') verified,
   (select count(*) from follows f where f.professional_id=pp.user_id) followers`
@@ -66,7 +66,7 @@ export async function linkFailures(tid, studentId, coachId, area) {
   if (!s || s.status !== 'ativo') fail.push('A conta do aluno não está ativa')
   if (!p || p.state !== 'ativo') fail.push('O profissional não está ativo')
   if (p && !p.verified) fail.push('O profissional não tem habilitação verificada' + (area ? ' para esta área' : ''))
-  if (p && p.active_links >= p.capacity) fail.push('O profissional não tem vaga disponível')
+  if (p) { const lim = await capacitySummary(coachId); if (lim.effective_limit != null && lim.used >= lim.effective_limit) fail.push('O profissional não tem vaga disponível') }
   if (s && s.max_professionals == null) fail.push('O aluno não tem plano de acesso definido')
   else if (s && links >= s.max_professionals) fail.push(`O plano do aluno permite no máximo ${s.max_professionals} profissional(is)`)
   if (await isLinked(coachId, studentId)) fail.push('Já existe um vínculo ativo entre eles')
@@ -247,9 +247,9 @@ export function proRoutes({ json, readBody }) {
            where (t.responsible_id=$1 or t.assigned_to=$1) and t.status<>'encerrada' order by t.updated_at desc`, [u.id]),
         q(`select cp.*, a.name author_name, p.title plan_title from change_proposals cp join users a on a.id=cp.author_id left join pro_plans p on p.id=cp.plan_id
            where cp.status='pendente' and (cp.decider_id=$1 or cp.author_id=$1) order by cp.created_at`, [u.id])])
-      const capacity = prof ? prof.capacity : 0, active = students.length
-      json(res, 200, { profile: prof ? { ...proView(prof), capacity, can_publish: prof.can_publish } : null, qualifications: quals, students,
-        occurrences: occ.rows, threads: th.rows, proposals: pr.rows, capacity: { max: capacity, active, available: Math.max(0, capacity - active) } })
+      const lim = await capacitySummary(u.id)
+      json(res, 200, { profile: prof ? { ...proView(prof), capacity: lim.effective_limit, can_publish: prof.can_publish } : null, qualifications: quals, students,
+        occurrences: occ.rows, threads: th.rows, proposals: pr.rows, capacity: { max: lim.effective_limit, active: lim.used, available: lim.available }, limit: lim })
     },
     'POST /api/pro/profile': async (req, res) => {
       const u = await guard('profissional')(req, res, json); if (!u) return
@@ -442,14 +442,8 @@ export function proRoutes({ json, readBody }) {
       if (!['aluno', 'profissional', 'admin'].includes(b.role) || !isUuid(b.id)) return json(res, 400, { error: 'Dados inválidos' })
       if (b.id === u.id && b.role === 'admin' && !b.on) return json(res, 400, { error: 'Você não pode remover o próprio acesso de admin' })
       if (b.on && ['aluno', 'profissional'].includes(b.role)) {
-        // contas separadas: a conta profissional não tem dados de treino; a conta de treino do profissional usa outro e-mail
-        const roles = (await q('select role_id from user_roles where user_id=$1 and tenant_id=$2', [b.id, u.tenant_id])).rows.map(r => r.role_id)
-        if (b.role === 'aluno' && roles.includes('profissional')) return json(res, 409, { error: 'Conta profissional não recebe papel de aluno. Para treinar, o profissional cria uma conta de aluno separada com outro e-mail.' })
-        if (b.role === 'profissional') {
-          const data = +(await q(`select (select count(*) from sessions where user_id=$1) + (select count(*) from coach_students where student_id=$1 and status='ativo') n`, [b.id])).rows[0].n
-          if (data > 0) return json(res, 409, { error: 'Esta conta já tem dados de treino ou vínculos como aluno. Crie uma conta profissional separada (outro e-mail) e, se quiser, registre que pertencem à mesma pessoa.' })
-          await q(`delete from user_roles where user_id=$1 and tenant_id=$2 and role_id='aluno'`, [b.id, u.tenant_id])
-        }
+        // V4 F5: identidade única — a mesma conta pode ser aluno e profissional (assinaturas separadas por área).
+        // Nada é removido: dar o papel profissional não tira o papel de aluno nem os dados de treino.
       }
       if (b.on) {
         await q('insert into user_roles values($1,$2,$3) on conflict do nothing', [b.id, u.tenant_id, b.role])
@@ -566,7 +560,9 @@ export function proRoutes({ json, readBody }) {
         (select count(*) from occurrences o where (o.responsible_id=pp.user_id or o.assigned_to=pp.user_id) and o.status<>'encerrada')::int open_occ,
         (select count(*) from threads t where (t.responsible_id=pp.user_id or t.assigned_to=pp.user_id) and t.status='aguardando')::int open_threads
         from professional_profiles pp join users u on u.id=pp.user_id where pp.tenant_id=$1 order by u.name`, [u.tenant_id])
-      json(res, 200, { professionals: r.rows.map(p => ({ ...p, available: Math.max(0, p.capacity - p.active_links) })) })
+      const out = []
+      for (const p of r.rows) { const lim = await capacitySummary(p.user_id); out.push({ ...p, legacy_capacity: p.capacity, capacity: lim.effective_limit, available: lim.available, limit: lim }) }
+      json(res, 200, { professionals: out })
     },
     'POST /api/adm/professionals': async (req, res) => {
       const u = await guard('admin')(req, res, json); if (!u) return
@@ -574,7 +570,8 @@ export function proRoutes({ json, readBody }) {
       const p = isUuid(b.user_id) && (await q('select * from professional_profiles where user_id=$1 and tenant_id=$2', [b.user_id, u.tenant_id])).rows[0]
       if (!p) return json(res, 404, { error: 'Profissional não encontrado' })
       const state = PRO_STATES.includes(b.state) ? b.state : p.state
-      const cap = b.capacity == null ? p.capacity : Math.max(0, Math.min(500, +b.capacity | 0))
+      if (b.capacity != null && b.capacity !== '' && +b.capacity !== p.capacity) return json(res, 409, { code: 'CAPACITY_DEPRECATED', error: 'A capacidade manual foi substituída por concessões de vagas (com motivo e validade).' })
+      const cap = p.capacity
       const pub = b.can_publish == null ? p.can_publish : !!b.can_publish
       await q('update professional_profiles set state=$2, capacity=$3, can_publish=$4, updated_at=now() where user_id=$1', [p.user_id, state, cap, pub])
       await audit(u.tenant_id, u.id, 'profissional.atualizado', 'user', p.user_id, { state, capacity: cap, can_publish: pub, reason: txt(b.reason, 300) || null })

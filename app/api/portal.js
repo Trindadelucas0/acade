@@ -5,6 +5,7 @@ import { countsInMetrics } from './metrics.js'
 import { q } from './db/pool.js'
 import { requireAuth, audit } from './auth.js'
 import { notify, notifyAdmins, isLinked } from './pro.js'
+import { capacitySummary } from './entitlements.js'
 
 const isUuid = s => /^[0-9a-f-]{36}$/i.test(String(s || ''))
 const txt = (s, n = 2000) => String(s ?? '').trim().slice(0, n)
@@ -65,8 +66,9 @@ export function portalRoutes({ json, readBody }) {
         q(`select s.id, s.started_at, s.workout_name, s.sets_count, x.name student, x.id student_id from sessions s join coach_students cs on cs.student_id=s.user_id and cs.coach_id=$1 and cs.status='ativo'
             join users x on x.id=s.user_id where s.status='done' order by s.started_at desc limit 8`, [u.id]),
         q(`select count(*)::int n from pro_requests where professional_id=$1 and status = any($2)`, [u.id, OPEN])])
-      json(res, 200, { name: st?.display_name || u.name, state: st?.state || 'em_analise', can_publish: !!st?.can_publish,
-        kpis: { students: stu.rows[0].n, capacity: st?.capacity || 0, available: Math.max(0, (st?.capacity || 0) - stu.rows[0].n), sem_prescricao: noplan.rows[0].n,
+      const lim = await capacitySummary(u.id)
+      json(res, 200, { name: st?.display_name || u.name, state: st?.state || 'em_analise', can_publish: !!st?.can_publish, limit: lim,
+        kpis: { students: stu.rows[0].n, capacity: lim.effective_limit, available: lim.available, sem_prescricao: noplan.rows[0].n,
           em_andamento: live.rows[0].n, mensagens: th.rows[0].n, ocorrencias: occ.rows[0].n, propostas: pr.rows[0].n, solicitacoes: rq.rows[0].n },
         activity: act.rows })
     },
@@ -216,7 +218,8 @@ export function portalRoutes({ json, readBody }) {
       const r = await q(`select r.*, (select json_agg(h order by h.id) from pro_request_history h where h.request_id=r.id) history,
           case when r.type='vinculo' and r.status='aprovada' then (select name from users where id=r.student_id) else null end student_name
         from pro_requests r where r.professional_id=$1 order by r.created_at desc limit 100`, [u.id])
-      json(res, 200, { capacity: st?.capacity || 0, active: st?.active || 0, available: Math.max(0, (st?.capacity || 0) - (st?.active || 0)), state: st?.state || 'em_analise',
+      const lim = await capacitySummary(u.id)
+      json(res, 200, { capacity: lim.effective_limit, active: lim.used, available: lim.available, limit: lim, state: st?.state || 'em_analise',
         specialties: st?.verified || [], requests: r.rows })
     },
     'POST /api/pro/requests': async (req, res) => {
@@ -229,7 +232,7 @@ export function portalRoutes({ json, readBody }) {
         const amount = +b.amount
         if (!Number.isInteger(amount) || amount < 1 || amount > 100) return json(res, 400, { error: 'Quantidade adicional entre 1 e 100' })
         row = await q(`insert into pro_requests(tenant_id,professional_id,type,current_capacity,requested_amount,justification,note) values($1,$2,'vagas',$3,$4,$5,$6) on conflict do nothing returning id`,
-          [u.tenant_id, u.id, st.capacity, amount, just, txt(b.note, 500) || null])
+          [u.tenant_id, u.id, (await capacitySummary(u.id)).effective_limit ?? 0, amount, just, txt(b.note, 500) || null])
         if (!row.rowCount) return json(res, 409, { error: 'Você já tem uma solicitação de vagas em andamento' })
       } else if (b.type === 'vinculo') return json(res, 410, { code: 'FLOW_REMOVED', error: 'O pedido de vínculo pela administração foi substituído pelos convites: use AVADESK PRO › Convites (o aluno aceita).' })  // V3 F6: fluxo removido
       else return json(res, 400, { error: 'Tipo de solicitação inválido' })
@@ -299,19 +302,28 @@ export function portalRoutes({ json, readBody }) {
       if (r.type === 'vagas') {
         const amount = b.amount == null || b.amount === '' ? r.requested_amount : +b.amount
         if (!Number.isInteger(amount) || amount < 1 || amount > 100) return json(res, 400, { error: 'Quantidade aprovada entre 1 e 100' })
-        const pr = (await q(`update professional_profiles set capacity=capacity+$2, updated_at=now() where user_id=$1 returning capacity`, [r.professional_id, amount])).rows[0]
-        await q(`update pro_requests set status='aprovada',approved_amount=$2,previous_limit=$3,new_limit=$4,decision_reason=$5,decided_by=$6,decided_at=now(),updated_at=now() where id=$1`,
-          [r.id, amount, pr.capacity - amount, pr.capacity, reason || null, u.id])
-        await hist('aprovada', `+${amount} vaga(s): ${pr.capacity - amount} → ${pr.capacity}${amount !== r.requested_amount ? ` (pedido: ${r.requested_amount})` : ''}`)
-        await audit(u.tenant_id, u.id, 'capacidade.alterada', 'professional', r.professional_id, { request: r.id, before: pr.capacity - amount, after: pr.capacity, requested: r.requested_amount, approved: amount })
-        await tell('Mais vagas aprovadas', `Seu limite agora é ${pr.capacity}`)
-        return json(res, 200, { ok: true, status: 'aprovada', previous_limit: pr.capacity - amount, new_limit: pr.capacity })
+        // V4 F5: aprovar = criar concessão (entitlement_grants). Validade é obrigatória: política "sem prazo" ainda não foi definida.
+        const days = +b.days
+        if (!Number.isInteger(days) || days < 1 || days > 365) return json(res, 400, { error: 'Informe a validade da concessão (1 a 365 dias)', code: 'GRANT_DAYS_REQUIRED' })
+        const before = await capacitySummary(r.professional_id)
+        const g = (await q(`insert into entitlement_grants(tenant_id,user_id,audience,kind,key,value,reason,expires_at,granted_by) values($1,$2,'profissional','limit','alunos_ativos',$3,$4,now()+($5||' days')::interval,$6) returning id, expires_at`,
+          [u.tenant_id, r.professional_id, JSON.stringify(amount), reason || `Pedido de vagas #${r.id}`, String(days), u.id])).rows[0]
+        const after = await capacitySummary(r.professional_id)
+        await q(`update pro_requests set status='aprovada',approved_amount=$2,previous_limit=$3,new_limit=$4,decision_reason=$5,decided_by=$6,decided_at=now(),updated_at=now(),grant_id=$7 where id=$1`,
+          [r.id, amount, before.effective_limit, after.effective_limit, reason || null, u.id, g.id])
+        await hist('aprovada', `+${amount} vaga(s) por ${days} dia(s): ${before.effective_limit} → ${after.effective_limit}${amount !== r.requested_amount ? ` (pedido: ${r.requested_amount})` : ''}`)
+        await audit(u.tenant_id, u.id, 'entitlement.granted', 'grant', g.id, { request: r.id, before: before.effective_limit, after: after.effective_limit, requested: r.requested_amount, approved: amount, days })
+        await tell('Mais vagas aprovadas', `Seu limite agora é ${after.effective_limit} alunos (válido até ${new Date(g.expires_at).toLocaleDateString('pt-BR')})`)
+        return json(res, 200, { ok: true, status: 'aprovada', previous_limit: before.effective_limit, new_limit: after.effective_limit, grant_id: g.id, limit: after })
       }
       return json(res, 400, { error: 'Tipo de solicitação inválido' })
     },
     // capacidade definida diretamente pelo admin (com histórico)
     'POST /api/adm/capacity': async (req, res) => {
       const u = await admin(req, res, json); if (!u) return
+      // V4 F5: capacidade não autoriza mais nada. Em vez de gravar algo sem efeito, recusa e indica o caminho certo.
+      return json(res, 409, { code: 'CAPACITY_DEPRECATED', error: 'A capacidade manual foi substituída. Para dar mais vagas, crie uma concessão de alunos ativos (com motivo e validade).' })
+      // eslint-disable-next-line no-unreachable
       const b = await readBody(req), cap = +b.capacity, reason = txt(b.reason, 500)
       if (!isUuid(b.user_id) || !Number.isInteger(cap) || cap < 0 || cap > 500) return json(res, 400, { error: 'Capacidade inválida' })
       if (reason.length < 3) return json(res, 400, { error: 'Informe o motivo' })

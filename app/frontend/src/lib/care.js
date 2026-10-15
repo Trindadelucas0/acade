@@ -77,7 +77,7 @@ export const P = {
   myCode: () => api('/api/me/code'),
   // admin
   kpis: () => api('/api/adm/kpis'), requests: (type, group) => api('/api/adm/requests?' + new URLSearchParams({ ...(type ? { type } : {}), group: group || 'pendentes' })),
-  decide: b => post('/api/adm/requests/decide', b), setCapacity: b => post('/api/adm/capacity', b),
+  decide: b => post('/api/adm/requests/decide', b), setCapacity: b => post('/api/adm/capacity', b), grantSeats: b => post('/api/adm/grants', { ...b, audience: 'profissional', kind: 'limit', key: 'alunos_ativos' }),
   admTemplates: () => api('/api/adm/templates'), saveTemplate: b => post('/api/adm/templates', b), templateStatus: (id, status) => post('/api/adm/templates/status', { id, status })
 }
 export const GOALS = { hypertrophy: 'Hipertrofia', weight_loss: 'Emagrecimento', strength: 'Força', conditioning: 'Condicionamento', mobility: 'Mobilidade', home: 'Treino em casa', rehab: 'Reabilitação' }

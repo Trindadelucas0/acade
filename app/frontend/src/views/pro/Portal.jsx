@@ -28,9 +28,9 @@ function Painel({ go }) {
     <div className="av-hero" style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
       <div className="av-ring"><svg width="132" height="132"><circle cx="66" cy="66" r="56" stroke="#ffffff14" strokeWidth="12" fill="none" />
         <circle cx="66" cy="66" r="56" stroke="var(--ag-acc)" strokeWidth="12" fill="none" strokeLinecap="round" strokeDasharray={`${2 * Math.PI * 56 * used / 100} 999`} /></svg>
-        <b>{k.students}/{k.capacity}<small>alunos</small></b></div>
-      <div><span className="g-eyebrow">Minha capacidade</span><p className="g-sm" style={{ margin: '4px 0 10px' }}><b>{k.available}</b> vaga(s) livre(s)</p>
-        <button className="g-btn g-sm" style={{ width: 'auto', padding: '0 16px', minHeight: 44 }} onClick={() => go('capacidade')}>Ver capacidade</button></div>
+        <b>{k.students}/{k.capacity ?? '∞'}<small>alunos</small></b></div>
+      <div><span className="g-eyebrow">Meus alunos</span><p className="g-sm" style={{ margin: '4px 0 10px' }}>{k.available == null ? 'Sem limite no seu plano' : <><b>{k.available}</b> vaga(s) livre(s)</>}</p>
+        <button className="g-btn g-sm" style={{ width: 'auto', padding: '0 16px', minHeight: 44 }} onClick={() => go('capacidade')}>Ver limite</button></div>
     </div>
     <div className="av-quick">
       <button onClick={() => go('alunos', { filter: 'sem_treino' })} data-testid="qa-criar"><Icon name="plus" />Criar treino</button>
@@ -47,7 +47,7 @@ function Painel({ go }) {
       <K id="occ" n={k.ocorrencias} l="Ocorrências pendentes" alert to={() => go('alunos', { filter: 'alertas' })} />
       <K id="prop" n={k.propostas} l="Propostas pendentes" to={() => go('atendimentos')} />
       <K id="req" n={k.solicitacoes} l="Minhas solicitações abertas" to={() => go('capacidade')} />
-      <K id="vagas" n={k.available} l="Vagas livres" to={() => go('capacidade')} />
+      <K id="vagas" n={k.available ?? '∞'} l="Vagas livres" to={() => go('capacidade')} />
     </div>
     <h2>Atividade recente dos alunos</h2>
     <div className="g-card g-list">{d.activity.length ? d.activity.map(a => <button key={a.id} className="g-li" onClick={() => go('alunos', { id: a.student_id })}>
@@ -72,7 +72,7 @@ function Alunos({ go, filter }) {
         <span className="g-sp" />
         {!s.plan && <button className="g-btn g-sm" style={{ width: 'auto', padding: '0 14px', minHeight: 44 }} onClick={() => go('novo', { student: s.id })} data-testid="cta-criar">Criar treino</button>}
         {s.alerts > 0 && <button className="g-btn g-ghost g-sm" style={{ width: 'auto', padding: '0 14px', minHeight: 44 }} onClick={() => go('alunos', { id: s.id, sub: 'ocorrencias' })}>Ver ocorrência</button>}
-      </div></div>) : <Empty icon="users">{f === 'todos' ? 'Nenhum aluno vinculado. Peça um vínculo em Minha capacidade.' : 'Nada neste filtro.'}</Empty>}
+      </div></div>) : <Empty icon="users">{f === 'todos' ? 'Nenhum aluno vinculado. Convide um aluno em Convites.' : 'Nada neste filtro.'}</Empty>}
   </>
 }
 
@@ -150,14 +150,16 @@ function Capacidade() {
   const [form, setForm] = useState(null), [msg, setMsg] = useState('')
   if (err) return <Err msg={err} retry={reload} />
   if (!d) return <Load />
-  const pct = d.capacity ? Math.min(100, Math.round(d.active / d.capacity * 100)) : 0, blocked = ['suspenso', 'encerrado'].includes(d.state)
+  const L = d.limit || {}, pct = d.capacity ? Math.min(100, Math.round(d.active / d.capacity * 100)) : 0, blocked = ['suspenso', 'encerrado'].includes(d.state)
   return <>
     <div className="g-card" data-testid="capacity">
-      <div className="g-row"><b style={{ fontSize: 30 }}>{d.active}/{d.capacity}</b><span className="g-sp" /><span className="g-pill g-ok">{d.available} vaga(s) livre(s)</span></div>
+      <div className="g-row"><b style={{ fontSize: 30 }}>{d.active}/{d.capacity ?? '∞'}</b><span className="g-sp" />{L.over_limit ? <span className="g-pill g-bad2" data-testid="over-limit">acima do limite</span> : <span className="g-pill g-ok">{d.available ?? '∞'} vaga(s) livre(s)</span>}</div>
       <div className="av-bar" style={{ marginTop: 10 }}><i style={{ width: pct + '%' }} /></div>
-      <p className="g-xs g-mut" style={{ marginTop: 8 }}>Alunos ativos: {d.active} · Limite autorizado pela administração: {d.capacity}. Solicitações pendentes não liberam vagas.</p>
+      <p className="g-xs g-mut" style={{ marginTop: 8 }} data-testid="limit-detail">Plano {L.plan_name || ''}: {L.plan_limit ?? 'sem limite'} aluno(s){L.granted_extra ? ` + ${L.granted_extra} concedida(s) pela administração` : ''}. Pedidos em análise não liberam vagas.</p>
+      {L.over_limit && <p className="g-note g-xs">Você tem mais alunos do que o limite atual. Ninguém foi desvinculado; só novos alunos ficam bloqueados até regularizar.</p>}
       <div className="g-actions" style={{ marginTop: 10 }}>
-        <button className="g-btn g-sm" disabled={blocked} onClick={() => setForm('vagas')} data-testid="req-vagas">Solicitar mais vagas</button>
+        <button className="g-btn g-sm" disabled={blocked} onClick={() => setForm('vagas')} data-testid="req-vagas">Solicitar exceção</button>
+        <button className="g-btn g-ghost g-sm" onClick={() => { location.hash = '#/planos' }} data-testid="see-plans">Conhecer outros planos</button>
         <button className="g-btn g-ghost g-sm" disabled={blocked} onClick={() => { location.hash = '#/pro?tab=convites' }} data-testid="req-convidar">Convidar aluno</button></div>
       {blocked && <p className="g-warn g-xs">Perfil {d.state}: não é possível fazer solicitações.</p>}
     </div>
@@ -182,9 +184,9 @@ function RequestForm({ type, d, onClose, onDone }) {
     setErr(''); setBusy(true)
     try { const r = await P.request({ type, ...f, amount: +f.amount }); onDone(`Solicitação #${r.id} enviada. A administração vai analisar.`) } catch (e) { setErr(e.message) } finally { setBusy(false) }
   }
-  return <Sheet title="Solicitar mais vagas" onClose={onClose}>
+  return <Sheet title="Solicitar vagas extras" onClose={onClose}>
     {type === 'vagas' ? <>
-      <p className="g-sm">Capacidade atual: <b>{d.capacity}</b> · Vagas livres: <b>{d.available}</b></p>
+      <p className="g-sm">Limite atual: <b>{d.capacity ?? '∞'}</b> · Vagas livres: <b>{d.available ?? '∞'}</b></p>
       <Field label="Quantidade adicional"><input className="g-in" type="number" min="1" max="100" value={f.amount} onChange={set('amount')} data-testid="rq-amount" /></Field>
     </> : null}
     <Field label="Justificativa (obrigatória)"><textarea className="g-in" value={f.justification} onChange={set('justification')} data-testid="rq-just" /></Field>
@@ -199,10 +201,10 @@ export default function ProPortal() {
   const tab = sp.get('tab') || 'painel'
   const go = (t, extra) => t === 'novo' ? nav('/pro/treino?' + new URLSearchParams(extra || {})) : setSp({ tab: t, ...(extra || {}) })
   const [dash, , reloadDash] = useLoad(() => tab === 'atendimentos' || tab === 'perfil' ? C.dash() : Promise.resolve(null), [tab])
-  const TITLES = { painel: 'AVADESK PRO', alunos: 'Meus alunos', treinos: 'Meus treinos', atendimentos: 'Atendimentos', capacidade: 'Minha capacidade', perfil: 'Perfil profissional', verificacao: 'Verificação profissional', convites: 'Convidar alunos' }
+  const TITLES = { painel: 'AVADESK PRO', alunos: 'Meus alunos', treinos: 'Meus treinos', atendimentos: 'Atendimentos', capacidade: 'Limite de alunos', perfil: 'Perfil profissional', verificacao: 'Verificação profissional', convites: 'Convidar alunos' }
   return <div className="ag" data-testid="pro">
     <span className="g-eyebrow">AVADESK PRO</span><h1>{TITLES[tab] || 'AVADESK PRO'}</h1>
-    {['painel', 'treinos', 'convites', 'capacidade', 'perfil', 'verificacao'].includes(tab) && <div className="g-scrollx" style={{ marginTop: 8, marginBottom: 6 }}>{[['painel', 'Painel'], ['convites', 'Convites'], ['treinos', 'Meus treinos'], ['capacidade', 'Capacidade'], ['verificacao', 'Verificação'], ['perfil', 'Perfil profissional']].map(([k, l]) =>
+    {['painel', 'treinos', 'convites', 'capacidade', 'perfil', 'verificacao'].includes(tab) && <div className="g-scrollx" style={{ marginTop: 8, marginBottom: 6 }}>{[['painel', 'Painel'], ['convites', 'Convites'], ['treinos', 'Meus treinos'], ['capacidade', 'Limite de alunos'], ['verificacao', 'Verificação'], ['perfil', 'Perfil profissional']].map(([k, l]) =>
       <button key={k} className={'g-chipbtn' + (tab === k ? ' g-on' : '')} onClick={() => go(k)} data-testid={'pt-' + k}>{l}</button>)}<button className="g-chipbtn" onClick={() => nav('/pro/programas')} data-testid="pt-programas">Programas públicos</button></div>}
     <div style={{ marginTop: 8 }}>
       {tab === 'painel' && <Painel go={go} />}

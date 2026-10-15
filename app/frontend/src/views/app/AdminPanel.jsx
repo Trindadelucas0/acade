@@ -62,7 +62,7 @@ export function Profissionais() {
   if (!d) return <Load />
   return <div className="g-card g-list">{d.professionals.length ? d.professionals.map(p => <div key={p.user_id} className="g-li" style={{ display: 'block' }} data-testid="adm-pro">
     <div className="g-row"><b>{p.display_name || p.name}</b><span className="g-sp" /><span className={'g-pill ' + (p.state === 'ativo' ? 'g-ok' : p.state === 'suspenso' ? 'g-bad2' : 'g-warn2')}>{p.state.replace('_', ' ')}</span></div>
-    <p className="g-mut g-xs">{(p.specialties || []).join(', ') || 'sem especialidades'} · capacidade {p.capacity} · ativos {p.active_links} · vagas {p.available} · publicar: {p.can_publish ? 'sim' : 'não'} · pendências: {p.open_occ} ocorr., {p.open_threads} msg.</p>
+    <p className="g-mut g-xs">{(p.specialties || []).join(', ') || 'sem especialidades'} · limite {p.capacity ?? 'sem limite'}{p.limit?.granted_extra ? ` (plano ${p.limit.plan_limit} + ${p.limit.granted_extra} concedidas)` : ''} · ativos {p.active_links} · vagas {p.available ?? '—'}{p.limit?.over_limit ? ' · acima do limite' : ''} · publicar: {p.can_publish ? 'sim' : 'não'} · pendências: {p.open_occ} ocorr., {p.open_threads} msg.</p>
     {p.qualifications.map(q => <div key={q.id} className="g-row g-sm" style={{ marginTop: 6 }}><span>{q.kind} {q.number} <span className="g-mut">{q.area}</span></span><span className="g-sp" />
       <span className={'g-pill ' + (q.status === 'verificada' ? 'g-ok' : q.status === 'rejeitada' ? 'g-bad2' : 'g-warn2')}>{q.status}</span>
       {q.status !== 'verificada' && <button className="g-link" onClick={run(() => C.verify(q.id, 'verificada', ''), reload)} data-testid="verify">Verificar</button>}
@@ -70,7 +70,7 @@ export function Profissionais() {
     <div className="g-actions">
       <select className="g-in" style={{ flex: 1 }} value={p.state} aria-label="Situação" onChange={run(async e => { const reason = await askIt('Motivo da mudança de situação') ?? ''; const r = await C.updPro({ user_id: p.user_id, state: e.target.value, reason }); if (r?.pending) notify(`Suspenso. Pendências que continuam com ele (nada foi transferido): ${r.pending.links} vínculo(s), ${r.pending.occurrences} ocorrência(s), ${r.pending.threads} mensagem(ns). Redistribua pela aba Filas.`) }, reload)}>
         {['em_analise', 'ativo', 'suspenso', 'encerrado'].map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}</select>
-      <button className="g-btn g-ghost g-sm" onClick={run(async () => { const c = await askIt('Capacidade máxima de alunos', p.capacity); return c != null && C.updPro({ user_id: p.user_id, capacity: +c }) }, reload)}>Capacidade</button>
+      <button className="g-btn g-ghost g-sm" data-testid="grant-seats" onClick={run(async () => { const n = await askIt('Quantas vagas extras?', 1); if (n == null) return; const days = await askIt('Validade (dias, de 1 a 365)', ''); if (!days) return; const why = await askIt('Motivo da concessão', ''); if (!why) return; return C.grantSeats({ user_id: p.user_id, value: +n, days: +days, reason: why }) }, reload)}>Conceder vagas</button>
       <button className="g-btn g-ghost g-sm" onClick={run(() => C.updPro({ user_id: p.user_id, can_publish: !p.can_publish }), reload)} data-testid="toggle-publish">{p.can_publish ? 'Revogar publicação' : 'Autorizar publicação'}</button>
     </div></div>) : <Empty>Nenhum profissional. Torne um usuário profissional na aba Alunos.</Empty>}</div>
 }

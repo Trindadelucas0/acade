@@ -44,7 +44,7 @@ export async function main() {
       const qid = (await post(t, '/api/pro/qualifications', { kind: 'CREF', number: '000' + Math.floor(Math.random() * 1e5), area: 'Musculação' })).d.id
       check((await post(adm, '/api/adm/qualifications/verify', { id: qid, status: 'verificada' })).s === 200, 'admin verifica habilitação')
     }
-    await post(adm, '/api/adm/professionals', { user_id: P.user_id, state: 'ativo', capacity: 50, can_publish: true })
+    await post(adm, '/api/adm/professionals', { user_id: P.user_id, state: 'ativo', can_publish: true })
   }
   let r = await post(adm, '/api/adm/links', { student_id: sid, coach_id: P1.user_id, confirm: true })
   check(r.s === 409 && /plano/.test(r.d.error), 'sem plano de acesso: vínculo recusado')
