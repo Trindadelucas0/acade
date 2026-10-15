@@ -139,7 +139,7 @@ function Usuarios() {
   </>
 }
 
-// Admin cria conta já liberada. Contas separadas: cada conta é aluno OU profissional.
+// Admin cria conta já liberada (aluno ou profissional). Depois, a mesma conta pode ganhar o outro papel.
 function NovoUsuario({ plans, onClose, onDone }) {
   const [f, setF] = useState({ type: 'aluno', name: '', email: '', password: '', plan_id: '', coach_id: '', area: '', capacity: 10, can_publish: false, q_kind: 'CREF', q_number: '', q_verified: false })
   const [errs, setErrs] = useState({}), [msg, setMsg] = useState(''), [busy, setBusy] = useState(false), [res, setRes] = useState(null)
