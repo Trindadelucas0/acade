@@ -8,7 +8,11 @@ import MuscleStatus from './MuscleStatus.jsx'
 import { PendingCard, isPending } from '../app/Locked.jsx'
 import { AvisosCard } from '../app/Avisos.jsx'
 import { RankingCard } from '../app/Ranking.jsx'
+import { C } from '../../lib/care.js'
+import { Li } from '../app/Treinos.jsx'
+import { ResumeBar } from '../v3/StartHub.jsx'
 import './guided.css'
+const NO_ROUTINES = []
 
 const DN = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D']
 export function WeekStrip({ sessions }) {
@@ -29,7 +33,7 @@ export default function Today() {
   useEffect(() => {
     flushQueue().then(setPend).catch(() => {})
     G.state().then(s => {
-      if (!s.profile) return nav('/onboarding', { replace: true })
+      if (!s.profile && !localStorage.getItem('ag_onb_skip')) return nav('/onboarding', { replace: true })
       setSt(s)
       if (s.active) G.today().then(setToday).catch(() => {})
     }).catch(e => setErr(e.status === 401 ? 'Entre com sua conta para usar os programas guiados.' : 'Sem conexão. Você ainda pode continuar um treino salvo no aparelho.'))
@@ -52,13 +56,7 @@ export default function Today() {
     <AvisosCard />
     {pend > 0 && <p className="g-note" style={{ margin: '8px 0' }}>{pend} treino(s) aguardando conexão para sincronizar.</p>}
 
-    {!st.active ? <div className="g-hero" style={{ marginTop: 14 }}>
-      <div className="g-in" style={{ maxWidth: '100%' }}>
-        <span className="g-eyebrow">Comece por aqui</span>
-        <h2 style={{ marginTop: 6 }}>Escolha seu objetivo e o AVADESK encontra um programa</h2>
-        <button className="g-btn" style={{ marginTop: 12 }} onClick={() => nav('/recomendados')}>Ver programas para mim</button>
-      </div>
-    </div> : <>
+    {!st.active ? <><ResumeBar /><StartHere profile={!!st.profile} /></> : <>
       <div className="g-hero" style={{ marginTop: 14 }} data-testid="today-card">
         {cover && <img src={cover.img} alt="" />}
         <div className="g-in">
@@ -101,4 +99,30 @@ export default function Today() {
     <div style={{ marginTop: 14 }}><MuscleStatus compact /></div>
     {st.active && <p className="g-dim g-xs g-center" style={{ marginTop: 14 }}>Semana {st.active.week_index} de {st.active.weeks} · {minutesLabel(st.active)} por treino</p>}
   </div>
+}
+
+// V3 · F6 — Início do aluno gratuito sem programa ativo: ficha do profissional (se houver) ou caminhos para começar
+function StartHere({ profile }) {
+  const nav = useNavigate(), [plans, setPlans] = useState(null), routines = useStore(s => s.S?.routines || NO_ROUTINES)
+  useEffect(() => { C.care().then(r => setPlans(r.plans || [])).catch(() => setPlans([])) }, [])
+  const p = plans?.[0], multi = p?.days?.length > 1
+  return <section data-testid="start-here" style={{ marginTop: 14 }}>
+    {p ? <div className="g-hero" data-testid="start-pro-card"><div className="g-in" style={{ maxWidth: '100%' }}>
+      <span className="g-eyebrow">Ficha do seu profissional</span>
+      <h2 style={{ margin: '6px 0 4px' }}>{p.title}</h2>
+      <p className="g-mut g-sm">{p.owner_name} · {p.exercises.length} exercícios{multi ? ' · ' + p.days.length + ' dias' : ''}</p>
+      <button className="g-btn" style={{ marginTop: 12 }} onClick={() => nav(multi ? '/treinos?aba=profissionais' : '/treinar?plan=' + p.id)} data-testid="start-pro-plan"><Icon name="dumbbell" /> {multi ? 'Escolher o treino do dia' : 'Começar treino'}</button>
+    </div></div>
+      : <div className="g-hero"><div className="g-in" style={{ maxWidth: '100%' }}>
+        <span className="g-eyebrow">Comece por aqui</span>
+        <h2 style={{ marginTop: 6 }}>Como você quer treinar?</h2>
+        <p className="g-mut g-sm">Escolha um caminho. Dá para mudar quando quiser.</p>
+      </div></div>}
+    <div className="g-card g-list" style={{ marginTop: 10 }}>
+      <Li icon="sparkles" t={profile ? 'Programas para mim' : 'Receber uma recomendação'} s={profile ? 'Com base nas suas respostas' : '6 perguntas rápidas sobre objetivo, nível e tempo'} to={profile ? '/recomendados' : '/onboarding'} testid="start-reco" />
+      {routines.length > 0 ? <Li icon="folder" t="Minhas rotinas" s={routines.length + (routines.length > 1 ? ' rotinas prontas' : ' rotina pronta') + ' para iniciar'} to="/treinos?aba=rotinas" testid="start-routines" />
+        : <Li icon="pencil" t="Criar meu treino" s="Monte do zero ou comece por um plano pronto" to="/treinos?criar=1" testid="start-create" />}
+      <Li icon="bolt" t="Treino rápido" s="Registre um treino avulso agora" to="/home" testid="start-quick" />
+    </div>
+  </section>
 }

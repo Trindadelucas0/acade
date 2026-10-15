@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Icon from '../../components/Icon.jsx'
 import { G, GOALS } from '../../lib/guided.js'
+import { useStore } from '../../store/useStore.js'
 import './guided.css'
 
 const STEPS = [
@@ -26,6 +27,7 @@ export default function Onboarding() {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const st = STEPS[i]
+  const first = (useStore(s => s.user)?.name || '').split(' ')[0]
   const val = a[st.k]
 
   const pick = v => {
@@ -39,6 +41,7 @@ export default function Onboarding() {
   const finish = async () => {
     setBusy(true); setErr('')
     try {
+      localStorage.removeItem('ag_onb_skip')
       await G.onboarding({ ...a, restricoes: a.restricoes.filter(r => r !== 'none') })
       nav('/recomendados', { replace: true })
     } catch (e) { setErr(e.message || 'Não foi possível salvar') } finally { setBusy(false) }
@@ -51,6 +54,7 @@ export default function Onboarding() {
       <div className="g-bar"><i style={{ width: ((i + 1) / STEPS.length * 100) + '%' }} /></div>
       <span className="g-dim g-sm">{i + 1}/{STEPS.length}</span>
     </div>
+    {i === 0 && first && <span className="g-eyebrow" data-testid="onb-welcome">Bem-vindo(a), {first}!</span>}
     <h1>{st.q}</h1>
     {st.sub && <p className="g-mut">{st.sub}</p>}
     <div className={st.grid || 'g-opts'}>
@@ -65,6 +69,7 @@ export default function Onboarding() {
         </button>
       })}
     </div>
+    {i === 0 && <button className="g-link" style={{ marginTop: 16 }} onClick={() => { localStorage.setItem('ag_onb_skip', '1'); nav('/hoje', { replace: true }) }} data-testid="onb-skip">Agora não — quero conhecer o app primeiro</button>}
     {st.multi && <div className="g-bottom">
       {err && <p className="g-warn" style={{ marginBottom: 10 }}>{err}</p>}
       {a.restricoes.some(r => r !== 'none') && <p className="g-note" style={{ marginBottom: 12 }}>O AVADESK Fitness não faz diagnóstico. Se a dor for forte ou frequente, procure um médico ou fisioterapeuta.</p>}

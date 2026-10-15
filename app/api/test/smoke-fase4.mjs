@@ -59,17 +59,8 @@ export async function run({ adm, p1, p2, stu, sid, P1, get, post, check }) {
 
   const code = (await get(stu, '/api/me/code')).d.code
   check(/^[A-HJ-NP-Z2-9]{8}$/.test(code), 'aluno tem código compartilhável')
-  check((await post(p2, '/api/pro/requests', { type: 'vinculo', student_code: 'ZZZZZZZZ', specialty: 'Musculação', justification: 'Aluno pediu acompanhamento' })).s >= 400, 'código inválido não revela dados')
-  check((await post(p2, '/api/pro/requests', { type: 'vinculo', student_code: code, specialty: 'Nutrição Esportiva', justification: 'Aluno pediu acompanhamento' })).s === 400, 'especialidade precisa estar verificada')
   r = await post(p2, '/api/pro/requests', { type: 'vinculo', student_code: code, specialty: 'Musculação', justification: 'Aluno pediu acompanhamento' })
-  check(r.s === 201 || r.s === 400, 'pedido de vínculo por código (sem busca aberta)')
-  if (r.s === 201) {
-    check(!(await get(p2, '/api/pro/students')).d.students.some(s => s.id === sid), 'solicitação não cria vínculo nem consome vaga')
-    const lst = (await get(adm, '/api/adm/requests?type=vinculo&group=pendentes')).d.requests
-    check(lst.some(x => x.id === r.d.id), 'central de solicitações filtra por tipo e status')
-    const d = await post(adm, '/api/adm/requests/decide', { id: r.d.id, action: 'aprovar' })
-    check(d.s === 200 || d.s === 409, 'aprovação revalida capacidade e limite do plano do aluno')
-  }
+  check(r.s === 410 && r.d.code === 'FLOW_REMOVED', 'V3: pedido de vínculo pela administração removido (410 — use convites)')
   console.log('Fase 4 — modelos e KPIs')
   check((await post(p1, '/api/adm/templates', { title: 'x', days: [] })).s === 403, 'só o admin cria modelos')
   r = await post(adm, '/api/adm/templates', { title: 'Iniciante Full Body', goal: 'hypertrophy', days: [{ name: 'A', exercises: [{ exercise_id: e1.id, name: e1.name, sets: 3, reps_max: 12 }] }] })

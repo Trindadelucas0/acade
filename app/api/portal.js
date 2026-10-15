@@ -3,7 +3,7 @@
 // Prescrição normal do responsável (vínculo ativo + habilitação verificada) não depende do admin.
 import { q } from './db/pool.js'
 import { requireAuth, audit } from './auth.js'
-import { notify, notifyAdmins, isLinked, linkFailures, createLink } from './pro.js'
+import { notify, notifyAdmins, isLinked } from './pro.js'
 
 const isUuid = s => /^[0-9a-f-]{36}$/i.test(String(s || ''))
 const txt = (s, n = 2000) => String(s ?? '').trim().slice(0, n)
@@ -230,18 +230,8 @@ export function portalRoutes({ json, readBody }) {
         row = await q(`insert into pro_requests(tenant_id,professional_id,type,current_capacity,requested_amount,justification,note) values($1,$2,'vagas',$3,$4,$5,$6) on conflict do nothing returning id`,
           [u.tenant_id, u.id, st.capacity, amount, just, txt(b.note, 500) || null])
         if (!row.rowCount) return json(res, 409, { error: 'Você já tem uma solicitação de vagas em andamento' })
-      } else if (b.type === 'vinculo') {
-        if (st.state !== 'ativo') return json(res, 403, { error: 'Somente profissional ativo solicita vínculo' })
-        const code = txt(b.student_code, 20).toUpperCase().replace(/[^A-Z0-9]/g, ''), sp = txt(b.specialty, 60)
-        if (!sp || !(st.verified || []).some(v => v && v.toLowerCase() === sp.toLowerCase())) return json(res, 400, { error: 'Escolha uma especialidade com habilitação verificada' })
-        const s = (await q(`select x.id, x.status from users x join user_roles r on r.user_id=x.id and r.role_id='aluno' where x.share_code=$1 and x.tenant_id=$2`, [code, u.tenant_id])).rows[0]
-        // resposta genérica: não expõe dados do aluno antes da aprovação
-        if (!s || s.status !== 'ativo') return json(res, 404, { error: 'Código inválido ou aluno indisponível para vínculo' })
-        if (await isLinked(u.id, s.id)) return json(res, 409, { error: 'Você já tem vínculo ativo com este aluno' })
-        row = await q(`insert into pro_requests(tenant_id,professional_id,type,student_id,specialty,justification,current_capacity) values($1,$2,'vinculo',$3,$4,$5,$6) on conflict do nothing returning id`,
-          [u.tenant_id, u.id, s.id, sp, just, st.capacity])
-        if (!row.rowCount) return json(res, 409, { error: 'Já existe uma solicitação em andamento para este aluno' })
-      } else return json(res, 400, { error: 'Tipo de solicitação inválido' })
+      } else if (b.type === 'vinculo') return json(res, 410, { code: 'FLOW_REMOVED', error: 'O pedido de vínculo pela administração foi substituído pelos convites: use AVADESK PRO › Convites (o aluno aceita).' })  // V3 F6: fluxo removido
+      else return json(res, 400, { error: 'Tipo de solicitação inválido' })
       const id = row.rows[0].id
       await q('insert into pro_request_history(request_id,actor_id,status,note) values($1,$2,$3,$4)', [id, u.id, 'pendente', 'Solicitação criada'])
       await audit(u.tenant_id, u.id, 'solicitacao.criada', 'pro_request', id, { type: b.type })
@@ -290,6 +280,7 @@ export function portalRoutes({ json, readBody }) {
       const r = (await q(`select * from pro_requests where id=$1 and tenant_id=$2`, [+b.id, u.tenant_id])).rows[0]
       if (!r) return json(res, 404, { error: 'Solicitação não encontrada' })
       if (!OPEN.includes(r.status)) return json(res, 409, { error: 'Solicitação já finalizada' })
+      if (r.type === 'vinculo') return json(res, 410, { code: 'FLOW_REMOVED', error: 'O pedido de vínculo pela administração foi substituído pelos convites: use AVADESK PRO › Convites (o aluno aceita).' })
       const hist = (st, note) => q('insert into pro_request_history(request_id,actor_id,status,note) values($1,$2,$3,$4)', [r.id, u.id, st, note])
       const tell = (t, body) => notify(r.professional_id, 'solicitacao', t, body, '/pro?tab=capacidade')
       if (b.action === 'analisar') { await q(`update pro_requests set status='em_analise',updated_at=now() where id=$1`, [r.id]); await hist('em_analise', null); await audit(u.tenant_id, u.id, 'solicitacao.em_analise', 'pro_request', r.id); return json(res, 200, { ok: true, status: 'em_analise' }) }
@@ -315,15 +306,7 @@ export function portalRoutes({ json, readBody }) {
         await tell('Mais vagas aprovadas', `Seu limite agora é ${pr.capacity}`)
         return json(res, 200, { ok: true, status: 'aprovada', previous_limit: pr.capacity - amount, new_limit: pr.capacity })
       }
-      // vínculo: revalida disponibilidade, capacidade e limite do plano do aluno no momento da aprovação
-      const fail = await linkFailures(u.tenant_id, r.student_id, r.professional_id, r.specialty)
-      if (fail.length) return json(res, 409, { error: fail[0], reasons: fail })
-      const linkId = await createLink(u, r.student_id, r.professional_id, r.specialty)
-      await q(`update pro_requests set status='aprovada',result_link_id=$2,decision_reason=$3,decided_by=$4,decided_at=now(),updated_at=now() where id=$1`, [r.id, linkId, reason || null, u.id])
-      await hist('aprovada', 'Vínculo #' + linkId + ' criado')
-      await audit(u.tenant_id, u.id, 'solicitacao.aprovada', 'pro_request', r.id, { link: linkId })
-      await tell('Vínculo aprovado', 'O aluno já aparece em Meus alunos')
-      json(res, 200, { ok: true, status: 'aprovada', link_id: linkId })
+      return json(res, 400, { error: 'Tipo de solicitação inválido' })
     },
     // capacidade definida diretamente pelo admin (com histórico)
     'POST /api/adm/capacity': async (req, res) => {

@@ -157,7 +157,7 @@ function Capacidade() {
       <p className="g-xs g-mut" style={{ marginTop: 8 }}>Alunos ativos: {d.active} · Limite autorizado pela administração: {d.capacity}. Solicitações pendentes não liberam vagas.</p>
       <div className="g-actions" style={{ marginTop: 10 }}>
         <button className="g-btn g-sm" disabled={blocked} onClick={() => setForm('vagas')} data-testid="req-vagas">Solicitar mais vagas</button>
-        <button className="g-btn g-ghost g-sm" disabled={blocked || d.state !== 'ativo'} onClick={() => setForm('vinculo')} data-testid="req-vinculo">Solicitar novo vínculo</button></div>
+        <button className="g-btn g-ghost g-sm" disabled={blocked} onClick={() => { location.hash = '#/pro?tab=convites' }} data-testid="req-convidar">Convidar aluno</button></div>
       {blocked && <p className="g-warn g-xs">Perfil {d.state}: não é possível fazer solicitações.</p>}
     </div>
     {msg && <p className="g-acc g-sm">{msg}</p>}
@@ -181,15 +181,11 @@ function RequestForm({ type, d, onClose, onDone }) {
     setErr(''); setBusy(true)
     try { const r = await P.request({ type, ...f, amount: +f.amount }); onDone(`Solicitação #${r.id} enviada. A administração vai analisar.`) } catch (e) { setErr(e.message) } finally { setBusy(false) }
   }
-  return <Sheet title={type === 'vagas' ? 'Solicitar mais vagas' : 'Solicitar vínculo'} onClose={onClose}>
+  return <Sheet title="Solicitar mais vagas" onClose={onClose}>
     {type === 'vagas' ? <>
       <p className="g-sm">Capacidade atual: <b>{d.capacity}</b> · Vagas livres: <b>{d.available}</b></p>
       <Field label="Quantidade adicional"><input className="g-in" type="number" min="1" max="100" value={f.amount} onChange={set('amount')} data-testid="rq-amount" /></Field>
-    </> : <>
-      <p className="g-xs g-mut">Peça ao aluno o código dele (Perfil › Meu código). Não há busca aberta de alunos; os dados só aparecem depois da aprovação.</p>
-      <Field label="Código do aluno"><input className="g-in" value={f.student_code} onChange={e => setF({ ...f, student_code: e.target.value.toUpperCase() })} maxLength={12} data-testid="rq-code" /></Field>
-      <Field label="Especialidade (habilitação verificada)"><select className="g-in" value={f.specialty} onChange={set('specialty')}>{d.specialties.length ? d.specialties.map(s => <option key={s}>{s}</option>) : <option value="">Nenhuma habilitação verificada</option>}</select></Field>
-    </>}
+    </> : null}
     <Field label="Justificativa (obrigatória)"><textarea className="g-in" value={f.justification} onChange={set('justification')} data-testid="rq-just" /></Field>
     {type === 'vagas' && <Field label="Observação (opcional)"><input className="g-in" value={f.note} onChange={set('note')} /></Field>}
     {err && <p className="g-warn">{err}</p>}

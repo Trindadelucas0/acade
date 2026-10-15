@@ -194,12 +194,12 @@ function Solicitacoes() {
   const [d, err, reload] = useLoad(() => P.requests(type, group), [type, group])
   return <>
     <div className="adm-tools">
-      {[['', 'Todas'], ['vagas', 'Vagas'], ['vinculo', 'Vínculos']].map(([k, l]) => <button key={k} className={'adm-btn ' + (type === k ? '' : 'ghost')} onClick={() => setType(k)} data-testid={'rq-t-' + (k || 'todas')}>{l}</button>)}
+      {[['', 'Todas'], ['vagas', 'Vagas']].map(([k, l]) => <button key={k} className={'adm-btn ' + (type === k ? '' : 'ghost')} onClick={() => setType(k)} data-testid={'rq-t-' + (k || 'todas')}>{l}</button>)}
       <span style={{ width: 16 }} />
       {[['pendentes', 'Pendentes'], ['em_analise', 'Em análise'], ['concluidas', 'Concluídas']].map(([k, l]) => <button key={k} className={'adm-btn ' + (group === k ? '' : 'ghost')} onClick={() => setGroup(k)}>{l}</button>)}
     </div>
     {err ? <p className="g-warn">{err}</p> : !d ? <p className="g-mut">Carregando…</p> : d.requests.length ? <div className="adm-row2">{d.requests.map(r => <div key={r.id} className="adm-card" data-testid="rq-card">
-      <div className="g-row"><b>#{r.id} · {r.type === 'vagas' ? 'Mais vagas' : 'Novo vínculo'}</b><span style={{ flex: 1 }} /><Pill v={REQ_ST[r.status]} map={{ [REQ_ST[r.status]]: ST[r.status] }} /></div>
+      <div className="g-row"><b>#{r.id} · {r.type === 'vagas' ? 'Mais vagas' : 'Vínculo (fluxo antigo)'}</b><span style={{ flex: 1 }} /><Pill v={REQ_ST[r.status]} map={{ [REQ_ST[r.status]]: ST[r.status] }} /></div>
       <dl className="adm-dl" style={{ marginTop: 8 }}><dt>Profissional</dt><dd>{r.professional} ({r.pro_state})</dd>
         <dt>Capacidade atual</dt><dd>{r.live_active}/{r.live_capacity} ({Math.max(0, r.live_capacity - r.live_active)} livre[s])</dd>
         {r.type === 'vagas' ? <><dt>Pedido</dt><dd>+{r.requested_amount} vaga(s)</dd></> : <><dt>Aluno</dt><dd>{r.student_name}</dd><dt>Especialidade</dt><dd>{r.specialty}</dd></>}
@@ -207,7 +207,7 @@ function Solicitacoes() {
         {r.decision_reason && <><dt>Decisão</dt><dd>{r.decision_reason}</dd></>}{r.new_limit != null && <><dt>Limite</dt><dd>{r.previous_limit} → {r.new_limit}</dd></>}
         <dt>Criada</dt><dd>{dt(r.created_at)}</dd></dl>
       {(r.history || []).length > 0 && <details style={{ marginTop: 8 }}><summary className="g-mut g-xs">Histórico ({r.history.length})</summary>{r.history.map(h => <p key={h.id} className="g-xs g-mut">{dt(h.created_at)} · {REQ_ST[h.status] || h.status}{h.note ? ' — ' + h.note : ''}</p>)}</details>}
-      {['pendente', 'em_analise', 'aguardando_info'].includes(r.status) && <div className="adm-tools" style={{ marginTop: 10 }}>
+      {r.type === 'vagas' && ['pendente', 'em_analise', 'aguardando_info'].includes(r.status) && <div className="adm-tools" style={{ marginTop: 10 }}>
         <button className="adm-btn" data-testid="rq-approve" onClick={act(async () => { const a = r.type === 'vagas' ? prompt('Quantidade aprovada', r.requested_amount) : ''; if (a == null) return; const why = prompt('Observação da aprovação (opcional)') || ''; await P.decide({ id: r.id, action: 'aprovar', amount: a === '' ? undefined : +a, reason: why }) }, reload)}>Aprovar</button>
         <button className="adm-btn danger" onClick={act(async () => { const why = prompt('Justificativa da rejeição (obrigatória)'); if (why) await P.decide({ id: r.id, action: 'rejeitar', reason: why }) }, reload)}>Rejeitar</button>
         <button className="adm-btn ghost" onClick={act(async () => { const why = prompt('Qual informação é necessária?'); if (why) await P.decide({ id: r.id, action: 'info', reason: why }) }, reload)}>Pedir informações</button>
