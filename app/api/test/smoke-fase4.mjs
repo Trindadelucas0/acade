@@ -58,7 +58,7 @@ export async function run({ adm, p1, p2, stu, sid, P1, get, post, check }) {
   check((await post(p1, '/api/pro/requests/cancel', { id: r.d.id })).s === 200, 'cancela antes da decisão')
 
   const code = (await get(stu, '/api/me/code')).d.code
-  check(/^[A-F0-9]{8}$/.test(code), 'aluno tem código compartilhável')
+  check(/^[A-HJ-NP-Z2-9]{8}$/.test(code), 'aluno tem código compartilhável')
   check((await post(p2, '/api/pro/requests', { type: 'vinculo', student_code: 'ZZZZZZZZ', specialty: 'Musculação', justification: 'Aluno pediu acompanhamento' })).s >= 400, 'código inválido não revela dados')
   check((await post(p2, '/api/pro/requests', { type: 'vinculo', student_code: code, specialty: 'Nutrição Esportiva', justification: 'Aluno pediu acompanhamento' })).s === 400, 'especialidade precisa estar verificada')
   r = await post(p2, '/api/pro/requests', { type: 'vinculo', student_code: code, specialty: 'Musculação', justification: 'Aluno pediu acompanhamento' })

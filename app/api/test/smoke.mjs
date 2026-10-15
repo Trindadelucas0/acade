@@ -19,9 +19,9 @@ export async function main() {
   check((await post(null, '/api/auth/register', { name: 'Aluno Teste', email, password: 'senha-forte-1' })).s === 400, 'cadastro sem aceite dos termos é recusado')
   check((await post(null, '/api/auth/register', { name: 'Aluno Teste', email, password: 'senha-forte-1', accept_terms: true, terms_version: 'velha' })).s === 400, 'aceite de versão desatualizada é recusado')
   const reg = await post(null, '/api/auth/register', { name: 'Aluno Teste', email, password: 'senha-forte-1', accept_terms: true, terms_version: terms.version })
-  check(reg.s === 200 && reg.d.user.status === 'pendente', 'cadastro cria conta pendente com login')
+  check(reg.s === 200 && reg.d.user.status === 'ativo', 'V3 SaaS aberto: cadastro cria conta ativa com login')
   const stu = reg.d.token
-  check((await get(stu, '/api/guided/state')).s === 403, 'pendente: recursos travados (403 no backend)')
+  check((await get(stu, '/api/guided/state')).s === 200, 'V3: conta nova acessa os recursos sem aprovacao')
   const me0 = await get(stu, '/api/auth/me')
   check(me0.s === 200 && me0.d.user.needs_terms === false, 'pendente: carrega o perfil; aceite dos termos registrado')
   check((await post(null, '/api/login/options')).s === 404 && (await get(null, '/api/admin/users')).s === 404, 'passkey e admin legado removidos (404)')

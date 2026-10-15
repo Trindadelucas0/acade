@@ -417,10 +417,11 @@ export function proRoutes({ json, readBody }) {
     'GET /api/adm/users': async (req, res) => {
       const u = await guard('admin')(req, res, json); if (!u) return
       const st = qs(req).get('status'), s = '%' + (qs(req).get('q') || '') + '%'
-      const r = await q(`select u.id,u.name,u.email,u.status,u.created_at, coalesce(array_agg(distinct ur.role_id) filter (where ur.role_id is not null),'{}') roles,
+      const r = await q(`select u.id,u.name,u.email,u.status,u.created_at,u.share_code,(select pp.verification_status from professional_profiles pp where pp.user_id=u.id) verification,
+          coalesce((select json_agg(json_build_object('audience',s.audience,'plan',p.name,'status',s.status,'over_limit',s.over_limit) order by s.audience) from subscriptions s join plans p on p.id=s.plan_id where s.user_id=u.id and s.status<>'cancelada'),'[]') subs, coalesce(array_agg(distinct ur.role_id) filter (where ur.role_id is not null),'{}') roles,
           uap.plan_id, ap.max_professionals, (select count(*) from coach_students cs where cs.student_id=u.id and cs.status='ativo')::int links
         from users u left join user_roles ur on ur.user_id=u.id left join user_access_plans uap on uap.user_id=u.id left join access_plans ap on ap.id=uap.plan_id
-        where u.tenant_id=$1 and ($2::text is null or u.status=$2) and (u.name ilike $3 or u.email ilike $3) group by u.id,uap.plan_id,ap.max_professionals order by u.created_at desc limit 200`, [u.tenant_id, st || null, s])
+        where u.tenant_id=$1 and ($2::text is null or u.status=$2) and (u.name ilike $3 or u.email ilike $3 or u.share_code ilike $3) group by u.id,uap.plan_id,ap.max_professionals order by u.created_at desc limit 200`, [u.tenant_id, st || null, s])
       json(res, 200, { users: r.rows.map(x => ({ ...x, over_limit: x.plan_id ? x.links > x.max_professionals : false })) })
     },
     'POST /api/adm/users/status': async (req, res) => {

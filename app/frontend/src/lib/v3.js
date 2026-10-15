@@ -16,6 +16,8 @@ export const V = {
   proInvites: () => api('/api/pro/invites'), createInvite: b => post('/api/pro/invites', b), cancelInvite: id => post('/api/pro/invites/cancel', { id }),
   myInvites: () => api('/api/me/invites'), viewInvite: code => api('/api/invites/view?code=' + encodeURIComponent(code)),
   acceptInvite: code => post('/api/invites/accept', { code }), declineInvite: code => post('/api/invites/decline', { code }),
+  // Fase 5 — código público do aluno e visão 360° do admin
+  lookupStudent: code => api('/api/pro/students/lookup?code=' + encodeURIComponent(code)), admUser360: id => api('/api/adm/users/overview?id=' + id),
   admVerifications: status => api('/api/adm/verifications' + (status ? '?status=' + status : '')), decideVerification: b => post('/api/adm/verifications/decide', b)
 }
 export const VER_PT = { pendente: 'Em análise', correcao_solicitada: 'Correção solicitada', verificado: 'Verificado' }

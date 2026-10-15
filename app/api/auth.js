@@ -101,8 +101,7 @@ export function authRoutes({ json, readBody, bridge, clearCookies }) {
         await q(`insert into professional_profiles(user_id,tenant_id,display_name) values($1,$2,$3) on conflict do nothing`, [u.rows[0].id, t.rows[0].id, name.slice(0, 80)])
         await q(`update users set active_context='profissional' where id=$1`, [u.rows[0].id])
       }
-      // APP FLOW: novo aluno aguarda liberação da administração (sem login automático)
-      await q(`update users set status='pendente' where id=$1`, [u.rows[0].id])
+      // V3 (decisão Lucas 15/10): SaaS aberto — conta nasce ativa, sem aprovação do admin (admin ainda pode bloquear)
       if (terms) await acceptTerms(u.rows[0].id, terms.version, req)
       await audit(t.rows[0].id, u.rows[0].id, 'conta.cadastro', 'user', u.rows[0].id, { intent, termos: terms && terms.version })
       await login(res, u.rows[0].id)

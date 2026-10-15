@@ -74,6 +74,16 @@ export default function Profile() {
 }
 
 // LGPD: exportação imediata e pedido de exclusão (analisado pela administração)
+// V3 · F5: código público do aluno — o profissional usa para encontrar e convidar (o aluno aceita sozinho)
+function MyCode({ code }) {
+  const [ok, setOk] = useState('')
+  const copy = async () => { try { await navigator.clipboard.writeText(code); setOk('Copiado') } catch { setOk('Não foi possível copiar') } }
+  const share = async () => { try { await navigator.share({ title: 'Meu código AVAGYM', text: 'Meu código de aluno no AVAGYM: ' + code }) } catch { /* cancelado */ } }
+  return <div className="g-card" style={{ marginBottom: 10 }} data-testid="my-code"><span className="g-mut g-xs">Meu código de aluno — envie ao seu profissional para ele te convidar</span>
+    <div className="g-row" style={{ gap: 8, alignItems: 'center' }}><b style={{ fontSize: 24, letterSpacing: '.12em', flex: 1 }}>{code}</b>
+      <button className="g-btn g-ghost g-sm" onClick={copy} data-testid="my-code-copy">{ok || 'Copiar'}</button>
+      {typeof navigator !== 'undefined' && navigator.share && <button className="g-btn g-ghost g-sm" onClick={share}>Compartilhar</button>}</div></div>
+}
 function MeusDados() {
   const user = useStore(s => s.user)
   const [req, setReq] = useState(null), [msg, setMsg] = useState(''), [code, setCode] = useState('')
@@ -83,7 +93,7 @@ function MeusDados() {
   const open = (req || []).find(r => r.kind === 'exclusao' && r.status === 'pendente')
   return <>
     <h2>Meus dados</h2>
-    {code && <div className="g-card" style={{ marginBottom: 10 }} data-testid="my-code"><span className="g-mut g-xs">Meu código (para um profissional pedir vínculo à administração)</span><br /><b style={{ fontSize: 24, letterSpacing: '.12em' }}>{code}</b></div>}
+    {code && <MyCode code={code} />}
     <div className="g-card g-list" data-testid="meus-dados">
       <button className="g-li" onClick={async () => { try { await exportMyData(); setMsg('Arquivo gerado.') } catch (e) { setMsg(e.message) } }} data-testid="export-data">
         <span className="g-ico"><Icon name="download" /></span><span><b>Exportar meus dados</b><br /><span className="g-mut g-xs">Arquivo JSON com cadastro, treinos, mensagens e aceites</span></span></button>

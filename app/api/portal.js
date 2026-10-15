@@ -232,7 +232,7 @@ export function portalRoutes({ json, readBody }) {
         if (!row.rowCount) return json(res, 409, { error: 'Você já tem uma solicitação de vagas em andamento' })
       } else if (b.type === 'vinculo') {
         if (st.state !== 'ativo') return json(res, 403, { error: 'Somente profissional ativo solicita vínculo' })
-        const code = txt(b.student_code, 20).toUpperCase(), sp = txt(b.specialty, 60)
+        const code = txt(b.student_code, 20).toUpperCase().replace(/[^A-Z0-9]/g, ''), sp = txt(b.specialty, 60)
         if (!sp || !(st.verified || []).some(v => v && v.toLowerCase() === sp.toLowerCase())) return json(res, 400, { error: 'Escolha uma especialidade com habilitação verificada' })
         const s = (await q(`select x.id, x.status from users x join user_roles r on r.user_id=x.id and r.role_id='aluno' where x.share_code=$1 and x.tenant_id=$2`, [code, u.tenant_id])).rows[0]
         // resposta genérica: não expõe dados do aluno antes da aprovação

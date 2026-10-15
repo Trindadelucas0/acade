@@ -1,5 +1,5 @@
 // V3 · Profissional: convidar alunos por código, link ou código do aluno. Mostra uso do plano (Free = 2 alunos ativos).
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Icon from '../../components/Icon.jsx'
 import { V, INV_PT, VER_PT } from '../../lib/v3.js'
 import { Load, Err, Empty, useLoad, Sheet, Field } from '../app/kit.jsx'
@@ -45,6 +45,7 @@ export default function Invites() {
     {form && <Sheet title="Convidar aluno" onClose={() => setForm(null)}>
       <p className="g-xs g-mut">Deixe o código em branco para gerar um link/código que qualquer aluno pode usar uma vez. Ou informe o código do aluno (Perfil › Meu código) para um convite só dele.</p>
       <Field label="Código do aluno (opcional)"><input className="g-in" value={form.student_code} maxLength={12} onChange={e => setForm({ ...form, student_code: e.target.value.toUpperCase() })} data-testid="inv-code" /></Field>
+      {form.student_code.length >= 6 && <StudentLookup code={form.student_code} />}
       <Field label="Mensagem (opcional)"><textarea className="g-in" value={form.message} maxLength={300} onChange={e => setForm({ ...form, message: e.target.value })} /></Field>
       {msg && <p className="g-warn" role="alert">{msg}</p>}
       <div className="g-actions" style={{ marginTop: 12 }}><button className="g-btn" disabled={busy} onClick={create} data-testid="inv-create">{busy ? 'Criando…' : 'Criar convite'}</button><button className="g-btn g-ghost" onClick={() => setForm(null)}>Cancelar</button></div>
@@ -53,5 +54,17 @@ export default function Invites() {
       <p className="g-sm">O código <b>{cancel.code}</b> deixa de funcionar. Vínculos já aceitos não mudam.</p>
       <div className="g-actions" style={{ marginTop: 12 }}><button className="g-btn g-danger" disabled={busy} onClick={doCancel} data-testid="inv-cancel-confirm">Cancelar convite</button><button className="g-btn g-ghost" onClick={() => setCancel(null)}>Voltar</button></div>
     </Sheet>}
+  </div>
+}
+
+// V3 · F5: confirma o aluno pelo código público antes de convidar (só nome abreviado; nada de e-mail)
+function StudentLookup({ code }) {
+  const [r, setR] = useState(null), [busy, setBusy] = useState(false)
+  useEffect(() => { setR(null) }, [code])
+  const find = async () => { setBusy(true); try { setR(await V.lookupStudent(code)) } catch (e) { setR({ error: e.message }) } finally { setBusy(false) } }
+  return <div className="g-row" style={{ gap: 8, alignItems: 'center', margin: '-4px 0 8px' }} data-testid="inv-lookup">
+    {!r ? <button className="g-btn g-ghost g-sm" disabled={busy} onClick={find}>{busy ? 'Buscando…' : 'Conferir aluno'}</button>
+      : r.error ? <span className="g-warn g-xs">{r.error}</span>
+      : <span className="g-xs"><b>{r.name}</b>{r.linked ? ' · já é seu aluno' : r.invite_pending ? ' · convite pendente' : ''}</span>}
   </div>
 }
