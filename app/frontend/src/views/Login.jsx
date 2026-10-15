@@ -30,14 +30,14 @@ function Hero() {
   return (
     <div className={'lg-hero' + (desk ? ' lg-hero-video' : '')} aria-hidden="true">
       {desk ? (still
-        ? <img src="/img/login-bg-poster.jpg" alt="" />
-        : <video autoPlay muted loop playsInline preload="auto" poster="/img/login-bg-poster.jpg">
+        ? <img src="/brand/login-bg-poster.jpg" alt="" />
+        : <video autoPlay muted loop playsInline preload="auto" poster="/brand/login-bg-poster.jpg">
             <source src="/video/login-bg.webm" type="video/webm" />
             <source src="/video/login-bg.mp4" type="video/mp4" />
           </video>)
         : <picture>
-            <source srcSet="/img/login-hero.webp" type="image/webp" />
-            <img src="/img/login-hero.jpg" alt="" width="1200" height="1800" fetchpriority="high" decoding="async" />
+            <source srcSet="/brand/login-hero.webp" type="image/webp" />
+            <img src="/brand/login-hero.jpg" alt="" width="1200" height="1800" fetchpriority="high" decoding="async" />
           </picture>}
       <div className="lg-shade" />
     </div>

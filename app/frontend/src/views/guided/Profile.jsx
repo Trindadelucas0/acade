@@ -10,7 +10,6 @@ import ContextSwitch from '../v3/ContextSwitch.jsx'
 import { MyInvites } from '../v3/AcceptInvite.jsx'
 import './guided.css'
 
-const SOURCE_URL = import.meta.env.VITE_SOURCE_URL || ''
 export default function Profile() {
   const nav = useNavigate()
   const user = useStore(s => s.user)
