@@ -22,11 +22,12 @@ export async function getSettings(tid) {
   const s = { ...DEFAULT_SETTINGS }; for (const x of r.rows) s[x.key] = x.value
   return s
 }
-export async function notify(userId, kind, title, body, link) {
+// V4 F7: dedupeKey opcional — a mesma chave para o mesmo usuário gera uma notificação só
+export async function notify(userId, kind, title, body, link, dedupeKey) {
   if (!userId) return
   // notificações sociais (curtidas, comentários, posts) respeitam o silenciar do usuário
   if ((String(kind).startsWith('social') || kind === 'feed') && (await q('select 1 from notification_prefs where user_id=$1 and mute_social', [userId]).catch(() => ({ rowCount: 0 }))).rowCount) return
-  await q('insert into notifications(user_id,kind,title,body,link) values($1,$2,$3,$4,$5)', [userId, kind, title, body || null, link || null]).catch(e => console.error('[notify]', e.message))
+  await q('insert into notifications(user_id,kind,title,body,link,dedupe_key) values($1,$2,$3,$4,$5,$6) on conflict (user_id, dedupe_key) where dedupe_key is not null do nothing', [userId, kind, title, body || null, link || null, dedupeKey || null]).catch(e => console.error('[notify]', e.message))
 }
 export async function notifyAdmins(tid, kind, title, body, link) {
   const r = await q(`select user_id from user_roles where tenant_id=$1 and role_id='admin'`, [tid])

@@ -182,7 +182,7 @@ export async function forgottenSweep({ minutes = REMINDER_MIN_DEFAULT, now = new
     }
     if (s.last_reminder && (now - new Date(s.last_reminder)) < minutes * 60000) continue
     await q('insert into session_reminders(tenant_id,session_id,user_id,sent_at) values($1,$2,$3,$4)', [s.tenant_id, s.id, s.user_id, now])
-    await notify(s.user_id, 'treino_aberto', 'Seu treino ainda está em aberto', `${s.workout_name || 'Treino'}: continue, corrija o tempo ou descarte.`, '/treinar')
+    await notify(s.user_id, 'treino_aberto', 'Seu treino ainda está em aberto', `${s.workout_name || 'Treino'}: continue, corrija o tempo ou descarte.`, '/treinar', `treino_aberto:${s.id}:${Math.floor(now.getTime() / (minutes * 60000))}`)
     if (push) await Promise.resolve(push(s.user_id, { title: 'Seu treino ainda está em aberto', body: 'Continue, corrija o tempo ou descarte.', tag: 'treino-aberto' })).catch(() => {})
     reminded++
   }

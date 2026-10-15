@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import Icon from '../../components/Icon.jsx'
 import { C, CAT_PT, OCC_ST, dt } from '../../lib/care.js'
-import { Av, Empty, Load, Err, useLoad, Sheet, Field } from './kit.jsx'
+import { Av, Empty, Load, Err, useLoad, Sheet, Field, useAutoRefresh } from './kit.jsx'
 import { notifyError } from '../../lib/dialog.js'
 
 export function ReportSheet({ ctx, onClose, onDone }) {
@@ -37,6 +37,7 @@ const pillOf = o => o.status === 'encerrada' ? '' : o.status === 'orientada' ? '
 export default function Acompanhamento() {
   const nav = useNavigate()
   const [d, err, reload] = useLoad(() => C.care())
+  useAutoRefresh(reload)
   const [sheet, setSheet] = useState(null)
   if (err) return <div className="ag"><h1>Acompanhamento</h1><Err msg={err} retry={reload} /></div>
   if (!d) return <div className="ag"><Load /></div>
@@ -73,6 +74,7 @@ export default function Acompanhamento() {
 export function Conversa() {
   const { id } = useParams(), nav = useNavigate()
   const [d, err, reload] = useLoad(() => C.thread(id), [id])
+  useAutoRefresh(reload, 15000)
   const [body, setBody] = useState(''), [busy, setBusy] = useState(false)
   if (err) return <div className="ag"><h1>Conversa</h1><Err msg={err} retry={reload} /></div>
   if (!d) return <div className="ag"><Load /></div>

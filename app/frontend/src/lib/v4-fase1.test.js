@@ -22,6 +22,6 @@ describe('V4 F1 · navegação do aluno', () => {
     expect(hits(/Criar meu treino|Criar treino manual|Montar do zero|CreateWorkoutSheet|criar=1/)).toEqual([])
   })
   it('não exibe textos legados', () => {
-    expect(hits(/aguardando liberação|conta de aluno separada|conta separada|a administração faz o vínculo/i)).toEqual([])
+    expect(hits(/aguardando liberação|conta de aluno separada|conta separada|a administração faz o vínculo|Criar meu treino/i)).toEqual([])
   })
 })

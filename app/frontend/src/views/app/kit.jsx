@@ -23,6 +23,14 @@ export function useLoad(fn, deps = []) {
   useEffect(() => { let on = true; setErr(''); fn().then(x => on && setD(x)).catch(e => on && setErr(e.status === 403 ? (e.message || 'Sem permissão') : e.status ? e.message : 'Sem conexão. Tente de novo.')); return () => { on = false } }, [...deps, n]) // eslint-disable-line
   return [d, err, () => setN(x => x + 1)]
 }
+// V4 F7: atualiza sozinho enquanto a tela está visível e ao voltar para o app (sem recarregar a página)
+export function useAutoRefresh(reload, ms = 30000) {
+  useEffect(() => {
+    const tick = () => { if (document.visibilityState === 'visible') reload() }
+    const t = setInterval(tick, ms); document.addEventListener('visibilitychange', tick)
+    return () => { clearInterval(t); document.removeEventListener('visibilitychange', tick) }
+  }, [ms]) // eslint-disable-line
+}
 export const Err = ({ msg, retry }) => <div className="g-card"><p className="g-warn">{msg}</p>{retry && <button className="g-btn g-ghost g-sm" style={{ marginTop: 10 }} onClick={retry}>Tentar de novo</button>}</div>
 export function Field({ label, children }) { return <label className="g-field"><span className="g-mut g-xs">{label}</span>{children}</label> }
 

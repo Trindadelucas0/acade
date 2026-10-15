@@ -26,10 +26,13 @@ function readToken(req) {
 export async function authUser(req) {
   const tok = readToken(req); if (!tok || !SECRET) return null
   let p; try { p = jwt.verify(tok, SECRET) } catch { return null }
-  return loadUser(p.sub)
+  const u = await loadUser(p.sub)
+  // V4 F7: "sair de todos os dispositivos" / troca de senha sobem token_version; tokens antigos param de valer
+  if (u && (p.tv || 0) !== (u.token_version || 0)) return null
+  return u
 }
 async function loadUser(id) {
-  const r = await q(`select u.id,u.name,u.email,u.tenant_id,u.disabled_at,u.status,u.active_context,(select pp.verification_status from professional_profiles pp where pp.user_id=u.id) verification,t.slug tenant_slug,t.name tenant_name,
+  const r = await q(`select u.id,u.name,u.email,u.tenant_id,u.disabled_at,u.status,u.active_context,u.token_version,(select pp.verification_status from professional_profiles pp where pp.user_id=u.id) verification,t.slug tenant_slug,t.name tenant_name,
       coalesce(array_agg(ur.role_id) filter (where ur.role_id is not null),'{}') roles
     from users u join tenants t on t.id=u.tenant_id left join user_roles ur on ur.user_id=u.id and ur.tenant_id=u.tenant_id
     where u.id=$1 group by u.id,t.slug,t.name`, [id])
@@ -64,7 +67,7 @@ export const tenantScope = (alias, idx) => `(${alias}.tenant_id is null or ${ali
 // V3: contexto de navegação ativo (aluno | profissional | admin) — o escolhido, se a conta tiver a capacidade
 export const contextOf = u => (u.active_context && u.roles.includes(u.active_context)) ? u.active_context
   : u.roles.includes('admin') ? 'admin' : u.roles.includes('aluno') ? 'aluno' : u.roles.includes('profissional') ? 'profissional' : 'aluno'
-const sign = u => jwt.sign({ sub: u.id, tid: u.tenant_id, roles: u.roles }, SECRET, { expiresIn: TTL_H + 'h' })
+const sign = u => jwt.sign({ sub: u.id, tid: u.tenant_id, roles: u.roles, tv: u.token_version || 0 }, SECRET, { expiresIn: TTL_H + 'h' })
 export const pub = u => ({ id: u.id, name: u.name, email: u.email, roles: u.roles, admin: u.roles.includes('admin'), pro: u.roles.includes('profissional'), status: u.status,
   capacities: u.roles.filter(r => r === 'aluno' || r === 'profissional'), context: contextOf(u), verification: u.verification || null,
   tenant: { id: u.tenant_id, slug: u.tenant_slug, name: u.tenant_name } })
@@ -121,6 +124,24 @@ export function authRoutes({ json, readBody, bridge, clearCookies }) {
       await login(res, row.id)
     },
     'POST /api/auth/logout': async (req, res) => json(res, 200, { ok: true }, { 'Set-Cookie': [clearTokenCookie, ...(clearCookies || [])] }),
+    // V4 F7: encerra a sessão em todos os aparelhos (inclusive este)
+    'POST /api/auth/logout-all': async (req, res) => {
+      const u = await requireAuth(req, res, json, { allowPending: true }); if (!u) return
+      await q('update users set token_version=token_version+1 where id=$1', [u.id])
+      await audit(u.tenant_id, u.id, 'sessao.encerrada_todas', 'user', u.id)
+      json(res, 200, { ok: true }, { 'Set-Cookie': [clearTokenCookie, ...(clearCookies || [])] })
+    },
+    // V4 F7: troca de senha logado (exige a senha atual); encerra os outros aparelhos e devolve token novo para este
+    'POST /api/auth/password': async (req, res) => {
+      const u = await requireAuth(req, res, json, { allowPending: true }); if (!u) return
+      const b = await readBody(req), pw = String(b.new_password || '')
+      const row = (await q('select password_hash from users where id=$1', [u.id])).rows[0]
+      if (!row?.password_hash || !(await bcrypt.compare(String(b.current_password || ''), row.password_hash))) return json(res, 400, { error: 'Senha atual incorreta', errors: { current_password: 'Senha atual incorreta' } })
+      if (pw.length < 8) return json(res, 400, { error: 'A nova senha deve ter pelo menos 8 caracteres', errors: { new_password: 'Mínimo de 8 caracteres' } })
+      await q('update users set password_hash=$2, token_version=token_version+1 where id=$1', [u.id, await bcrypt.hash(pw, 12)])
+      await audit(u.tenant_id, u.id, 'senha.alterada', 'user', u.id)
+      await login(res, u.id)
+    },
     'GET /api/auth/me': async (req, res) => {
       const u = await requireAuth(req, res, json, { allowPending: true }); if (!u) return
       json(res, 200, { user: { ...pub(u), ...(await termsStatus(u.id)) } })
@@ -142,7 +163,7 @@ export function authRoutes({ json, readBody, bridge, clearCookies }) {
       const h = crypto.createHash('sha256').update(String(b.token || '')).digest('hex')
       const r = (await q('select * from password_resets where token_hash=$1 and used_at is null and expires_at > now()', [h])).rows[0]
       if (!r) return json(res, 400, { error: 'Link inválido ou expirado. Peça um novo à administração.' })
-      await q('update users set password_hash=$2 where id=$1', [r.user_id, await bcrypt.hash(pw, 12)])
+      await q('update users set password_hash=$2, token_version=token_version+1 where id=$1', [r.user_id, await bcrypt.hash(pw, 12)])
       await q('update password_resets set used_at=now() where id=$1', [r.id])
       const t = (await q('select tenant_id from users where id=$1', [r.user_id])).rows[0]
       await audit(t.tenant_id, r.user_id, 'senha.redefinida', 'user', r.user_id)

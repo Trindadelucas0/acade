@@ -9,7 +9,8 @@ import { MyTrophies } from '../app/Trofeus.jsx'
 import ContextSwitch from '../v3/ContextSwitch.jsx'
 import { MyInvites } from '../v3/AcceptInvite.jsx'
 import './guided.css'
-import { askText } from '../../lib/dialog.js'
+import { askText, ask, notify, notifyError } from '../../lib/dialog.js'
+import { api } from '../../lib/api.js'
 
 export default function Profile() {
   const nav = useNavigate()
@@ -49,6 +50,7 @@ export default function Profile() {
     </div>
     {proAcc && <p className="g-note" style={{ marginTop: 10 }} data-testid="pro-account-note">Você está na área profissional. Para treinar, use “Usar a conta como › Treinar” acima — a mesma conta, com os dados de treino separados dos atendimentos.</p>}
     {user && <MeusDados />}
+    {user && <Seguranca />}
     {!proAcc && <>
     <h2>Treino</h2>
     <div className="g-card g-list">
@@ -97,5 +99,33 @@ function MeusDados() {
         <span className="g-ico"><Icon name="trash" /></span><span><b>Pedir exclusão da conta</b><br /><span className="g-mut g-xs">Nada é apagado sem a confirmação da administração</span></span></button>}
     </div>
     {msg && <p className="g-acc g-sm">{msg}</p>}
+  </>
+}
+
+// V4 F7 — Segurança: trocar senha e sair de todos os aparelhos
+function Seguranca() {
+  const signOutAll = useStore(s => s.signOutAll)
+  const [open, setOpen] = useState(false), [f, setF] = useState({ current_password: '', new_password: '' }), [err, setErr] = useState(''), [busy, setBusy] = useState(false)
+  const save = async () => {
+    setErr(''); setBusy(true)
+    try { await api('/api/auth/password', { method: 'POST', body: JSON.stringify(f) }); setOpen(false); setF({ current_password: '', new_password: '' }); notify('Senha alterada. Os outros aparelhos foram desconectados.') }
+    catch (e) { setErr(e.message || 'Não foi possível trocar a senha') } finally { setBusy(false) }
+  }
+  const all = async () => {
+    if (!(await ask('Sair de todos os aparelhos?', { text: 'Você vai precisar entrar de novo em todos eles, inclusive neste.', ok: 'Sair de todos', danger: true }))) return
+    try { await signOutAll() } catch (e) { notifyError(e) }
+  }
+  return <>
+    <h2>Segurança</h2>
+    <div className="g-card" data-testid="security">
+      {!open ? <button className="g-btn g-ghost g-sm" onClick={() => setOpen(true)} data-testid="pw-open">Trocar senha</button> : <>
+        <label className="g-sm">Senha atual<input className="g-in" type="password" autoComplete="current-password" value={f.current_password} onChange={e => setF({ ...f, current_password: e.target.value })} data-testid="pw-cur" /></label>
+        <label className="g-sm" style={{ display: 'block', marginTop: 8 }}>Nova senha (mínimo 8 caracteres)<input className="g-in" type="password" autoComplete="new-password" value={f.new_password} onChange={e => setF({ ...f, new_password: e.target.value })} data-testid="pw-new" /></label>
+        {err && <p className="g-warn g-sm" role="alert">{err}</p>}
+        <div className="g-actions" style={{ marginTop: 10 }}><button className="g-btn g-sm" disabled={busy} onClick={save} data-testid="pw-save">{busy ? 'Salvando…' : 'Salvar nova senha'}</button><button className="g-btn g-ghost g-sm" onClick={() => setOpen(false)}>Cancelar</button></div>
+      </>}
+      <button className="g-btn g-ghost g-sm" style={{ marginTop: 10 }} onClick={all} data-testid="logout-all">Sair de todos os aparelhos</button>
+      <p className="g-xs g-mut" style={{ marginTop: 8 }}>Use se perdeu um aparelho ou acha que alguém entrou na sua conta.</p>
+    </div>
   </>
 }
