@@ -30,6 +30,22 @@ export async function readStateRow(uid) {
   return null
 }
 export const readStatePg = async uid => (await readStateRow(uid))?.state || null
+// comparação independente da ordem das chaves (o jsonb do Postgres reordena)
+const canon = v => Array.isArray(v) ? v.map(canon) : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map(k => [k, canon(v[k])])) : v
+const stable = v => JSON.stringify(canon(v ?? null))
+// mantém rotinas/exercícios próprios exatamente como estavam no servidor; conta o que o aparelho tentou mudar
+export function readOnlyMerge(prev, next) {
+  const rejected = { routines: 0, customEx: 0 }, items = { routines: [], customEx: [] }
+  const out = { ...next }
+  for (const k of ['routines', 'customEx']) {
+    const old = Array.isArray(prev[k]) ? prev[k] : [], inc = Array.isArray(next[k]) ? next[k] : []
+    const byId = new Map(old.map(x => [String(x?.id), x])), incIds = new Set(inc.map(x => String(x?.id)))
+    for (const x of inc) { const o = byId.get(String(x?.id)); if (!o || stable(o) !== stable(x)) { rejected[k]++; items[k].push({ op: o ? 'alterar' : 'criar', item: x }) } }
+    for (const o of old) if (!incIds.has(String(o?.id))) { rejected[k]++; items[k].push({ op: 'remover', item: o }) }
+    out[k] = old
+  }
+  return { state: out, rejected, items }
+}
 export const setDataDir = d => { DATA = d }
 // usuários que só têm o arquivo antigo state-<id>.json (ainda não lidos pelo banco)
 export const legacyFileUsers = () => DATA && fs.existsSync(DATA) ? fs.readdirSync(DATA).map(f => /^state-([0-9a-f-]{36})\.json$/i.exec(f)?.[1]).filter(Boolean) : []
@@ -57,8 +73,15 @@ export function appStateRoutes({ json, readBody, readSession, dataDir }) {
       if (!b || !b.state || typeof b.state !== 'object' || Array.isArray(b.state)) return json(res, 400, { error: 'state required' })
       if (JSON.stringify(b.state).length > MAX) return json(res, 413, { error: 'Estado grande demais' })
       const active = b.state.active && typeof b.state.active === 'object' ? b.state.active : null
-      await writeStatePg(id, b.state, active)
-      json(res, 200, { ok: true, ts: b.state._ts || null })
+      // V4 Fase 3: rotinas e exercícios próprios do aluno são somente leitura. O que já existia é preservado como está;
+      // rotina/exercício novo, alterado ou removido pelo aparelho é recusado (o resto do estado sincroniza normalmente).
+      const prev = (await readStateRow(id))?.state || {}
+      const ro = readOnlyMerge(prev, b.state)
+      await writeStatePg(id, ro.state, active)
+      // quarentena: o que foi recusado fica guardado (auditável), nunca é descartado
+      for (const k of ['routines', 'customEx']) if (ro.items[k].length)
+        await q(`insert into user_app_state_rejections(tenant_id,user_id,kind,payload) select tenant_id,id,$2,$3 from users where id=$1`, [id, k, JSON.stringify(ro.items[k])]).catch(e => console.error('[appstate] quarentena', e.message))
+      json(res, 200, { ok: true, ts: b.state._ts || null, ...(ro.rejected.routines || ro.rejected.customEx ? { code: 'ROUTINES_READ_ONLY', rejected: ro.rejected, routines: ro.state.routines, customEx: ro.state.customEx } : {}) })
       // V4: treino livre concluído na janela de transição entra no Postgres como histórico legado (idempotente)
       importLegacyFor(id).catch(e => console.error('[legacy-import]', e.message))
     },

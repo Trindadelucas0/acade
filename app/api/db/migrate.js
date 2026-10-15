@@ -84,6 +84,8 @@ async function seed(c) {
       author_name=excluded.author_name, minutes_max=excluded.minutes_max returning id`,
       [sl, title, desc, goal, level, loc, weeks, days, min, rehab, tags, meta.author || ov.author || (rehab ? 'Equipe AVAGYM (fisioterapia)' : 'Equipe AVAGYM'), meta.minutes_max || ov.minutes_max || null])
     const pid = p.rows[0].id
+    // V4: programa que já tem revisão editorial nova (v2+) não é reescrito pelo seed — o conteúdo publicado é imutável
+    if ((await c.query(`select to_regclass('program_revisions') t`)).rows[0].t && (await c.query('select 1 from program_revisions where program_id=$1 and version_number>1', [pid])).rowCount) continue
     let wi = 0
     for (const [wname, focus, exs] of workouts) {
       const label = String.fromCharCode(65 + wi)

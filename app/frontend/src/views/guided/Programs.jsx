@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import ProgramBadges from '../../components/ProgramBadges.jsx'
 import { useNavigate, useParams } from 'react-router-dom'
 import Icon from '../../components/Icon.jsx'
 import { G, GOALS, GOAL_PT, LEVEL_PT, LOC_PT, RESTR_PT, mediaOf, minutesLabel, repsLabel } from '../../lib/guided.js'
@@ -25,6 +26,7 @@ export function ProgramCard({ p, badge, why, onClick }) {
     <Cover p={p} badge={badge} />
     <div className="g-pbody">
       <Meta p={p} />
+      <ProgramBadges p={p} compact />
       {p.description && <p className="g-mut g-sm" style={{ marginTop: 10 }}>{p.description}</p>}
       {why && why.length > 0 && <div className="g-why"><b>POR QUE ESTE PROGRAMA</b><ul>{why.map((w, i) => <li key={i}>{w}</li>)}</ul></div>}
     </div>
@@ -112,7 +114,8 @@ export function ProgramDetail() {
       <div className="g-row g-xs g-mut" style={{ margin: '12px 0 6px' }}><Icon name="target" /> Músculos trabalhados</div>
       <p className="g-sm">{p.muscles_pt.join(' · ')}</p>
       <div className="g-row g-xs g-mut" style={{ margin: '12px 0 6px' }}><Icon name="person" /> Autor</div>
-      <p className="g-sm">{p.author_name || 'Equipe AVADESK'} · versão {p.version}</p>
+      <p className="g-sm">{p.author_name || 'Equipe AVADESK'} · versão {p.version}{p.origin_kind === 'seed' && !p.author_verified ? ' · autoria ainda não verificada' : ''}</p>
+      <ProgramBadges p={p} />
     </div>
     <h2>{p.workouts.length} treinos que se repetem na semana</h2>
     {p.workouts.map((w, i) => <div className="g-card" key={w.id}>

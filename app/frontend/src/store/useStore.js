@@ -106,7 +106,11 @@ export const useStore = create((set, get) => {
     async pushState() {
       if (!get().user) return
       clearTimeout(pushTm)
-      try { await api('/api/data', { method: 'PUT', body: JSON.stringify({ state: get().S }) }); localStorage.removeItem('gym_dirty') }
+      try {
+        const r = await api('/api/data', { method: 'PUT', body: JSON.stringify({ state: get().S }) }); localStorage.removeItem('gym_dirty')
+        // V4: rotinas/exercícios próprios são só consulta — o servidor guardou a tentativa em quarentena e devolve a versão oficial
+        if (r?.code === 'ROUTINES_READ_ONLY') set(st => ({ S: { ...st.S, routines: r.routines || [], customEx: r.customEx || [] } }))
+      }
       catch (e) { localStorage.setItem('gym_dirty', '1') }
     },
     async pullState() {

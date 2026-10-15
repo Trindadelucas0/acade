@@ -72,6 +72,11 @@ export async function applyEvents(u, s, events) {
   return { state, applied, rejected }
 }
 
+// V4 F3: sessão nova de programa leva a revisão da adesão (snapshot verificável da prescrição usada)
+export async function linkSessionRevision(sid, upId) {
+  if (!upId) return
+  await q('insert into program_session_versions(session_id, revision_id) select $1, revision_id from user_program_revisions where user_program_id=$2 on conflict do nothing', [sid, upId]).catch(() => {})
+}
 const STATUS_OF = { concluida: 'done', descartada: 'discarded', interrompida: 'interrupted' }
 
 export function sessionsV4Routes({ json, readBody }) {
@@ -94,6 +99,7 @@ export function sessionsV4Routes({ json, readBody }) {
         values($1,$2,$3,'in_progress',$4,$5,$6,$7,$8,'em_andamento',$9,$10,$11,$12,$3,$3,$13,$14) returning id,tenant_id,state,started_at`,
         [u.tenant_id, u.id, now, cid, auth.upId, auth.pwId, auth.ppId, String(b.workout_name || 'Treino').slice(0, 120), auth.origin, auth.program_version || null, auth.pro_plan_version || null,
          JSON.stringify(auth.snapshot), JSON.stringify(b.client_started_at && Math.abs(new Date(b.client_started_at) - now) > CLOCK_SKEW_MS ? { client_clock_skew_ms: new Date(b.client_started_at) - now } : {}), +b.prescribed_count || null])).rows[0]
+      await linkSessionRevision(s.id, auth.upId)
       await addEvent(q, s, u.id, { id: 'start', type: 'start', at: b.client_started_at || now, from: 'nao_iniciada', to: 'em_andamento', payload: { origin: auth.origin } })
       json(res, 201, { id: s.id, state: s.state, started_at: s.started_at, origin: auth.origin })
     },

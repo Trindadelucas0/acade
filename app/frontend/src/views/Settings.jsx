@@ -159,11 +159,9 @@ export default function Settings() {
 
     {/* ---------- data: fill it, bring things over, back it up, wipe it ---------- */}
     <Section title={t('Data')}>
-      <Row icon="sparkles" iconTint="var(--acc)" title={t('Load starter plan (PPL)')} accessory="chevron" onClick={loadStarterPlan} />
-      <Row icon="shuffle" iconTint="var(--teal)" title={t('Import from another app')}
-        subtitle={t('FitNotes, Strong, Hevy — or body weight from Apple Health')}
-        accessory="chevron" onClick={() => importRef.current.click()} />
-      <Row icon="upload" iconTint="var(--blue)" title={t('Import backup')} accessory="chevron" onClick={() => fileRef.current.click()} />
+      {/* V4 F3: criação/importação de rotinas saiu (rotinas antigas são só consulta) */}
+      {/* V4 F3: criação/importação de rotinas saiu (rotinas antigas são só consulta) */}
+      {/* V4 F3: criação/importação de rotinas saiu (rotinas antigas são só consulta) */}
       <Row icon="download" iconTint="var(--blue)" title={t('Export backup (JSON)')} accessory="chevron" onClick={doExport} />
       {/* V4 (doc 4.5): "Apagar tudo" saiu — nada do aluno é apagado. Limpa só o cache de arquivos do aparelho; a fila de sincronização e o histórico ficam. */}
       <Row icon="trash" iconTint="var(--blue)" title="Limpar cache deste aparelho" subtitle="Libera espaço. Seus treinos e o que ainda não sincronizou não são apagados." accessory="chevron" onClick={clearDeviceCache} data-testid="clear-cache" />

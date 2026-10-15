@@ -44,6 +44,7 @@ import Avisos from './views/app/Avisos.jsx'
 import AdminApp from './views/admin/AdminApp.jsx'
 import { TermsGate } from './views/app/Terms.jsx'
 import ProPortal from './views/pro/Portal.jsx'
+import MyPrograms from './views/pro/MyPrograms.jsx'
 import { GroupPage } from './views/app/Grupos.jsx'
 import { ChallengePage, ChallengeWizard } from './views/app/Desafios.jsx'
 import Builder from './views/builder/WorkoutBuilder.jsx'
@@ -112,6 +113,7 @@ function Shell() {
           ) : isProAccount(user) ? (
             <Routes>
               <Route path="/pro" element={<Gate title="AVADESK PRO"><ProPortal /></Gate>} />
+              <Route path="/pro/programas" element={<Gate title="AVADESK PRO"><MyPrograms /></Gate>} />
               <Route path="/pro/treino" element={<Gate title="AVADESK PRO"><Builder /></Gate>} />
               <Route path="/comunidade" element={<Gate title="Comunidade"><Comunidade /></Gate>} />
               <Route path="/grupo/:id" element={<Gate title="Comunidade"><GroupPage /></Gate>} />
@@ -142,6 +144,7 @@ function Shell() {
               <Route path="/profissional/:id" element={<Gate title="Comunidade"><ProfessionalPage /></Gate>} />
               <Route path="/ranking" element={<Gate title="Ranking"><Ranking /></Gate>} />
               <Route path="/pro" element={user?.pro || user?.admin ? <Gate title="AVADESK PRO"><ProPortal /></Gate> : <Navigate to="/hoje" replace />} />
+              <Route path="/pro/programas" element={<Gate title="AVADESK PRO"><MyPrograms /></Gate>} />
               <Route path="/admin/painel" element={user?.admin ? <AdminApp /> : <Navigate to="/hoje" replace />} />
               <Route path="/onboarding" element={<Gate title="Treinos"><Onboarding /></Gate>} />
               <Route path="/recomendados" element={<Recommendations />} />

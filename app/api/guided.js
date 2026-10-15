@@ -1,8 +1,9 @@
 // AVAGYM — Treino guiado: onboarding, recomendação determinística, programa ativo, sessões e progresso.
 import { checkGoals } from './challenge-score.js'
 import { summarize } from './timing.js'
-import { authorizeOrigin, ORIGIN_MSG, applyEvents, addEvent, parseCorrection, recordCorrection, CLOCK_SKEW_MS } from './sessions-v4.js'
+import { linkSessionRevision, authorizeOrigin, ORIGIN_MSG, applyEvents, addEvent, parseCorrection, recordCorrection, CLOCK_SKEW_MS } from './sessions-v4.js'
 import { countsInMetrics } from './metrics.js'
+import { BADGES_SQL } from './programs-editorial.js'
 import { pausedFromEvents } from './session-machine.js'
 // Todas as rotas exigem login (requireAuth) e são isoladas por tenant (tenantScope / user_id).
 import { q } from './db/pool.js'
@@ -113,20 +114,23 @@ async function profileOf(uid) {
   return r.rows[0] || null
 }
 async function activeOf(u) {
-  const r = await q(`select up.id, up.program_id, up.start_date, up.started_at, p.title, p.weeks, p.days_per_week, p.minutes, p.minutes_max, p.goal, p.level, p.cover_url
+  const r = await q(`select up.id, up.program_id, up.start_date, up.started_at, (select x.revision_id from user_program_revisions x where x.user_program_id=up.id) revision_id, p.status program_status, p.title, p.weeks, p.days_per_week, p.minutes, p.minutes_max, p.goal, p.level, p.cover_url
     from user_programs up join programs p on p.id=up.program_id where up.user_id=$1 and up.tenant_id=$2 and up.status='active' order by up.started_at desc limit 1`, [u.id, u.tenant_id])
   return r.rows[0] || null
 }
-async function programFull(id, tid) {
-  const r = await q(`select p.* from programs p where p.id=$1 and ${tenantScope('p', 2)}`, [id, tid])
+// V4: os treinos vêm da revisão (a do aluno, se ele já aderiu; senão a publicada). Revisões antigas não são sobrescritas.
+async function programFull(id, tid, revisionId = null) {
+  const r = await q(`select p.*, ${BADGES_SQL('p')} from programs p where p.id=$1 and ${tenantScope('p', 2)}`, [id, tid])
   const p = r.rows[0]; if (!p) return null
+  const rev = revisionId || p.published_revision_id || null
   const w = await q(`select w.id,w.position,w.name,w.focus,w.day_label,
       coalesce((select json_agg(json_build_object('id',x.id,'exercise_id',x.exercise_id,'name',e.name_pt,'media',e.media_url,'equipment',eq.name_pt,
         'sets',x.sets,'reps_min',x.reps_min,'reps_max',x.reps_max,'rest_sec',x.rest_sec,'duration_sec',x.duration_sec,
         'instructions',coalesce(x.instructions,e.instructions_pt),
         'cautions',(select coalesce(json_agg(json_build_object('code',ci.restriction_code,'level',ci.level)),'[]') from exercise_contraindications ci where ci.exercise_id=e.id)) order by x.position)
         from program_workout_exercises x join exercises e on e.id=x.exercise_id left join equipment eq on eq.id=e.equipment_id where x.program_workout_id=w.id),'[]') exercises
-    from program_workouts w where w.program_id=$1 order by w.position`, [id])
+    from program_workouts w where w.program_id=$1 and ($2::uuid is null or w.revision_id = $2 or w.revision_id is null and not exists (select 1 from program_workouts z where z.program_id=$1 and z.revision_id=$2))
+    order by w.position`, [id, rev])
   p.workouts = w.rows
   const eqn = await q('select id,name_pt from equipment where id = any($1)', [p.equipment || []])
   p.equipment_pt = eqn.rows.map(r => r.name_pt)
@@ -136,10 +140,11 @@ async function programFull(id, tid) {
 }
 const LIST_SQL = `select p.id,p.slug,p.title,p.description,p.goal,p.level,p.location,p.weeks,p.days_per_week,p.minutes,p.minutes_max,p.is_rehab,p.tags,
     p.cover_url,p.author_name,p.status,p.version,p.equipment,p.muscles,p.contraindications avoid,
-    (select count(*) from program_workouts w where w.program_id=p.id)::int workouts_count,
+    (select count(*) from program_workouts w where w.program_id=p.id and (p.published_revision_id is null or w.revision_id is not distinct from p.published_revision_id))::int workouts_count,
+    ${BADGES_SQL('p')},
     (select coalesce(json_object_agg(c.code,c.n),'{}') from (select ci.restriction_code code, count(distinct x.exercise_id) n from program_workouts w
        join program_workout_exercises x on x.program_workout_id=w.id join exercise_contraindications ci on ci.exercise_id=x.exercise_id and ci.level='caution'
-       where w.program_id=p.id group by ci.restriction_code) c) caution
+       where w.program_id=p.id and (p.published_revision_id is null or w.revision_id is not distinct from p.published_revision_id) group by ci.restriction_code) c) caution
   from programs p where ((p.tenant_id is null and p.visibility='public') or p.tenant_id=$1)`
 
 async function sessionsDoneIn(upId) {
@@ -195,16 +200,21 @@ export function guidedRoutes({ json, readBody }) {
     'GET /api/guided/program': async (req, res) => {
       const u = await requireTrainee(req, res, json); if (!u) return
       const id = qs(req).get('id'); if (!isUuid(id)) return json(res, 400, { error: 'id inválido' })
-      const p = await programFull(id, u.tenant_id); if (!p) return json(res, 404, { error: 'Programa não encontrado' })
+      // V4: o aluno vê o publicado; arquivado/revogado só se já aderiu (rascunho/revisão nunca)
+      const mine = (await q(`select x.revision_id from user_programs up left join user_program_revisions x on x.user_program_id=up.id where up.user_id=$1 and up.program_id=$2 order by up.started_at desc limit 1`, [u.id, id])).rows[0]
+      const p = await programFull(id, u.tenant_id, mine?.revision_id || null); if (!p) return json(res, 404, { error: 'Programa não encontrado' })
+      if (p.status !== 'publicado' && !(mine && ['arquivado', 'revogado'].includes(p.status))) return json(res, 404, { error: 'Programa não encontrado' })
       json(res, 200, { program: p })
     },
     'POST /api/guided/start': async (req, res) => {
       const u = await requireTrainee(req, res, json); if (!u) return
       const b = await readBody(req); if (!isUuid(b.program_id)) return json(res, 400, { error: 'id inválido' })
-      const p = await q(`select id from programs p where id=$1 and status='publicado' and ${tenantScope('p', 2)}`, [b.program_id, u.tenant_id])
+      const p = await q(`select id, published_revision_id from programs p where id=$1 and status='publicado' and ${tenantScope('p', 2)}`, [b.program_id, u.tenant_id])
       if (!p.rowCount) return json(res, 404, { error: 'Programa não encontrado' })
       await q(`update user_programs set status='switched', ended_at=now(), end_reason='trocou de programa' where user_id=$1 and status='active'`, [u.id])
       const r = await q(`insert into user_programs(tenant_id,user_id,program_id,start_date,status,started_at,schedule) values($1,$2,$3,current_date,'active',now(),'{}') returning id`, [u.tenant_id, u.id, b.program_id])
+      // V4: a adesão fica presa à revisão publicada agora (nova versão não troca o programa do aluno sozinha)
+      if (p.rows[0].published_revision_id) await q('insert into user_program_revisions(user_program_id, revision_id) values($1,$2) on conflict do nothing', [r.rows[0].id, p.rows[0].published_revision_id])
       json(res, 200, { user_program_id: r.rows[0].id })
     },
     'POST /api/guided/abandon': async (req, res) => {
@@ -217,7 +227,9 @@ export function guidedRoutes({ json, readBody }) {
     'GET /api/guided/today': async (req, res) => {
       const u = await requireTrainee(req, res, json); if (!u) return
       const a = await activeOf(u); if (!a) return json(res, 200, { active: null })
-      const p = await programFull(a.program_id, u.tenant_id)
+      const p = await programFull(a.program_id, u.tenant_id, a.revision_id)
+      // V4: programa revogado não executa mais (histórico preservado); arquivado: quem já aderiu termina
+      if (p.status === 'revogado') return json(res, 200, { active: { ...a, revoked: true, revoke_reason: p.revoke_reason }, workout: null, revoked: true })
       const done = await sessionsDoneIn(a.id)
       const want = qs(req).get('workout')
       const idx = p.workouts.findIndex(w => w.id === want)
@@ -261,6 +273,7 @@ export function guidedRoutes({ json, readBody }) {
         cur = (await q(`insert into sessions(tenant_id,user_id,started_at,status,client_id,user_program_id,program_workout_id,pro_plan_id,workout_name,state,origin,program_version,pro_plan_version,auth_snapshot,last_activity_at,prescribed_count)
           values($1,$2,$3,'in_progress',$4,$5,$6,$7,$8,'em_andamento',$9,$10,$11,$12,now(),$13) returning id,tenant_id,status,state,started_at,server_started_at`,
           [u.tenant_id, u.id, started, cid, auth.upId, auth.pwId, auth.ppId, String(b.workout_name || 'Treino').slice(0, 120), auth.origin, auth.program_version || null, auth.pro_plan_version || null, JSON.stringify(auth.snapshot), +b.prescribed_count || null])).rows[0]
+        await linkSessionRevision(cur.id, auth.upId)
         await addEvent(q, cur, u.id, { id: 'start', type: 'start', at: started, from: 'nao_iniciada', to: 'em_andamento', payload: { offline: true } })
       }
       const sid = cur.id
@@ -352,19 +365,18 @@ export function guidedRoutes({ json, readBody }) {
     // ---------- admin: lista simples + mudança de status ----------
     'GET /api/guided/admin/programs': async (req, res) => {
       const u = await requireRole('admin', 'profissional')(req, res, json); if (!u) return
-      const r = await q(LIST_SQL + ' order by p.status, p.title', [u.tenant_id])
+      // V4: profissional vê só o publicado e os próprios (rascunhos de outros autores não aparecem)
+      const r = u.roles.includes('admin') ? await q(LIST_SQL + ' order by p.status, p.title', [u.tenant_id])
+        : await q(LIST_SQL + ` and (p.status='publicado' or p.author_id=$2) order by p.status, p.title`, [u.tenant_id, u.id])
       const users = (await q(`select program_id, count(*)::int n from user_programs where status='active' group by program_id`)).rows
       const by = Object.fromEntries(users.map(x => [x.program_id, x.n]))
       json(res, 200, { programs: r.rows.map(p => ({ ...p, active_users: by[p.id] || 0 })) })
     },
+    // V4: o status não muda mais "na mão" — publicar/arquivar/revogar passam pelo fluxo editorial (/api/admin/programs/*), auditado
     'POST /api/guided/admin/program-status': async (req, res) => {
       const u = await requireRole('admin')(req, res, json); if (!u) return
-      const b = await readBody(req)
-      if (!isUuid(b.id) || !STATUS.includes(b.status)) return json(res, 400, { error: 'Dados inválidos' })
-      const r = await q(`update programs p set status=$2, version = version + case when $2='publicado' and status<>'publicado' then 1 else 0 end, updated_at=now()
-        where p.id=$1 and ${tenantScope('p', 3)} returning id,status,version`, [b.id, b.status, u.tenant_id])
-      if (!r.rowCount) return json(res, 404, { error: 'Programa não encontrado' })
-      json(res, 200, r.rows[0])
+      json(res, 409, { error: 'Use o fluxo editorial: avaliar, publicar, arquivar ou revogar com justificativa.', code: 'INVALID_TRANSITION' })
     }
+
   }
 }

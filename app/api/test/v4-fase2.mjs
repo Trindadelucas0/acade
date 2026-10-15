@@ -135,15 +135,15 @@ const totBefore = (await get(s.tok, '/api/guided/progress')).d.totals.n
 const legacyState = { _ts: Date.now(), routines: [{ id: 'r1', name: 'Minha rotina A', items: [{ id: '0025', sets: 3 }] }], customEx: [{ id: 'cx1', n: 'Meu exercício' }],
   workouts: [{ id: 'lw1', d: '2026-09-01', start: Date.parse('2026-09-01T10:00:00Z'), end: Date.parse('2026-09-01T11:00:00Z'), routineId: 'r1', name: 'Minha rotina A',
     entries: [{ id: '0025', sets: [{ w: 60, r: 10, done: true }, { w: 60, r: 8, done: true }, { w: 0, r: 0, done: false }] }] }] }
-r = await call(s.tok, 'PUT', '/api/data', { state: legacyState })
-check(r.s === 200, 'PUT /api/data (janela de transição) aceito')
-await new Promise(ok => setTimeout(ok, 400))
+// dado anterior à V4 (já no Postgres desde a V3 F7): grava direto, como estava em produção
+await q(`insert into user_app_state(user_id, tenant_id, state) select id, tenant_id, $2 from users where id=$1 on conflict (user_id) do update set state=excluded.state`, [s.id, JSON.stringify(legacyState)])
 r = await get(s.tok, '/api/me/legacy')
 check(r.s === 200 && r.d.executable === false && r.d.routines.length === 1 && r.d.custom_exercises.length === 1, 'rotina (consulta) e exercício próprio (arquivado) importados')
 const lg = r.d.sessions[0]
 check(lg && lg.sets_count === 2 && lg.volume === 1080 && lg.duration_sec === 3600, 'treino livre antigo virou sessão legado (2 séries feitas, 1080 kg, 60 min)')
 check((await q('select count(*)::int n from legacy_session_sets where session_id=$1', [lg.id])).rows[0].n === 2, 'séries originais preservadas em legacy_session_sets')
-await get(s.tok, '/api/me/legacy'); await call(s.tok, 'PUT', '/api/data', { state: legacyState }); await new Promise(ok => setTimeout(ok, 300))
+await get(s.tok, '/api/me/legacy'); r = await call(s.tok, 'PUT', '/api/data', { state: legacyState }); await new Promise(ok => setTimeout(ok, 300))
+check(r.s === 200 && !r.d.code, 'PUT com as mesmas rotinas (sem mudança) segue normal')
 check((await q(`select count(*)::int n from sessions where user_id=$1 and origin='legado'`, [s.id])).rows[0].n === 1, 'importação idempotente (sem duplicar)')
 const js = (await q('select state from user_app_state where user_id=$1', [s.id])).rows[0].state
 check(js.workouts.length === 1 && js.routines.length === 1 && js.customEx.length === 1, 'JSON original continua intacto')

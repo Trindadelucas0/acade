@@ -203,7 +203,7 @@ export default function ProPortal() {
   return <div className="ag" data-testid="pro">
     <span className="g-eyebrow">AVADESK PRO</span><h1>{TITLES[tab] || 'AVADESK PRO'}</h1>
     {['painel', 'treinos', 'convites', 'capacidade', 'perfil', 'verificacao'].includes(tab) && <div className="g-scrollx" style={{ marginTop: 8, marginBottom: 6 }}>{[['painel', 'Painel'], ['convites', 'Convites'], ['treinos', 'Meus treinos'], ['capacidade', 'Capacidade'], ['verificacao', 'Verificação'], ['perfil', 'Perfil profissional']].map(([k, l]) =>
-      <button key={k} className={'g-chipbtn' + (tab === k ? ' g-on' : '')} onClick={() => go(k)} data-testid={'pt-' + k}>{l}</button>)}</div>}
+      <button key={k} className={'g-chipbtn' + (tab === k ? ' g-on' : '')} onClick={() => go(k)} data-testid={'pt-' + k}>{l}</button>)}<button className="g-chipbtn" onClick={() => nav('/pro/programas')} data-testid="pt-programas">Programas públicos</button></div>}
     <div style={{ marginTop: 8 }}>
       {tab === 'painel' && <Painel go={go} />}
       {tab === 'alunos' && (sp.get('id') ? <StudentDetail id={sp.get('id')} sub={sp.get('sub')} go={go} /> : <Alunos go={go} filter={sp.get('filter')} />)}
