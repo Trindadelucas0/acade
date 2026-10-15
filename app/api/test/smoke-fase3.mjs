@@ -25,8 +25,12 @@ export async function run({ adm, p1, p2, stu, sid, P1, get, post, check }) {
 
   console.log('Fase 3 — contas separadas do profissional')
   check((await get(p1, '/api/guided/today')).s === 403, 'conta profissional não registra treino pessoal')
-  check((await post(adm, '/api/adm/users/role', { id: sid, role: 'profissional', on: true })).s === 409, 'aluno com dados de treino não vira profissional (contas separadas)')
-  check((await post(adm, '/api/adm/users/role', { id: P1.user_id, role: 'aluno', on: true })).s === 409, 'conta profissional não recebe papel de aluno')
+  // V4 F5: identidade única — a mesma conta pode ter os dois papéis (testado numa conta descartável para não mexer nos fixtures)
+  { const terms = (await get(null, '/api/terms')).d.terms
+    const reg = await post(null, '/api/auth/register', { name: 'Dupla Smoke', email: `dupla${Date.now()}@e2e.local`, password: 'e2e-Avadesk-2026', accept_terms: true, terms_version: terms?.version })
+    check((await post(adm, '/api/adm/users/role', { id: reg.d.user.id, role: 'profissional', on: true })).s === 200, 'V4: aluno também pode ser profissional na mesma conta')
+    const roles = (await get(reg.d.token, '/api/auth/me')).d.user.roles
+    check(roles.includes('aluno') && roles.includes('profissional'), 'V4: papel de aluno preservado') }
   check((await post(adm, '/api/adm/users/same-person', { id: P1.user_id, other_id: sid, note: 'teste' })).s === 200, 'admin registra que duas contas são da mesma pessoa (só auditoria)')
   check((await post(p1, '/api/adm/users/same-person', { id: P1.user_id, other_id: sid })).s === 403, 'só admin registra mesma pessoa')
   await post(adm, '/api/adm/users/same-person', { id: P1.user_id })
