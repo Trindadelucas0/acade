@@ -114,7 +114,14 @@ export async function main() {
   check(r.s === 200 && r.d.archived_plans === 1, 'encerrar vínculo arquiva o plano do profissional')
   check((await get(p1, '/api/pro/student?id=' + sid)).s === 403, 'profissional perde acesso operacional')
   check((await get(stu, '/api/care')).d.occurrences.length >= 2, 'histórico do aluno preservado')
-  Object.assign(ctx, { stu, adm, p1, p2, sid, P1, P2, get, post, check })
+  // V4: o servidor só registra sessão com origem programa publicado ativo ou ficha do profissional → o aluno do smoke ativa um programa
+  await post(stu, '/api/guided/onboarding', { objetivo: 'hypertrophy', nivel: 'beginner', local: 'gym', dias: 3, minutos: 45, restricoes: [] })
+  const progs = (await get(stu, '/api/guided/programs')).d, plist = progs.programs || progs
+  await post(stu, '/api/guided/start', { program_id: plist[0].id })
+  const td = (await get(stu, '/api/guided/today')).d
+  const origin = { user_program_id: td.active.id, program_workout_id: td.workout.id }
+  check(!!(origin.user_program_id && origin.program_workout_id), 'V4: aluno do smoke com programa publicado ativo')
+  Object.assign(ctx, { stu, adm, p1, p2, sid, P1, P2, get, post, check, origin })
 }
 const isMain = process.argv[1] && process.argv[1].endsWith('smoke.mjs')
 if (isMain) {

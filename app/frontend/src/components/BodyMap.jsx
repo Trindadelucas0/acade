@@ -28,7 +28,7 @@ function useBodyPaths() {
 
 function View({ view, levels, onMuscle, selected }) {
   return (
-    <svg className="bm-v" viewBox={view.vb} role="img">
+    <svg className="bm-v" viewBox={view.vb} role="img" aria-label="Mapa muscular: carga recente por grupo">
       {INERT.map(slug => (view.p[slug] || []).map((d, i) =>
         <path key={slug + i} className="bm-sil" d={d} />))}
       {MUSCLES.map(slug => (view.p[slug] || []).map((d, i) =>

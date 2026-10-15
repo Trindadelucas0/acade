@@ -7,6 +7,7 @@ import { api } from '../../lib/api.js'
 import { mediaOf } from '../../lib/guided.js'
 import { groupsOf, parseReps, SIDE_PT, TECH_PT } from '../../lib/workout.js'
 import './builder.css'
+import { useUnsavedGuard } from '../../lib/dialog.js'
 
 const LEVEL_PT = { beginner: 'Iniciante', intermediate: 'Intermediário', advanced: 'Avançado' }
 const blankDay = i => ({ name: 'Treino ' + String.fromCharCode(65 + i), description: '', exercises: [] })
@@ -68,7 +69,7 @@ export default function WorkoutBuilder() {
   const fail = e => setMsg({ bad: true, t: e.problems ? 'Não foi salvo: ' + e.problems.join(' · ') : 'Não foi salvo: ' + e.message })
   const saveTemplate = async () => { setBusy('tpl'); setMsg(null); try {
     const r = isAdmin ? await P.saveTemplate({ id: meta.templateScope === 'global' ? meta.templateId || undefined : undefined, ...body() }) : await api('/api/pro/templates', { method: 'POST', body: JSON.stringify({ id: meta.templateScope === 'pessoal' ? meta.templateId || undefined : undefined, ...body() }) })
-    setMeta(m => ({ ...m, templateId: r.id, templateScope: isAdmin ? 'global' : 'pessoal' })); setMsg({ t: isAdmin ? 'Modelo salvo: disponível para todos os profissionais' : 'Modelo pessoal salvo' }) } catch (e) { fail(e) } finally { setBusy('') } }
+    setMeta(m => ({ ...m, templateId: r.id, templateScope: isAdmin ? 'global' : 'pessoal' })); markSaved(); setMsg({ t: isAdmin ? 'Modelo salvo: disponível para todos os profissionais' : 'Modelo pessoal salvo' }) } catch (e) { fail(e) } finally { setBusy('') } }
   const send = async () => {
     if (!meta.student) return setMsg({ bad: true, t: 'Escolha o aluno que vai receber o treino' })
     setBusy('send'); setMsg(null)
@@ -79,10 +80,15 @@ export default function WorkoutBuilder() {
         if (r.status === 'rascunho') await P.publish(r.id)
       }
       const st = students.find(s => s.id === meta.student)
-      setMsg({ ok: true, t: `Treino enviado para ${st?.name || 'o aluno'}. Ele recebeu uma notificação no app.` })
+      markSaved(); setMsg({ ok: true, t: `Treino enviado para ${st?.name || 'o aluno'}. Ele recebeu uma notificação no app.` })
     } catch (e) { fail(e) } finally { setBusy('') }
   }
-  const back = () => nav(isAdmin ? '/admin/painel?tab=modelos' : '/pro')
+  // V4 · F1: voltar com alterações não salvas pede confirmação (não salva sozinho)
+  const [snap, setSnap] = useState(null)
+  useEffect(() => { if (snap === null && (!meta.planId || w.title)) setSnap(JSON.stringify(w)) }, [w]) // eslint-disable-line
+  const leave = useUnsavedGuard(snap !== null && JSON.stringify(w) !== snap)
+  const markSaved = () => setSnap(JSON.stringify(w))
+  const back = () => leave(() => nav(isAdmin ? '/admin/painel?tab=modelos' : '/pro'))
   const total = w.days.reduce((a, d) => a + d.exercises.length, 0)
   return <div className="wb" data-testid="builder">
     <header className="wb-top">

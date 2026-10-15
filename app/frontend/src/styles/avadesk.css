@@ -1,7 +1,7 @@
 /* AVADESK Fitness — sistema visual (grafite + verde-limão). Inspirado nas referências em docs/referencias, sem copiar marca/ativos.
    Carregado por último: unifica as telas novas (.ag / g-*) e as telas herdadas do openGym (--bg/--surface/--acc). */
 :root{
-  --ag-bg:#0b0b0c;--ag-card:#161618;--ag-card-2:#1f2023;--ag-line:#ffffff12;--ag-txt:#f4f5f2;--ag-mut:#a3a69c;--ag-dim:#6b6e66;
+  --ag-bg:#0b0b0c;--ag-card:#161618;--ag-card-2:#1f2023;--ag-line:#ffffff12;--ag-txt:#f4f5f2;--ag-mut:#a3a69c;--ag-dim:#8a8d84;
   --ag-acc:#c8f135;--ag-acc-2:#a6d417;--ag-on:#11140a;--ag-warn:#ffb547;--ag-bad:#ff6b6b;--ag-radius:20px
 }
 :root[data-theme="dark"],:root:not([data-theme="light"]){--bg:#0b0b0c;--bg-el:#121214;--surface:#161618;--surface-2:#1f2023;--surface-3:#2a2b2f;--sep:#ffffff14}

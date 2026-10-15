@@ -1,5 +1,5 @@
 // Smoke test fase 8: cronometragem do treino (séries com início/fim, descanso real x previsto, pausas, resumo no servidor)
-export async function run({ adm, p1, stu, sid, get, post, check }) {
+export async function run({ adm, p1, stu, sid, get, post, check, origin }) {
   console.log('Fase 8 — tempo do treino')
   const lib = (await get(p1, '/api/pro/library?limit=5')).d.exercises
   const T = s => new Date(Date.now() - 3600e3 + s * 1000).toISOString()
@@ -9,10 +9,10 @@ export async function run({ adm, p1, stu, sid, get, post, check }) {
     { exercise_id: lib[1].id, set_index: 0, weight: 10, reps: 12, started_at: T(240), done_at: T(270), rest_sec_real: 90, rest_sec_target: 90 },
     { exercise_id: lib[1].id, set_index: 1, weight: 10, reps: 12, started_at: 'lixo', done_at: T(400), rest_sec_real: -5, rest_sec_target: 99999 }]
   const cid = 'tempo-' + Date.now()
-  let r = await post(stu, '/api/guided/sessions', { client_id: cid, workout_name: 'Treino cronometrado', started_at: T(0), sets: sets.slice(0, 2), paused_sec: 30 })
+  let r = await post(stu, '/api/guided/sessions', { ...origin, client_id: cid, workout_name: 'Treino cronometrado', started_at: T(0), sets: sets.slice(0, 2), paused_sec: 30 })
   if (r.s !== 200) console.log('   resposta', r.s, JSON.stringify(r.d))
   check(r.s === 200 && r.d.timing === null, 'sessão em andamento salva sem resumo')
-  r = await post(stu, '/api/guided/sessions', { client_id: cid, workout_name: 'Treino cronometrado', started_at: T(0), finished_at: T(500), sets, paused_sec: 100 })
+  r = await post(stu, '/api/guided/sessions', { ...origin, client_id: cid, workout_name: 'Treino cronometrado', started_at: T(0), finished_at: T(500), sets, paused_sec: 100 })
   const t = r.d.timing
   check(r.s === 200 && t, 'conclusão gera o resumo de tempo no servidor')
   check(t.total_sec === 400, 'duração total desconta o tempo pausado')
@@ -25,6 +25,6 @@ export async function run({ adm, p1, stu, sid, get, post, check }) {
   if (pv.s === 200) check(pv.d.sessions.some(x => x.timing?.active_sec === 110), 'profissional vinculado vê o tempo da sessão')
   const av = await get(adm, '/api/adm/student/training?id=' + sid)
   check(av.d.sessions.some(x => x.timing?.active_sec === 110), 'admin vê o tempo da sessão')
-  const dup = await post(stu, '/api/guided/sessions', { client_id: cid, started_at: T(0), finished_at: T(900), sets, paused_sec: 0 })
+  const dup = await post(stu, '/api/guided/sessions', { ...origin, client_id: cid, started_at: T(0), finished_at: T(900), sets, paused_sec: 0 })
   check(dup.d.duplicate, 'reenvio da sessão concluída não altera o tempo')
 }

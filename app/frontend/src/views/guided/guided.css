@@ -218,3 +218,7 @@ body:has(.ag),html:has(.ag){background:var(--ag-bg)!important}
 .ag button:focus-visible,.ag a:focus-visible,.ag input:focus-visible,.ag select:focus-visible,.ag textarea:focus-visible,.ag [tabindex]:focus-visible,#agtab button:focus-visible{outline:3px solid var(--ag-acc);outline-offset:2px}
 .ag .g-btn[aria-busy=true]{opacity:.7;cursor:progress}
 @media (prefers-reduced-motion:reduce){.ag *,.ag *::before,.ag *::after,.ag-note,#agtab *{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+/* V4 · F1 — contraste: número do dia não concluído legível (antes texto escuro sobre fundo escuro) */
+.ag .g-week .g-d:not(.g-done) i{color:var(--ag-mut)}
+.ag .g-link{min-height:44px}
+.ag .g-btn:disabled{cursor:not-allowed}

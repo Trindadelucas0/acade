@@ -26,3 +26,16 @@ export function notify(msg, tone = 'ok', ms = 3800) {
   setTimeout(() => useDialog.setState(s => ({ notes: s.notes.filter(n => n.id !== id) })), tone === 'error' ? ms + 2200 : ms)
 }
 export const notifyError = e => notify(e?.reasons ? e.reasons.join(' · ') : (e?.message || String(e || 'Algo deu errado.')), 'error')
+
+// V4 · F1 — guarda de alterações não salvas (§12.3): "Sair sem salvar?" com CONTINUAR EDITANDO / DESCARTAR ALTERAÇÕES.
+// Cancelar nunca salva automaticamente. Também avisa o navegador ao fechar/recarregar a aba.
+import { useEffect, useRef } from 'react'
+export const confirmDiscard = () => ask('Sair sem salvar?', { text: 'Você fez alterações nesta tela.', ok: 'Descartar alterações', cancel: 'Continuar editando', danger: true })
+export function useUnsavedGuard(dirty) {
+  const d = useRef(dirty); d.current = dirty
+  useEffect(() => {
+    const h = e => { if (d.current) { e.preventDefault(); e.returnValue = '' } }
+    addEventListener('beforeunload', h); return () => removeEventListener('beforeunload', h)
+  }, [])
+  return async go => { if (!d.current || await confirmDiscard()) go() }
+}

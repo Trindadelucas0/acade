@@ -25,3 +25,12 @@ export function useLoad(fn, deps = []) {
 }
 export const Err = ({ msg, retry }) => <div className="g-card"><p className="g-warn">{msg}</p>{retry && <button className="g-btn g-ghost g-sm" style={{ marginTop: 10 }} onClick={retry}>Tentar de novo</button>}</div>
 export function Field({ label, children }) { return <label className="g-field"><span className="g-mut g-xs">{label}</span>{children}</label> }
+
+// V4 · F1 — botão padrão do app (§12.1). Variantes sobre as classes existentes (sem visual novo):
+// primary = g-btn (verde-limão, 1 por tela) · secondary = g-btn g-ghost · tertiary = g-link · destructive = g-btn g-danger
+// loading: desabilita, marca aria-busy e mostra o rótulo de carregamento; disabled: nativo.
+const VAR = { primary: 'g-btn', secondary: 'g-btn g-ghost', tertiary: 'g-link', destructive: 'g-btn g-danger' }
+export function Btn({ variant = 'primary', size, loading, loadingLabel = 'Aguarde…', disabled, className = '', children, ...p }) {
+  const cls = [VAR[variant] || VAR.primary, size === 'sm' && variant !== 'tertiary' ? 'g-sm' : '', className].filter(Boolean).join(' ')
+  return <button type="button" className={cls} disabled={disabled || loading} aria-busy={loading ? 'true' : undefined} {...p}>{loading ? loadingLabel : children}</button>
+}

@@ -67,7 +67,7 @@ export default function Treinos() {
           <b>{p.title}</b><br /><span className="g-mut g-xs">Responsável: {p.owner_name}{p.specialty ? ' · ' + p.specialty : ''} · {p.exercises.length} exercícios</span>
           {p.notes && <p className="g-sm g-mut" style={{ marginTop: 4 }}>{p.notes}</p>}
           {p.description && <p className="g-sm" style={{ marginTop: 4 }} data-testid="plan-description">{p.description}</p>}
-          {p.days?.length > 1 ? <div className="g-row" style={{ gap: 8, flexWrap: 'wrap', marginTop: 8 }}>{p.days.map((d, i) => <button key={i} className="g-btn g-sm" style={{ width: 'auto', padding: '0 14px' }} disabled={!!live} onClick={() => nav(`/treinar?plan=${p.id}&day=${i}`)} data-testid="plan-day">{d.name} · {d.exercises.length}</button>)}</div>
+          {p.days?.length > 1 ? <div className="g-row" style={{ gap: 8, flexWrap: 'wrap', marginTop: 8 }}>{p.days.map((d, i) => <button key={i} className="g-btn g-ghost g-sm" style={{ width: 'auto', padding: '0 14px' }} disabled={!!live} onClick={() => nav(`/treinar?plan=${p.id}&day=${i}`)} data-testid="plan-day">{d.name} · {d.exercises.length}</button>)}</div>
             : <button className="g-btn g-sm" style={{ marginTop: 8 }} disabled={!!live} onClick={() => nav('/treinar?plan=' + p.id)}>Começar este treino</button>}</div>)}</div>
           : <NoPro />}
       </section>}

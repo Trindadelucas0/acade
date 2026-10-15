@@ -1,5 +1,5 @@
 // Smoke test fase 2: comunidade e ranking (chamado por smoke.mjs com o contexto da fase 1)
-export async function run({ stu, adm, p1, p2, sid, P1, get, post, check }) {
+export async function run({ stu, adm, p1, p2, sid, P1, get, post, check, origin }) {
   console.log('Recuperação de senha')
   const me = (await get(stu, '/api/auth/me')).d.user
   check((await post(null, '/api/auth/forgot', { email: me.email })).s === 200, 'pedido de recuperação (resposta genérica)')
@@ -45,7 +45,7 @@ export async function run({ stu, adm, p1, p2, sid, P1, get, post, check }) {
 
   console.log('Fase 2 — ranking')
   const ex = (await get(stu, '/api/exercises/search?q=a')).d.exercises
-  const now = new Date(), sess = (cid, n, pres) => post(stu, '/api/guided/sessions', { client_id: cid, workout_name: 'Treino teste', started_at: new Date(now - 3600e3).toISOString(), finished_at: now.toISOString(),
+  const now = new Date(), sess = (cid, n, pres) => post(stu, '/api/guided/sessions', { ...origin, client_id: cid, workout_name: 'Treino teste', started_at: new Date(now - 3600e3).toISOString(), finished_at: now.toISOString(),
     prescribed_count: pres, sets: ex.slice(0, n).map((e, i) => ({ exercise_id: e.id, set_index: 0, weight: 10, reps: 10, done_at: now.toISOString() })) })
   const base = (await get(stu, '/api/ranking?period=semana')).d.me?.points || 0
   await sess('rk-' + sid + '-1', 2, 2)
