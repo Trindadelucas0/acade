@@ -1,6 +1,7 @@
 // AVADESK Fitness · portal do profissional (AVADESK PRO) e central administrativa (V3/V4).
 // Regra V4: só o admin cria/encerra vínculos e define capacidade; o profissional apenas SOLICITA.
 // Prescrição normal do responsável (vínculo ativo + habilitação verificada) não depende do admin.
+import { countsInMetrics } from './metrics.js'
 import { q } from './db/pool.js'
 import { requireAuth, audit } from './auth.js'
 import { notify, notifyAdmins, isLinked } from './pro.js'
@@ -94,7 +95,7 @@ export function portalRoutes({ json, readBody }) {
         q(`select area, since from coach_students where coach_id=$1 and student_id=$2 and status='ativo'`, [u.id, id]),
         q(`select p.id,p.title,p.status,p.version,p.goal,p.specialty,p.updated_at,p.created_at,p.owner_id, (p.owner_id=$2) mine from pro_plans p where p.student_id=$1 and (p.owner_id=$2 or p.status='ativo') order by p.status, p.updated_at desc`, [id, u.id]),
         q(`select id,workout_name,started_at,duration_sec,timing,sets_count,volume_kg,feeling,pro_plan_id,prescribed_count,exercises_count from sessions where user_id=$1 and status='done' order by started_at desc limit 40`, [id]),
-        q(`select date_trunc('week', started_at)::date wk, count(*)::int sessions, coalesce(sum(volume_kg),0)::float volume from sessions where user_id=$1 and status='done' and started_at > now() - interval '12 weeks' group by 1 order by 1`, [id]),
+        q(`select date_trunc('week', started_at)::date wk, count(*)::int sessions, coalesce(sum(volume_kg),0)::float volume from sessions s where user_id=$1 and ${countsInMetrics('s')} and started_at > now() - interval '12 weeks' group by 1 order by 1`, [id]),
         q(`select t.id,t.status,t.context_type,t.exercise_name,t.updated_at,(select body from messages m where m.thread_id=t.id order by id desc limit 1) last_body from threads t where t.student_id=$1 and (t.responsible_id=$2 or t.assigned_to=$2) order by t.updated_at desc`, [id, u.id]),
         q(`select id,category,exercise_name,status,description,created_at,due_at,overdue_flagged_at from occurrences where student_id=$1 and (responsible_id=$2 or assigned_to=$2) order by created_at desc`, [id, u.id]),
         q(`select cp.id,cp.description,cp.status,cp.created_at from change_proposals cp join pro_plans p on p.id=cp.plan_id where p.student_id=$1 and (cp.author_id=$2 or cp.decider_id=$2) order by cp.created_at desc`, [id, u.id])])
@@ -136,7 +137,7 @@ export function portalRoutes({ json, readBody }) {
       const u = await proOnly(req, res, json); if (!u) return
       const p = qs(req), st = p.get('status') || '', stu = isUuid(p.get('student')) ? p.get('student') : null, sp = txt(p.get('specialty'), 60) || null
       const r = await q(`select pl.id,pl.title,pl.status,pl.version,pl.goal,pl.specialty,pl.created_at,pl.updated_at,pl.published_at,pl.student_id,x.name student,
-          coalesce(pp.display_name,o.name) owner, (select count(*)::int from sessions s where s.pro_plan_id=pl.id and s.status='done') executions
+          coalesce(pp.display_name,o.name) owner, (select count(*)::int from sessions s where s.pro_plan_id=pl.id and ${countsInMetrics('s')}) executions
         from pro_plans pl join users x on x.id=pl.student_id join users o on o.id=pl.owner_id left join professional_profiles pp on pp.user_id=o.id
         where pl.owner_id=$1 and ($2='' or pl.status=$2) and ($3::uuid is null or pl.student_id=$3) and ($4::text is null or pl.specialty ilike $4) order by pl.updated_at desc limit 200`, [u.id, st, stu, sp])
       json(res, 200, { prescriptions: r.rows })
@@ -365,7 +366,7 @@ export function portalRoutes({ json, readBody }) {
               (select count(*)::int from content_reports r where r.tenant_id=$1 and r.status='pendente') reports`).catch(() => [{}]),
         one(`select count(*)::int participants from ranking_prefs rp join users x on x.id=rp.user_id where x.tenant_id=$1 and rp.public`),
         one(`select date_trunc('week', created_at)::date wk, count(*)::int n from users where tenant_id=$1 and created_at > now()-interval '12 weeks' group by 1 order by 1`),
-        one(`select date_trunc('week', started_at)::date wk, count(*)::int n from sessions where tenant_id=$1 and status='done' and started_at > now()-interval '12 weeks' group by 1 order by 1`),
+        one(`select date_trunc('week', started_at)::date wk, count(*)::int n from sessions s where tenant_id=$1 and ${countsInMetrics('s')} and started_at > now()-interval '12 weeks' group by 1 order by 1`),
         one(`select date_trunc('week', created_at)::date wk, count(*)::int n from posts where tenant_id=$1 and status='publicado' and created_at > now()-interval '12 weeks' group by 1 order by 1`),
         one(`select (select count(*)::int from occurrences where tenant_id=$1 and status<>'encerrada' and due_at < now()) occ, (select count(*)::int from threads where tenant_id=$1 and status='aguardando' and due_at < now()) th`)])
       json(res, 200, { users, pros, capacity: cap[0], links, requests: reqs, occurrences: occ, threads: th, community: comm[0], ranking: rank[0], overdue: overdue[0],

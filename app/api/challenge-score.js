@@ -2,6 +2,7 @@
 // Regras: só sessões concluídas, não anuladas/invalidadas, dentro do período; 1 contagem por dia (Brasília) por métrica;
 // com comprovante obrigatório, só treinos com comprovante APROVADO contam; pendente nunca conta. Uma sessão pode contar
 // em vários desafios, mas uma vez só por desafio. Nada de 100 pontos fixos: a pontuação é a da métrica do desafio.
+import { countsInMetrics } from './metrics.js'
 import { q } from './db/pool.js'
 
 const DAY = 86400e3
@@ -93,7 +94,7 @@ export async function loadAndCompute(c) {
     q(`select s.id, s.user_id, s.started_at, s.voided_at is not null voided, s.ranking_invalid_at is not null invalid,
         (select p.status from challenge_proofs p where p.challenge_id=$1 and p.session_id=s.id and p.status='aprovado' limit 1) proof_status
        from sessions s join challenge_members m on m.user_id=s.user_id and m.challenge_id=$1
-       where s.status='done' and s.finished_at is not null and s.started_at between $2 and $3`, [c.id, c.starts_at, c.ends_at]),
+       where ${countsInMetrics('s')} and s.finished_at is not null and s.started_at between $2 and $3`, [c.id, c.starts_at, c.ends_at]),
     q('select id, name from challenge_teams where challenge_id=$1 order by name', [c.id])
   ])
   return compute(c, m.rows, s.rows, t.rows)

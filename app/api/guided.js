@@ -1,11 +1,14 @@
 // AVAGYM — Treino guiado: onboarding, recomendação determinística, programa ativo, sessões e progresso.
 import { checkGoals } from './challenge-score.js'
 import { summarize } from './timing.js'
+import { authorizeOrigin, ORIGIN_MSG, applyEvents, addEvent, parseCorrection, recordCorrection, CLOCK_SKEW_MS } from './sessions-v4.js'
+import { countsInMetrics } from './metrics.js'
+import { pausedFromEvents } from './session-machine.js'
 // Todas as rotas exigem login (requireAuth) e são isoladas por tenant (tenantScope / user_id).
 import { q } from './db/pool.js'
 import { requireAuth, requireRole, tenantScope } from './auth.js'
 // conta profissional não tem treino pessoal (contas separadas); admin e aluno seguem normalmente
-async function requireTrainee(req, res, json) {
+export async function requireTrainee(req, res, json) {
   const u = await requireAuth(req, res, json); if (!u) return null
   if (u.roles.includes('admin') && !u.roles.includes('aluno')) { json(res, 403, { error: 'Conta administrativa não tem fluxo de treino nem questionário.', admin_account: true }); return null }
   if (u.roles.includes('profissional') && !u.roles.includes('aluno')) { json(res, 403, { error: 'Este perfil não tem o contexto de aluno para registrar treino pessoal.', pro_account: true }); return null }
@@ -150,8 +153,8 @@ export function guidedRoutes({ json, readBody }) {
       const u = await requireTrainee(req, res, json); if (!u) return
       const [profile, active] = await Promise.all([profileOf(u.id), activeOf(u)])
       const ws = weekStart()
-      const week = (await q(`select started_at, workout_name from sessions where user_id=$1 and tenant_id=$2 and status='done' and started_at >= $3 order by started_at`, [u.id, u.tenant_id, ws])).rows
-      const days = (await q(`select distinct (started_at at time zone 'America/Sao_Paulo')::date d from sessions where user_id=$1 and status='done' order by d desc limit 120`, [u.id])).rows.map(r => r.d)
+      const week = (await q(`select started_at, workout_name from sessions s where user_id=$1 and tenant_id=$2 and ${countsInMetrics('s')} and started_at >= $3 order by started_at`, [u.id, u.tenant_id, ws])).rows
+      const days = (await q(`select distinct (started_at at time zone 'America/Sao_Paulo')::date d from sessions s where user_id=$1 and ${countsInMetrics('s')} order by d desc limit 120`, [u.id])).rows.map(r => r.d)
       // sequência: semanas consecutivas (incluindo a atual) com pelo menos 1 treino
       const wk = new Set(days.map(d => weekStart(d).getTime()))
       let streak = 0; for (let t = ws.getTime(); wk.has(t); t -= 7 * 864e5) streak++
@@ -230,74 +233,109 @@ export function guidedRoutes({ json, readBody }) {
       w.exercises = w.exercises.map(e => ({ ...e, last: lastBy[e.exercise_id] || null, suggestion: suggestNext(lastBy[e.exercise_id], e) }))
       json(res, 200, { active: { ...a, sessions_done: done }, workout: w, workouts: p.workouts.map(x => ({ id: x.id, name: x.name, day_label: x.day_label, focus: x.focus, count: x.exercises.length })), next_index: done % Math.max(1, p.workouts.length) })
     },
-    // sincronização idempotente da sessão (client_id gerado no aparelho)
+    // sincronização idempotente da sessão (client_id gerado no aparelho).
+    // V4: origem validada no servidor (início autorizado em /start; sessão iniciada offline validada pelo momento do início),
+    // séries atualizadas por chave (sem apagar), eventos aplicados pela máquina de estados, correção de tempo e descarte auditáveis.
     'POST /api/guided/sessions': async (req, res) => {
       const u = await requireTrainee(req, res, json); if (!u) return
       const b = await readBody(req)
       const cid = String(b.client_id || '').slice(0, 64); if (!cid) return json(res, 400, { error: 'client_id obrigatório' })
       const sets = (Array.isArray(b.sets) ? b.sets : []).slice(0, 300)
-      const ex = await q('select id,status from sessions where user_id=$1 and client_id=$2', [u.id, cid])
-      if (ex.rowCount && ex.rows[0].status === 'done') return json(res, 200, { id: ex.rows[0].id, duplicate: true })
-      let upId = isUuid(b.user_program_id) ? b.user_program_id : null
-      if (upId && !(await q('select 1 from user_programs where id=$1 and user_id=$2', [upId, u.id])).rowCount) upId = null
-      const pwId = isUuid(b.program_workout_id) && (await q('select 1 from program_workouts where id=$1', [b.program_workout_id])).rowCount ? b.program_workout_id : null
-      // V4 (decisão do Lucas): só se treina programa oficial/publicado ativo do aluno ou ficha de profissional vinculado.
-      // Sessões já existentes (ressincronização) seguem aceitas para não perder histórico.
-      const ppId = isUuid(b.pro_plan_id) ? b.pro_plan_id : null
-      if (!ex.rowCount) {
-        const okProgram = upId && pwId && (await q(`select 1 from user_programs up join programs p on p.id=up.program_id join program_workouts pw on pw.program_id=p.id
-          where up.id=$1 and up.user_id=$2 and pw.id=$3 and p.status='publicado'`, [upId, u.id, pwId])).rowCount
-        const okPlan = ppId && (await q(`select 1 from pro_plans where id=$1 and student_id=$2 and status='ativo'`, [ppId, u.id])).rowCount
-        if (!okProgram && !okPlan) return json(res, 403, { error: 'Só é possível treinar um programa publicado ativo ou uma ficha enviada pelo seu profissional.', code: 'ORIGIN_NOT_ALLOWED' })
+      const now = new Date()
+      let cur = (await q('select id,tenant_id,status,state,started_at,server_started_at,integrity from sessions where user_id=$1 and client_id=$2', [u.id, cid])).rows[0]
+      if (cur && cur.status === 'done') return json(res, 200, { id: cur.id, duplicate: true, state: cur.state })
+      if (cur && ['descartada', 'interrompida'].includes(cur.state)) return json(res, 200, { id: cur.id, duplicate: true, state: cur.state })
+      const integrity = { ...(cur?.integrity || {}) }
+      let started = cur ? new Date(cur.started_at) : new Date(b.started_at || now)
+      if (isNaN(started)) started = now
+      let finished = b.finished_at ? new Date(b.finished_at) : null
+      if (finished && isNaN(finished)) finished = now
+      // relógio do aparelho: horário no futuro não é aceito como verdade
+      if (!cur && +started > +now + CLOCK_SKEW_MS) { integrity.clock_invalid = 'started_in_future'; started = now }
+      if (finished && +finished > +now + CLOCK_SKEW_MS) { integrity.clock_invalid = 'finished_in_future'; finished = now }
+      if (finished && finished < started) { integrity.clock_invalid = 'finished_before_start'; finished = started }
+      if (!cur) {
+        const auth = await authorizeOrigin(u, b, { mode: 'sync', startedAt: started })
+        if (!auth.ok) return json(res, 403, { error: ORIGIN_MSG[auth.code] || ORIGIN_MSG.ORIGIN_NOT_ALLOWED, code: auth.code })
+        integrity.offline_start = true
+        cur = (await q(`insert into sessions(tenant_id,user_id,started_at,status,client_id,user_program_id,program_workout_id,pro_plan_id,workout_name,state,origin,program_version,pro_plan_version,auth_snapshot,last_activity_at,prescribed_count)
+          values($1,$2,$3,'in_progress',$4,$5,$6,$7,$8,'em_andamento',$9,$10,$11,$12,now(),$13) returning id,tenant_id,status,state,started_at,server_started_at`,
+          [u.tenant_id, u.id, started, cid, auth.upId, auth.pwId, auth.ppId, String(b.workout_name || 'Treino').slice(0, 120), auth.origin, auth.program_version || null, auth.pro_plan_version || null, JSON.stringify(auth.snapshot), +b.prescribed_count || null])).rows[0]
+        await addEvent(q, cur, u.id, { id: 'start', type: 'start', at: started, from: 'nao_iniciada', to: 'em_andamento', payload: { offline: true } })
       }
-      const volume = sets.reduce((a, s) => a + (+s.weight || 0) * (+s.reps || 0), 0)
-      const started = new Date(b.started_at || Date.now()), finished = b.finished_at ? new Date(b.finished_at) : null
-      const status = finished ? 'done' : 'in_progress'
-      const exCount = new Set(sets.map(s => s.exercise_id)).size
-      const feeling = b.feeling == null ? null : Math.max(1, Math.min(5, +b.feeling | 0))
-      let sid
-      if (ex.rowCount) {
-        sid = ex.rows[0].id
-        await q(`update sessions set finished_at=$2,status=$3,feeling=$4,notes=$5,duration_sec=$6,volume_kg=$7,sets_count=$8,exercises_count=$9 where id=$1`,
-          [sid, finished, status, feeling, b.notes ? String(b.notes).slice(0, 500) : null, finished ? Math.round((finished - started) / 1000) : null, volume, sets.length, exCount])
-        await q('update sessions set prescribed_count=$2, pro_plan_id=$3 where id=$1', [sid, +b.prescribed_count || null, isUuid(b.pro_plan_id) ? b.pro_plan_id : null])
-        await q('delete from session_sets where session_id=$1', [sid])
-      } else {
-        sid = (await q(`insert into sessions(tenant_id,user_id,started_at,finished_at,status,feeling,notes,client_id,user_program_id,program_workout_id,workout_name,duration_sec,volume_kg,sets_count,exercises_count)
-          values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) returning id`,
-          [u.tenant_id, u.id, started, finished, status, feeling, b.notes ? String(b.notes).slice(0, 500) : null, cid, upId, pwId, String(b.workout_name || 'Treino').slice(0, 120),
-           finished ? Math.round((finished - started) / 1000) : null, volume, sets.length, exCount])).rows[0].id
-        await q('update sessions set prescribed_count=$2, pro_plan_id=$3 where id=$1', [sid, +b.prescribed_count || null, isUuid(b.pro_plan_id) ? b.pro_plan_id : null])
-      }
+      const sid = cur.id
+      // eventos que vieram junto (fila offline)
+      let state = cur.state
+      if (Array.isArray(b.events) && b.events.length) state = (await applyEvents(u, { ...cur, state }, b.events)).state
+      // séries: atualiza por (exercício, índice); a que sumiu do payload final fica marcada como removida (não apagada)
       const known = new Set((await q('select id from exercises where id = any($1)', [sets.map(s => String(s.exercise_id))])).rows.map(r => r.id))
-      for (const s of sets) if (known.has(String(s.exercise_id)))
-        await q('insert into session_sets(session_id,exercise_id,set_index,weight,reps,duration_sec,done_at,target_reps,started_at,rest_sec_real,rest_sec_target) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)',
-          [sid, String(s.exercise_id), +s.set_index || 0, s.weight == null || s.weight === '' ? null : +s.weight, s.reps == null ? null : Math.round(+s.reps), s.duration_sec ? +s.duration_sec : null, s.done_at ? new Date(s.done_at) : null, s.target_reps ? +s.target_reps : null, okTs(s.started_at), okRest(s.rest_sec_real), okRest(s.rest_sec_target)])
+      const keep = []
+      for (const s of sets) {
+        if (!known.has(String(s.exercise_id))) continue
+        const v = [sid, String(s.exercise_id), +s.set_index || 0, s.weight == null || s.weight === '' ? null : +s.weight, s.reps == null ? null : Math.round(+s.reps), s.duration_sec ? +s.duration_sec : null, s.done_at ? new Date(s.done_at) : null, s.target_reps ? +s.target_reps : null, okTs(s.started_at), okRest(s.rest_sec_real), okRest(s.rest_sec_target)]
+        const up = await q(`update session_sets set weight=$4,reps=$5,duration_sec=$6,done_at=$7,target_reps=$8,started_at=$9,rest_sec_real=$10,rest_sec_target=$11,removed_at=null,updated_at=now()
+          where id = (select id from session_sets where session_id=$1 and exercise_id=$2 and set_index=$3 order by id limit 1) returning id`, v)
+        const id = up.rowCount ? up.rows[0].id : (await q('insert into session_sets(session_id,exercise_id,set_index,weight,reps,duration_sec,done_at,target_reps,started_at,rest_sec_real,rest_sec_target) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) returning id', v)).rows[0].id
+        keep.push(id)
+      }
+      if (finished || b.discard) await q('update session_sets set removed_at=now() where session_id=$1 and removed_at is null and not (id = any($2::bigint[]))', [sid, keep])
       if (b.pain && RESTR.concat('general').includes(b.pain.code)) {
         await q(`insert into session_pain_reports(session_id,restriction_code,intensity,notes) values($1,$2,$3,$4)
           on conflict (session_id,restriction_code) do update set intensity=excluded.intensity, notes=excluded.notes`,
           [sid, b.pain.code, Math.max(0, Math.min(10, +b.pain.intensity || 0)), b.pain.notes ? String(b.pain.notes).slice(0, 500) : null])
       }
-      // cronometragem: pausas, descanso real e resumo calculado no servidor
-      const paused = Math.max(0, Math.min(86400, Math.round(+b.paused_sec || 0)))
+      const live = sets.filter(s => known.has(String(s.exercise_id)))
+      const volume = live.reduce((a, s) => a + (+s.weight || 0) * (+s.reps || 0), 0)
+      const exCount = new Set(live.map(s => s.exercise_id)).size
+      const feeling = b.feeling == null ? null : Math.max(1, Math.min(5, +b.feeling | 0))
+      // descarte: o registro fica (fora das métricas), nada é apagado
+      if (b.discard) {
+        if (state !== 'descartada') await addEvent(q, cur, u.id, { id: 'discard:' + cid, type: 'discard', at: now, from: state, to: 'descartada', payload: { reason: b.discard_reason || null } })
+        await q(`update sessions set state='descartada', status='discarded', discarded_at=now(), discard_reason=$2, finished_at=coalesce(finished_at, now()), volume_kg=$3, sets_count=$4, exercises_count=$5, integrity=$6, server_received_at=now(), last_activity_at=now(), record_version=record_version+1 where id=$1`,
+          [sid, b.discard_reason ? String(b.discard_reason).slice(0, 200) : 'usuario', volume, live.length, exCount, JSON.stringify(integrity)])
+        return json(res, 200, { id: sid, state: 'descartada', counts_in_metrics: false })
+      }
+      // pausa: eventos do servidor valem mais que o número enviado pelo aparelho
+      const evs = (await q(`select type, coalesce(at_client, at_server) at from session_events where session_id=$1 and type in ('pause','resume') order by coalesce(at_client, at_server), id`, [sid])).rows
+      let paused = Math.max(0, Math.min(86400, Math.round(+b.paused_sec || 0)))
+      if (evs.length) { const p = pausedFromEvents(evs, finished || now); integrity.paused_source = 'events'; if (Math.abs(p - paused) > 60) integrity.paused_client_sec = paused; paused = p }
+      else if (paused) integrity.paused_source = 'client'
+      const correction = finished && b.time_correction ? parseCorrection(b.time_correction) : null
+      if (correction?.error) return json(res, 400, { error: correction.error, code: 'INVALID_CORRECTION' })
+      const status = finished ? 'done' : 'in_progress'
+      const newState = finished ? 'concluida' : (state === 'nao_iniciada' ? 'em_andamento' : state)
+      await q(`update sessions set finished_at=$2,status=$3,feeling=$4,notes=$5,duration_sec=$6,volume_kg=$7,sets_count=$8,exercises_count=$9,prescribed_count=coalesce($10,prescribed_count),
+          state=$11, integrity=$12, server_received_at=now(), last_activity_at=now(), record_version=record_version+1,
+          ranking_invalid_at=case when $13 then coalesce(ranking_invalid_at, now()) else ranking_invalid_at end,
+          ranking_invalid_reason=case when $13 then coalesce(ranking_invalid_reason, 'relógio do aparelho inconsistente') else ranking_invalid_reason end
+        where id=$1`,
+        [sid, finished, status, feeling, b.notes ? String(b.notes).slice(0, 500) : null, finished ? Math.round((finished - started) / 1000) : null, volume, live.length, exCount, +b.prescribed_count || null,
+         newState, JSON.stringify(integrity), !!integrity.clock_invalid])
+      if (finished && state !== 'concluida') await addEvent(q, cur, u.id, { id: 'finish:' + cid, type: correction ? 'correct_finish' : 'finish', at: finished, from: state, to: 'concluida', payload: {} })
       const exNames = Object.fromEntries((await q('select id,name_pt as name from exercises where id = any($1)', [[...known]])).rows.map(r => [r.id, r.name]))
-      const tsets = sets.filter(s => known.has(String(s.exercise_id))).map(s => ({ exercise_id: String(s.exercise_id), name: exNames[String(s.exercise_id)], started_at: okTs(s.started_at), done_at: okTs(s.done_at), rest_sec_real: okRest(s.rest_sec_real), rest_sec_target: okRest(s.rest_sec_target) }))
+      const tsets = live.map(s => ({ exercise_id: String(s.exercise_id), name: exNames[String(s.exercise_id)], started_at: okTs(s.started_at), done_at: okTs(s.done_at), rest_sec_real: okRest(s.rest_sec_real), rest_sec_target: okRest(s.rest_sec_target) }))
       const timing = finished ? summarize({ started_at: started, finished_at: finished, paused_sec: paused, sets: tsets }) : null
       await q('update sessions set paused_sec=$2, active_sec=$3, timing=$4, duration_sec=coalesce($5, duration_sec) where id=$1', [sid, paused, timing?.active_sec ?? null, timing ? JSON.stringify(timing) : null, timing?.total_sec ?? null])
-      json(res, 200, { id: sid, volume, timing })
-      checkGoals(u.id)   // V5: aviso "meta atingida" nos desafios (assíncrono)
+      if (correction) {
+        await recordCorrection(cur, u.id, timing?.total_sec ?? Math.round((finished - started) / 1000), correction)
+        await q('update sessions set time_corrected_at=now() where id=$1', [sid])
+      }
+      json(res, 200, { id: sid, volume, timing, state: newState, counts_in_metrics: !correction && !integrity.clock_invalid })
+      if (finished && !correction) checkGoals(u.id)   // V5: aviso "meta atingida" nos desafios (assíncrono)
     },
     'GET /api/guided/progress': async (req, res) => {
       const u = await requireTrainee(req, res, json); if (!u) return
       const weeks = (await q(`select date_trunc('week', started_at at time zone 'America/Sao_Paulo')::date wk, count(*)::int n, coalesce(sum(volume_kg),0)::float vol
-        from sessions where user_id=$1 and tenant_id=$2 and status='done' and started_at > now() - interval '8 weeks' group by 1 order by 1`, [u.id, u.tenant_id])).rows
+        from sessions s where user_id=$1 and tenant_id=$2 and ${countsInMetrics('s')} and started_at > now() - interval '8 weeks' group by 1 order by 1`, [u.id, u.tenant_id])).rows
       const history = (await q(`select s.id,s.workout_name,s.started_at,s.duration_sec,s.timing,s.volume_kg::float volume,s.sets_count,s.exercises_count,s.feeling,
-          exists(select 1 from session_pain_reports pr where pr.session_id=s.id) pain
+          exists(select 1 from session_pain_reports pr where pr.session_id=s.id) pain, s.origin, (s.time_corrected_at is not null) corrected,
+          (select c.manual_sec from session_time_corrections c where c.session_id=s.id order by c.id desc limit 1) manual_sec,
+          (${countsInMetrics('s')}) counts_in_metrics
         from sessions s where s.user_id=$1 and s.tenant_id=$2 and s.status='done' order by s.started_at desc limit 30`, [u.id, u.tenant_id])).rows
       const records = (await q(`select distinct on (ss.exercise_id) ss.exercise_id, e.name_pt name, e.media_url media, ss.weight::float weight, ss.reps, s.started_at
         from session_sets ss join sessions s on s.id=ss.session_id join exercises e on e.id=ss.exercise_id
-        where s.user_id=$1 and s.status='done' and ss.weight > 0 order by ss.exercise_id, ss.weight desc, ss.reps desc`, [u.id])).rows.sort((a, b) => b.weight - a.weight).slice(0, 12)
-      const tot = (await q(`select count(*)::int n, coalesce(sum(duration_sec),0)::int secs, coalesce(sum(volume_kg),0)::float vol from sessions where user_id=$1 and status='done'`, [u.id])).rows[0]
+        where s.user_id=$1 and ${countsInMetrics('s')} and ss.removed_at is null and ss.weight > 0 order by ss.exercise_id, ss.weight desc, ss.reps desc`, [u.id])).rows.sort((a, b) => b.weight - a.weight).slice(0, 12)
+      const tot = (await q(`select count(*)::int n, coalesce(sum(duration_sec),0)::int secs, coalesce(sum(volume_kg),0)::float vol from sessions s where user_id=$1 and ${countsInMetrics('s')}`, [u.id])).rows[0]
       json(res, 200, { weeks, history, records, totals: tot })
     },
     // carga muscular dos treinos guiados: por dia × exercício × grupo (o app soma com o histórico antigo e filtra o período)
@@ -307,7 +345,7 @@ export function guidedRoutes({ json, readBody }) {
           count(*)::int sets, coalesce(sum(coalesce(ss.weight,0)*coalesce(ss.reps,0)),0)::float volume
         from session_sets ss join sessions s on s.id=ss.session_id join exercises e on e.id=ss.exercise_id
         join exercise_groups eg on eg.exercise_id=ss.exercise_id
-        where s.user_id=$1 and s.tenant_id=$2 and s.status='done'
+        where s.user_id=$1 and s.tenant_id=$2 and ${countsInMetrics('s')} and ss.removed_at is null
         group by 1,2,3,4,5 order by 1`, [u.id, u.tenant_id])
       json(res, 200, { rows: r.rows })
     },

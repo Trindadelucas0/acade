@@ -1,6 +1,7 @@
 // AVADESK Fitness — comunidade multiprofissional: perfis/habilitações, planos de acesso, vínculos (com limites),
 // prescrições por profissional, mensagens contextuais, ocorrências, propostas de alteração, notificações,
 // filas com prazo configurável e auditoria. Todas as permissões são verificadas AQUI (backend), nunca só na tela.
+import { countsInMetrics } from './metrics.js'
 import { q, pool } from './db/pool.js'
 import { requireAuth, audit } from './auth.js'
 import { resolve as resolveEnt, checkLimitLocked, refreshUsage } from './entitlements.js'
@@ -238,7 +239,7 @@ export function proRoutes({ json, readBody }) {
       const prof = (await q(PRO_SQL + ` from professional_profiles pp join users u on u.id=pp.user_id where pp.user_id=$1`, [u.id])).rows[0]
       const quals = (await q('select id,kind,number,area,status,note from professional_qualifications where user_id=$1 order by id', [u.id])).rows
       const students = (await q(`select cs.id link_id, cs.area, cs.since, s.id, s.name, (select max(started_at) from sessions x where x.user_id=s.id and x.status='done') last_session,
-          (select count(*) from sessions x where x.user_id=s.id and x.status='done' and x.started_at > now() - interval '7 days') week_sessions
+          (select count(*) from sessions x where x.user_id=s.id and ${countsInMetrics('x')} and x.started_at > now() - interval '7 days') week_sessions
         from coach_students cs join users s on s.id=cs.student_id where cs.coach_id=$1 and cs.status='ativo' order by s.name`, [u.id])).rows
       const [occ, th, pr] = await Promise.all([
         q(`select o.*, s.name student_name from occurrences o join users s on s.id=o.student_id where (o.responsible_id=$1 or o.assigned_to=$1) and o.status<>'encerrada' order by o.created_at`, [u.id]),

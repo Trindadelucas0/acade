@@ -4,6 +4,7 @@ import './env.js';
 import http from 'node:http';
 import { authRoutes, clearTokenCookie, authUser, pub, requireRole } from './auth.js';
 import { guidedRoutes } from './guided.js';
+import { sessionsV4Routes, forgottenSweep } from './sessions-v4.js';
 import { proRoutes } from './pro.js';
 import { communityRoutes } from './community.js';
 import { rankingRoutes } from './ranking.js';
@@ -362,6 +363,11 @@ function pgBridge(u) {
 }
 Object.assign(routes, authRoutes({ json, readBody, bridge: pgBridge, clearCookies: [clearCookie] }));
 Object.assign(routes, guidedRoutes({ json, readBody }));
+Object.assign(routes, sessionsV4Routes({ json, readBody }));
+// V4: treino esquecido — varredura a cada 5 min; lembrete a cada SESSION_REMINDER_MIN (padrão 60) até finalizar/corrigir/descartar
+if (process.env.SESSION_SWEEP !== 'off') setInterval(() => {
+  forgottenSweep({ minutes: +process.env.SESSION_REMINDER_MIN || 60, push: sendPush }).catch(e => console.error('[sessions] sweep', e.message));
+}, 5 * 60 * 1000).unref();
 Object.assign(routes, proRoutes({ json, readBody }));
 Object.assign(routes, communityRoutes({ json, readBody }));  // feed, curtidas, comentários, denúncias, moderação
 Object.assign(routes, lgpdRoutes({ json, readBody, legacyState: readState, legacyErase: uid => { eraseStatePg(uid).catch(() => {}); try { fs.unlinkSync(stateFile(uid)) } catch {} db.users = db.users.filter(x => x.id !== uid); saveDb() } }));

@@ -1,5 +1,6 @@
 // V5 fase C · Feed do desafio (separado do feed geral; curtidas e comentários nunca pontuam), comprovantes manuais
 // (sem IA, ninguém aprova o próprio, sem auto-aprovação), denúncias ampliadas e silenciar notificações sociais.
+import { countsInMetrics } from './metrics.js'
 import fs from 'node:fs'
 import path from 'node:path'
 import crypto from 'node:crypto'
@@ -47,7 +48,7 @@ async function routeProof(c, p, tid) {
   return 'organizador'
 }
 // sessão elegível: do próprio usuário, concluída, não anulada/invalidada, dentro do período do desafio
-const eligibleSession = async (sid, uid, c) => (await q(`select id, started_at from sessions where id=$1 and user_id=$2 and status='done' and finished_at is not null and voided_at is null and ranking_invalid_at is null and started_at between $3 and $4`, [sid, uid, c.starts_at, c.ends_at])).rows[0]
+const eligibleSession = async (sid, uid, c) => (await q(`select id, started_at from sessions s where id=$1 and user_id=$2 and ${countsInMetrics('s')} and finished_at is not null and voided_at is null and ranking_invalid_at is null and started_at between $3 and $4`, [sid, uid, c.starts_at, c.ends_at])).rows[0]
 
 // denúncias ampliadas (usadas por community.js)
 export async function extTarget(type, id, tid) {
@@ -234,7 +235,7 @@ export function challengeFeedRoutes({ json, readBody }) {
       if (!m) return json(res, 403, { error: 'Só participantes veem a própria pontuação' })
       const ss = (await q(`select s.id, s.started_at, s.workout_name, s.voided_at is not null voided, s.ranking_invalid_at is not null invalid,
           (select p.status from challenge_proofs p where p.challenge_id=$2 and p.session_id=s.id order by (p.status='aprovado') desc, p.created_at desc limit 1) proof
-        from sessions s where s.user_id=$1 and s.status='done' and s.finished_at is not null and s.started_at between $3 and $4 order by s.started_at`, [u.id, c.id, c.starts_at, c.ends_at])).rows
+        from sessions s where s.user_id=$1 and ${countsInMetrics('s')} and s.finished_at is not null and s.started_at between $3 and $4 order by s.started_at`, [u.id, c.id, c.starts_at, c.ends_at])).rows
       const seen = new Set(), sessions = ss.map(s => {
         const d = spDay(s.started_at); let why = 'contou'
         if (s.voided || s.invalid) why = 'anulado'
@@ -252,7 +253,7 @@ export function challengeFeedRoutes({ json, readBody }) {
     'GET /api/challenges/sessions': async (req, res) => {   // sessões elegíveis do próprio usuário para comprovar
       const { u, c } = await ctx(req, res, qs(req).get('id')); if (!u) return
       const r = await q(`select s.id, s.started_at, s.workout_name, (select p.status from challenge_proofs p where p.session_id=s.id and p.challenge_id=$2 and p.status not in ('rejeitado','invalidado') limit 1) proof_status
-        from sessions s where s.user_id=$1 and s.status='done' and s.finished_at is not null and s.voided_at is null and s.ranking_invalid_at is null and s.started_at between $3 and $4 order by s.started_at desc limit 100`, [u.id, c.id, c.starts_at, c.ends_at])
+        from sessions s where s.user_id=$1 and ${countsInMetrics('s')} and s.finished_at is not null and s.voided_at is null and s.ranking_invalid_at is null and s.started_at between $3 and $4 order by s.started_at desc limit 100`, [u.id, c.id, c.starts_at, c.ends_at])
       json(res, 200, { sessions: r.rows })
     },
     'POST /api/challenges/proofs': async (req, res) => {

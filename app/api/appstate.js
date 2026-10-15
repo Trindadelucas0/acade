@@ -4,6 +4,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { q } from './db/pool.js'
 import { authUser } from './auth.js'
+import { importLegacyFor } from './legacy-import.js'
 
 const isUuid = s => /^[0-9a-f-]{36}$/i.test(String(s || ''))
 const MAX = 5 * 1024 * 1024   // estado serializado (mesmo teto prático do arquivo antigo)
@@ -29,6 +30,9 @@ export async function readStateRow(uid) {
   return null
 }
 export const readStatePg = async uid => (await readStateRow(uid))?.state || null
+export const setDataDir = d => { DATA = d }
+// usuários que só têm o arquivo antigo state-<id>.json (ainda não lidos pelo banco)
+export const legacyFileUsers = () => DATA && fs.existsSync(DATA) ? fs.readdirSync(DATA).map(f => /^state-([0-9a-f-]{36})\.json$/i.exec(f)?.[1]).filter(Boolean) : []
 export async function eraseStatePg(uid) {
   await q('delete from user_app_state where user_id=$1', [uid]); await q('delete from guided_live_sessions where user_id=$1', [uid])
 }
@@ -55,6 +59,18 @@ export function appStateRoutes({ json, readBody, readSession, dataDir }) {
       const active = b.state.active && typeof b.state.active === 'object' ? b.state.active : null
       await writeStatePg(id, b.state, active)
       json(res, 200, { ok: true, ts: b.state._ts || null })
+      // V4: treino livre concluído na janela de transição entra no Postgres como histórico legado (idempotente)
+      importLegacyFor(id).catch(e => console.error('[legacy-import]', e.message))
+    },
+    // V4: histórico legado importado (somente consulta — rotinas não são executáveis; exercícios próprios arquivados)
+    'GET /api/me/legacy': async (req, res) => {
+      const id = await who(req, res); if (!id) return
+      await importLegacyFor(id).catch(() => null)
+      const routines = (await q('select id, legacy_id, name, payload, imported_at from legacy_routines where user_id=$1 and hidden_at is null order by name', [id])).rows
+      const custom = (await q('select id, legacy_id, name, payload, archived_at from legacy_custom_exercises where user_id=$1 order by name', [id])).rows
+      const sessions = (await q(`select id, workout_name, started_at, finished_at, duration_sec, volume_kg::float volume, sets_count, exercises_count from sessions
+        where user_id=$1 and origin='legado' order by started_at desc limit 500`, [id])).rows
+      json(res, 200, { routines, custom_exercises: custom, sessions, executable: false })
     },
     // treino guiado / ficha em andamento (retomar em outro aparelho)
     'GET /api/me/live-session': async (req, res) => {

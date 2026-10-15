@@ -1,6 +1,7 @@
 // AVADESK Fitness — Ranking de consistência (adendo RANKING): semanal e mensal, 100 pontos por sessão válida,
 // bônus por DIAS DISTINTOS, desempate (dias > sessões > horário), participação pública opcional, histórico e auditoria.
 // Não pontua: curtidas, comentários, carga, sessões incompletas/duplicadas/invalidadas. Admin não altera posições.
+import { countsInMetrics } from './metrics.js'
 import { q } from './db/pool.js'
 import { requireAuth, audit } from './auth.js'
 import { getSettings, notify } from './pro.js'
@@ -45,10 +46,10 @@ async function validSessions(tid, tz, pct, start, end, userId) {
   const params = [tid, tz, start, end]; if (userId) params.push(userId)
   const r = await q(`select s.id, s.user_id, s.finished_at, (s.started_at at time zone $2)::date::text as day, s.started_at, s.workout_name, s.client_id,
       coalesce(s.prescribed_count, (select count(*) from program_workout_exercises x where x.program_workout_id=s.program_workout_id))::int prescribed,
-      (select count(distinct ss.exercise_id) from session_sets ss where ss.session_id=s.id)::int done_ex,
+      (select count(distinct ss.exercise_id) from session_sets ss where ss.session_id=s.id and ss.removed_at is null)::int done_ex,
       (select count(distinct o.exercise_id) from occurrences o where o.student_id=s.user_id and o.session_client_id=s.client_id and o.category in ('dor','desconforto'))::int blocked_ex
     from sessions s
-    where s.tenant_id=$1 and s.status='done' and s.finished_at is not null and s.ranking_invalid_at is null and s.voided_at is null
+    where s.tenant_id=$1 and ${countsInMetrics('s')} and s.finished_at is not null and s.ranking_invalid_at is null and s.voided_at is null
       and (s.started_at at time zone $2)::date >= $3::date and (s.started_at at time zone $2)::date < $4::date ${userId ? 'and s.user_id=$5' : ''}
     order by s.finished_at`, params)
   return r.rows.filter(x => { const need = Math.max(1, x.prescribed - x.blocked_ex); return x.prescribed > 0 && x.done_ex >= Math.ceil(need * pct / 100) })
