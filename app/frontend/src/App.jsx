@@ -32,6 +32,7 @@ import Train from './views/guided/Train.jsx'
 import Done from './views/guided/Done.jsx'
 import Progress from './views/guided/Progress.jsx'
 import Profile from './views/guided/Profile.jsx'
+import MyEquipment from './views/guided/MyEquipment.jsx'
 import AdminPrograms from './views/guided/AdminPrograms.jsx'
 // AVADESK Fitness
 import Treinos from './views/app/Treinos.jsx'
@@ -155,6 +156,7 @@ function Shell() {
               <Route path="/concluido" element={<Done />} />
               <Route path="/progresso" element={<Gate title="Progresso"><Progress /></Gate>} />
               <Route path="/perfil" element={<Profile />} />
+              <Route path="/perfil/equipamentos" element={<MyEquipment />} />
               <Route path="/planos" element={<Plans />} />
               <Route path="/convite/:code" element={<AcceptInvite />} />
               <Route path="/admin/programas" element={user ? <AdminPrograms /> : <Navigate to="/hoje" replace />} />

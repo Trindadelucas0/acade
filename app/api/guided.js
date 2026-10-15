@@ -29,6 +29,17 @@ const RESTR_NA = { knee: 'no joelho', lumbar: 'na lombar', shoulder: 'no ombro' 
 const RESTR_TAG = { knee: 'joelho', lumbar: 'lombar', shoulder: 'ombro' }
 const RELATED = { weight_loss: ['conditioning'], conditioning: ['weight_loss'], home: [], hypertrophy: ['strength'], strength: ['hypertrophy'], mobility: ['rehab'], rehab: ['mobility'] }
 
+// lista do aluno é substituída pela nova (a lista anterior fica no histórico de auditoria)
+async function saveEquipment(u, ids, unknown) {
+  const valid = (await q('select id from equipment where id = any($1)', [ids])).rows.map(r => r.id)
+  if (valid.length !== new Set(ids).size) return { error: 'Equipamento desconhecido', code: 'UNKNOWN_EQUIPMENT' }
+  const before = (await q('select equipment_id from user_equipment where user_id=$1', [u.id])).rows.map(r => r.equipment_id)
+  await q('delete from user_equipment where user_id=$1 and not (equipment_id = any($2))', [u.id, valid])
+  for (const e of valid) await q('insert into user_equipment(user_id,tenant_id,equipment_id) values($1,$2,$3) on conflict do nothing', [u.id, u.tenant_id, e])
+  await q('update user_onboarding set equipment_answered=true, equipment_unknown=$2 where user_id=$1', [u.id, unknown])
+  await q(`insert into audit_log(tenant_id,actor_id,action,entity,entity_id,data) values($1,$2,'equipment.updated','user',$2,$3)`, [u.tenant_id, u.id, JSON.stringify({ before, after: valid, unknown })]).catch(() => {})
+  return { ids: valid }
+}
 const qs = req => new URL(req.url, 'http://x').searchParams
 const isUuid = s => /^[0-9a-f-]{36}$/i.test(String(s || ''))
 
@@ -36,6 +47,16 @@ const isUuid = s => /^[0-9a-f-]{36}$/i.test(String(s || ''))
 // programs: [{ id, goal, level, location, days_per_week, minutes, minutes_max, is_rehab, tags, caution: {code:n}, avoid: [codes] }]
 const okTs = v => { const d = v ? new Date(v) : null; return d && !isNaN(d) ? d.toISOString() : null }
 const okRest = v => v == null || v === '' || isNaN(+v) ? null : Math.max(0, Math.min(3600, Math.round(+v)))
+// equipamento genérico "elastico" é atendido por qualquer tipo de elástico que o aluno marcou (é o mesmo objeto, não substituição)
+const ELASTIC = ['faixa_elastica', 'mini_band', 'elastico_pegadores', 'super_band']
+const FREE = ['peso_corporal']
+export function hasEquipment(req, p) {
+  if (!p.equipment_answered && !(p.equipamentos || []).length) return true
+  if (p.local === 'gym' && !(p.equipamentos || []).length && !p.equipment_unknown) return true
+  const own = new Set([...(p.equipamentos || []), ...FREE])
+  if ([...own].some(e => ELASTIC.includes(e))) own.add('elastico')
+  return req.every(e => own.has(e))
+}
 export function scorePrograms(programs, p) {
   const strict = rank(programs, p, false)
   if (strict.length >= 3) return strict
@@ -43,6 +64,7 @@ export function scorePrograms(programs, p) {
   return strict.concat(rank(programs, p, true).filter(x => !seen.has(x.id)).map(x => ({ ...x, score: x.score - 40 })))
 }
 function rank(programs, p, relaxed) {
+  p = { ...p, nivel: p.nivel || 'beginner', dias: p.dias || 3, minutos: p.minutos || 45 }
   const ul = LEVELS.indexOf(p.nivel)
   const restr = (p.restricoes || []).filter(r => r !== 'other')
   const out = []
@@ -74,6 +96,9 @@ function rank(programs, p, relaxed) {
     if (!feasible) continue
     if (pr.location === p.local) { s += 15; why.push(p.local === 'gym' ? 'Para fazer na academia' : p.local === 'home' ? 'Para fazer em casa' : 'Não precisa de equipamento') }
     else s += 5
+    // V4 F4: equipamentos — só é compatível se o aluno tem TODOS os obrigatórios (sem substituição automática).
+    // "Não sei identificar" não conta como ter. Perfil antigo (sem resposta) ou academia sem lista = segue a regra de local.
+    if (!pr.is_rehab && !hasEquipment(pr.req_equipment || [], p)) continue
     // frequência
     const dd = Math.abs((pr.days_per_week || 3) - p.dias)
     if (dd === 0) { s += 15; why.push(`${p.dias} treinos por semana, como você quer`) }
@@ -110,8 +135,10 @@ export function suggestNext(last, ex) {
 }
 
 async function profileOf(uid) {
-  const r = await q('select objetivo,nivel,local,dias,minutos,restricoes,updated_at from user_onboarding where user_id=$1', [uid])
-  return r.rows[0] || null
+  const r = await q('select objetivo,nivel,local,dias,minutos,restricoes,updated_at,equipment_answered,equipment_unknown from user_onboarding where user_id=$1', [uid])
+  const p = r.rows[0] || null
+  if (p) p.equipamentos = (await q('select equipment_id from user_equipment where user_id=$1 order by 1', [uid])).rows.map(x => x.equipment_id)
+  return p
 }
 async function activeOf(u) {
   const r = await q(`select up.id, up.program_id, up.start_date, up.started_at, (select x.revision_id from user_program_revisions x where x.user_program_id=up.id) revision_id, p.status program_status, p.title, p.weeks, p.days_per_week, p.minutes, p.minutes_max, p.goal, p.level, p.cover_url
@@ -142,6 +169,7 @@ const LIST_SQL = `select p.id,p.slug,p.title,p.description,p.goal,p.level,p.loca
     p.cover_url,p.author_name,p.status,p.version,p.equipment,p.muscles,p.contraindications avoid,
     (select count(*) from program_workouts w where w.program_id=p.id and (p.published_revision_id is null or w.revision_id is not distinct from p.published_revision_id))::int workouts_count,
     ${BADGES_SQL('p')},
+    (select coalesce(array_agg(pe.equipment_id order by pe.equipment_id), '{}') from program_equipment pe where pe.program_id=p.id and pe.required) req_equipment,
     (select coalesce(json_object_agg(c.code,c.n),'{}') from (select ci.restriction_code code, count(distinct x.exercise_id) n from program_workouts w
        join program_workout_exercises x on x.program_workout_id=w.id join exercise_contraindications ci on ci.exercise_id=x.exercise_id and ci.level='caution'
        where w.program_id=p.id and (p.published_revision_id is null or w.revision_id is not distinct from p.published_revision_id) group by ci.restriction_code) c) caution
@@ -172,19 +200,38 @@ export function guidedRoutes({ json, readBody }) {
     'POST /api/guided/onboarding': async (req, res) => {
       const u = await requireTrainee(req, res, json); if (!u) return
       const b = await readBody(req)
-      const p = { objetivo: b.objetivo, nivel: b.nivel, local: b.local, dias: +b.dias, minutos: +b.minutos, restricoes: (Array.isArray(b.restricoes) ? b.restricoes : []).filter(r => RESTR.includes(r)) }
-      if (!GOALS.includes(p.objetivo) || !LEVELS.includes(p.nivel) || !LOCS.includes(p.local) || !(p.dias >= 2 && p.dias <= 6) || ![20, 30, 45, 60].includes(p.minutos))
+      // V4 F4: perfil parcial — objetivo e local obrigatórios; nível/dias/minutos opcionais; equipamentos opcionais
+      const p = { objetivo: b.objetivo, nivel: b.nivel || null, local: b.local, dias: b.dias == null ? null : +b.dias, minutos: b.minutos == null ? null : +b.minutos, restricoes: (Array.isArray(b.restricoes) ? b.restricoes : []).filter(r => RESTR.includes(r)) }
+      if (!GOALS.includes(p.objetivo) || !LOCS.includes(p.local) || (p.nivel && !LEVELS.includes(p.nivel)) || (p.dias != null && !(p.dias >= 2 && p.dias <= 6)) || (p.minutos != null && ![20, 30, 45, 60].includes(p.minutos)))
         return json(res, 400, { error: 'Respostas inválidas' })
+      const eq = Array.isArray(b.equipamentos) ? b.equipamentos.map(String) : null
       await q(`insert into user_onboarding(user_id,tenant_id,objetivo,nivel,local,dias,minutos,restricoes) values($1,$2,$3,$4,$5,$6,$7,$8)
         on conflict (user_id) do update set objetivo=excluded.objetivo,nivel=excluded.nivel,local=excluded.local,dias=excluded.dias,minutos=excluded.minutos,restricoes=excluded.restricoes,updated_at=now()`,
         [u.id, u.tenant_id, p.objetivo, p.nivel, p.local, p.dias, p.minutos, p.restricoes])
-      json(res, 200, { profile: p })
+      if (eq) await saveEquipment(u, eq, !!b.equipamento_nao_sei)
+      json(res, 200, { profile: await profileOf(u.id) })
+    },
+    'GET /api/guided/equipment': async (req, res) => {
+      const u = await requireTrainee(req, res, json); if (!u) return
+      const all = (await q('select id, name_pt name, parent_id, kind, description, image_url from equipment order by kind, name_pt')).rows
+      const p = await profileOf(u.id)
+      json(res, 200, { equipment: all, mine: p?.equipamentos || [], unknown: !!p?.equipment_unknown, answered: !!p?.equipment_answered })
+    },
+    'PUT /api/guided/equipment': async (req, res) => {
+      const u = await requireTrainee(req, res, json); if (!u) return
+      const b = await readBody(req)
+      if (!(await q('select 1 from user_onboarding where user_id=$1', [u.id])).rowCount) return json(res, 400, { error: 'Responda o questionário primeiro' })
+      const r = await saveEquipment(u, Array.isArray(b.ids) ? b.ids.map(String) : [], !!b.unknown)
+      if (r.error) return json(res, 400, r)
+      json(res, 200, { mine: r.ids, unknown: !!b.unknown })
     },
     'GET /api/guided/recommendations': async (req, res) => {
       const u = await requireTrainee(req, res, json); if (!u) return
       const p = await profileOf(u.id); if (!p) return json(res, 400, { error: 'Responda o questionário primeiro' })
       const list = (await q(LIST_SQL + ` and p.status='publicado'`, [u.tenant_id])).rows
       const ranked = scorePrograms(list, p).slice(0, 3)
+      if (!ranked.length) return json(res, 200, { profile: p, recommendations: [], no_compatible: true,
+        notes: ['Nenhum programa publicado combina com os equipamentos que você marcou. Você pode revisar seus equipamentos ou ver o catálogo completo.'] })
       const by = new Map(list.map(x => [x.id, x]))
       const notes = []
       if ((p.restricoes || []).length && !p.restricoes.every(r => r === 'other')) notes.push('Removemos programas com exercícios que não combinam com a sua restrição.')

@@ -7,6 +7,8 @@ export const G = {
   state: () => api('/api/guided/state'),
   onboarding: p => api('/api/guided/onboarding', { method: 'POST', body: JSON.stringify(p) }),
   recs: () => api('/api/guided/recommendations'),
+  equipment: () => api('/api/guided/equipment'),
+  saveEquipment: (ids, unknown) => api('/api/guided/equipment', { method: 'PUT', body: JSON.stringify({ ids, unknown }) }),
   programs: goal => api('/api/guided/programs' + (goal ? '?goal=' + goal : '')),
   program: id => api('/api/guided/program?id=' + encodeURIComponent(id)),
   start: id => api('/api/guided/start', { method: 'POST', body: JSON.stringify({ program_id: id }) }),

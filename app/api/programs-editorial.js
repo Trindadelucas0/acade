@@ -79,6 +79,9 @@ async function materialize(c, rev, programId) {
       contraindications = coalesce((select array_agg(distinct ci.restriction_code) from program_workouts w join program_workout_exercises x on x.program_workout_id=w.id join exercise_contraindications ci on ci.exercise_id=x.exercise_id and ci.level='avoid' where w.revision_id=$2),'{}'),
       cover_url = coalesce(p.cover_url, (select e.media_url from program_workouts w join program_workout_exercises x on x.program_workout_id=w.id join exercises e on e.id=x.exercise_id where w.revision_id=$2 and e.media_url is not null order by w.position, x.position limit 1))
     where p.id=$1`, [programId, rev.id])
+  // V4 F4: equipamentos obrigatórios da versão publicada
+  await c.query(`update program_equipment pe set required = pe.equipment_id = any(p.equipment) from programs p where p.id=pe.program_id and p.id=$1`, [programId])
+  await c.query(`insert into program_equipment(program_id, equipment_id, required) select p.id, e, true from programs p, unnest(p.equipment) e where p.id=$1 on conflict (program_id, equipment_id) do update set required=true`, [programId])
 }
 
 export function editorialRoutes({ json, readBody }) {

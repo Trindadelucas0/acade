@@ -32,11 +32,12 @@ export default function Profile() {
     {p && <div className="g-card" style={{ marginTop: 14 }}>
       <b className="g-sm">Suas respostas</b>
       <div className="g-chips" style={{ marginTop: 8 }}>
-        <span className="g-chip g-on">{GOAL_PT[p.objetivo]}</span><span className="g-chip">{LEVEL_PT[p.nivel]}</span><span className="g-chip">{LOC_PT[p.local]}</span>
-        <span className="g-chip">{p.dias} dias</span><span className="g-chip">{p.minutos} min</span>
+        <span className="g-chip g-on">{GOAL_PT[p.objetivo]}</span>{p.nivel && <span className="g-chip">{LEVEL_PT[p.nivel]}</span>}<span className="g-chip">{LOC_PT[p.local]}</span>
+        {p.dias && <span className="g-chip">{p.dias} dias</span>}{p.minutos && <span className="g-chip">{p.minutos} min</span>}
         {(p.restricoes || []).map(r => <span key={r} className="g-chip">{RESTR_PT[r]}</span>)}
       </div>
       <button className="g-link" onClick={() => nav('/onboarding')}>Refazer perguntas</button>
+      <button className="g-link" data-testid="profile-equipment" onClick={() => nav('/perfil/equipamentos')}>Equipamentos ({(p.equipamentos || []).length || (p.equipment_unknown ? 'não sei' : 'nenhum')})</button>
     </div>}
     <h2>Conta</h2>
     <div className="g-card g-list">
