@@ -1,6 +1,6 @@
 // AVADESK Fitness — Comunidade: feed de profissionais autorizados (cronológico), curtidas, comentários (alunos conforme
 // configuração do admin), seguir profissionais, denúncias e moderação registrada. Alunos não publicam nem enviam fotos.
-import { coachOf } from './accounts-v42.js'
+import { scopeCond, canSee, newScope } from './scope.js'
 import fs from 'node:fs'
 import path from 'node:path'
 import crypto from 'node:crypto'
@@ -25,7 +25,7 @@ async function canPublish(u) {
   const p = (await q('select state, can_publish from professional_profiles where user_id=$1', [u.id])).rows[0]
   return !!p && p.state === 'ativo' && p.can_publish
 }
-const FEED_SQL = `select p.id,p.title,p.body,p.category,p.image_url,p.status,p.created_at,p.edited_at,p.author_id,
+const FEED_SQL = `select p.id,p.title,p.body,p.category,p.image_url,p.status,p.created_at,p.edited_at,p.author_id,p.scope_pro_id,(select coalesce(sp.display_name,su.name) from users su left join professional_profiles sp on sp.user_id=su.id where su.id=p.scope_pro_id) scope_name,
   coalesce(pp.display_name,a.name) author_name, pp.photo_url author_photo, has_admin.is_admin author_admin,
   coalesce((select array_agg(distinct coalesce(q.area,q.kind)) from professional_qualifications q where q.user_id=p.author_id and q.status='verificada'),'{}') verified,
   (select count(*) from post_likes l where l.post_id=p.id)::int likes, exists(select 1 from post_likes l where l.post_id=p.id and l.user_id=$2) liked,
@@ -45,7 +45,7 @@ export function communityRoutes({ json, readBody }) {
       const cat = qs(req).get('cat'), author = qs(req).get('author'), mine = qs(req).get('mine') === '1', following = qs(req).get('following') === '1'
       const before = qs(req).get('before')
       const params = [u.tenant_id, u.id]; const w = []
-      { const cc = coachOf(u); if (cc) { params.push(cc); w.push(`p.author_id=$${params.length}`) } }   // V4.2: aluno do personal vê a comunidade do personal
+      if (!mine) w.push(await scopeCond(u, 'p', params))   // V4.3 regras R1–R4: sistema x comunidade do personal
       if (mine) w.push(`p.author_id=$2 and p.status in ('publicado','rascunho','oculto')`)
       else w.push(`p.status='publicado'`)
       if (cat) { params.push(cat); w.push(`p.category=$${params.length}`) }
@@ -60,6 +60,7 @@ export function communityRoutes({ json, readBody }) {
       const id = qs(req).get('id'); if (!isUuid(id)) return json(res, 400, { error: 'id inválido' })
       const p = (await q(FEED_SQL + ' where p.id=$1 and p.tenant_id=$3', [id, u.id, u.tenant_id])).rows[0]
       if (!p || (p.status !== 'publicado' && p.author_id !== u.id && !has(u, 'admin'))) return json(res, 404, { error: 'Esta publicação não está mais disponível.' })
+      if (p.author_id !== u.id && !(await canSee(u, p.scope_pro_id))) return json(res, 403, { error: 'Esta publicação é de uma comunidade à qual você não tem acesso. Solicite a liberação.', code: 'CLIENT_SCOPE' })
       const c = await q(`select c.id,c.body,c.status,c.created_at,c.edited_at,c.author_id, coalesce(pp.display_name,a.name) author_name,
           exists(select 1 from user_roles r where r.user_id=a.id and r.role_id='profissional') author_pro, (c.author_id=$2) mine
         from post_comments c join users a on a.id=c.author_id left join professional_profiles pp on pp.user_id=a.id
@@ -88,7 +89,7 @@ export function communityRoutes({ json, readBody }) {
         const lim = +(await getSettings(u.tenant_id)).limite_publicacoes_dia || POST_LIMIT_DAY
         if (n >= lim) return json(res, 429, { error: `Limite de ${lim} publicações por dia atingido.` })
       }
-      const r = await q('insert into posts(tenant_id,author_id,title,body,category,image_url,status) values($1,$2,$3,$4,$5,$6,$7) returning id', [u.tenant_id, u.id, title, body, cat, img, status])
+      const r = await q('insert into posts(tenant_id,author_id,title,body,category,image_url,status,scope_pro_id) values($1,$2,$3,$4,$5,$6,$7,$8) returning id', [u.tenant_id, u.id, title, body, cat, img, status, newScope(u, b.scope)])
       await audit(u.tenant_id, u.id, 'post.' + status, 'post', r.rows[0].id)
       if (status === 'publicado') {
         const f = await q('select follower_id from follows where professional_id=$1 limit 500', [u.id])
@@ -110,6 +111,7 @@ export function communityRoutes({ json, readBody }) {
       const u = await requireAuth(req, res, json); if (!u) return
       const b = await readBody(req)
       if (!isUuid(b.id) || !(await q(`select 1 from posts where id=$1 and status='publicado' and tenant_id=$2`, [b.id, u.tenant_id])).rowCount) return json(res, 404, { error: 'Publicação indisponível' })
+      if (!(await canSee(u, (await q('select scope_pro_id from posts where id=$1', [b.id])).rows[0].scope_pro_id))) return json(res, 403, { error: 'Comunidade sem acesso. Solicite a liberação.', code: 'CLIENT_SCOPE' })
       if (b.on === false) await q('delete from post_likes where post_id=$1 and user_id=$2', [b.id, u.id])
       else await q('insert into post_likes(post_id,user_id) values($1,$2) on conflict do nothing', [b.id, u.id])
       const n = +(await q('select count(*) from post_likes where post_id=$1', [b.id])).rows[0].count
@@ -123,8 +125,9 @@ export function communityRoutes({ json, readBody }) {
       if (!staff && !s.comentarios_alunos) return json(res, 403, { error: 'Comentários de alunos estão desativados pela administração.' })
       if (staff && has(u, 'profissional') && !has(u, 'admin')) { const p = (await q('select state from professional_profiles where user_id=$1', [u.id])).rows[0]; if (!p || p.state !== 'ativo') return json(res, 403, { error: 'Perfil profissional não ativo' }) }
       if (body.length < 1) return json(res, 400, { error: 'Comentário vazio' })
-      const p = isUuid(b.post_id) && (await q(`select id, author_id from posts where id=$1 and status='publicado' and tenant_id=$2`, [b.post_id, u.tenant_id])).rows[0]
+      const p = isUuid(b.post_id) && (await q(`select id, author_id, scope_pro_id from posts where id=$1 and status='publicado' and tenant_id=$2`, [b.post_id, u.tenant_id])).rows[0]
       if (!p) return json(res, 404, { error: 'Publicação indisponível' })
+      if (!(await canSee(u, p.scope_pro_id))) return json(res, 403, { error: 'Comunidade sem acesso. Solicite a liberação.', code: 'CLIENT_SCOPE' })
       const r = await q('insert into post_comments(post_id,author_id,body) values($1,$2,$3) returning id', [p.id, u.id, body])
       if (p.author_id !== u.id) await notify(p.author_id, 'feed', 'Novo comentário na sua publicação', body.slice(0, 80), '/post/' + p.id)
       // relato individual de dor no feed: orientar para o canal certo (sem diagnóstico, sem resposta pública substituta)

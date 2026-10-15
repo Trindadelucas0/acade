@@ -36,8 +36,11 @@ const CLIENT_SCOPE = [/^POST \/api\/guided\/sessions/, /^POST \/api\/active-trai
 // GETs fora do escopo do aluno do personal (catálogo do sistema e áreas gerais)
 const CLIENT_GET_BLOCK = [/^GET \/api\/guided\/(programs|program|recommendations)$/, /^GET \/api\/ranking/, /^GET \/api\/groups?$/]
 
+// R6: aluno coberto pelo personal cujo personal NÃO está em dia (e sem mensalidade própria) → só visualiza
+export const coachPending = u => isScopedClient(u) && !u.coach_unlocked_at
 export async function accessGate(key, user, res, json) {
   if (!user || user.roles?.includes('admin')) return true
+  if (coachPending(user) && !key.startsWith('GET ') && !ALLOW_LOCKED.some(r => r.test(key))) { json(res, 403, { error: 'A mensalidade do seu personal está pendente. Enquanto isso você só visualiza as telas. Você pode solicitar a liberação pagando a sua própria mensalidade.', code: 'ACCESS_LOCKED', reason: 'COACH_PENDING' }); return false }
   if (isScopedClient(user) && CLIENT_GET_BLOCK.some(r => r.test(key))) { json(res, 403, { error: 'Esta área não faz parte do plano do seu personal. Você pode solicitar a liberação.', code: 'CLIENT_SCOPE' }); return false }
   if (key.startsWith('GET ') || !isLocked(user)) return true
   if (ALLOW_LOCKED.some(r => r.test(key))) return true
@@ -121,8 +124,12 @@ export function accountRoutes({ json, readBody }) {
       const u = await admin(req, res, json); if (!u) return
       const [reqs, locked] = await Promise.all([
         q(`select r.*, x.name, x.email, x.account_type, c.name coach_name from unlock_requests r join users x on x.id=r.user_id left join users c on c.id=r.coach_id where r.tenant_id=$1 order by (r.status='pendente') desc, r.created_at desc limit 200`, [u.tenant_id]),
-        q(`select id,name,email,account_type,created_at,(select name from users c where c.id=x.managed_by) coach_name from users x where tenant_id=$1 and access_unlocked_at is null and disabled_at is null order by created_at desc limit 300`, [u.tenant_id])])
-      json(res, 200, { requests: reqs.rows, locked_users: locked.rows })
+        q(`select id,name,email,account_type,created_at,(select name from users c where c.id=x.managed_by) coach_name,
+            exists(select 1 from access_events e where e.user_id=x.id and e.action='bloqueada') was_blocked
+          from users x where tenant_id=$1 and access_unlocked_at is null and disabled_at is null order by created_at desc limit 300`, [u.tenant_id])])
+      const unlocked = await q(`select id,name,email,account_type,created_at,access_unlocked_at,(select name from users c where c.id=x.managed_by) coach_name
+          from users x where tenant_id=$1 and access_unlocked_at is not null and disabled_at is null order by access_unlocked_at desc limit 300`, [u.tenant_id])
+      json(res, 200, { requests: reqs.rows, locked_users: locked.rows, unlocked_users: unlocked.rows })
     },
     'POST /api/adm/access/decide': async (req, res) => {
       const u = await admin(req, res, json); if (!u) return
@@ -169,4 +176,19 @@ export function accountRoutes({ json, readBody }) {
       json(res, 202, { id: r.id, status: 'na_fila', mail_configured: mailConfigured(), message: mailConfigured() ? 'Pedido recebido. O arquivo será enviado para o seu e-mail.' : 'Pedido recebido. O envio por e-mail está temporariamente pendente; você receberá assim que for liberado.' })
     }
   }
+}
+
+// V4.3 · cadastro com o CÓDIGO do personal: conta nasce como aluno do personal, vinculada e sem cobrança (coberta pelo personal)
+export async function attachByProCode(uid, tenantId, code) {
+  const c = String(code || '').trim().toUpperCase(); if (!c) return null
+  const pro = (await q(`select u.id from users u join user_roles r on r.user_id=u.id and r.role_id='profissional'
+      join professional_profiles pp on pp.user_id=u.id where upper(u.share_code)=$1 and u.tenant_id=$2 and u.status='ativo' and pp.verification_status='verificado'`, [c, tenantId])).rows[0]
+  if (!pro) return { error: 'Código de personal não encontrado. Confira com o seu personal.' }
+  const cap = await capacitySummary(pro.id)
+  if (cap.available != null && cap.available <= 0) return { error: 'Esse personal está sem vagas no momento. Fale com ele.' }
+  return { pro_id: pro.id, apply: async () => {
+    await q(`update users set account_type='personal_client', managed_by=$2 where id=$1`, [uid, pro.id])
+    await q(`insert into coach_students(tenant_id,coach_id,student_id,status,origin,created_by) values($1,$2,$3,'ativo','codigo',$3)`, [tenantId, pro.id, uid])
+    await notify(pro.id, 'vinculo', 'Novo aluno pelo seu código', 'Um aluno se cadastrou com o seu código.', '/pro?tab=alunos').catch(() => {})
+  } }
 }

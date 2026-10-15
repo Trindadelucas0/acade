@@ -16,6 +16,7 @@ import { UserEdit, ProEdit, StudentRecord, StudentTraining, Publicacoes, Exercis
 import AdmVerifications from '../v3/AdmVerifications.jsx'
 import AdmSubscriptions from '../v3/AdmSubscriptions.jsx'
 import AdmUser360 from '../v3/AdmUser360.jsx'
+import UserPanel, { accountTypePT, mensalidadePT } from './UserPanel.jsx'
 
 // ---------- utilitários ----------
 const csvEsc = v => { const s = v == null ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v); return /[",;\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s }
@@ -106,8 +107,10 @@ function Usuarios() {
   const [st, setSt] = useState(''), [d, err, reload] = useLoad(() => C.users(st, ''), [st])
   const [pl] = useLoad(() => C.plans()), [sel, setSel] = useState(null)
   const cols = [{ k: 'name', l: 'Nome' }, { k: 'email', l: 'E-mail' }, { k: 'status', l: 'Status', r: r => <Pill v={r.status} map={ST} /> },
-    { k: 'share_code', l: 'Código' }, { k: 'subs', l: 'Assinaturas', csv: r => (r.subs || []).map(s => s.plan + ' ' + s.status).join(', '), r: r => (r.subs || []).map(s => s.plan + (s.status !== 'ativa' ? ' (' + s.status + ')' : '') + (s.over_limit ? ' ⚠' : '')).join(' · ') || '—' }, { k: 'verification', l: 'Verificação', r: r => r.verification || '—' },
-    { k: 'roles', l: 'Papéis', csv: r => r.roles.join(', '), r: r => r.roles.join(', ') }, { k: 'plan_id', l: 'Plano' }, { k: 'links', l: 'Vínculos', r: r => <>{r.links}{r.over_limit ? ' ⚠' : ''}</> },
+    { k: 'account_type', l: 'Tipo', csv: r => accountTypePT(r), r: r => accountTypePT(r) },
+    { k: 'mensalidade', l: 'Mensalidade', csv: r => mensalidadePT(r).t, r: r => { const m = mensalidadePT(r); return <span className={'adm-pill ' + m.c} title={m.s}>{m.t}</span> } },
+    { k: 'subs', l: 'Assinatura do personal', csv: r => (r.subs || []).filter(s => s.audience === 'profissional').map(s => s.plan).join(', '), r: r => (r.subs || []).filter(s => s.audience === 'profissional').map(s => s.plan.replace(/free/i, 'Gratuito') + (s.status !== 'ativa' ? ' (' + s.status + ')' : '') + (s.over_limit ? ' ⚠' : '')).join(' · ') || (r.roles.includes('profissional') ? 'Sem assinatura' : 'Não se aplica') },
+    { k: 'links', l: 'Vínculos', r: r => r.links },
     { k: 'created_at', l: 'Cadastro', r: r => r.created_at ? new Date(r.created_at).toLocaleDateString('pt-BR') : '—', sv: r => r.created_at }]
   const u = sel && (d?.users || []).find(x => x.id === sel)
   const [novo, setNovo] = useState(false), [dtab, setDt] = useState('v360'), [pros, , reloadPros] = useLoad(() => C.admPros(), [])
@@ -115,28 +118,8 @@ function Usuarios() {
     <div className="adm-tools"><button className="adm-btn" onClick={() => setNovo(true)} data-testid="nu-open">+ Novo usuário</button></div>
     {novo && <NovoUsuario plans={(pl?.plans || []).filter(p => p.active)} onClose={() => setNovo(false)} onDone={reload} />}
     {err ? <p className="g-warn">{err}</p> : <DataTable name="usuarios" cols={cols} rows={d?.users} onRow={r => { setSel(r.id); setDt('v360') }}
-      filters={<select className="adm-in" value={st} onChange={e => setSt(e.target.value)} aria-label="Status"><option value="">Todos os status</option><option value="pendente">Pendentes</option><option value="ativo">Ativos</option><option value="bloqueado">Bloqueados</option></select>} />}
-    {u && <Drawer title={u.name} onClose={() => setSel(null)}>
-      <dl className="adm-dl"><dt>E-mail</dt><dd>{u.email}</dd><dt>Status</dt><dd><Pill v={u.status} map={ST} /></dd><dt>Papéis</dt><dd>{u.roles.join(', ')}</dd><dt>Plano de acesso</dt><dd>{u.plan_id || '—'}</dd><dt>Vínculos ativos</dt><dd>{u.links}{u.over_limit ? ' (acima do limite do plano)' : ''}</dd></dl>
-      <div className="adm-tools" style={{ marginTop: 14 }}>
-        {u.status !== 'ativo' && <button className="adm-btn" onClick={act(() => C.setStatus(u.id, 'ativo'), reload)} data-testid="drw-approve">{u.status === 'bloqueado' ? 'Desbloquear' : 'Ativar conta'}</button>}
-        {u.status === 'ativo' && <button className="adm-btn danger" onClick={act(async () => { const r = await askText('Motivo da suspensão', { required: true, ok: 'Suspender', danger: true }); return r && C.setStatus(u.id, 'bloqueado', r) }, reload)}>Suspender</button>}
-        <select className="adm-in" value={u.plan_id || ''} onChange={act(async e => { const r = await C.setPlan(u.id, e.target.value); if (r?.over_limit) notify(`O aluno tem ${r.links} vínculo(s) e o plano permite ${r.max}. Nada foi encerrado.`) }, reload)} aria-label="Plano de acesso">
-          <option value="" disabled>Plano de acesso…</option>{(pl?.plans || []).filter(p => p.active).map(p => <option key={p.id} value={p.id}>{p.name_pt} (até {p.max_professionals})</option>)}</select>
-        <button className="adm-btn ghost" onClick={act(async () => { const r = await C.resetLink(u.id); await showValue('Link de redefinição (uso único, 24 h)', r.link) })}>Link de nova senha</button>
-        <button className="adm-btn ghost" onClick={act(() => C.setRole(u.id, 'profissional', !u.roles.includes('profissional')), reload)}>{u.roles.includes('profissional') ? 'Remover papel profissional' : 'Dar papel profissional'}</button>
-        {!u.roles.includes('aluno') && <button className="adm-btn ghost" onClick={act(() => C.setRole(u.id, 'aluno', true), reload)}>Dar papel de aluno</button>}
-        <button className="adm-btn ghost" onClick={act(async () => { const o = await askText('ID da outra conta da mesma pessoa (vazio = desfazer). Só para auditoria; nada é compartilhado.'); return o != null && C.samePerson(u.id, o.trim() || null, 'registro manual') }, reload)}>Mesma pessoa…</button>
-      </div>
-      <p className="g-mut g-xs">Uma pessoa, uma conta: a mesma conta pode treinar (aluno) e atender (profissional). Cada área tem seu próprio plano.</p>
-      <div className="adm-tools" role="tablist" style={{ marginTop: 12 }}>{[['v360', 'Visão 360°'], ['conta', 'Conta'], ...(u.roles.includes('profissional') ? [['pro', 'Profissional']] : []), ...(u.roles.includes('aluno') ? [['ficha', 'Ficha'], ['treinos', 'Treinos e vínculos']] : [])].map(([k, l]) =>
-        <button key={k} role="tab" aria-selected={dtab === k} className={'adm-btn ' + (dtab === k ? '' : 'ghost')} onClick={() => setDt(k)} data-testid={'udt-' + k}>{l}</button>)}</div>
-      {dtab === 'v360' && <AdmUser360 key={u.id} id={u.id} onChanged={reload} />}
-      {dtab === 'conta' && <UserEdit key={u.id} u={u} onChanged={reload} onDeleted={() => { setSel(null); reload() }} />}
-      {dtab === 'pro' && u.roles.includes('profissional') && <ProEdit key={u.id} u={u} pro={(pros?.professionals || []).find(p => p.user_id === u.id)} onChanged={() => { reloadPros(); reload() }} />}
-      {dtab === 'ficha' && <StudentRecord key={u.id} u={u} />}
-      {dtab === 'treinos' && <StudentTraining key={u.id} u={u} pros={pros?.professionals} />}
-    </Drawer>}
+      filters={<select className="adm-in" value={st} onChange={e => setSt(e.target.value)} aria-label="Status" data-testid="usr-status"><option value="">Todos os status</option><option value="pendente">Pendentes</option><option value="ativo">Ativos</option><option value="bloqueado">Bloqueados</option></select>} />}
+    {u && <UserPanel key={u.id} u={u} onClose={() => setSel(null)} reload={reload} pros={pros?.professionals} reloadPros={reloadPros} onDeleted={() => { setSel(null); reload() }} />}
   </>
 }
 
@@ -172,7 +155,7 @@ function NovoUsuario({ plans, onClose, onDone }) {
       {L('E-mail', <input className="adm-in" type="email" value={f.email} onChange={set('email')} required data-testid="nu-email" />, 'email')}
       {L('Senha temporária (vazio = gerar automaticamente)', <input className="adm-in" type="text" autoComplete="new-password" value={f.password} onChange={set('password')} data-testid="nu-pass-in" />, 'password')}
       {f.type === 'aluno' ? <>
-        {L('Plano de acesso (opcional)', <select className="adm-in" value={f.plan_id} onChange={set('plan_id')} data-testid="nu-plan"><option value="">Sem plano por enquanto</option>{plans.map(p => <option key={p.id} value={p.id}>{p.name_pt} (até {p.max_professionals})</option>)}</select>, 'plan_id')}
+        {false && L('Plano de acesso (opcional)', <select className="adm-in" value={f.plan_id} onChange={set('plan_id')} data-testid="nu-plan"><option value="">Sem plano por enquanto</option>{plans.map(p => <option key={p.id} value={p.id}>{p.name_pt} (até {p.max_professionals})</option>)}</select>, 'plan_id')}
         {L('Vincular a um profissional (opcional, exige plano)', <select className="adm-in" value={f.coach_id} onChange={set('coach_id')} data-testid="nu-coach"><option value="">Sem vínculo por enquanto</option>{(pros?.professionals || []).filter(p => p.state === 'ativo').map(p => <option key={p.user_id} value={p.user_id}>{p.display_name || p.name} ({p.available} vaga[s])</option>)}</select>, 'coach_id')}
         {f.coach_id && L('Área do vínculo', <input className="adm-in" value={f.area} onChange={set('area')} placeholder="ex.: Musculação" data-testid="nu-area" />, 'area')}
       </> : <>
@@ -406,8 +389,8 @@ function Wrap({ children }) { return <div className="ag">{children}</div> }
 
 const NAV = [
   ['Visão geral', [['dashboard', 'Dashboard', 'chart']]],
-  ['Pessoas', [['usuarios', 'Usuários', 'person'], ['alunos', 'Liberações rápidas', 'check'], ['liberacoes', 'Liberação de contas', 'lock'], ['profissionais', 'Profissionais e habilitações', 'clipboard'], ['verificacoes', 'Verificação profissional', 'check'], ['vinculos', 'Vínculos', 'users'], ['solicitacoes', 'Central de solicitações', 'flag']]],
-  ['Operação', [['filas', 'Filas e prazos (SLA)', 'bell'], ['planos', 'Planos de acesso', 'shield'], ['assinaturas', 'Planos SaaS e assinaturas', 'sparkles'], ['modelos', 'Modelos de treino', 'pencil'], ['grupos', 'Grupos', 'users'], ['desafios', 'Desafios', 'trophy'], ['exercicios', 'Biblioteca e mídia', 'dumbbell']]],
+  ['Pessoas', [['usuarios', 'Usuários', 'person'], ['liberacoes', 'Liberação de contas', 'lock'], ['profissionais', 'Profissionais e habilitações', 'clipboard'], ['verificacoes', 'Verificação profissional', 'check'], ['vinculos', 'Vínculos', 'users'], ['solicitacoes', 'Central de solicitações', 'flag']]],
+  ['Operação', [['filas', 'Filas e prazos (SLA)', 'bell'], ['assinaturas', 'Planos SaaS e assinaturas', 'sparkles'], ['modelos', 'Modelos de treino', 'pencil'], ['grupos', 'Grupos', 'users'], ['desafios', 'Desafios', 'trophy'], ['exercicios', 'Biblioteca e mídia', 'dumbbell']]],
   ['Comunidade', [['publicacoes', 'Publicações e comentários', 'pencil'], ['moderacao', 'Moderação', 'chat'], ['ranking', 'Auditoria do ranking', 'sparkles']]],
   ['Governança', [['auditoria', 'Auditoria', 'list'], ['lgpd', 'LGPD', 'lock'], ['termos', 'Termos de uso', 'info'], ['config', 'Configurações', 'gear']]]]
 const TITLE = Object.fromEntries(NAV.flatMap(([, it]) => it.map(([k, l]) => [k, l])))
@@ -422,8 +405,8 @@ export default function AdminApp() {
       <h6>Conta</h6><button onClick={() => nav('/comunidade')} data-testid="adm-comunidade-app"><Icon name="chevronLeft" />Ver comunidade</button><button onClick={() => nav('/perfil')}><Icon name="chevronLeft" />Minha conta</button><button onClick={() => useStore.getState().signOut()} data-testid="adm-sair"><Icon name="chevronLeft" />Sair</button>
     </aside>
     <main className="adm-main">
-      <div className="adm-mtop"><button className="adm-btn ghost" style={{ minWidth: 44, minHeight: 44, fontSize: 18 }} onClick={() => setOpen(!open)} aria-label="Menu">☰</button><b>{TITLE[tab]}</b></div>
-      <h1>{TITLE[tab]}</h1><p className="adm-sub">AVADESK Fitness · central administrativa</p>
+      <div className="adm-mtop"><button className="adm-btn ghost" style={{ minWidth: 44, minHeight: 44, fontSize: 18 }} onClick={() => setOpen(!open)} aria-label="Menu" aria-expanded={open} data-testid="adm-menu">☰</button><b>{TITLE[tab]}</b></div>
+      <h1 data-testid="adm-title">{TITLE[tab]}</h1><p className="adm-sub">AVADESK Fitness · central administrativa</p>
       {tab === 'dashboard' && <Dashboard go={go} />}
       {tab === 'usuarios' && <Usuarios />}
       {tab === 'liberacoes' && <AdmLiberacoes />}

@@ -18,7 +18,7 @@ export async function run({ stu, adm, p1, p2, sid, P1, get, post, check, origin 
   check((await post(stu, '/api/posts', { title: 'Post de aluno', body: 'não pode' })).s === 403, 'aluno não publica')
   check((await post(stu, '/api/uploads', { data: 'data:image/png;base64,iVBORw0KGgo=' })).s === 403, 'aluno não envia fotos')
   await post(adm, '/api/adm/professionals', { user_id: P1.user_id, can_publish: true, state: 'ativo' })
-  let r = await post(p1, '/api/posts', { title: 'Técnica do agachamento', body: 'Mantenha os pés firmes.', category: 'tecnica' })
+  let r = await post(p1, '/api/posts', { scope: 'sistema', title: 'Técnica do agachamento', body: 'Mantenha os pés firmes.', category: 'tecnica' })
   check(r.s === 201, 'profissional autorizado publica'); const pid = r.d.id
   check((await post(p1, '/api/uploads', { data: 'data:image/png;base64,' + Buffer.from('nao-e-imagem').toString('base64') })).s === 400, 'upload valida o arquivo de imagem')
   check((await get(stu, '/api/feed')).d.posts[0]?.id === pid, 'feed cronológico mostra a publicação mais recente')
@@ -45,7 +45,7 @@ export async function run({ stu, adm, p1, p2, sid, P1, get, post, check, origin 
   check(!(await get(stu, '/api/feed')).d.posts.some(p => p.id === pid), 'conteúdo oculto sai do feed')
   check((await get(stu, '/api/post?id=' + pid)).s === 404, 'aluno não vê publicação oculta')
   await post(adm, '/api/adm/professionals', { user_id: P1.user_id, can_publish: false })
-  check((await post(p1, '/api/posts', { title: 'Outra', body: 'texto' })).s === 403, 'publicação é permissão por profissional')
+  check((await post(p1, '/api/posts', { scope: 'sistema', title: 'Outra', body: 'texto' })).s === 403, 'publicação é permissão por profissional')
   await post(adm, '/api/adm/professionals', { user_id: P1.user_id, can_publish: true })
 
   console.log('Fase 2 — ranking')

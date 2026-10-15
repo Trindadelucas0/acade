@@ -76,7 +76,7 @@ function LoginForm() {
   const { setUser, pullState, setGuest } = useStore()
   const [mode, setMode] = useState('login')       // 'login' | 'register'
   const [intent, setIntent] = useState('aluno')   // V3: 'Quero treinar' | 'Sou profissional'
-  const [f, setF] = useState({ name: '', email: '', password: '', confirm: '' })
+  const [f, setF] = useState({ name: '', email: '', password: '', confirm: '', pro_code: '' })
   const [errs, setErrs] = useState({})
   const [showPw, setShowPw] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -101,7 +101,7 @@ function LoginForm() {
     if (busy || !validate()) return
     setBusy(true); setMsg('')
     try {
-      const u = reg ? await authRegister(f.name.trim(), f.email.trim(), f.password, terms && agree ? terms.version : undefined, intent) : await authLogin(f.email.trim(), f.password)
+      const u = reg ? await authRegister(f.name.trim(), f.email.trim(), f.password, terms && agree ? terms.version : undefined, intent, intent === 'aluno' ? f.pro_code.trim() : '') : await authLogin(f.email.trim(), f.password)
       setUser(u); await pullState()
       useUI.getState().toast(reg ? `Bem-vindo(a), ${u.name}!` : `Bem-vindo(a) de volta, ${u.name}!`)
     } catch (e) {
@@ -148,6 +148,7 @@ function LoginForm() {
         {field('email', 'E-mail', 'email', 'email', { inputMode: 'email', placeholder: 'voce@email.com' })}
         {field('password', 'Senha', showPw ? 'text' : 'password', reg ? 'new-password' : 'current-password')}
         {reg && field('confirm', 'Confirmar senha', showPw ? 'text' : 'password', 'new-password')}
+        {reg && intent === 'aluno' && <>{field('pro_code', 'Código do seu personal (opcional)', 'text', 'off', { maxLength: 16, autoCapitalize: 'characters', placeholder: 'Ex.: M6ESAW9W' })}<p className="lg-sub" style={{ marginTop: -4 }} data-testid="pro-code-note">Tem um personal? Com o código dele, sua conta já entra vinculada e coberta pelo plano dele, sem mensalidade.</p></>}
         {reg && terms && <div className={'lg-terms' + (errs.terms ? ' err' : '')}>
           <label><input type="checkbox" checked={agree} onChange={e => { setAgree(e.target.checked); setErrs({ ...errs, terms: undefined }) }} data-testid="accept-terms" />
             <span>Li e aceito os <button type="button" className="lg-forgot" onClick={() => setReadTerms(!readTerms)}>termos de uso e a política de privacidade</button> (versão {terms.version})</span></label>

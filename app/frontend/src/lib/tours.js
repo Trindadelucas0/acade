@@ -1,6 +1,7 @@
 // V4.3 · definições dos guided tours (ver /workspace/avagym/v4/PLANO-TOURS.md). Estado salvo no Postgres via /api/me/tours.
 import { api } from './api.js'
 const S = (target, title, text) => ({ target, title, text })
+const M = (target, title, text) => ({ target, title, text, reveal: 'adm-menu' })   // admin: abre o menu lateral no celular se preciso
 const common = {
   progresso: [S('progress', 'Seu progresso', 'Volume, frequência e músculos trabalhados ao longo das semanas.')],
   perfil: [S('security', 'Segurança', 'Troque a senha e saia de todos os aparelhos.'), S('meus-dados', 'Seus dados', 'Peça uma cópia dos seus dados por e-mail ou a exclusão da conta.'), S('tour-restart', 'Ver tour de novo', 'Quando quiser rever estas dicas, toque aqui.')]
@@ -39,12 +40,30 @@ export const TOURS = {
     perfil: common.perfil
   },
   admin: {
-    welcome: [S(null, 'Central administrativa', 'Tudo o que precisa de decisão fica aqui.'),
-      S('adm-dashboard', 'Dashboard', 'Números do dia e filas pendentes.'),
-      S('adm-liberacoes', 'Liberação de contas', 'Aprove ou recuse pedidos e trave ou libere contas. Nada é apagado.'),
-      S('adm-verificacoes', 'Verificação profissional', 'Valide o cadastro dos personais.'),
-      S('adm-lgpd', 'LGPD', 'Pedidos de dados e de exclusão.')],
-    liberacoes: [S('adm-liberacoes', 'Pedidos de liberação', 'Pendentes aparecem primeiro. Ao recusar, escreva o motivo: a pessoa vê.')]
+    welcome: [S(null, 'Central administrativa', 'Aqui você cuida das contas, das liberações e dos personais. Vamos ver onde fica cada coisa.'),
+      M('adm-usuarios', 'Usuários', 'Lista de todas as contas. Toque em uma pessoa para ver o resumo, a mensalidade e as ações.'),
+      M('adm-liberacoes', 'Liberação de contas', 'Pedidos, contas aguardando, liberadas e travadas, num lugar só. Dá para liberar várias de uma vez.'),
+      M('adm-verificacoes', 'Verificação profissional', 'Confira o registro (CREF) dos personais antes de eles enviarem treinos.'),
+      M('adm-assinaturas', 'Assinaturas dos personais', 'Quantos alunos cada personal pode ter.'),
+      M('adm-lgpd', 'LGPD', 'Pedidos de cópia dos dados e de exclusão de conta.')],
+    usuarios: [S('dt-search', 'Buscar', 'Digite nome, e-mail ou código para achar a pessoa.'),
+      S('usr-status', 'Filtrar', 'Mostre só contas pendentes, ativas ou bloqueadas.'),
+      S('nu-open', 'Novo usuário', 'Crie uma conta já liberada (aluno ou personal).'),
+      S('dt-row', 'Abrir um usuário', 'Toque na linha para abrir o painel da pessoa.')],
+    usuario: [S('upn-resumo', 'Resumo', 'Tipo de conta, situação, liberação e último acesso.'),
+      S('upn-mensalidade', 'Mensalidade', 'Enquanto o pagamento não está no app, você marca à mão: "em dia" libera, "pendente" trava. Aluno do personal é coberto por ele.'),
+      S('upn-assinatura', 'Trocar assinatura do personal', 'Escolha a assinatura no seletor para mudar quantos alunos o personal pode ter.'),
+      S('upn-treino', 'Treino atual e vínculos', 'Que ficha ou programa está ativo e quem é o personal.'),
+      S('upn-link-senha', 'Link de nova senha', 'Gera um link de uso único (24 h). Copie e envie para a pessoa.'),
+      S('upn-papel-pro', 'Papéis', 'Dê ou remova o papel de personal. A mesma conta pode treinar e atender.'),
+      S('upn-risco', 'Zona de risco', 'Suspender impede o login. Nada é apagado e dá para reativar.'),
+      S('upn-avancado', 'Detalhes avançados', 'Código público, edição da conta e dados técnicos ficam aqui, recolhidos.')],
+    liberacoes: [S('lib-tabs', 'Abas', 'Pedidos: quem pediu liberação. Aguardando: contas novas. Liberadas e Travadas: o estado atual.'),
+      S('lib-pedidos', 'Aprovar ou recusar', 'Pendentes aparecem primeiro. Ao recusar, escreva o motivo: a pessoa vê.'),
+      S('lib-tab-aguardando', 'Liberar em lote', 'Nas outras abas, marque várias contas e use "Liberar selecionadas" ou "Travar selecionadas".')],
+    verificacoes: [S('adm-verifications', 'Fila de verificação', 'Abra cada pedido, confira o documento e aprove ou peça correção.')],
+    assinaturas: [S('adm-subs', 'Assinaturas dos personais', 'Veja e troque a assinatura de cada personal. "A definir" = limite ainda não decidido.')],
+    lgpd: [S('adm-title', 'LGPD', 'Pedidos de cópia dos dados (enviados por e-mail) e de exclusão. Nada é apagado sem a sua análise.')]
   }
 }
 // tela atual → chave do tour (por perfil)

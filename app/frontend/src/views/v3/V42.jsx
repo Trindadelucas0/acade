@@ -64,7 +64,7 @@ export function UnlockRequest({ compact }) {
 export function LockBanner() {
   const u = useStore(s => s.user)
   if (!isLockedUser(u)) return null
-  return <div className="v42-banner" data-testid="lock-banner" role="status"><Icon name="lock" /><span>{isScoped(u) ? 'Conta do seu personal: algumas áreas estão travadas.' : 'Conta em liberação: você pode ver tudo, mas as ações estão travadas.'}</span>
+  return <div className="v42-banner" data-testid="lock-banner" role="status"><Icon name="lock" /><span>{u.coach_pending ? 'A mensalidade do seu personal está pendente: por enquanto você só visualiza. Você pode pagar a sua própria mensalidade.' : isScoped(u) ? 'Conta do seu personal: o conteúdo do sistema fica travado.' : 'Mensalidade pendente: você pode ver tudo, mas as ações estão travadas.'}</span>
     <a href="#/perfil?liberacao=1">Solicitar liberação</a></div>
 }
 // abre sozinho quando a API responde ACCESS_LOCKED / CLIENT_SCOPE (o bloqueio de verdade é no backend)
@@ -142,33 +142,43 @@ export function PlanHistory({ plans }) {
   </section>
 }
 
-// ---------- admin: liberações ----------
+// ---------- admin: liberação de contas (único lugar; substitui "Liberações rápidas") ----------
+const TYPE_PT = x => x.account_type === 'personal_client' ? 'Aluno de ' + (x.coach_name || 'personal') : 'Usuário normal'
 export function AdmLiberacoes() {
-  const [d, err, reload] = useLoad(() => api('/api/adm/access')), [msg, setMsg] = useState('')
+  const [d, err, reload] = useLoad(() => api('/api/adm/access')), [msg, setMsg] = useState(''), [tab, setTab] = useState('pedidos'), [sel, setSel] = useState([]), [busy, setBusy] = useState(false)
   const act = async (p, b) => { setMsg(''); try { await post(p, b); reload() } catch (e) { setMsg(e.message) } }
+  const batch = async unlocked => {
+    setBusy(true); setMsg(''); let ok = 0
+    for (const id of sel) { try { await post('/api/adm/access/set', { user_id: id, unlocked }); ok++ } catch { /* segue */ } }
+    setBusy(false); setSel([]); setMsg(`${ok} conta(s) ${unlocked ? 'liberada(s)' : 'travada(s)'}.`); reload()
+  }
   if (err) return <p className="g-warn">{err}</p>
   if (!d) return <p className="adm-sub">Carregando…</p>
   const pend = d.requests.filter(r => r.status === 'pendente')
+  const aguard = d.locked_users.filter(x => !x.was_blocked), trav = d.locked_users.filter(x => x.was_blocked)
+  const TABS = [['pedidos', 'Pedidos', pend.length], ['aguardando', 'Aguardando', aguard.length], ['liberadas', 'Liberadas', d.unlocked_users.length], ['travadas', 'Travadas', trav.length]]
+  const rows = tab === 'aguardando' ? aguard : tab === 'liberadas' ? d.unlocked_users : trav
+  const toggle = id => setSel(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id])
   return <div data-testid="adm-liberacoes">
-    {msg && <p className="g-warn">{msg}</p>}
-    <h2>Pedidos de liberação ({pend.length} pendentes)</h2>
-    <table className="adm-table"><thead><tr><th>Quando</th><th>Conta</th><th>Tipo</th><th>Motivo</th><th>Status</th><th></th></tr></thead><tbody>
-      {d.requests.map(r => <tr key={r.id}><td>{dt(r.created_at)}</td><td>{r.name}<br /><small>{r.email}</small></td><td>{r.account_type === 'personal_client' ? 'Aluno de ' + (r.coach_name || 'personal') : 'Normal'}</td><td>{r.reason || '—'}</td><td>{r.status}</td>
+    <p className="adm-sub">Contas novas veem todas as telas, mas as ações ficam travadas até você liberar. Travar não apaga nada.</p>
+    <div className="adm-tools" role="tablist" data-testid="lib-tabs">{TABS.map(([k, l, n]) => <button key={k} role="tab" aria-selected={tab === k} className={'adm-btn ' + (tab === k ? '' : 'ghost')} onClick={() => { setTab(k); setSel([]) }} data-testid={'lib-tab-' + k}>{l} ({n})</button>)}</div>
+    {msg && <p className="g-note" role="status">{msg}</p>}
+    {tab === 'pedidos' ? <table className="adm-table" data-testid="lib-pedidos"><thead><tr><th>Quando</th><th>Conta</th><th>Tipo</th><th>Motivo</th><th>Situação</th><th></th></tr></thead><tbody>
+      {d.requests.map(r => <tr key={r.id}><td>{dt(r.created_at)}</td><td>{r.name}<br /><small>{r.email}</small></td><td>{TYPE_PT(r)}</td><td>{r.reason || '—'}</td><td>{r.status}</td>
         <td>{r.status === 'pendente' && <><button className="adm-btn" data-testid="lib-aprovar" onClick={() => act('/api/adm/access/decide', { id: r.id, action: 'aprovar' })}>Aprovar</button> <button className="adm-btn ghost" onClick={async () => { const n = await askText('Recusar o pedido?', { text: 'Motivo da recusa (opcional). A pessoa verá esta nota.', ok: 'Recusar', danger: true }); if (n != null) act('/api/adm/access/decide', { id: r.id, action: 'recusar', note: n }) }}>Recusar</button></>}</td></tr>)}
-    </tbody></table>
-    <h2 style={{ marginTop: 24 }}>Contas travadas ({d.locked_users.length})</h2>
-    <table className="adm-table"><thead><tr><th>Conta</th><th>Tipo</th><th>Criada</th><th></th></tr></thead><tbody>
-      {d.locked_users.map(x => <tr key={x.id}><td>{x.name}<br /><small>{x.email}</small></td><td>{x.account_type === 'personal_client' ? 'Aluno de ' + (x.coach_name || 'personal') : 'Normal'}</td><td>{dt(x.created_at)}</td>
-        <td><button className="adm-btn" data-testid="lib-desbloquear" onClick={() => act('/api/adm/access/set', { user_id: x.id, unlocked: true })}>Liberar</button></td></tr>)}
-    </tbody></table>
-    <BlockUser onDone={reload} />
+      {!d.requests.length && <tr><td colSpan={6}>Nenhum pedido.</td></tr>}
+    </tbody></table> : <>
+      <div className="adm-tools" data-testid="lib-batch">
+        <label><input type="checkbox" checked={rows.length > 0 && sel.length === rows.length} onChange={e => setSel(e.target.checked ? rows.map(x => x.id) : [])} data-testid="lib-all" /> Selecionar todas</label>
+        {tab !== 'liberadas' && <button className="adm-btn" disabled={!sel.length || busy} onClick={() => batch(true)} data-testid="lib-batch-liberar">Liberar selecionadas ({sel.length})</button>}
+        {tab === 'liberadas' && <button className="adm-btn danger" disabled={!sel.length || busy} onClick={() => batch(false)} data-testid="lib-batch-travar">Travar selecionadas ({sel.length})</button>}
+      </div>
+      <table className="adm-table"><thead><tr><th></th><th>Conta</th><th>Tipo</th><th>{tab === 'liberadas' ? 'Liberada em' : 'Criada em'}</th><th></th></tr></thead><tbody>
+        {rows.map(x => <tr key={x.id}><td><input type="checkbox" aria-label={'Selecionar ' + x.name} checked={sel.includes(x.id)} onChange={() => toggle(x.id)} /></td><td>{x.name}<br /><small>{x.email}</small></td><td>{TYPE_PT(x)}</td><td>{dt(tab === 'liberadas' ? x.access_unlocked_at : x.created_at)}</td>
+          <td>{tab === 'liberadas' ? <button className="adm-btn ghost" onClick={() => act('/api/adm/access/set', { user_id: x.id, unlocked: false })}>Travar</button> : <button className="adm-btn" data-testid="lib-desbloquear" onClick={() => act('/api/adm/access/set', { user_id: x.id, unlocked: true })}>Liberar</button>}</td></tr>)}
+        {!rows.length && <tr><td colSpan={5}>Nenhuma conta aqui.</td></tr>}
+      </tbody></table></>}
   </div>
-}
-function BlockUser({ onDone }) {
-  const [email, setEmail] = useState(''), [msg, setMsg] = useState('')
-  const go = async e => { e.preventDefault(); setMsg(''); try { await post('/api/adm/access/set', { email, unlocked: false }); setMsg('Conta travada.'); setEmail(''); onDone() } catch (e) { setMsg(e.message) } }
-  return <form onSubmit={go} style={{ marginTop: 20 }}><h2>Travar uma conta</h2><p className="adm-sub">A conta continua vendo as telas, mas as ações ficam travadas. Nenhum dado é apagado.</p>
-    <input type="email" placeholder="e-mail da conta" value={email} onChange={e => setEmail(e.target.value)} required /> <button className="adm-btn ghost">Travar</button> {msg && <span>{msg}</span>}</form>
 }
 
 // ---------- LGPD: exportação por e-mail ----------

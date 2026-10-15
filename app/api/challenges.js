@@ -1,6 +1,6 @@
 // V5 fase B · Desafios: assistente (rascunho/publicar), estados com transições validadas, regras versionadas e congeladas no início,
 // inscrições (convite, pedido, aprovação), equipes, convites por código. Nunca expõe peso, cargas, saúde, prescrições ou conversas.
-import { coachOf } from './accounts-v42.js'
+import { scopeCond, canSee, newScope } from './scope.js'
 import { q } from './db/pool.js'
 import { requireAuth, audit } from './auth.js'
 import { notify, isLinked } from './pro.js'
@@ -88,7 +88,7 @@ export function challengeRoutes({ json, readBody }) {
       if (p.get('official') === '1') f.push('c.official'); if (p.get('public') === '1') f.push(`c.audience='aberto'`)
       if (p.get('dur') === 'semana') f.push(`c.ends_at - c.starts_at <= interval '8 days'`); if (p.get('dur') === 'mes') f.push(`c.ends_at - c.starts_at between interval '8 days' and interval '32 days'`)
       if (p.get('team') === '1') f.push(`c.type='competicao_equipes'`)
-      { const cc = coachOf(u); if (cc) { v.push(cc); f.push(`c.creator_id=$${v.length}`) } }   // V4.2: aluno do personal só vê desafios do personal
+      if (view !== 'criados') f.push(await scopeCond(u, 'c', v))   // V4.3 regras R1–R4
       const r = await q(`select c.id,c.name,c.description,c.cover_url,c.category,c.type,c.metric,c.goal,c.starts_at,c.ends_at,c.audience,c.official,c.status,c.max_participants,c.creator_id=$2 mine, m.status my_status,
           (select count(*)::int from challenge_members x where x.challenge_id=c.id and x.status in ('ativo','aprovado')) participants
         from challenges c left join challenge_members m on m.challenge_id=c.id and m.user_id=$2
@@ -101,6 +101,7 @@ export function challengeRoutes({ json, readBody }) {
       const u = await auth(req, res); if (!u) return
       const c = await getChallenge(qs(req).get('id'), u.tenant_id), m = c && await memberOf(c.id, u.id), mgr = c && canManage(u, c)
       const visible = c && (mgr || m || (c.audience !== 'convite' && PUBLIC_LIVE.includes(`'${c.status}'`)) || (c.audience !== 'convite' && ['concluido', 'apurando'].includes(c.status)))
+      if (c && !mgr && !m && !(await canSee(u, c.scope_pro_id))) return json(res, 403, { error: 'Este desafio é de uma comunidade à qual você não tem acesso. Solicite a liberação.', code: 'CLIENT_SCOPE' })
       if (!visible || (c.status === 'suspenso' && !mgr && !isAdm(u)) || (c.status === 'rascunho' && !mgr)) return json(res, 404, { error: 'Desafio não encontrado' })
       const [teams, members, versions, pending, invites, logR] = await Promise.all([
         q(`select t.id,t.name,(select count(*)::int from challenge_members x where x.team_id=t.id and x.status in ('ativo','aprovado')) size from challenge_teams t where t.challenge_id=$1 order by t.name`, [c.id]),
@@ -144,8 +145,8 @@ export function challengeRoutes({ json, readBody }) {
         }
         await audit(u.tenant_id, u.id, 'desafio.editado', 'challenge', c.id, { changed, reason }); return json(res, 200, { id: c.id, changed })
       }
-      const r = await q(`insert into challenges(tenant_id,creator_id,official,${COLS.join(',')}) values($1,$2,$3,${COLS.map((_, i) => '$' + (i + 4)).join(',')}) returning id`,
-        [u.tenant_id, u.id, !!b.official && isAdm(u), ...COLS.map(k => k === 'starts_at' || k === 'ends_at' ? (isNaN(new Date(f[k])) ? new Date(Date.now() + 86400e3 * (k === 'ends_at' ? 8 : 1)) : f[k]) : f[k])])
+      const r = await q(`insert into challenges(tenant_id,creator_id,official,scope_pro_id,${COLS.join(',')}) values($1,$2,$3,$4,${COLS.map((_, i) => '$' + (i + 5)).join(',')}) returning id`,
+        [u.tenant_id, u.id, !!b.official && isAdm(u), isAdm(u) ? null : newScope(u, b.scope), ...COLS.map(k => k === 'starts_at' || k === 'ends_at' ? (isNaN(new Date(f[k])) ? new Date(Date.now() + 86400e3 * (k === 'ends_at' ? 8 : 1)) : f[k]) : f[k])])
       for (const t of teams) await q('insert into challenge_teams(challenge_id,name) values($1,$2) on conflict do nothing', [r.rows[0].id, t])
       await audit(u.tenant_id, u.id, 'desafio.rascunho', 'challenge', r.rows[0].id); json(res, 201, { id: r.rows[0].id, status: 'rascunho' })
     },
@@ -184,7 +185,7 @@ export function challengeRoutes({ json, readBody }) {
     'POST /api/challenges/join': async (req, res) => {
       const u = await auth(req, res); if (!u) return
       const b = await readBody(req), c = await getChallenge(b.id, u.tenant_id)
-      if (c && coachOf(u) && c.creator_id !== coachOf(u)) return json(res, 403, { error: 'Você só participa dos desafios do seu personal. Solicite a liberação para os demais.', code: 'CLIENT_SCOPE' })
+      if (c && c.creator_id !== u.id && !(await canSee(u, c.scope_pro_id))) return json(res, 403, { error: 'Este desafio é de uma comunidade à qual você não tem acesso. Solicite a liberação.', code: 'CLIENT_SCOPE' })
       if (!c || !['inscricoes_abertas', 'agendado', 'em_andamento'].includes(c.status)) return json(res, 404, { error: 'Desafio indisponível para inscrição' })
       if (c.status === 'agendado') return json(res, 409, { error: 'As inscrições foram encerradas' })
       if (c.status === 'em_andamento' && !c.late_entry) return json(res, 409, { error: 'Este desafio não aceita entrada depois do início' })

@@ -23,7 +23,7 @@ export async function authLogin(email, password) {
   const r = await api('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) })
   return r.user
 }
-export async function authRegister(name, email, password, terms_version, intent) {
-  const r = await api('/api/auth/register', { method: 'POST', body: JSON.stringify({ name, email, password, accept_terms: !!terms_version, terms_version, intent: intent || 'aluno' }) })
+export async function authRegister(name, email, password, terms_version, intent, pro_code) {
+  const r = await api('/api/auth/register', { method: 'POST', body: JSON.stringify({ name, email, password, accept_terms: !!terms_version, terms_version, intent: intent || 'aluno', ...(pro_code ? { pro_code } : {}) }) })
   return r.user
 }

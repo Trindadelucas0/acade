@@ -1,6 +1,6 @@
 // Autenticação email+senha (bcrypt) com JWT (cookie httpOnly "avagym_token" ou Authorization: Bearer)
 // + middlewares requireAuth / requireRole / escopo por tenant + rotas de catálogo (músculos, exercícios, programas).
-import { autoUnlockForTests } from './accounts-v42.js'
+import { attachByProCode, autoUnlockForTests } from './accounts-v42.js'
 import './env.js'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
@@ -33,7 +33,7 @@ export async function authUser(req) {
   return u
 }
 async function loadUser(id) {
-  const r = await q(`select u.id,u.name,u.email,u.tenant_id,u.disabled_at,u.status,u.active_context,u.token_version,u.account_type,u.must_change_password,u.managed_by,u.access_unlocked_at,(select pp.verification_status from professional_profiles pp where pp.user_id=u.id) verification,t.slug tenant_slug,t.name tenant_name,
+  const r = await q(`select u.id,u.name,u.email,u.tenant_id,u.disabled_at,u.status,u.active_context,u.token_version,u.account_type,u.must_change_password,u.managed_by,u.access_unlocked_at,(select m.access_unlocked_at from users m where m.id=u.managed_by) coach_unlocked_at,(select pp.verification_status from professional_profiles pp where pp.user_id=u.id) verification,t.slug tenant_slug,t.name tenant_name,
       coalesce(array_agg(ur.role_id) filter (where ur.role_id is not null),'{}') roles
     from users u join tenants t on t.id=u.tenant_id left join user_roles ur on ur.user_id=u.id and ur.tenant_id=u.tenant_id
     where u.id=$1 group by u.id,t.slug,t.name`, [id])
@@ -76,7 +76,7 @@ export const pub = u => ({ id: u.id, name: u.name, email: u.email, roles: u.role
   tenant: { id: u.tenant_id, slug: u.tenant_slug, name: u.tenant_name },
   // V4.2: tipo de conta. Aluno do personal fica restrito (fichas, comunidade e desafios do personal) até a liberação do admin
   account_type: u.account_type || 'normal', must_change_password: !!u.must_change_password,
-  client_locked: u.account_type === 'personal_client' && !u.access_unlocked_at, access_locked: !u.access_unlocked_at, managed_by: u.managed_by || null })
+  client_locked: u.account_type === 'personal_client' && !u.access_unlocked_at, access_locked: !u.access_unlocked_at, coach_pending: u.account_type === 'personal_client' && !u.access_unlocked_at && !u.coach_unlocked_at, managed_by: u.managed_by || null })
 
 export function authRoutes({ json, readBody, bridge, clearCookies }) {
   const login = async (res, id) => {
@@ -102,6 +102,8 @@ export function authRoutes({ json, readBody, bridge, clearCookies }) {
       const t = await q('select id from tenants where slug=$1 and active', [String(b.tenant || process.env.DEFAULT_TENANT || 'avadesk')])
       if (!t.rowCount) return json(res, 400, { error: 'Academia não encontrada' })
       if ((await q('select 1 from users where lower(email)=$1', [email])).rowCount) return json(res, 409, { error: 'Este e-mail já tem conta. Quer entrar ou recuperar a senha?', code: 'EMAIL_EXISTS', errors: { email: 'Este e-mail já tem conta' } })
+      const byCode = b.pro_code ? await attachByProCode(null, t.rows[0].id, b.pro_code) : null   // V4.3: cadastro com o código do personal
+      if (byCode?.error) return json(res, 400, { error: byCode.error, errors: { pro_code: byCode.error } })
       const hash = await bcrypt.hash(password, 12)
       let u
       try { u = await q('insert into users(tenant_id,name,email,password_hash) values($1,$2,$3,$4) returning id', [t.rows[0].id, name.slice(0, 80), email, hash]) }
@@ -114,6 +116,7 @@ export function authRoutes({ json, readBody, bridge, clearCookies }) {
       }
       // V3 (decisão Lucas 15/10): SaaS aberto — conta nasce ativa, sem aprovação do admin (admin ainda pode bloquear)
       if (terms) await acceptTerms(u.rows[0].id, terms.version, req)
+      if (byCode) { const a = await attachByProCode(u.rows[0].id, t.rows[0].id, b.pro_code); if (a?.apply) await a.apply() }
       await autoUnlockForTests(u.rows[0].id, email)   // só em teste local (E2E_AUTO_UNLOCK_DOMAIN)
       await audit(t.rows[0].id, u.rows[0].id, 'conta.cadastro', 'user', u.rows[0].id, { intent, termos: terms && terms.version })
       await login(res, u.rows[0].id)
