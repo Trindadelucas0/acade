@@ -12,6 +12,14 @@ Legenda: ✅ feito e testado · 🟡 parcial · ⏳ fase futura · ⛔ bloqueado
 | Cadastro "Quero treinar" × "Sou profissional" | 2 | ✅ | `Login.jsx`, `/api/auth/register` | v3-fase2 |
 | Migração segura das contas (tenant atual = organização padrão) | 2 | ✅ | backfill na 018 | v3-fase2 |
 | tenant_id + RLS | 2 | 🟡 | políticas nas tabelas novas; API ainda superusuário | v3-fase2 (SET ROLE) |
+| Catálogo de planos e versões | 3 | ✅ | `plans`, `plan_versions`, `/api/plans` | v3-fase3 |
+| Assinaturas, entitlements, limites, contadores de uso | 3 | ✅ | `entitlements.js`, `subscriptions`, `usage_counters` | v3-fase3 |
+| Concessões temporárias | 3 | ✅ | `entitlement_grants`, `/api/adm/grants` | v3-fase3 |
+| Middleware central de entitlements | 3 | ✅ | `ROUTE_RULES` + `entitlementGate` no `server.js` | v3-fase3 |
+| Upgrade/downgrade/suspensão/OVER_LIMIT preservando dados | 3 | ✅ | `/api/adm/subscriptions/*`, `refreshUsage` | v3-fase3 |
+| Limite seguro sob concorrência (transação + trava) | 3 | ✅ | `checkLimitLocked` + `createLink` | v3-fase3 |
+| Erros padronizados (4 códigos) | 2–3 | ✅ | `errors.js`, gate, guards | v3-fase2/3 |
+| Sem preços comerciais (placeholders) | 3 | ✅ | `is_placeholder`, `price_cents null`, 'TBD' | v3-fase3 |
 | Super-admin sem acesso a dados clínicos | — | ⏳ | console é fase futura | — |
 | Pagamentos, cupons, afiliados, console, offline | — | ⏳ | fora deste lote | — |
 | Duplicar treino no construtor | — | ⛔ | conflito: o usuário pediu antes **sem** opção de duplicar | decisão pendente |

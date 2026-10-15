@@ -49,6 +49,8 @@ import ProPortal from './views/pro/Portal.jsx'
 import { GroupPage } from './views/app/Grupos.jsx'
 import { ChallengePage, ChallengeWizard } from './views/app/Desafios.jsx'
 import Builder from './views/builder/WorkoutBuilder.jsx'
+import PlanErrorHost from './views/v3/PlanErrorHost.jsx'
+import Plans from './views/v3/Plans.jsx'
 
 bindUI(useUI)   // lets the shared controls open sheets without importing the store at module scope
 
@@ -104,6 +106,7 @@ function Shell() {
               <Route path="/conversa/:id" element={<Gate title="Conversa"><Conversa /></Gate>} />
               <Route path="/avisos" element={<Avisos />} />
               <Route path="/perfil" element={<Profile />} />
+              <Route path="/planos" element={<Plans />} />
               <Route path="*" element={<Navigate to="/admin/painel" replace />} />
             </Routes>
           ) : isProAccount(user) ? (
@@ -119,6 +122,7 @@ function Shell() {
               <Route path="/conversa/:id" element={<Gate title="Conversa"><Conversa /></Gate>} />
               <Route path="/avisos" element={<Avisos />} />
               <Route path="/perfil" element={<Profile />} />
+              <Route path="/planos" element={<Plans />} />
               <Route path="*" element={<Navigate to="/pro" replace />} />
             </Routes>
           ) : (
@@ -147,6 +151,7 @@ function Shell() {
               <Route path="/concluido" element={<Done />} />
               <Route path="/progresso" element={<Gate title="Progresso"><Progress /></Gate>} />
               <Route path="/perfil" element={<Profile />} />
+              <Route path="/planos" element={<Plans />} />
               <Route path="/admin/programas" element={user ? <AdminPrograms /> : <Navigate to="/hoje" replace />} />
               <Route path="/home" element={<Home />} />
               <Route path="/plan" element={<Plan />} />
@@ -168,6 +173,7 @@ function Shell() {
       {authed && isAdminAccount(user) && !user?.needs_terms && !loc.pathname.startsWith('/admin/painel') && !loc.pathname.startsWith('/pro/treino') && <button className="adm-btn" style={{ position: 'fixed', left: 12, bottom: 12, minHeight: 44, zIndex: 50 }} onClick={() => navigate('/admin/painel')} data-testid="back-admin">← Painel admin</button>}
       <RestTimer />
       <Modals />
+      {authed && <PlanErrorHost />}
       <Toast />
     </>
   )

@@ -10,7 +10,10 @@ export async function api(path, opts) {
   const url = path.startsWith('http') ? path : (API_BASE + path)
   const r = await fetch(url, Object.assign({ credentials: 'include', headers: { 'Content-Type': 'application/json' } }, opts))
   const data = await r.json().catch(() => ({}))
-  if (!r.ok) { const e = new Error(data.error || ('HTTP ' + r.status)); e.status = r.status; e.errors = data.errors; e.problems = data.problems; e.code = data.code; e.data = data; throw e }
+  if (!r.ok) { const e = new Error(data.error || ('HTTP ' + r.status)); e.status = r.status; e.errors = data.errors; e.problems = data.problems; e.code = data.code; e.data = data
+    // V3: limite/plano/assinatura → a tela de upgrade aparece em qualquer lugar do app (PlanErrorHost)
+    if (['LIMIT_REACHED', 'FEATURE_NOT_INCLUDED', 'SUBSCRIPTION_INACTIVE'].includes(data.code) && typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('avagym:plan-error', { detail: data }))
+    throw e }
   return data
 }
 

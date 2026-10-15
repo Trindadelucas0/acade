@@ -12,6 +12,7 @@ import { Alunos, Profissionais, Planos, Vinculos, Filas, Config, EXTRA } from '.
 import '../guided/guided.css'
 import { UserEdit, ProEdit, StudentRecord, StudentTraining, Publicacoes, ExerciseEdit } from './AdminCrud.jsx'
 import AdmVerifications from '../v3/AdmVerifications.jsx'
+import AdmSubscriptions from '../v3/AdmSubscriptions.jsx'
 
 // ---------- utilitários ----------
 const csvEsc = v => { const s = v == null ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v); return /[",;\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s }
@@ -401,7 +402,7 @@ function Wrap({ children }) { return <div className="ag">{children}</div> }
 const NAV = [
   ['Visão geral', [['dashboard', 'Dashboard', 'chart']]],
   ['Pessoas', [['usuarios', 'Usuários', 'person'], ['alunos', 'Liberações rápidas', 'check'], ['profissionais', 'Profissionais e habilitações', 'clipboard'], ['verificacoes', 'Verificação profissional', 'check'], ['vinculos', 'Vínculos', 'users'], ['solicitacoes', 'Central de solicitações', 'flag']]],
-  ['Operação', [['filas', 'Filas e prazos (SLA)', 'bell'], ['planos', 'Planos de acesso', 'shield'], ['modelos', 'Modelos de treino', 'pencil'], ['grupos', 'Grupos', 'users'], ['desafios', 'Desafios', 'trophy'], ['exercicios', 'Biblioteca e mídia', 'dumbbell']]],
+  ['Operação', [['filas', 'Filas e prazos (SLA)', 'bell'], ['planos', 'Planos de acesso', 'shield'], ['assinaturas', 'Planos SaaS e assinaturas', 'sparkles'], ['modelos', 'Modelos de treino', 'pencil'], ['grupos', 'Grupos', 'users'], ['desafios', 'Desafios', 'trophy'], ['exercicios', 'Biblioteca e mídia', 'dumbbell']]],
   ['Comunidade', [['publicacoes', 'Publicações e comentários', 'pencil'], ['moderacao', 'Moderação', 'chat'], ['ranking', 'Auditoria do ranking', 'sparkles']]],
   ['Governança', [['auditoria', 'Auditoria', 'list'], ['lgpd', 'LGPD', 'lock'], ['termos', 'Termos de uso', 'info'], ['config', 'Configurações', 'gear']]]]
 const TITLE = Object.fromEntries(NAV.flatMap(([, it]) => it.map(([k, l]) => [k, l])))
@@ -421,6 +422,7 @@ export default function AdminApp() {
       {tab === 'dashboard' && <Dashboard go={go} />}
       {tab === 'usuarios' && <Usuarios />}
       {tab === 'verificacoes' && <AdmVerifications />}
+      {tab === 'assinaturas' && <AdmSubscriptions />}
       {tab === 'publicacoes' && <Publicacoes DataTable={DataTable} Drawer={Drawer} />}
       {tab === 'alunos' && <Wrap><Alunos /></Wrap>}
       {tab === 'profissionais' && <Wrap><Profissionais /></Wrap>}

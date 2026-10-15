@@ -16,6 +16,8 @@ import { challengeRoutes } from './challenges.js';
 import { challengeFeedRoutes } from './challenge-feed.js';
 import { prizeRoutes } from './prizes.js';
 import { identityRoutes } from './identity.js';
+import { entitlementRoutes, entitlementGate } from './entitlements.js';
+import { requireAuth } from './auth.js';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -388,14 +390,21 @@ Object.assign(routes, challengeRoutes({ json, readBody }));  // V5: desafios
 Object.assign(routes, challengeFeedRoutes({ json, readBody }));  // V5-C: feed do desafio, comprovantes
 Object.assign(routes, prizeRoutes({ json, readBody }));  // V5-E: troféus e premiações
 Object.assign(routes, identityRoutes({ json, readBody }));  // V3 F2: identidade global, contexto, verificação profissional
+Object.assign(routes, entitlementRoutes({ json, readBody, requireAuth, requireRole }));  // V3 F3: motor de planos
 
 http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
   const key = req.method + ' ' + url.pathname;
   const handler = routes[key];
   if (!handler) return json(res, 404, { error: 'not found' });
-  try { await handler(req, res); }
+  try {
+    // V3: checagem central de entitlements (recurso, assinatura ativa, verificação) antes da rota
+    if (!(await entitlementGate(key, await authUser(req).catch(() => null), res, json))) return;
+    await handler(req, res);
+  }
   catch (e) {
+    // limite estourado dentro de uma transação (corrida pelo último lugar): resposta padronizada
+    if (e && (e.code === 'LIMIT_REACHED' || e.code === 'SUBSCRIPTION_INACTIVE') && !res.headersSent) return json(res, e.code === 'LIMIT_REACHED' ? 409 : 402, { error: e.message, code: e.code, metric: e.metric, used: e.used, limit: e.limit, plan: e.plan });
     console.error(key, e);
     if (!res.headersSent) json(res, 500, { error: 'server error' });
   }

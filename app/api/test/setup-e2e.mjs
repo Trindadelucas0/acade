@@ -14,6 +14,9 @@ for (const [email, name, roles] of [['admin.e2e@avadesk.local', 'Admin E2E', ['a
   await q(`insert into term_acceptances(user_id,version) select $1, version from terms_versions on conflict do nothing`, [u.id])
   // zera a janela de 24h do limite diário de publicações (repetições do smoke no mesmo dia); não apaga nada
   if (roles.includes('profissional')) await q(`update posts set created_at = created_at - interval '25 hours' where author_id=$1 and created_at > now() - interval '24 hours'`, [u.id])
+  // V3: os profissionais fixos do smoke acumulam alunos de várias execuções → concessão de teste (+1000 alunos ativos, 1 ano)
+  if (roles.includes('profissional') && !(await q(`select 1 from entitlement_grants where user_id=$1 and key='alunos_ativos' and revoked_at is null and expires_at > now() + interval '30 days'`, [u.id]).catch(() => ({ rowCount: 1 }))).rowCount)
+    await q(`insert into entitlement_grants(tenant_id,user_id,audience,kind,key,value,reason,expires_at) values($1,$2,'profissional','limit','alunos_ativos','1000','fixture e2e (somente local)',now()+interval '365 days')`, [t, u.id]).catch(() => {})
   if (roles.includes('profissional')) await q(`insert into professional_profiles(user_id,tenant_id,display_name,specialties) values($1,$2,$3,$4) on conflict (user_id) do nothing`, [u.id, t, name, ['Musculação']])
 }
 console.log('usuários e2e prontos'); await pool.end()

@@ -3,6 +3,7 @@
 // filas com prazo configurável e auditoria. Todas as permissões são verificadas AQUI (backend), nunca só na tela.
 import { q, pool } from './db/pool.js'
 import { requireAuth, audit } from './auth.js'
+import { resolve as resolveEnt, checkLimitLocked, refreshUsage } from './entitlements.js'
 import bcrypt from 'bcryptjs'
 import crypto from 'node:crypto'
 const genPassword = () => { const A = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'; let p; do { p = Array.from({ length: 14 }, () => A[crypto.randomInt(A.length)]).join('') } while (!/\d/.test(p) || !/[a-z]/.test(p) || !/[A-Z]/.test(p)); return p }
@@ -68,10 +69,25 @@ export async function linkFailures(tid, studentId, coachId, area) {
   if (s && s.max_professionals == null) fail.push('O aluno não tem plano de acesso definido')
   else if (s && links >= s.max_professionals) fail.push(`O plano do aluno permite no máximo ${s.max_professionals} profissional(is)`)
   if (await isLinked(coachId, studentId)) fail.push('Já existe um vínculo ativo entre eles')
+  // V3: limite comercial do plano do profissional (alunos ativos). A checagem definitiva é feita com trava em createLink.
+  if (p) { const e = await resolveEnt(coachId, 'profissional'); if (e && !e.active) fail.push(PLAN_INACTIVE); else if (e && e.limits.alunos_ativos != null && p.active_links >= +e.limits.alunos_ativos) fail.push(`${PLAN_LIMIT}: ${p.active_links} de ${e.limits.alunos_ativos} alunos ativos`) }
   return fail
 }
-export async function createLink(admin, studentId, coachId, area) {
-  const r = await q(`insert into coach_students(tenant_id,coach_id,student_id,created_by,area) values($1,$2,$3,$4,$5) returning id`, [admin.tenant_id, coachId, studentId, admin.id, area ? txt(area, 80) : null])
+export const PLAN_LIMIT = 'Limite do plano do profissional atingido', PLAN_INACTIVE = 'A assinatura do profissional não está ativa'
+export const planCode = fail => fail.some(f => f.startsWith(PLAN_LIMIT)) ? 'LIMIT_REACHED' : fail.includes(PLAN_INACTIVE) ? 'SUBSCRIPTION_INACTIVE' : undefined
+// erro lançado quando o limite estoura dentro da transação (o despachante do server.js responde 409 LIMIT_REACHED)
+export class PlanError extends Error { constructor(x) { super(x.error); Object.assign(this, x) } }
+export async function createLink(admin, studentId, coachId, area, origin = 'admin') {
+  // V3: insert + limite do plano na MESMA transação, com trava na assinatura do profissional (concorrência)
+  const c = await pool.connect(); let r
+  try {
+    await c.query('begin')
+    const lim = await checkLimitLocked(c, coachId, 'alunos_ativos')
+    if (lim) throw new PlanError(lim)
+    r = await c.query(`insert into coach_students(tenant_id,coach_id,student_id,created_by,area,origin) values($1,$2,$3,$4,$5,$6) returning id`, [admin.tenant_id, coachId, studentId, admin.id, area ? txt(area, 80) : null, origin])
+    await c.query('commit')
+  } catch (e) { await c.query('rollback'); throw e } finally { c.release() }
+  await refreshUsage(coachId, 'profissional')
   await audit(admin.tenant_id, admin.id, 'vinculo.criado', 'link', r.rows[0].id, { student: studentId, coach: coachId })
   await notify(studentId, 'vinculo', 'Novo profissional responsável', 'A administração vinculou um profissional ao seu acompanhamento.', '/acompanhamento')
   await notify(coachId, 'vinculo', 'Novo aluno vinculado', '', '/pro?tab=alunos')
@@ -592,7 +608,7 @@ export function proRoutes({ json, readBody }) {
       if (!isUuid(b.student_id) || !isUuid(b.coach_id)) return json(res, 400, { error: 'Selecione aluno e profissional' })
       const fail = await linkFailures(u.tenant_id, b.student_id, b.coach_id, b.area)
       if (b.confirm !== true) fail.push('Confirme a atribuição')
-      if (fail.length) return json(res, 409, { error: fail[0], reasons: fail })
+      if (fail.length) return json(res, 409, { error: fail[0], reasons: fail, code: planCode(fail) })
       const r = { rows: [{ id: await createLink(u, b.student_id, b.coach_id, b.area) }] }
       json(res, 201, { id: r.rows[0].id })
     },
@@ -606,6 +622,7 @@ export function proRoutes({ json, readBody }) {
       const a = await q(`update pro_plans set status='arquivado', updated_at=now() where owner_id=$1 and student_id=$2 and status='ativo' returning id`, [l.coach_id, l.student_id])
       for (const p of a.rows) await q('insert into pro_plan_history(plan_id,actor_id,action,reason) values($1,$2,$3,$4)', [p.id, u.id, 'arquivado_fim_vinculo', reason])
       await audit(u.tenant_id, u.id, 'vinculo.encerrado', 'link', l.id, { reason, archived_plans: a.rowCount })
+      await refreshUsage(l.coach_id, 'profissional')   // V3: libera a vaga e recalcula OVER_LIMIT
       await notify(l.student_id, 'vinculo', 'Um acompanhamento foi encerrado', reason, '/acompanhamento')
       await notify(l.coach_id, 'vinculo', 'Vínculo encerrado', reason, '/pro')
       json(res, 200, { ok: true, archived_plans: a.rowCount })

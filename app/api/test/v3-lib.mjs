@@ -24,3 +24,20 @@ export async function signup(adm, label, intent = 'aluno') {
   return { id: r.d.user.id, email, tok: r.d.token, user: r.d.user }
 }
 export { q }
+// profissional verificado pelo fluxo real (dados + documento + decisão do admin) e ativo
+export async function verifiedPro(adm, label) {
+  const p = await signup(adm, label, 'profissional')
+  await post(p.tok, '/api/pro/verification', { full_name: 'Profissional ' + label, council: 'CREF', registry_number: String(Date.now()).slice(-6) + '-G', registry_uf: 'SP', specialties: ['Musculação'] })
+  await post(p.tok, '/api/pro/verification/document', { data: 'data:application/pdf;base64,' + Buffer.from('%PDF-1.4\n%%EOF').toString('base64'), file_name: 'cref.pdf' })
+  const v = (await get(adm, '/api/adm/verifications?status=pendente')).d.verifications.find(x => x.user_id === p.id)
+  await post(adm, '/api/adm/verifications/decide', { id: v.id, status: 'verificado' })
+  await post(adm, '/api/adm/professionals', { user_id: p.id, state: 'ativo', capacity: 50 })
+  return p
+}
+// aluno ativo com plano de acesso (regra antiga do vínculo pelo admin)
+export async function student(adm, label) { const s = await signup(adm, label, 'aluno'); await post(adm, '/api/adm/users/plan', { id: s.id, plan_id: 'premium' }); return s }
+export async function cleanupDocs() {
+  const fs = await import('node:fs'), path = await import('node:path'), { fileURLToPath } = await import('node:url')
+  const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'private', 'pro-docs')
+  for (const d of (await q(`select storage_path from professional_documents d join users u on u.id=d.user_id where u.email like '%@e2e.local'`)).rows) try { fs.unlinkSync(path.join(dir, d.storage_path)) } catch { /* */ }
+}

@@ -40,6 +40,7 @@ export default function Profile() {
     <div className="g-card g-list">
       {!proAcc && <Li icon="chat" t="Acompanhamento" s="Profissionais, dúvidas e ocorrências" to="/acompanhamento" />}
       <Li icon="bell" t="Avisos" to="/avisos" />
+      {(user?.capacities || []).length > 0 && <Li icon="sparkles" t="Meu plano" s="Plano, limites e uso" to="/planos" testid="my-plan" />}
       {user?.pro && <Li icon="clipboard" t="Área profissional" s="Alunos, atendimentos e perfil profissional" to="/pro" testid="pro-area" />}
       {user?.admin && <Li icon="shield" t="Painel administrativo" s="Liberações, profissionais, vínculos, filas e auditoria" to="/admin/painel" testid="admin-area" />}
     </div>
