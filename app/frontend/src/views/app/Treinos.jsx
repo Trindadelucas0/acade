@@ -40,7 +40,9 @@ export default function Treinos() {
   useEffect(() => { setSt(null); setCare(null); G.state().then(setSt).catch(() => setSt(false)); C.care().then(setCare).catch(() => setCare(false)) }, [n])
   const plans = care?.plans || [], a = st && st.active
   const ready = st !== null && care !== null
-  const tab = validTab(sp.get('aba')) ? normTab(sp.get('aba')) : ready ? defaultTab({ plans: plans.length }) : null
+  const isClient = !!useStore.getState().user?.client_locked   // V4.2: aluno do personal não usa programas do sistema
+  const tab0 = validTab(sp.get('aba')) ? normTab(sp.get('aba')) : ready ? defaultTab({ plans: plans.length }) : null
+  const tab = isClient && tab0 === 'programas' ? 'profissionais' : tab0
   const setTab = k => setSp({ aba: k }, { replace: true })
   const counts = { programas: a ? 1 : 0, profissionais: plans.length, historico: routines.length }
 
@@ -49,7 +51,7 @@ export default function Treinos() {
     <ResumeBar />
     <ActiveTrainingBanner at={at} compact onChange={() => setN(x => x + 1)} />
     {ready && (st === false || care === false) && <Err msg="Não foi possível carregar tudo. Verifique a conexão." retry={() => setN(x => x + 1)} />}
-    {tab && <Tabs tabs={TREINO_TABS.map(([k, l]) => [k, l, counts[k] || 0])} cur={tab} set={setTab} />}
+    {tab && <Tabs tabs={TREINO_TABS.filter(([k]) => !isClient || k !== 'programas').map(([k, l]) => [k, l, counts[k] || 0])} cur={tab} set={setTab} />}
     {!tab ? <p className="g-mut g-sm" role="status">Carregando…</p> : <>
       {tab === 'historico' && <section data-testid="tab-historico">
         <p className="g-mut g-sm">Rotinas que você montou em versões anteriores. Ficam guardadas para consulta; para treinar, escolha um programa ou uma ficha do seu profissional.</p>

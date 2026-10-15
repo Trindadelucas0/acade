@@ -6,6 +6,7 @@ import { authRoutes, clearTokenCookie, authUser, pub, requireRole } from './auth
 import { guidedRoutes } from './guided.js';
 import { activeTrainingRoutes } from './active-training.js';
 import { accountRoutes, accessGate } from './accounts-v42.js';
+import { tourRoutes } from './tours.js';
 import { startMailer } from './mailer.js';
 import { sessionsV4Routes, forgottenSweep } from './sessions-v4.js';
 import { editorialRoutes } from './programs-editorial.js';
@@ -368,7 +369,8 @@ function pgBridge(u) {
 Object.assign(routes, authRoutes({ json, readBody, bridge: pgBridge, clearCookies: [clearCookie] }));
 Object.assign(routes, guidedRoutes({ json, readBody }));
 Object.assign(routes, activeTrainingRoutes({ json, readBody }));
-Object.assign(routes, accountRoutes({ json, readBody }));  // V4.2: aluno do personal, liberação, exportação LGPD por e-mail  // V4.1: treino ativo único + tema
+Object.assign(routes, accountRoutes({ json, readBody }));
+Object.assign(routes, tourRoutes({ json, readBody }));  // V4.3: guided tours  // V4.2: aluno do personal, liberação, exportação LGPD por e-mail  // V4.1: treino ativo único + tema
 Object.assign(routes, sessionsV4Routes({ json, readBody }));
 Object.assign(routes, editorialRoutes({ json, readBody }));  // V4 F3: fluxo editorial de programas
 // V4: treino esquecido — varredura a cada 5 min; lembrete a cada SESSION_REMINDER_MIN (padrão 60) até finalizar/corrigir/descartar

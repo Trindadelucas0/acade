@@ -53,6 +53,8 @@ import Builder from './views/builder/WorkoutBuilder.jsx'
 import PlanErrorHost from './views/v3/PlanErrorHost.jsx'
 import { MustChangePassword, AccessLockHost, LockBanner, ScopeGate } from './views/v3/V42.jsx'
 import './styles/v42.css'
+import './styles/tours.css'
+import { TourHost } from './components/Tour.jsx'
 import Plans from './views/v3/Plans.jsx'
 import AcceptInvite from './views/v3/AcceptInvite.jsx'
 
@@ -184,6 +186,7 @@ function Shell() {
       <Modals />
       {authed && <PlanErrorHost />}
       {authed && <AccessLockHost />}
+      {authed && <TourHost />}
       <Toast />
       <DialogHost />
     </>

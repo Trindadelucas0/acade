@@ -125,6 +125,7 @@ function Seguranca() {
   }
   return <>
     <h2>Segurança</h2>
+    <div className="g-card" style={{ marginBottom: 10 }}><button className="g-btn g-ghost g-block" data-testid="tour-restart" onClick={() => dispatchEvent(new Event('avagym:tour-restart'))}>Ver tour de novo</button></div>
     <div className="g-card" data-testid="security">
       {!open ? <button className="g-btn g-ghost g-sm" onClick={() => setOpen(true)} data-testid="pw-open">Trocar senha</button> : <>
         <label className="g-sm">Senha atual<input className="g-in" type="password" autoComplete="current-password" value={f.current_password} onChange={e => setF({ ...f, current_password: e.target.value })} data-testid="pw-cur" /></label>

@@ -27,7 +27,7 @@ export const PAYMENT = {
 }
 
 // ações permitidas para QUALQUER conta não liberada (conta, termos, LGPD, preferências, questionário)
-const ALLOW_LOCKED = [/^POST \/api\/auth\//, /^POST \/api\/terms/, /^POST \/api\/me\/(theme|context|unlock-request|export-request|delete-request|delete-request\/cancel|capacities)$/,
+const ALLOW_LOCKED = [/^POST \/api\/auth\//, /^POST \/api\/terms/, /^POST \/api\/me\/(theme|context|unlock-request|export-request|delete-request|delete-request\/cancel|capacities|tours|tours\/reset)$/,
   /^POST \/api\/notifications\/read$/, /^POST \/api\/notification-prefs$/, /^POST \/api\/guided\/onboarding$/, /^POST \/api\/me\/onboarding\/skip$/, /^PUT \/api\/data$/,
   /^POST \/api\/logout(\/all)?$/, /^POST \/api\/activity$/, /^POST \/api\/push\//, /^POST \/api\/me\/trophies\/show$/, /^POST \/api\/pro\/verification(\/document)?$/]
 // ações do aluno do personal DENTRO do escopo do plano do personal (fichas, atendimento, comunidade, desafios do personal)
