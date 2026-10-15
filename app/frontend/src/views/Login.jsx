@@ -159,9 +159,6 @@ function LoginForm() {
         <button className="lg-btn" type="submit" disabled={busy}>{busy ? 'Aguarde…' : reg ? 'Criar conta' : 'Entrar'}</button>
         <button type="button" className="lg-btn ghost" onClick={() => { setMode(reg ? 'login' : 'register'); setErrs({}); setMsg('') }}>
           {reg ? 'Já tenho conta — Entrar' : 'Criar conta'}</button>
-        <div className="lg-alt">
-          <button type="button" className="lg-link" onClick={() => setGuest(true)}>Usar sem conta</button>
-        </div>
         <InstallButton />
       </form>
     </div>

@@ -133,6 +133,7 @@ export function entitlementRoutes({ json, readBody, requireAuth, requireRole }) 
   return {
     // catálogo público (sem preços comerciais: placeholders aparecem como "Preço a definir")
     'GET /api/plans': async (req, res) => {
+      if (!await requireAuth(req, res, json)) return
       const r = await q(`select p.id,p.audience,p.name,p.description,p.is_free,p.is_placeholder,p.price_cents,p.price_status,
           (select json_build_object('version',v.version,'features',v.features,'limits',v.limits) from plan_versions v where v.plan_id=p.id order by v.version desc limit 1) current
         from plans p where p.active order by p.audience, p.sort`)

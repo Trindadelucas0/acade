@@ -93,8 +93,9 @@ export const useStore = create((set, get) => {
     },
     replaceState(S, push = false) { persist(clone(S), push) },
 
-    isGuest: () => localStorage.getItem('gym_guest') === '1',
-    setGuest(v) { if (v) localStorage.setItem('gym_guest', '1'); else localStorage.removeItem('gym_guest'); set({}) },
+    // Sem conta s� existe nos builds offline (demo/app nativo). Na web, uso exige login (fase 7+).
+    isGuest: () => (DEMO || MOBILE) && localStorage.getItem('gym_guest') === '1',
+    setGuest(v) { if (v && !(DEMO || MOBILE)) return; if (v) localStorage.setItem('gym_guest', '1'); else localStorage.removeItem('gym_guest'); set({}) },
 
     setUser(u) {
       if (u) { localStorage.setItem('gym_user', JSON.stringify(u)); localStorage.removeItem('gym_guest') }
@@ -174,6 +175,7 @@ export const useStore = create((set, get) => {
         set({ ready: true })
         return
       }
+      localStorage.removeItem('gym_guest')   // visitante antigo: na web n�o existe mais
       try {
         const me = await api('/api/me')
         get().setUser(me.user)

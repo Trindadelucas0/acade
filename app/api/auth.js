@@ -159,6 +159,7 @@ export function authRoutes({ json, readBody, bridge, clearCookies }) {
 
     // ===== catálogo =====
     'GET /api/muscles': async (req, res) => {
+      if (!await requireAuth(req, res, json)) return   // cat�logo s� para logados (sem modo visitante)
       const [g, m] = await Promise.all([
         q('select id,name_pt,is_training from muscle_groups order by position'),
         q('select id,name_pt,name_en,group_id,mesh_ids from muscles order by name_pt')])
@@ -167,7 +168,7 @@ export function authRoutes({ json, readBody, bridge, clearCookies }) {
     'GET /api/muscles/exercises': async (req, res) => {
       const url = new URL(req.url, 'http://x')
       const muscle = url.searchParams.get('muscle') || '', group = url.searchParams.get('group') || ''
-      const u = await authUser(req), tid = u ? u.tenant_id : null
+      const u = await requireAuth(req, res, json); if (!u) return; const tid = u.tenant_id
       const r = await q(`select e.id,e.name_pt,e.level,eq.name_pt equipment,
           max(case when em.muscle_id=$1 then 3 when eg.group_id=$2 and eg.role='primary' then 2 when eg.group_id=$2 then 1 else 0 end) score
         from exercises e left join equipment eq on eq.id=e.equipment_id
@@ -177,7 +178,7 @@ export function authRoutes({ json, readBody, bridge, clearCookies }) {
       json(res, 200, { exercises: r.rows })
     },
     'GET /api/programs': async (req, res) => {
-      const u = await authUser(req), tid = u ? u.tenant_id : null
+      const u = await requireAuth(req, res, json); if (!u) return; const tid = u.tenant_id
       const r = await q(`select p.id,p.slug,p.title,p.description,p.goal,p.level,p.location,p.weeks,p.days_per_week,p.minutes,p.is_rehab,p.tags,
         (select json_agg(json_build_object('name',w.name,'focus',w.focus,'exercises',(select json_agg(json_build_object('id',x.exercise_id,'name',e.name_pt,'sets',x.sets,'reps_min',x.reps_min,'reps_max',x.reps_max,'rest_sec',x.rest_sec,'duration_sec',x.duration_sec) order by x.position)
            from program_workout_exercises x join exercises e on e.id=x.exercise_id where x.program_workout_id=w.id)) order by w.position) from program_workouts w where w.program_id=p.id) workouts
