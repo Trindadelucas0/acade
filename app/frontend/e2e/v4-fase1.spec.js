@@ -161,3 +161,10 @@ test('telas do aluno: no máximo 1 botão primário visível por tela (exceto li
   fs.writeFileSync(`${SHOTS}/primarios.json`, JSON.stringify(out, null, 2))
   for (const [s, n] of Object.entries(out)) expect(n, `primários em ${s}`).toBeLessThanOrEqual(1)
 })
+
+test('Treinos @320px: as 3 abas internas cabem inteiras (sem aba escondida na rolagem)', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 640 })
+  await page.goto('/#/treinos'); await page.waitForTimeout(700)
+  const r = await page.locator('.g-tabs').evaluate(el => ({ sw: el.scrollWidth, cw: el.clientWidth }))
+  expect(r.sw).toBeLessThanOrEqual(r.cw + 1)
+})

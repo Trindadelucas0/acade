@@ -1,6 +1,6 @@
 // V3 · F6 — regras puras do "começar a treinar" do aluno gratuito (testadas no vitest).
 // V4: o aluno treina só programa publicado ou ficha do profissional; rotinas antigas ficam em "Histórico" (só consulta)
-export const TREINO_TABS = [['programas', 'Programas'], ['profissionais', 'Do meu profissional'], ['historico', 'Rotinas antigas']]
+export const TREINO_TABS = [['programas', 'Programas'], ['profissionais', 'Profissional'], ['historico', 'Histórico']]
 // aba inicial de Treinos: o que o aluno tem de mais "pronto para treinar"
 export function defaultTab({ plans = 0 } = {}) {
   return plans > 0 ? 'profissionais' : 'programas'
