@@ -68,8 +68,15 @@ function Feed() {
   const [d, err, reload] = useLoad(() => F.feed({ ...(cat ? { cat } : {}), ...(mode === 'seguindo' ? { following: '1' } : mode === 'minhas' ? { mine: '1' } : {}) }), [cat, mode])
   const [comp, setComp] = useState(false)
   const set = (k, v) => { const n = new URLSearchParams(sp); v ? n.set(k, v) : n.delete(k); setSp(n) }
+  const go = t => { const n = new URLSearchParams(); n.set('tab', t); setSp(n) }
   return <div>
-    {meta?.can_publish && <button className="g-btn" onClick={() => setComp(true)} data-testid="new-post"><Icon name="plus" /> Nova publicação</button>}
+    {/* V4 F6: atalhos — o feed abre direto, sem escolher aba */}
+    <div className="g-scrollx" data-testid="com-shortcuts">
+      <button className="g-chipbtn" onClick={() => go('desafios')}>Desafios</button>
+      <button className="g-chipbtn" onClick={() => go('grupos')}>Grupos</button>
+      <button className="g-chipbtn" onClick={() => go('ranking')}>Ranking</button>
+    </div>
+    {meta?.can_publish && <button className="g-btn" style={{ marginTop: 10 }} onClick={() => setComp(true)} data-testid="new-post"><Icon name="plus" /> Nova publicação</button>}
     <div className="g-scrollx" style={{ marginTop: 10 }}>
       <button className={'g-chipbtn' + (!cat && !mode ? ' g-on' : '')} onClick={() => setSp({})}>Todos</button>
       <button className={'g-chipbtn' + (mode === 'seguindo' ? ' g-on' : '')} onClick={() => set('modo', mode === 'seguindo' ? '' : 'seguindo')}>Seguindo</button>
