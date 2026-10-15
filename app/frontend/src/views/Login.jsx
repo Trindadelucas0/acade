@@ -75,6 +75,7 @@ function LoginForm() {
   const terms = useTerms(), [agree, setAgree] = useState(false), [readTerms, setReadTerms] = useState(false)
   const { setUser, pullState, setGuest } = useStore()
   const [mode, setMode] = useState('login')       // 'login' | 'register'
+  const [intent, setIntent] = useState('aluno')   // V3: 'Quero treinar' | 'Sou profissional'
   const [f, setF] = useState({ name: '', email: '', password: '', confirm: '' })
   const [errs, setErrs] = useState({})
   const [showPw, setShowPw] = useState(false)
@@ -99,7 +100,7 @@ function LoginForm() {
     if (busy || !validate()) return
     setBusy(true); setMsg('')
     try {
-      const u = reg ? await authRegister(f.name.trim(), f.email.trim(), f.password, terms && agree ? terms.version : undefined) : await authLogin(f.email.trim(), f.password)
+      const u = reg ? await authRegister(f.name.trim(), f.email.trim(), f.password, terms && agree ? terms.version : undefined, intent) : await authLogin(f.email.trim(), f.password)
       setUser(u); await pullState()
       useUI.getState().toast(reg ? `Bem-vindo(a), ${u.name}!` : `Bem-vindo(a) de volta, ${u.name}!`)
     } catch (e) {
@@ -136,6 +137,11 @@ function LoginForm() {
       <form className="lg-card" onSubmit={submit} noValidate>
         <div className="lg-brand">AVADESK <b>Fitness</b></div>
         <p className="lg-sub">{reg ? 'Crie sua conta e comece a treinar.' : 'Seu treino, seu corpo, sua evolução.'}</p>
+        {reg && <div className="lg-intent" role="radiogroup" aria-label="Como você vai usar">
+          {[['aluno', 'Quero treinar', 'Treinos, programas, progresso e desafios'], ['profissional', 'Sou profissional', 'Prescreva para alunos depois da verificação']].map(([k, t, d]) =>
+            <button key={k} type="button" role="radio" aria-checked={intent === k} className={'lg-intent-op' + (intent === k ? ' on' : '')} onClick={() => setIntent(k)} data-testid={'intent-' + k}><b>{t}</b><small>{d}</small></button>)}
+        </div>}
+        {reg && intent === 'profissional' && <p className="lg-sub" style={{ marginTop: 0 }} data-testid="intent-pro-note">Você também poderá treinar com a mesma conta. Enviar treinos só depois da verificação do registro profissional.</p>}
         {reg && field('name', 'Nome', 'text', 'name', { maxLength: 80 })}
         {field('email', 'E-mail', 'email', 'email', { inputMode: 'email', placeholder: 'voce@email.com' })}
         {field('password', 'Senha', showPw ? 'text' : 'password', reg ? 'new-password' : 'current-password')}

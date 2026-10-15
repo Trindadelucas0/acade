@@ -10,7 +10,7 @@ export async function api(path, opts) {
   const url = path.startsWith('http') ? path : (API_BASE + path)
   const r = await fetch(url, Object.assign({ credentials: 'include', headers: { 'Content-Type': 'application/json' } }, opts))
   const data = await r.json().catch(() => ({}))
-  if (!r.ok) { const e = new Error(data.error || ('HTTP ' + r.status)); e.status = r.status; e.errors = data.errors; e.problems = data.problems; throw e }
+  if (!r.ok) { const e = new Error(data.error || ('HTTP ' + r.status)); e.status = r.status; e.errors = data.errors; e.problems = data.problems; e.code = data.code; e.data = data; throw e }
   return data
 }
 
@@ -19,7 +19,7 @@ export async function authLogin(email, password) {
   const r = await api('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) })
   return r.user
 }
-export async function authRegister(name, email, password, terms_version) {
-  const r = await api('/api/auth/register', { method: 'POST', body: JSON.stringify({ name, email, password, accept_terms: !!terms_version, terms_version }) })
+export async function authRegister(name, email, password, terms_version, intent) {
+  const r = await api('/api/auth/register', { method: 'POST', body: JSON.stringify({ name, email, password, accept_terms: !!terms_version, terms_version, intent: intent || 'aluno' }) })
   return r.user
 }

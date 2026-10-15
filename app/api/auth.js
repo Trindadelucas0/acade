@@ -29,7 +29,7 @@ export async function authUser(req) {
   return loadUser(p.sub)
 }
 async function loadUser(id) {
-  const r = await q(`select u.id,u.name,u.email,u.tenant_id,u.disabled_at,u.status,t.slug tenant_slug,t.name tenant_name,
+  const r = await q(`select u.id,u.name,u.email,u.tenant_id,u.disabled_at,u.status,u.active_context,(select pp.verification_status from professional_profiles pp where pp.user_id=u.id) verification,t.slug tenant_slug,t.name tenant_name,
       coalesce(array_agg(ur.role_id) filter (where ur.role_id is not null),'{}') roles
     from users u join tenants t on t.id=u.tenant_id left join user_roles ur on ur.user_id=u.id and ur.tenant_id=u.tenant_id
     where u.id=$1 group by u.id,t.slug,t.name`, [id])
@@ -49,7 +49,7 @@ export async function requireAuth(req, res, json, opts) {
 export function requireRole(...roles) {
   return async (req, res, json) => {
     const u = await requireAuth(req, res, json); if (!u) return null
-    if (!u.roles.some(r => roles.includes(r))) { json(res, 403, { error: 'Sem permissão' }); return null }
+    if (!u.roles.some(r => roles.includes(r))) { json(res, 403, { error: 'Sem permissão', code: 'PERMISSION_DENIED' }); return null }
     return u
   }
 }
@@ -61,8 +61,12 @@ export async function audit(tenantId, actorId, action, entity, entityId, data) {
 // Filtro padrão para tabelas com catálogo global + dados do tenant.
 export const tenantScope = (alias, idx) => `(${alias}.tenant_id is null or ${alias}.tenant_id = $${idx})`
 
+// V3: contexto de navegação ativo (aluno | profissional | admin) — o escolhido, se a conta tiver a capacidade
+export const contextOf = u => (u.active_context && u.roles.includes(u.active_context)) ? u.active_context
+  : u.roles.includes('admin') ? 'admin' : u.roles.includes('aluno') ? 'aluno' : u.roles.includes('profissional') ? 'profissional' : 'aluno'
 const sign = u => jwt.sign({ sub: u.id, tid: u.tenant_id, roles: u.roles }, SECRET, { expiresIn: TTL_H + 'h' })
 export const pub = u => ({ id: u.id, name: u.name, email: u.email, roles: u.roles, admin: u.roles.includes('admin'), pro: u.roles.includes('profissional'), status: u.status,
+  capacities: u.roles.filter(r => r === 'aluno' || r === 'profissional'), context: contextOf(u), verification: u.verification || null,
   tenant: { id: u.tenant_id, slug: u.tenant_slug, name: u.tenant_name } })
 
 export function authRoutes({ json, readBody, bridge, clearCookies }) {
@@ -77,6 +81,8 @@ export function authRoutes({ json, readBody, bridge, clearCookies }) {
     'POST /api/auth/register': async (req, res) => {
       const b = await readBody(req)
       const name = String(b.name || '').trim(), email = String(b.email || '').trim().toLowerCase(), password = String(b.password || '')
+      // V3: "Quero treinar" (aluno) ou "Sou profissional" (aluno + profissional na MESMA identidade, verificação pendente)
+      const intent = b.intent === 'profissional' ? 'profissional' : 'aluno'
       const errors = {}
       if (name.length < 2) errors.name = 'Informe seu nome'
       if (!EMAIL_RE.test(email)) errors.email = 'E-mail inválido'
@@ -90,10 +96,15 @@ export function authRoutes({ json, readBody, bridge, clearCookies }) {
       const hash = await bcrypt.hash(password, 12)
       const u = await q('insert into users(tenant_id,name,email,password_hash) values($1,$2,$3,$4) returning id', [t.rows[0].id, name.slice(0, 80), email, hash])
       await q(`insert into user_roles values($1,$2,'aluno')`, [u.rows[0].id, t.rows[0].id])
+      if (intent === 'profissional') {
+        await q(`insert into user_roles values($1,$2,'profissional') on conflict do nothing`, [u.rows[0].id, t.rows[0].id])
+        await q(`insert into professional_profiles(user_id,tenant_id,display_name) values($1,$2,$3) on conflict do nothing`, [u.rows[0].id, t.rows[0].id, name.slice(0, 80)])
+        await q(`update users set active_context='profissional' where id=$1`, [u.rows[0].id])
+      }
       // APP FLOW: novo aluno aguarda liberação da administração (sem login automático)
       await q(`update users set status='pendente' where id=$1`, [u.rows[0].id])
       if (terms) await acceptTerms(u.rows[0].id, terms.version, req)
-      await audit(t.rows[0].id, u.rows[0].id, 'conta.cadastro', 'user', u.rows[0].id, { email, termos: terms && terms.version })
+      await audit(t.rows[0].id, u.rows[0].id, 'conta.cadastro', 'user', u.rows[0].id, { intent, termos: terms && terms.version })
       await login(res, u.rows[0].id)
     },
     'POST /api/auth/login': async (req, res) => {

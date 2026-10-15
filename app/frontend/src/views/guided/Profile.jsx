@@ -6,6 +6,7 @@ import { C, P, exportMyData } from '../../lib/care.js'
 import { isProAccount, isNonTrainee } from './TabBar.jsx'
 import { G, GOAL_PT, LEVEL_PT, LOC_PT, RESTR_PT } from '../../lib/guided.js'
 import { MyTrophies } from '../app/Trofeus.jsx'
+import ContextSwitch from '../v3/ContextSwitch.jsx'
 import './guided.css'
 
 const SOURCE_URL = import.meta.env.VITE_SOURCE_URL || ''
@@ -24,6 +25,7 @@ export default function Profile() {
     <span className="g-eyebrow">Perfil</span>
     <h1>{user?.name || 'Visitante'}</h1>
     <p className="g-mut g-sm">{user?.email}{user?.tenant?.name ? ' · ' + user.tenant.name : ''}</p>
+    {user && <ContextSwitch />}
     {user && <div className="g-card" style={{ marginTop: 14 }} id="trofeus"><b className="g-sm">Troféus</b><MyTrophies /></div>}
     {p && <div className="g-card" style={{ marginTop: 14 }}>
       <b className="g-sm">Suas respostas</b>
@@ -41,7 +43,7 @@ export default function Profile() {
       {user?.pro && <Li icon="clipboard" t="Área profissional" s="Alunos, atendimentos e perfil profissional" to="/pro" testid="pro-area" />}
       {user?.admin && <Li icon="shield" t="Painel administrativo" s="Liberações, profissionais, vínculos, filas e auditoria" to="/admin/painel" testid="admin-area" />}
     </div>
-    {proAcc && <p className="g-note" style={{ marginTop: 10 }} data-testid="pro-account-note">Esta é sua conta profissional. Para treinar como aluno, crie uma conta separada com outro e-mail — os dados não se misturam.</p>}
+    {proAcc && <p className="g-note" style={{ marginTop: 10 }} data-testid="pro-account-note">Você está na área profissional. Para treinar, use “Usar a conta como › Treinar” acima — a mesma conta, com os dados de treino separados dos atendimentos.</p>}
     {user && <MeusDados />}
     {!proAcc && <>
     <h2>Treino</h2>

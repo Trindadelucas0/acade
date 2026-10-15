@@ -32,8 +32,8 @@ export async function notifyAdmins(tid, kind, title, body, link) {
 }
 const guard = role => async (req, res, json) => {
   const u = await requireAuth(req, res, json); if (!u) return null
-  if (role && !has(u, role) && !has(u, 'admin')) { json(res, 403, { error: 'Sem permissão' }); return null }
-  if (role === 'admin' && !has(u, 'admin')) { json(res, 403, { error: 'Sem permissão' }); return null }
+  if (role && !has(u, role) && !has(u, 'admin')) { json(res, 403, { error: 'Sem permissão', code: 'PERMISSION_DENIED' }); return null }
+  if (role === 'admin' && !has(u, 'admin')) { json(res, 403, { error: 'Sem permissão', code: 'PERMISSION_DENIED' }); return null }
   return u
 }
 export const isLinked = async (coach, student) => (await q(`select 1 from coach_students where coach_id=$1 and student_id=$2 and status='ativo'`, [coach, student])).rowCount > 0
@@ -271,6 +271,7 @@ export function proRoutes({ json, readBody }) {
     'POST /api/pro/plans': async (req, res) => {
       const u = await guard('profissional')(req, res, json); if (!u) return
       const b = await readBody(req)
+      if (!has(u, 'admin') && (await q('select verification_status v from professional_profiles where user_id=$1', [u.id])).rows[0]?.v !== 'verificado') return json(res, 403, { error: 'Seu cadastro profissional ainda não foi verificado.', code: 'PERMISSION_DENIED' })
       const title = txt(b.title, 120); if (title.length < 2) return json(res, 400, { error: 'Dê um nome ao plano' })
       const exs = (Array.isArray(b.exercises) ? b.exercises : []).slice(0, 40).map(e => ({ exercise_id: txt(e.exercise_id, 80), name: txt(e.name, 120), sets: Math.max(1, Math.min(10, +e.sets || 3)),
         reps_min: e.reps_min ? +e.reps_min : null, reps_max: e.reps_max ? +e.reps_max : (e.reps ? +e.reps : null), load: e.load ? txt(e.load, 30) : null, rest_sec: +e.rest_sec || 60, notes: e.notes ? txt(e.notes, 400) : null })).filter(e => e.exercise_id)

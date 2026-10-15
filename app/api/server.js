@@ -15,6 +15,7 @@ import { groupRoutes } from './groups.js';
 import { challengeRoutes } from './challenges.js';
 import { challengeFeedRoutes } from './challenge-feed.js';
 import { prizeRoutes } from './prizes.js';
+import { identityRoutes } from './identity.js';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -386,6 +387,7 @@ Object.assign(routes, groupRoutes({ json, readBody }));  // V5: grupos
 Object.assign(routes, challengeRoutes({ json, readBody }));  // V5: desafios
 Object.assign(routes, challengeFeedRoutes({ json, readBody }));  // V5-C: feed do desafio, comprovantes
 Object.assign(routes, prizeRoutes({ json, readBody }));  // V5-E: troféus e premiações
+Object.assign(routes, identityRoutes({ json, readBody }));  // V3 F2: identidade global, contexto, verificação profissional
 
 http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');

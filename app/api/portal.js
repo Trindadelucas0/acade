@@ -12,7 +12,7 @@ const OPEN = ['pendente', 'em_analise', 'aguardando_info']
 const has = (u, r) => u.roles.includes(r)
 const role = r => async (req, res, json) => {
   const u = await requireAuth(req, res, json); if (!u) return null
-  if (r === 'admin' ? !has(u, 'admin') : !(has(u, r) || has(u, 'admin'))) { json(res, 403, { error: 'Sem permissão' }); return null }
+  if (r === 'admin' ? !has(u, 'admin') : !(has(u, r) || has(u, 'admin'))) { json(res, 403, { error: 'Sem permissão', code: 'PERMISSION_DENIED' }); return null }
   return u
 }
 const proOnly = role('profissional'), admin = role('admin')
@@ -189,6 +189,8 @@ export function portalRoutes({ json, readBody }) {
       if (!p) return json(res, 404, { error: 'Prescrição não encontrada' })
       if (p.owner_id !== u.id) return json(res, 403, { error: 'Somente o responsável disponibiliza esta prescrição' })
       if (p.status !== 'rascunho') return json(res, 409, { error: p.status === 'ativo' ? 'Esta prescrição já está disponível para o aluno' : 'Prescrição arquivada' })
+      // V3: profissional não verificado não envia prescrição (pode treinar como aluno)
+      if (!has(u, 'admin') && (await proState(u.id))?.verification_status !== 'verificado') return json(res, 403, { error: 'Seu cadastro profissional ainda não foi verificado. Você não pode enviar treinos aos alunos.', code: 'PERMISSION_DENIED' })
       const probs = await publishProblems(u, p); if (probs.length) return json(res, 400, { error: probs[0], problems: probs })
       const r = await q(`update pro_plans set status='ativo', published_at=now(), published_version=version, updated_at=now() where id=$1 and status='rascunho' returning id, version`, [p.id])
       if (!r.rowCount) return json(res, 409, { error: 'A prescrição mudou enquanto você publicava. Atualize e tente de novo.' })

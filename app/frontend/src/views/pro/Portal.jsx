@@ -9,6 +9,8 @@ import { mediaOf } from '../../lib/guided.js'
 import { Av, Empty, Load, Err, useLoad, Sheet, Field, Tabs } from '../app/kit.jsx'
 import { Atendimentos, ProProfile } from '../app/Pro.jsx'
 import '../guided/guided.css'
+import Verification from '../v3/Verification.jsx'
+import ContextSwitch from '../v3/ContextSwitch.jsx'
 
 const thumb = m => mediaOf(m)?.img || null
 const goal = g => GOALS[g] || g || 'Objetivo não informado'
@@ -199,10 +201,10 @@ export default function ProPortal() {
   const tab = sp.get('tab') || 'painel'
   const go = (t, extra) => t === 'novo' ? nav('/pro/treino?' + new URLSearchParams(extra || {})) : setSp({ tab: t, ...(extra || {}) })
   const [dash, , reloadDash] = useLoad(() => tab === 'atendimentos' || tab === 'perfil' ? C.dash() : Promise.resolve(null), [tab])
-  const TITLES = { painel: 'AVADESK PRO', alunos: 'Meus alunos', treinos: 'Meus treinos', atendimentos: 'Atendimentos', capacidade: 'Minha capacidade', perfil: 'Perfil profissional' }
+  const TITLES = { painel: 'AVADESK PRO', alunos: 'Meus alunos', treinos: 'Meus treinos', atendimentos: 'Atendimentos', capacidade: 'Minha capacidade', perfil: 'Perfil profissional', verificacao: 'Verificação profissional' }
   return <div className="ag" data-testid="pro">
     <span className="g-eyebrow">AVADESK PRO</span><h1>{TITLES[tab] || 'AVADESK PRO'}</h1>
-    {['painel', 'treinos', 'capacidade', 'perfil'].includes(tab) && <div className="g-scrollx" style={{ marginTop: 8, marginBottom: 6 }}>{[['painel', 'Painel'], ['treinos', 'Meus treinos'], ['capacidade', 'Capacidade'], ['perfil', 'Perfil profissional']].map(([k, l]) =>
+    {['painel', 'treinos', 'capacidade', 'perfil', 'verificacao'].includes(tab) && <div className="g-scrollx" style={{ marginTop: 8, marginBottom: 6 }}>{[['painel', 'Painel'], ['treinos', 'Meus treinos'], ['capacidade', 'Capacidade'], ['verificacao', 'Verificação'], ['perfil', 'Perfil profissional']].map(([k, l]) =>
       <button key={k} className={'g-chipbtn' + (tab === k ? ' g-on' : '')} onClick={() => go(k)} data-testid={'pt-' + k}>{l}</button>)}</div>}
     <div style={{ marginTop: 8 }}>
       {tab === 'painel' && <Painel go={go} />}
@@ -210,7 +212,9 @@ export default function ProPortal() {
       {tab === 'treinos' && <MeusTreinos go={go} />}
       {tab === 'capacidade' && <Capacidade />}
       {tab === 'atendimentos' && (dash ? <Atendimentos d={{ ...dash, me: dash.profile?.id }} reload={reloadDash} /> : <Load />)}
+      {tab === 'perfil' && <ContextSwitch />}
       {tab === 'perfil' && (dash ? <ProProfile d={dash} reload={reloadDash} /> : <Load />)}
+      {tab === 'verificacao' && <Verification />}
     </div>
   </div>
 }
