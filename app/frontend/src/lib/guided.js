@@ -79,7 +79,8 @@ export function enqueue(p) { const q = read(QUEUE, []).filter(x => x.client_id !
 export const pendingCount = () => read(QUEUE, []).length
 export async function flushQueue() {
   const q = read(QUEUE, []); const left = []
-  for (const p of q) { try { await G.saveSession(p) } catch (e) { if (e.status && e.status < 500 && e.status !== 401) continue; left.push(p) } }
+  // V4: sessão recusada por origem (ex.: programa arquivado antes de sincronizar) NÃO é descartada — fica na fila (dado do aluno nunca é apagado)
+  for (const p of q) { try { await G.saveSession(p) } catch (e) { if (e.status && e.status < 500 && e.status !== 401 && e.code !== 'ORIGIN_NOT_ALLOWED') continue; left.push(p) } }
   localStorage.setItem(QUEUE, JSON.stringify(left)); return left.length
 }
 if (typeof window !== 'undefined') window.addEventListener('online', () => { flushQueue().catch(() => {}) })
