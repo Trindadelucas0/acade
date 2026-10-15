@@ -44,7 +44,7 @@ os dados locais para o banco se a conta ainda estiver vazia (migração no cadas
 **Decisão explícita do Lucas, mesmo com o aviso de que AGPL-3.0 (openGym) e CC BY-SA 4.0 (Z-Anatomy) exigem
 atribuição/oferta do código-fonte aos usuários.** Removido de: `views/guided/Profile.jsx` (bloco "Sobre e licença" +
 link Código-fonte), `views/Login.jsx` (linha de crédito Z-Anatomy/openGym), `views/Settings.jsx` ("About & license"),
-`views/MuscleMap.jsx` (crédito do modelo 3D na tela Corpo 3D). `LICENSE`, `NOTICE.md` e `public/models/CREDITS.md`
+`views/MuscleMap.jsx` (crédito do modelo 3D na tela Corpo 3D). `app/LICENSE`, `app/NOTICE.md`, `app/frontend/public/models/CREDITS.md` e `app/frontend/public/media/exercicios/CREDITS.md`
 continuam no repositório, intocados. Risco jurídico: ver `docs/v3/03-MATRIZ-RASTREABILIDADE.md` (bloqueio AGPL).
 
 ## Testes
