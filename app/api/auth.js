@@ -92,9 +92,11 @@ export function authRoutes({ json, readBody, bridge, clearCookies }) {
       if (Object.keys(errors).length) return json(res, 400, { error: Object.values(errors)[0], errors })
       const t = await q('select id from tenants where slug=$1 and active', [String(b.tenant || process.env.DEFAULT_TENANT || 'avadesk')])
       if (!t.rowCount) return json(res, 400, { error: 'Academia não encontrada' })
-      if ((await q('select 1 from users where lower(email)=$1', [email])).rowCount) return json(res, 409, { error: 'Este e-mail já está cadastrado', errors: { email: 'Este e-mail já está cadastrado' } })
+      if ((await q('select 1 from users where lower(email)=$1', [email])).rowCount) return json(res, 409, { error: 'Este e-mail já tem conta. Quer entrar ou recuperar a senha?', code: 'EMAIL_EXISTS', errors: { email: 'Este e-mail já tem conta' } })
       const hash = await bcrypt.hash(password, 12)
-      const u = await q('insert into users(tenant_id,name,email,password_hash) values($1,$2,$3,$4) returning id', [t.rows[0].id, name.slice(0, 80), email, hash])
+      let u
+      try { u = await q('insert into users(tenant_id,name,email,password_hash) values($1,$2,$3,$4) returning id', [t.rows[0].id, name.slice(0, 80), email, hash]) }
+      catch (e) { if (e.code === '23505') return json(res, 409, { error: 'Este e-mail já tem conta. Quer entrar ou recuperar a senha?', code: 'EMAIL_EXISTS', errors: { email: 'Este e-mail já tem conta' } }); throw e }   // corrida: o índice único decide
       await q(`insert into user_roles values($1,$2,'aluno')`, [u.rows[0].id, t.rows[0].id])
       if (intent === 'profissional') {
         await q(`insert into user_roles values($1,$2,'profissional') on conflict do nothing`, [u.rows[0].id, t.rows[0].id])

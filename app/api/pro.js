@@ -481,7 +481,7 @@ export function proRoutes({ json, readBody }) {
         if (b.qualification && !txt(b.qualification.kind, 40)) errors.qualification = 'Informe o tipo (CREF/CREFITO)'
       }
       if (Object.keys(errors).length) return json(res, 400, { error: Object.values(errors)[0], errors })
-      if ((await q('select 1 from users where lower(email)=$1', [email])).rowCount) return json(res, 409, { error: 'Já existe uma conta com esse e-mail', errors: { email: 'E-mail já cadastrado' } })
+      if ((await q('select 1 from users where lower(email)=$1', [email])).rowCount) return json(res, 409, { error: 'Este e-mail já tem conta. Peça para a pessoa entrar e informar o código dela.', code: 'EMAIL_EXISTS', errors: { email: 'Este e-mail já tem conta' } })
       const c = await pool.connect(); let id
       try {
         await c.query('begin')
@@ -501,7 +501,7 @@ export function proRoutes({ json, readBody }) {
           }
         }
         await c.query('commit')
-      } catch (e) { await c.query('rollback'); c.release(); if (e.code === '23505') return json(res, 409, { error: 'Já existe uma conta com esse e-mail' }); throw e }
+      } catch (e) { await c.query('rollback'); c.release(); if (e.code === '23505') return json(res, 409, { error: 'Este e-mail já tem conta. Peça para a pessoa entrar e informar o código dela.', code: 'EMAIL_EXISTS', errors: { email: 'Este e-mail já tem conta' } }); throw e }
       c.release()
       await audit(u.tenant_id, u.id, 'usuario.criado_admin', 'user', id, { type, plan: plan?.id || null, verified: !!b.qualification?.verified })
       let link = null

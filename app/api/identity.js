@@ -83,10 +83,13 @@ export function identityRoutes({ json, readBody }) {
       const pp = (await q('select verification_status from professional_profiles where user_id=$1', [u.id])).rows[0]
       if (pp?.verification_status === 'verificado') return json(res, 409, { error: 'Cadastro já verificado. Para alterar, fale com a administração.' })
       await q(`insert into professional_profiles(user_id,tenant_id,display_name) values($1,$2,$3) on conflict do nothing`, [u.id, u.tenant_id, u.name])
+      if (f.council !== 'OUTRO' && (await q(`select registry_taken($1,$2,$3,$4) t`, [f.council, f.registry_uf, f.registry_number, u.id])).rows[0].t) return json(res, 409, { error: 'Este registro profissional já está vinculado a outra conta. Se ele é seu, fale com a administração.', code: 'REGISTRY_EXISTS', errors: { registry_number: 'Registro já vinculado a outra conta' } })
       const open = (await q(`select id from professional_verifications where user_id=$1 and status in ('pendente','correcao_solicitada') order by created_at desc limit 1`, [u.id])).rows[0]
       let id
+      try {
       if (open) { id = open.id; await q(`update professional_verifications set full_name=$2,council=$3,registry_number=$4,registry_uf=$5,specialties=$6,status='pendente',updated_at=now() where id=$1`, [id, f.full_name, f.council, f.registry_number, f.registry_uf, f.specialties]) }
       else id = (await q(`insert into professional_verifications(user_id,tenant_id,full_name,council,registry_number,registry_uf,specialties) values($1,$2,$3,$4,$5,$6,$7) returning id`, [u.id, u.tenant_id, f.full_name, f.council, f.registry_number, f.registry_uf, f.specialties])).rows[0].id
+      } catch (e) { if (e.code === '23505' && e.constraint === 'professional_registry_uq') return json(res, 409, { error: 'Este registro profissional já está vinculado a outra conta. Se ele é seu, fale com a administração.', code: 'REGISTRY_EXISTS', errors: { registry_number: 'Registro já vinculado a outra conta' } }); throw e }
       await q(`update professional_profiles set specialties=$2, verification_status='pendente', updated_at=now() where user_id=$1`, [u.id, f.specialties])
       await audit(u.tenant_id, u.id, 'verificacao.enviada', 'verification', id)   // sem número do registro no log
       await notifyAdmins(u.tenant_id, 'habilitacao', 'Cadastro profissional para verificar', u.name, '/admin/painel?tab=verificacoes')

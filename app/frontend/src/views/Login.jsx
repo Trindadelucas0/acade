@@ -81,6 +81,7 @@ function LoginForm() {
   const [showPw, setShowPw] = useState(false)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
+  const [exists, setExists] = useState(false)   // cadastro com e-mail que já tem conta
   const reg = mode === 'register'
   const set = k => e => { setF({ ...f, [k]: e.target.value }); setErrs({ ...errs, [k]: undefined }); setMsg('') }
 
@@ -105,6 +106,7 @@ function LoginForm() {
       useUI.getState().toast(reg ? `Bem-vindo(a), ${u.name}!` : `Bem-vindo(a) de volta, ${u.name}!`)
     } catch (e) {
       if (e.errors) setErrs(e.errors)
+      setExists(reg && e.code === 'EMAIL_EXISTS')
       setMsg(e.status === 0 || !e.status ? 'Não foi possível conectar ao servidor' : e.message)
     } finally { setBusy(false) }
   }
@@ -156,6 +158,10 @@ function LoginForm() {
           if (!EMAIL_RE.test(f.email.trim())) return setErrs({ ...errs, email: 'Informe seu e-mail acima para recuperar o acesso' })
           try { const r = await api('/api/auth/forgot', { method: 'POST', body: JSON.stringify({ email: f.email.trim() }) }); setMsg(r.message) } catch (e) { setMsg(e.message) } }}>Esqueci a senha</button>}
         {msg && <div className="lg-msg" role="alert">{msg}</div>}
+        {exists && reg && <div className="lg-alt" data-testid="email-exists">
+          <button type="button" className="lg-link" onClick={() => { setMode('login'); setErrs({}); setMsg(''); setExists(false) }}>Entrar com este e-mail</button>
+          <button type="button" className="lg-link" onClick={async () => { try { const r = await api('/api/auth/forgot', { method: 'POST', body: JSON.stringify({ email: f.email.trim() }) }); setMsg(r.message) } catch (e) { setMsg(e.message) } setExists(false) }}>Recuperar a senha</button>
+        </div>}
         <button className="lg-btn" type="submit" disabled={busy}>{busy ? 'Aguarde…' : reg ? 'Criar conta' : 'Entrar'}</button>
         <button type="button" className="lg-btn ghost" onClick={() => { setMode(reg ? 'login' : 'register'); setErrs({}); setMsg('') }}>
           {reg ? 'Já tenho conta — Entrar' : 'Criar conta'}</button>

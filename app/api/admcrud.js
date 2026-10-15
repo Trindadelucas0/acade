@@ -29,9 +29,10 @@ export function adminCrudRoutes({ json, readBody }) {
       if (name.length < 2) errors.name = 'Informe o nome'
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) errors.email = 'E-mail inválido'
       if (Object.keys(errors).length) return json(res, 400, { error: Object.values(errors)[0], errors })
-      if ((await q('select 1 from users where lower(email)=$1 and id<>$2', [email, b.id])).rowCount) return json(res, 409, { error: 'Já existe uma conta com esse e-mail', errors: { email: 'E-mail já cadastrado' } })
+      if ((await q('select 1 from users where lower(email)=$1 and id<>$2', [email, b.id])).rowCount) return json(res, 409, { error: 'Este e-mail já é usado por outra conta', code: 'EMAIL_EXISTS', errors: { email: 'Este e-mail já é usado por outra conta' } })
       const before = (await q('select name,email from users where id=$1', [b.id])).rows[0]
-      await q('update users set name=$2, email=$3 where id=$1', [b.id, name, email])
+      try { await q('update users set name=$2, email=$3 where id=$1', [b.id, name, email]) }
+      catch (e) { if (e.code === '23505') return json(res, 409, { error: 'Este e-mail já é usado por outra conta', code: 'EMAIL_EXISTS', errors: { email: 'Este e-mail já é usado por outra conta' } }); throw e }
       await q('update professional_profiles set display_name=coalesce(display_name,$2) where user_id=$1', [b.id, name])
       await audit(u.tenant_id, u.id, 'usuario.editado', 'user', b.id, { before, after: { name, email } })
       json(res, 200, { ok: true })
