@@ -86,3 +86,7 @@ input,select,textarea,.ag input,.ag select,.ag textarea,.ag .g-in{font-size:16px
 :root[data-theme="light"] .ag .g-badge,:root[data-theme="light"] .ag .g-cover .g-badge,:root[data-theme="light"] .ag .g-opt.g-on .g-tick,:root[data-theme="light"] .ag .g-tabs button.g-on,
 :root[data-theme="light"] .ag .g-week .g-d.g-done i,:root[data-theme="light"] [role="tab"].g-on{background:#c8f135;color:#11140a}
 :root[data-theme="light"] .adm-btn.ghost{background:var(--ag-card-2);color:var(--ag-txt)}
+/* V4.3 · alternar tema no cabeçalho */
+.g-hdr-icons{display:inline-flex;gap:8px;align-items:center}
+.g-theme-fab{position:fixed;top:calc(10px + env(safe-area-inset-top));right:12px;z-index:60;box-shadow:0 2px 10px rgba(0,0,0,.18)}
+.g-bell svg{width:22px;height:22px}

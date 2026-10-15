@@ -55,6 +55,7 @@ import { MustChangePassword, AccessLockHost, LockBanner, ScopeGate } from './vie
 import './styles/v42.css'
 import './styles/tours.css'
 import { TourHost } from './components/Tour.jsx'
+import ThemeToggle from './components/ThemeToggle.jsx'
 import Plans from './views/v3/Plans.jsx'
 import AcceptInvite from './views/v3/AcceptInvite.jsx'
 
@@ -187,6 +188,7 @@ function Shell() {
       {authed && <PlanErrorHost />}
       {authed && <AccessLockHost />}
       {authed && <TourHost />}
+      {!(authed && ['/hoje', '/pro'].includes(loc.pathname) && !user?.must_change_password && !user?.needs_terms && !isAdminAccount(user)) && !['/treinar', '/concluido', '/pro/treino'].includes(loc.pathname) && <ThemeToggle className="g-bell g-theme-fab" />}
       <Toast />
       <DialogHost />
     </>

@@ -123,9 +123,9 @@ function StartHere({ profile, at }) {
         <p className="g-mut g-sm">Programas publicados pelo AVAGYM e por profissionais verificados.</p>
         <button className="g-btn" style={{ marginTop: 12 }} onClick={() => nav(profile ? '/recomendados' : '/onboarding')} data-testid="start-choose">ESCOLHER MEU TREINO</button></>}
       </div></div>}
-    <div className="g-card g-list" style={{ marginTop: 10 }}>
-      <Li icon="clipboard" t="Todos os programas" s="Catálogo publicado" to="/programas" testid="start-catalog" />
+    {(!useStore.getState().user?.client_locked || routines.length > 0) && <div className="g-card g-list" style={{ marginTop: 10 }}>
+      {!useStore.getState().user?.client_locked && <Li icon="clipboard" t="Todos os programas" s="Catálogo publicado" to="/programas" testid="start-catalog" />}
       {routines.length > 0 && <Li icon="folder" t="Rotinas antigas" s="Somente consulta" to="/treinos?aba=historico" testid="start-routines" />}
-    </div>
+    </div>}
   </section>
 }
