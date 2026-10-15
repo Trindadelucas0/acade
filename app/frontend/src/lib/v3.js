@@ -12,6 +12,10 @@ export const V = {
   plans: () => api('/api/plans'), mySubs: () => api('/api/me/subscriptions'),
   admSubs: () => api('/api/adm/subscriptions'), admChangePlan: b => post('/api/adm/subscriptions/plan', b), admSubStatus: b => post('/api/adm/subscriptions/status', b),
   admGrant: b => post('/api/adm/grants', b), admGrants: user_id => api('/api/adm/grants?user_id=' + user_id), revokeGrant: id => post('/api/adm/grants/revoke', { id }),
+  // Fase 4 — convites (Profissional Free / Aluno Free)
+  proInvites: () => api('/api/pro/invites'), createInvite: b => post('/api/pro/invites', b), cancelInvite: id => post('/api/pro/invites/cancel', { id }),
+  myInvites: () => api('/api/me/invites'), viewInvite: code => api('/api/invites/view?code=' + encodeURIComponent(code)),
+  acceptInvite: code => post('/api/invites/accept', { code }), declineInvite: code => post('/api/invites/decline', { code }),
   admVerifications: status => api('/api/adm/verifications' + (status ? '?status=' + status : '')), decideVerification: b => post('/api/adm/verifications/decide', b)
 }
 export const VER_PT = { pendente: 'Em análise', correcao_solicitada: 'Correção solicitada', verificado: 'Verificado' }
@@ -22,3 +26,4 @@ export const METRIC_PT = { alunos_ativos: 'Alunos ativos' }
 export const FEAT_PT = { treino_pessoal: 'Treino pessoal', programas_guiados: 'Programas guiados', execucao: 'Execução com cronômetro', progresso: 'Progresso', ranking: 'Ranking', desafios_oficiais: 'Desafios oficiais', receber_ficha_profissional: 'Receber ficha do profissional', prescrever: 'Prescrever treinos', convidar_alunos: 'Convidar alunos', construtor_treino: 'Construtor de treino' }
 // erros comerciais padronizados abrem a tela de upgrade/regularização (ver PlanErrorHost)
 export const PLAN_CODES = ['LIMIT_REACHED', 'FEATURE_NOT_INCLUDED', 'SUBSCRIPTION_INACTIVE']
+export const INV_PT = { pendente: 'Pendente', aceito: 'Aceito', recusado: 'Recusado', cancelado: 'Cancelado', expirado: 'Expirado' }

@@ -17,6 +17,7 @@ import { challengeFeedRoutes } from './challenge-feed.js';
 import { prizeRoutes } from './prizes.js';
 import { identityRoutes } from './identity.js';
 import { entitlementRoutes, entitlementGate } from './entitlements.js';
+import { inviteRoutes } from './invites.js';
 import { requireAuth } from './auth.js';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
@@ -391,6 +392,7 @@ Object.assign(routes, challengeFeedRoutes({ json, readBody }));  // V5-C: feed d
 Object.assign(routes, prizeRoutes({ json, readBody }));  // V5-E: troféus e premiações
 Object.assign(routes, identityRoutes({ json, readBody }));  // V3 F2: identidade global, contexto, verificação profissional
 Object.assign(routes, entitlementRoutes({ json, readBody, requireAuth, requireRole }));  // V3 F3: motor de planos
+Object.assign(routes, inviteRoutes({ json, readBody }));  // V3 F4: convites do profissional (Profissional Free)
 
 http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');

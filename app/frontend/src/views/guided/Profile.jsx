@@ -7,6 +7,7 @@ import { isProAccount, isNonTrainee } from './TabBar.jsx'
 import { G, GOAL_PT, LEVEL_PT, LOC_PT, RESTR_PT } from '../../lib/guided.js'
 import { MyTrophies } from '../app/Trofeus.jsx'
 import ContextSwitch from '../v3/ContextSwitch.jsx'
+import { MyInvites } from '../v3/AcceptInvite.jsx'
 import './guided.css'
 
 const SOURCE_URL = import.meta.env.VITE_SOURCE_URL || ''
@@ -26,6 +27,7 @@ export default function Profile() {
     <h1>{user?.name || 'Visitante'}</h1>
     <p className="g-mut g-sm">{user?.email}{user?.tenant?.name ? ' · ' + user.tenant.name : ''}</p>
     {user && <ContextSwitch />}
+    {user && !proAcc && (user.roles || []).includes('aluno') && user.status === 'ativo' && <MyInvites />}
     {user && <div className="g-card" style={{ marginTop: 14 }} id="trofeus"><b className="g-sm">Troféus</b><MyTrophies /></div>}
     {p && <div className="g-card" style={{ marginTop: 14 }}>
       <b className="g-sm">Suas respostas</b>

@@ -51,6 +51,7 @@ import { ChallengePage, ChallengeWizard } from './views/app/Desafios.jsx'
 import Builder from './views/builder/WorkoutBuilder.jsx'
 import PlanErrorHost from './views/v3/PlanErrorHost.jsx'
 import Plans from './views/v3/Plans.jsx'
+import AcceptInvite from './views/v3/AcceptInvite.jsx'
 
 bindUI(useUI)   // lets the shared controls open sheets without importing the store at module scope
 
@@ -107,6 +108,7 @@ function Shell() {
               <Route path="/avisos" element={<Avisos />} />
               <Route path="/perfil" element={<Profile />} />
               <Route path="/planos" element={<Plans />} />
+              <Route path="/convite/:code" element={<AcceptInvite />} />
               <Route path="*" element={<Navigate to="/admin/painel" replace />} />
             </Routes>
           ) : isProAccount(user) ? (
@@ -123,6 +125,7 @@ function Shell() {
               <Route path="/avisos" element={<Avisos />} />
               <Route path="/perfil" element={<Profile />} />
               <Route path="/planos" element={<Plans />} />
+              <Route path="/convite/:code" element={<AcceptInvite />} />
               <Route path="*" element={<Navigate to="/pro" replace />} />
             </Routes>
           ) : (
@@ -152,6 +155,7 @@ function Shell() {
               <Route path="/progresso" element={<Gate title="Progresso"><Progress /></Gate>} />
               <Route path="/perfil" element={<Profile />} />
               <Route path="/planos" element={<Plans />} />
+              <Route path="/convite/:code" element={<AcceptInvite />} />
               <Route path="/admin/programas" element={user ? <AdminPrograms /> : <Navigate to="/hoje" replace />} />
               <Route path="/home" element={<Home />} />
               <Route path="/plan" element={<Plan />} />
