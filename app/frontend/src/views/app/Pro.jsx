@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import Icon from '../../components/Icon.jsx'
 import { C, CAT_PT, OCC_ST, dt } from '../../lib/care.js'
 import { Av, Empty, Load, Err, useLoad, Sheet, Field, Tabs } from './kit.jsx'
+import { askText, notifyError } from '../../lib/dialog.js'
 
 function PlanEditor({ student, plan, onClose, onSaved }) {
   const [title, setTitle] = useState(plan?.title || ''), [notes, setNotes] = useState(plan?.notes || '')
@@ -44,10 +45,10 @@ function Student({ id, onBack }) {
       <div className="g-row"><b>{p.title}</b><span className="g-sp" /><span className={'g-pill ' + (p.status === 'ativo' ? 'g-ok' : '')}>{p.status}</span></div>
       <p className="g-mut g-xs">Responsável: {p.owner_name}{p.mine ? ' (você)' : ' — somente leitura'} · {p.exercises.length} exercícios · v{p.version}</p>
       {p.mine && p.status === 'ativo' && <div className="g-actions"><button className="g-btn g-ghost g-sm" onClick={() => setEdit(p)}>Editar</button>
-        <button className="g-btn g-danger g-sm" onClick={async () => { const r = prompt('Motivo do arquivamento'); if (r != null) { await C.archivePlan(p.id, r); reload() } }}>Arquivar</button></div>}
+        <button className="g-btn g-danger g-sm" onClick={async () => { const r = await askText('Motivo do arquivamento', { ok: 'Arquivar', danger: true }); if (r != null) { await C.archivePlan(p.id, r); reload() } }}>Arquivar</button></div>}
     </div>) : <Empty>Nenhuma ficha ainda. Crie a primeira para este aluno.</Empty>}</div>
     <div className="g-row" style={{ marginTop: 14 }}><h3 style={{ margin: 0 }}>Conversas</h3><span className="g-sp" />
-      <button className="g-btn g-ghost g-sm" style={{ width: 'auto', padding: '0 14px' }} data-testid="msg-student" onClick={async () => { const m = prompt('Mensagem para ' + d.student.name); if (m && m.trim()) { try { const r = await C.proThread(id, m.trim()); nav('/conversa/' + r.thread.id) } catch (e) { alert(e.message) } } }}>Enviar mensagem</button></div>
+      <button className="g-btn g-ghost g-sm" style={{ width: 'auto', padding: '0 14px' }} data-testid="msg-student" onClick={async () => { const m = await askText('Mensagem para ' + d.student.name, { multiline: true, required: true, ok: 'Enviar' }); if (m && m.trim()) { try { const r = await C.proThread(id, m.trim()); nav('/conversa/' + r.thread.id) } catch (e) { notifyError(e) } } }}>Enviar mensagem</button></div>
     <div className="g-card g-list" style={{ marginTop: 8 }}>{(d.threads || []).length ? d.threads.map(t => <button key={t.id} className="g-li" onClick={() => nav('/conversa/' + t.id)}>
       <span className="g-ico"><Icon name="chat" /></span><span style={{ minWidth: 0 }}><b>{t.exercise_name || (t.context_type === 'geral' ? 'Conversa' : t.context_type)}</b><br /><span className="g-mut g-xs">{t.last_body?.slice(0, 70)}</span></span>
       <span className={'g-pill ' + (t.status === 'aguardando' ? 'g-warn2' : 'g-ok')} style={{ marginLeft: 'auto' }}>{t.status}</span></button>) : <Empty icon="chat">Nenhuma conversa com este aluno.</Empty>}</div>
@@ -83,7 +84,7 @@ export function Atendimentos({ d, reload }) {
       {o.description && <p className="g-sm">{o.description}</p>}
       <div className="g-actions"><button className="g-btn g-sm" onClick={() => setAssess(o)} data-testid="assess">Orientar</button>
         <button className="g-btn g-ghost g-sm" onClick={() => setProp(o)}>Propor alteração</button>
-        <button className="g-btn g-ghost g-sm" onClick={async () => { const r = prompt('Motivo do encerramento'); if (r != null) { try { await C.closeOcc(o.id, r); reload() } catch (e) { alert(e.message) } } }}>Encerrar</button></div>
+        <button className="g-btn g-ghost g-sm" onClick={async () => { const r = await askText('Motivo do encerramento', { ok: 'Encerrar' }); if (r != null) { try { await C.closeOcc(o.id, r); reload() } catch (e) { notifyError(e) } } }}>Encerrar</button></div>
     </div>) : <Empty icon="check">Nenhuma ocorrência pendente.</Empty>}</div>
     <h2>Dúvidas e mensagens</h2>
     <div className="g-card g-list">{d.threads.length ? d.threads.map(t => <button key={t.id} className="g-li" onClick={() => nav('/conversa/' + t.id)}>
@@ -92,8 +93,8 @@ export function Atendimentos({ d, reload }) {
     <h2>Propostas para avaliar</h2>
     <div className="g-card g-list">{d.proposals.length ? d.proposals.map(p => <div key={p.id} className="g-li" style={{ display: 'block' }}>
       <b>{p.plan_title || 'Plano'}</b> <span className="g-mut g-xs">por {p.author_name} · tentativa {p.attempt}</span><p className="g-sm">{p.description}</p>
-      {p.decider_id === d.me && <div className="g-actions"><button className="g-btn g-sm" onClick={async () => { try { await C.decide({ id: p.id, accept: true, reason: prompt('Observação (opcional)') || '' }); reload() } catch (e) { alert(e.message) } }}>Aceitar</button>
-        <button className="g-btn g-danger g-sm" onClick={async () => { const r = prompt('Motivo da rejeição'); if (r) { try { await C.decide({ id: p.id, accept: false, reason: r }); reload() } catch (e) { alert(e.message) } } }}>Rejeitar</button></div>}
+      {p.decider_id === d.me && <div className="g-actions"><button className="g-btn g-sm" onClick={async () => { const o = await askText('Aceitar a proposta?', { label: 'Observação (opcional)', ok: 'Aceitar' }); if (o == null) return; try { await C.decide({ id: p.id, accept: true, reason: o }); reload() } catch (e) { notifyError(e) } }}>Aceitar</button>
+        <button className="g-btn g-danger g-sm" onClick={async () => { const r = await askText('Motivo da rejeição', { required: true, ok: 'Rejeitar', danger: true }); if (r) { try { await C.decide({ id: p.id, accept: false, reason: r }); reload() } catch (e) { notifyError(e) } } }}>Rejeitar</button></div>}
     </div>) : <Empty>Nenhuma proposta pendente.</Empty>}</div>
     {assess && <Assess o={assess} onClose={() => setAssess(null)} onDone={() => { setAssess(null); reload() }} />}
     {prop && <Sheet title="Propor alteração no treino" onClose={() => setProp(null)}><ProposalForm o={prop} onDone={() => { setProp(null); reload() }} /></Sheet>}
@@ -131,7 +132,7 @@ export function ProProfile({ d, reload }) {
       <p className="g-xs g-mut">Selecionar uma habilitação não a verifica: ela fica pendente até a conferência da administração.</p>
       <div className="g-row" style={{ marginTop: 8 }}><input className="g-in" placeholder="Tipo (CREF…)" value={ql.kind} onChange={e => setQl({ ...ql, kind: e.target.value })} /><input className="g-in" placeholder="Número" value={ql.number} onChange={e => setQl({ ...ql, number: e.target.value })} /></div>
       <input className="g-in" style={{ marginTop: 8 }} placeholder="Área de atuação" value={ql.area} onChange={e => setQl({ ...ql, area: e.target.value })} />
-      <button className="g-btn g-ghost g-sm" style={{ marginTop: 8 }} onClick={async () => { try { await C.addQual(ql); setQl({ kind: '', number: '', area: '' }); reload() } catch (e) { alert(e.message) } }}>Enviar para verificação</button>
+      <button className="g-btn g-ghost g-sm" style={{ marginTop: 8 }} onClick={async () => { try { await C.addQual(ql); setQl({ kind: '', number: '', area: '' }); reload() } catch (e) { notifyError(e) } }}>Enviar para verificação</button>
     </div>
   </div>
 }

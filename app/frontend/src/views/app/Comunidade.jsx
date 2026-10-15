@@ -9,6 +9,7 @@ import { useStore } from '../../store/useStore.js'
 import { C, F, REPORT_PT, dt } from '../../lib/care.js'
 import { Av, Empty, Load, Err, useLoad, Sheet, Field, Tabs } from './kit.jsx'
 import Ranking from './Ranking.jsx'
+import { ask, notifyError } from '../../lib/dialog.js'
 
 function ReportBtn({ type, id }) {
   const [open, setOpen] = useState(false), [reason, setReason] = useState(''), [det, setDet] = useState(''), [msg, setMsg] = useState('')
@@ -113,7 +114,7 @@ export function PostPage() {
     <button className="g-link" onClick={() => nav(-1)}>← Voltar</button>
     <PostCard p={d.post} full onChange={reload} />
     {(mine || user?.admin) && <div className="g-actions">{mine && <button className="g-btn g-ghost g-sm" onClick={() => setEdit(true)}>Editar</button>}
-      <button className="g-btn g-danger g-sm" onClick={async () => { if (confirm('Excluir esta publicação?')) { await F.del(d.post.id); nav('/comunidade') } }}>Excluir</button></div>}
+      <button className="g-btn g-danger g-sm" onClick={async () => { if (await ask('Excluir esta publicação?', { ok: 'Excluir', danger: true })) { await F.del(d.post.id); nav('/comunidade') } }}>Excluir</button></div>}
     <h2>Comentários</h2>
     <div className="g-card g-list">{d.comments.length ? d.comments.map(c => <div key={c.id} className="g-li" style={{ display: 'block' }}>
       <div className="g-row"><b className="g-sm">{c.author_name}</b>{c.author_pro && <span className="g-pill g-ok">profissional</span>}<span className="g-sp" /><span className="g-xs g-dim">{dt(c.created_at)}</span></div>
@@ -122,7 +123,7 @@ export function PostPage() {
     </div>) : <Empty icon="chat">Nenhum comentário.</Empty>}</div>
     {meta?.can_comment ? <>
       <Field label="Escreva um comentário"><textarea className="g-in" value={body} onChange={e => setBody(e.target.value)} maxLength={1500} data-testid="comment-body" /></Field>
-      <button className="g-btn" style={{ marginTop: 10 }} disabled={!body.trim()} onClick={async () => { try { const r = await F.comment(id, body); setBody(''); setHint(r.hint || ''); reload() } catch (e) { alert(e.message) } }} data-testid="comment-send">Enviar</button>
+      <button className="g-btn" style={{ marginTop: 10 }} disabled={!body.trim()} onClick={async () => { try { const r = await F.comment(id, body); setBody(''); setHint(r.hint || ''); reload() } catch (e) { notifyError(e) } }} data-testid="comment-send">Enviar</button>
       {hint && <p className="g-note" style={{ marginTop: 8 }}>{hint}</p>}</>
       : <p className="g-mut g-xs" style={{ marginTop: 10 }}>Comentários de alunos estão desativados nesta comunidade. Você pode curtir e seguir profissionais. Dúvidas individuais vão em Acompanhamento.</p>}
     {edit && meta && <Compose cats={meta.categories} post={d.post} onClose={() => setEdit(false)} onDone={() => { setEdit(false); reload() }} />}

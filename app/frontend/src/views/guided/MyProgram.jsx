@@ -5,6 +5,7 @@ import { G, minutesLabel } from '../../lib/guided.js'
 import { Spin, Cover } from './Programs.jsx'
 import { WeekStrip } from './Today.jsx'
 import './guided.css'
+import { ask } from '../../lib/dialog.js'
 
 export default function MyProgram() {
   const nav = useNavigate()
@@ -16,7 +17,7 @@ export default function MyProgram() {
   if (!st.active) return <div className="ag"><span className="g-eyebrow">Meu programa</span><h1>Você ainda não tem um programa</h1>
     <button className="g-btn" style={{ marginTop: 16 }} onClick={() => nav('/recomendados')}>Encontrar um programa</button></div>
   const a = st.active, total = (a.weeks || 1) * (a.days_per_week || 3)
-  const abandon = async () => { if (!confirm('Abandonar este programa? Seu histórico continua salvo.')) return; await G.abandon('abandonou pelo app'); nav('/hoje') }
+  const abandon = async () => { if (!await ask('Abandonar este programa?', { text: 'Seu histórico continua salvo.', ok: 'Abandonar', cancel: 'Manter programa', danger: true })) return; await G.abandon('abandonou pelo app'); nav('/hoje') }
   return <div className="ag" data-testid="my-program">
     <span className="g-eyebrow">Meu programa</span>
     <h1>{a.title}</h1>

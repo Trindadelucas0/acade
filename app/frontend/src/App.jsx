@@ -13,11 +13,9 @@ import TabBar from './components/TabBar.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import Modals from './components/Modals.jsx'
 import Toast from './components/Toast.jsx'
+import DialogHost from './components/DialogHost.jsx'
 import RestTimer from './components/RestTimer.jsx'
 import Login from './views/Login.jsx'
-import Home from './views/Home.jsx'
-import Plan from './views/Plan.jsx'
-import RoutineEdit from './views/RoutineEdit.jsx'
 import Workout from './views/Workout.jsx'
 import Stats from './views/Stats.jsx'
 import History from './views/History.jsx'
@@ -157,10 +155,12 @@ function Shell() {
               <Route path="/planos" element={<Plans />} />
               <Route path="/convite/:code" element={<AcceptInvite />} />
               <Route path="/admin/programas" element={user ? <AdminPrograms /> : <Navigate to="/hoje" replace />} />
-              <Route path="/home" element={<Home />} />
-              <Route path="/plan" element={<Plan />} />
-              <Route path="/plan/r/:id" element={<RoutineEdit />} />
-              <Route path="/workout" element={<Workout />} />
+              {/* V4: sem montagem de treino nem treino livre. Rotas antigas levam às rotinas antigas (só consulta);
+                  /workout só abre para concluir um treino livre que já estava em andamento no aparelho. */}
+              <Route path="/home" element={<Navigate to="/treinos?aba=historico" replace />} />
+              <Route path="/plan" element={<Navigate to="/treinos?aba=historico" replace />} />
+              <Route path="/plan/r/:id" element={<Navigate to="/treinos?aba=historico" replace />} />
+              <Route path="/workout" element={S.active ? <Workout /> : <Navigate to="/treinos" replace />} />
               <Route path="/stats" element={<Stats />} />
               <Route path="/history" element={<History />} />
               <Route path="/library" element={<Library />} />
@@ -179,6 +179,7 @@ function Shell() {
       <Modals />
       {authed && <PlanErrorHost />}
       <Toast />
+      <DialogHost />
     </>
   )
 }

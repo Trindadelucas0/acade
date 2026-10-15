@@ -3,12 +3,13 @@ import { useState, Fragment } from 'react'
 import { F, REPORT_PT, dt } from '../../lib/care.js'
 import { Empty, Load, Err, useLoad, Tabs } from './kit.jsx'
 import { EXTRA } from './AdminPanel.jsx'
+import { askText, notifyError } from '../../lib/dialog.js'
 
 function Moderacao() {
   const [st, setSt] = useState('pendente')
   const [d, err, reload] = useLoad(() => F.reports(st), [st])
-  const decide = async (r, decision) => { const reason = decision === 'em_analise' ? '' : prompt('Motivo da decisão'); if (reason == null) return
-    try { await F.decide({ id: r.id, decision, reason }); reload() } catch (e) { alert(e.message) } }
+  const decide = async (r, decision) => { const reason = decision === 'em_analise' ? '' : await askText('Motivo da decisão', { required: true, multiline: true }); if (reason == null) return
+    try { await F.decide({ id: r.id, decision, reason }); reload() } catch (e) { notifyError(e) } }
   return <div>
     <Tabs cur={st} set={setSt} tabs={[['pendente', 'Pendentes'], ['em_analise', 'Em análise'], ['resolvida', 'Resolvidas']]} />
     {err ? <Err msg={err} retry={reload} /> : !d ? <Load /> : <div className="g-card g-list">{d.reports.length ? d.reports.map(r => <div key={r.id} className="g-li" style={{ display: 'block' }} data-testid="report">
@@ -40,7 +41,7 @@ function RankingAdm() {
         {d.rows.filter(r => r.name.toLowerCase().includes(qq.toLowerCase())).map(r => <Fragment key={r.id}>
           <tr><td>{r.position ? '#' + r.position + ' ' : ''}{r.name}</td><td>{r.points}</td><td>{r.state}</td><td><button className="g-link" onClick={() => setOpen(open === r.id ? null : r.id)}>Consultar</button></td></tr>
           {open === r.id && <tr><td colSpan="4">{r.list.map(s => <div key={s.id} className="g-row g-xs" style={{ minHeight: 44 }}>{s.day} · {s.workout_name}<span className="g-sp" />
-            <button className="g-link" style={{ color: 'var(--ag-bad)' }} onClick={async () => { const reason = prompt('Justificativa da invalidação (fica registrada e o aluno é avisado)'); if (!reason) return; try { await F.invalidate(s.id, reason); reload() } catch (e) { alert(e.message) } }}>Invalidar</button></div>)}{!r.list.length && <span className="g-xs g-mut">Sem sessões pontuadas.</span>}</td></tr>}
+            <button className="g-link" style={{ color: 'var(--ag-bad)' }} onClick={async () => { const reason = await askText('Justificativa da invalidação', { text: 'Fica registrada e o aluno é avisado.', required: true, multiline: true, danger: true, ok: 'Invalidar' }); if (!reason) return; try { await F.invalidate(s.id, reason); reload() } catch (e) { notifyError(e) } }}>Invalidar</button></div>)}{!r.list.length && <span className="g-xs g-mut">Sem sessões pontuadas.</span>}</td></tr>}
         </Fragment>)}</tbody></table></div>
       <p className="g-xs g-mut" style={{ marginTop: 8 }}>A administração não cria pontos nem altera posições: corrige invalidando o registro responsável, com justificativa.</p>
       <h3 style={{ marginTop: 14 }}>Sessões invalidadas</h3>

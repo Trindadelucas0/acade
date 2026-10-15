@@ -1,13 +1,13 @@
 // V3 · F6 — regras puras do "começar a treinar" do aluno gratuito (testadas no vitest).
-export const TREINO_TABS = [['rotinas', 'Minhas rotinas'], ['programas', 'Programas guiados'], ['profissionais', 'Dos meus profissionais']]
-// aba inicial de Meus treinos: o que o aluno tem de mais "pronto para treinar"
-export function defaultTab({ plans = 0, active = false, routines = 0 } = {}) {
-  if (plans > 0) return 'profissionais'
-  if (active) return 'programas'
-  if (routines > 0) return 'rotinas'
-  return 'programas'
+// V4: o aluno treina só programa publicado ou ficha do profissional; rotinas antigas ficam em "Histórico" (só consulta)
+export const TREINO_TABS = [['programas', 'Programas'], ['profissionais', 'Do meu profissional'], ['historico', 'Rotinas antigas']]
+// aba inicial de Treinos: o que o aluno tem de mais "pronto para treinar"
+export function defaultTab({ plans = 0 } = {}) {
+  return plans > 0 ? 'profissionais' : 'programas'
 }
-export const validTab = k => TREINO_TABS.some(([t]) => t === k)
+// links antigos (?aba=rotinas) caem no histórico de consulta
+export const normTab = k => k === 'rotinas' ? 'historico' : k
+export const validTab = k => TREINO_TABS.some(([t]) => t === normTab(k))
 export function elapsedLabel(start, now = Date.now()) {
   const t = typeof start === 'number' ? start : new Date(start).getTime()
   if (!Number.isFinite(t)) return ''

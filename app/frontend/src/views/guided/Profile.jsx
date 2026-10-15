@@ -9,6 +9,7 @@ import { MyTrophies } from '../app/Trofeus.jsx'
 import ContextSwitch from '../v3/ContextSwitch.jsx'
 import { MyInvites } from '../v3/AcceptInvite.jsx'
 import './guided.css'
+import { askText } from '../../lib/dialog.js'
 
 export default function Profile() {
   const nav = useNavigate()
@@ -56,7 +57,6 @@ export default function Profile() {
     </div>
     <h2>Avançado</h2>
     <div className="g-card g-list">
-      <Li icon="pencil" t="Criar treino manual" s="Para quem já sabe montar a própria ficha" to="/plan" testid="manual" />
       <Li icon="chart" t="Estatísticas detalhadas" to="/stats" />
       <Li icon="gear" t="Preferências do treino" s="Unidades, tema, descanso, lembretes, backup" to="/settings" />
       {pro && <Li icon="clipboard" t="Programas (profissionais)" s="Status: rascunho, revisão, publicado, arquivado" to="/admin/programas" />}
@@ -92,7 +92,7 @@ function MeusDados() {
         <span className="g-ico"><Icon name="download" /></span><span><b>Exportar meus dados</b><br /><span className="g-mut g-xs">Arquivo JSON com cadastro, treinos, mensagens e aceites</span></span></button>
       {open ? <div className="g-li" style={{ display: 'block' }}><b>Pedido de exclusão em análise</b><p className="g-mut g-xs">Enviado em {new Date(open.created_at).toLocaleDateString('pt-BR')}. A administração confirma antes de excluir.</p>
         <button className="g-btn g-ghost g-sm" onClick={async () => { await C.cancelDelete(); load() }}>Cancelar pedido</button></div>
-      : <button className="g-li" onClick={async () => { const r = prompt('Quer mesmo pedir a exclusão da conta? Conte o motivo (opcional):'); if (r == null) return; try { await C.deleteRequest(r); setMsg('Pedido enviado à administração.'); load() } catch (e) { setMsg(e.message) } }} data-testid="delete-request">
+      : <button className="g-li" onClick={async () => { const r = await askText('Pedir a exclusão da conta?', { text: 'A administração analisa o pedido. Conte o motivo (opcional).', multiline: true, ok: 'Enviar pedido', danger: true }); if (r == null) return; try { await C.deleteRequest(r); setMsg('Pedido enviado à administração.'); load() } catch (e) { setMsg(e.message) } }} data-testid="delete-request">
         <span className="g-ico"><Icon name="trash" /></span><span><b>Pedir exclusão da conta</b><br /><span className="g-mut g-xs">Nada é apagado sem a confirmação da administração</span></span></button>}
     </div>
     {msg && <p className="g-acc g-sm">{msg}</p>}

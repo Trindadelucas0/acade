@@ -1,53 +1,49 @@
-// V3 · F6 — Meus treinos do aluno gratuito: Minhas rotinas · Programas guiados · Dos meus profissionais,
-// com "Criar meu treino" e "Retomar treino". Fichas: só ativas de vínculos ativos, versão mais recente.
+// V4 · F1 — Treinos do aluno: Programas · Do meu profissional · Rotinas antigas (somente consulta).
+// O aluno não monta treino (decisão do Lucas): só treina programa publicado ou ficha do profissional vinculado.
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import Icon from '../../components/Icon.jsx'
 import { useStore } from '../../store/useStore.js'
 import { G, minutesLabel } from '../../lib/guided.js'
 import { C, P } from '../../lib/care.js'
-import { TREINO_TABS, defaultTab, validTab } from '../../lib/start.js'
-import { startFlow } from '../../sheets.jsx'
+import { TREINO_TABS, defaultTab, validTab, normTab } from '../../lib/start.js'
 import { glyphOf } from '../../lib/glyphs.js'
-import { Tabs, Empty } from './kit.jsx'
-import { ResumeBar, CreateWorkoutSheet, useLive } from '../v3/StartHub.jsx'
+import { Tabs, Empty, Err } from './kit.jsx'
+import { ResumeBar, useLive } from '../v3/StartHub.jsx'
 import '../guided/guided.css'
 const NO_ROUTINES = []
 
 export const Li = ({ icon, t, s, to, onClick, testid, badge }) => { const nav = useNavigate()
   return <button className="g-li" onClick={onClick || (() => nav(to))} data-testid={testid}>
     <span className="g-ico"><Icon name={icon} /></span><span style={{ minWidth: 0 }}><b>{t}</b>{s && <><br /><span className="g-mut g-xs">{s}</span></>}</span>
-    {badge ? <span className="g-badge">{badge}</span> : null}<span className="g-chev"><Icon name="play" /></span></button> }
+    {badge ? <span className="g-badge">{badge}</span> : null}<span className="g-chev" aria-hidden="true"><Icon name="play" /></span></button> }
 
 export default function Treinos() {
   const nav = useNavigate(), [sp, setSp] = useSearchParams()
   const routines = useStore(s => s.S?.routines || NO_ROUTINES)
   const live = useLive()
-  const [st, setSt] = useState(null), [care, setCare] = useState(null), [create, setCreate] = useState(sp.get('criar') === '1')
-  useEffect(() => { G.state().then(setSt).catch(() => setSt(false)); C.care().then(setCare).catch(() => setCare(false)) }, [])
+  const [st, setSt] = useState(null), [care, setCare] = useState(null), [n, setN] = useState(0)
+  useEffect(() => { setSt(null); setCare(null); G.state().then(setSt).catch(() => setSt(false)); C.care().then(setCare).catch(() => setCare(false)) }, [n])
   const plans = care?.plans || [], a = st && st.active
   const ready = st !== null && care !== null
-  const tab = validTab(sp.get('aba')) ? sp.get('aba') : ready ? defaultTab({ plans: plans.length, active: !!a, routines: routines.length }) : null
+  const tab = validTab(sp.get('aba')) ? normTab(sp.get('aba')) : ready ? defaultTab({ plans: plans.length }) : null
   const setTab = k => setSp({ aba: k }, { replace: true })
-  const closeCreate = () => { setCreate(false); if (sp.get('criar')) { sp.delete('criar'); setSp(sp, { replace: true }) } }
-  const counts = { rotinas: routines.length, programas: a ? 1 : 0, profissionais: plans.length }
+  const counts = { programas: a ? 1 : 0, profissionais: plans.length, historico: routines.length }
 
   return <div className="ag" data-testid="treinos">
-    <div className="g-row"><div><span className="g-eyebrow">Treinos</span><h1 style={{ marginTop: 2 }}>Meus treinos</h1></div><span className="g-sp" />
-      <button className="g-btn g-sm" style={{ width: 'auto', padding: '0 14px' }} onClick={() => setCreate(true)} data-testid="create-open"><Icon name="plus" /> Criar meu treino</button></div>
+    <span className="g-eyebrow">Treinos</span><h1 style={{ marginTop: 2 }}>Seus treinos</h1>
     <ResumeBar />
+    {ready && (st === false || care === false) && <Err msg="Não foi possível carregar tudo. Verifique a conexão." retry={() => setN(x => x + 1)} />}
     {tab && <Tabs tabs={TREINO_TABS.map(([k, l]) => [k, l, counts[k] || 0])} cur={tab} set={setTab} />}
-    {!tab ? <p className="g-mut g-sm">Carregando…</p> : <>
-      {tab === 'rotinas' && <section data-testid="tab-rotinas">
-        {routines.length ? <div className="g-card g-list">{routines.map(r => <div key={r.id} className="g-li">
+    {!tab ? <p className="g-mut g-sm" role="status">Carregando…</p> : <>
+      {tab === 'historico' && <section data-testid="tab-historico">
+        <p className="g-mut g-sm">Rotinas que você montou em versões anteriores. Ficam guardadas para consulta; para treinar, escolha um programa ou uma ficha do seu profissional.</p>
+        {routines.length ? <div className="g-card g-list">{routines.map(r => <div key={r.id} className="g-li" data-testid="legacy-routine">
           <span className="g-ico"><Icon name={glyphOf(r.emoji)} /></span>
-          <button className="g-li-main" onClick={() => nav('/plan/r/' + r.id)} data-testid="routine-edit"><b>{r.name}</b><br /><span className="g-mut g-xs">{r.ex.length ? r.ex.length + ' exercício' + (r.ex.length > 1 ? 's' : '') : 'Sem exercícios — toque para montar'}</span></button>
-          <button className="g-btn g-sm" style={{ width: 'auto', padding: '0 14px' }} disabled={!r.ex.length || !!live} onClick={() => startFlow(r.id)} data-testid="routine-start" aria-label={'Iniciar ' + r.name}><Icon name="play" /> Iniciar</button>
+          <span style={{ minWidth: 0 }}><b>{r.name}</b><br /><span className="g-mut g-xs">{r.ex.length} exercício{r.ex.length === 1 ? '' : 's'} · somente consulta</span></span>
         </div>)}</div>
-          : <Empty icon="folder">Você ainda não tem rotinas. Monte a sua do zero ou comece por um plano pronto.</Empty>}
-        <div className="g-actions" style={{ marginTop: 10 }}>
-          <button className="g-btn g-ghost g-sm" onClick={() => setCreate(true)}>Nova rotina</button>
-          <button className="g-btn g-ghost g-sm" onClick={() => nav('/plan')}>Semana e agenda</button></div>
+          : <Empty icon="folder">Nenhuma rotina antiga.</Empty>}
+        <div className="g-card g-list" style={{ marginTop: 10 }}><Li icon="chart" t="Histórico de treinos antigos" s="Sessões registradas no treino livre" to="/history" /></div>
       </section>}
 
       {tab === 'programas' && <section data-testid="tab-programas">
@@ -55,8 +51,8 @@ export default function Treinos() {
           {a ? <><span className="g-mut g-xs">Programa ativo</span><h3 style={{ marginTop: 4 }}>{a.title}</h3>
             <p className="g-mut g-sm">Semana {a.week_index} de {a.weeks} · {minutesLabel(a)}</p>
             <button className="g-btn" style={{ marginTop: 12 }} disabled={!!live && live.to !== '/treinar'} onClick={() => nav('/treinar')} data-testid="treinos-start"><Icon name={live?.to === '/treinar' ? 'play' : 'dumbbell'} /> {live?.to === '/treinar' ? 'Continuar treino' : 'Começar treino de hoje'}</button></>
-            : <><h3>Nenhum programa ativo</h3><p className="g-mut g-sm">Responda 6 perguntas e receba programas que combinam com seu objetivo, nível e tempo.</p>
-              <button className="g-btn" style={{ marginTop: 12 }} onClick={() => nav(st?.profile ? '/recomendados' : '/onboarding')} data-testid="treinos-start">{st?.profile ? 'Ver programas para mim' : 'Responder perguntas'}</button></>}
+            : <><h3>Nenhum programa ativo</h3><p className="g-mut g-sm">Escolha um programa publicado. Se responder às perguntas, mostramos os que combinam com você.</p>
+              <button className="g-btn" style={{ marginTop: 12 }} onClick={() => nav(st?.profile ? '/recomendados' : '/onboarding')} data-testid="treinos-start">Escolher meu treino</button></>}
         </div>
         <div className="g-card g-list" style={{ marginTop: 10 }}>
           {a && <Li icon="calendar" t="Meu programa" s="Treinos da semana e progresso" to="/meu-programa" />}
@@ -82,7 +78,6 @@ export default function Treinos() {
         <Li icon="person" t="Corpo 3D" s="Toque no músculo e veja exercícios" to="/muscles" />
       </div>
     </>}
-    {create && <CreateWorkoutSheet onClose={closeCreate} />}
   </div>
 }
 

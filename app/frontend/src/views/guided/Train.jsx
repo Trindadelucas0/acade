@@ -8,6 +8,7 @@ import { Spin } from './Programs.jsx'
 import { C } from '../../lib/care.js'
 import { ReportSheet, AskSheet } from '../app/Acompanhamento.jsx'
 import './guided.css'
+import { ask } from '../../lib/dialog.js'
 
 // fim do descanso = início da próxima série (pode ser reiniciado com "Iniciar série")
 const endRest = (x, at = Date.now()) => { x.rest = null; if (!x.cur_start) x.cur_start = at }
@@ -103,7 +104,7 @@ export default function Train() {
   const resume = () => update(x => { const d = Date.now() - new Date(x.paused_at).getTime(); x.paused_sec = (x.paused_sec || 0) + d / 1000; x.paused_at = null
     if (x.cur_start) x.cur_start += d; if (x.last_end) x.last_end += d; if (x.rest) x.rest.until += d })
   const startSet = () => update(x => { x.rest = null; x.cur_start = Date.now() })
-  const quit = () => { if (confirm('Encerrar o treino agora? As séries feitas serão salvas.')) update(x => { x.finishing = true }) }
+  const quit = async () => { if (await ask('Encerrar o treino agora?', { text: 'As séries feitas serão salvas.', ok: 'Encerrar treino', cancel: 'Continuar treinando', danger: true })) update(x => { x.finishing = true }) }
 
   return <div className="ag g-full g-run" data-testid="train">
     <div className="g-runtop">

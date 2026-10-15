@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import Icon from '../../components/Icon.jsx'
 import { C, CAT_PT, OCC_ST, dt } from '../../lib/care.js'
 import { Av, Empty, Load, Err, useLoad, Sheet, Field } from './kit.jsx'
+import { notifyError } from '../../lib/dialog.js'
 
 export function ReportSheet({ ctx, onClose, onDone }) {
   const [cat, setCat] = useState(''), [desc, setDesc] = useState(''), [busy, setBusy] = useState(false), [err, setErr] = useState('')
@@ -45,7 +46,7 @@ export default function Acompanhamento() {
     <h2>Profissionais responsáveis</h2>
     <div className="g-card g-list">{d.professionals.length ? d.professionals.map(p => <button key={p.link_id} className="g-li" onClick={() => nav('/profissional/' + p.id)}>
       <Av name={p.name} url={p.photo_url} /><span><b>{p.name}</b><br /><span className="g-mut g-xs">{[p.area, ...(p.specialties || [])].filter(Boolean).join(' · ') || 'Profissional'}</span></span></button>)
-      : <Empty icon="users">Nenhum profissional vinculado ainda. A administração faz o vínculo conforme o seu plano.</Empty>}</div>
+      : <Empty icon="users">Nenhum profissional vinculado ainda. Quando um profissional te convidar e você aceitar, ele aparece aqui.</Empty>}</div>
     <div className="g-actions"><button className="g-btn g-ghost g-sm" onClick={() => setSheet('ask')} data-testid="new-ask"><Icon name="chat" /> Enviar dúvida</button>
       <button className="g-btn g-ghost g-sm" onClick={() => setSheet('report')}><Icon name="flag" /> Relatar problema</button></div>
     {blocked.size > 0 && <div className="g-blocked"><b>Exercícios pausados</b><p className="g-mut g-sm">Aguardando orientação profissional para retomar: {d.occurrences.filter(o => blocked.has(o.exercise_id)).map(o => o.exercise_name || o.exercise_id).filter((v, i, a) => a.indexOf(v) === i).join(', ')}</p></div>}
@@ -75,7 +76,7 @@ export function Conversa() {
   const [body, setBody] = useState(''), [busy, setBusy] = useState(false)
   if (err) return <div className="ag"><h1>Conversa</h1><Err msg={err} retry={reload} /></div>
   if (!d) return <div className="ag"><Load /></div>
-  const send = async () => { setBusy(true); try { await C.send(id, body); setBody(''); reload() } catch (e) { alert(e.message) } finally { setBusy(false) } }
+  const send = async () => { setBusy(true); try { await C.send(id, body); setBody(''); reload() } catch (e) { notifyError(e) } finally { setBusy(false) } }
   return <div className="ag" data-testid="conversa">
     <button className="g-link" onClick={() => nav(-1)}>← Voltar</button>
     <h1>{d.thread.exercise_name || 'Conversa'}</h1>

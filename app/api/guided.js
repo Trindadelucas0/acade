@@ -8,7 +8,7 @@ import { requireAuth, requireRole, tenantScope } from './auth.js'
 async function requireTrainee(req, res, json) {
   const u = await requireAuth(req, res, json); if (!u) return null
   if (u.roles.includes('admin') && !u.roles.includes('aluno')) { json(res, 403, { error: 'Conta administrativa não tem fluxo de treino nem questionário.', admin_account: true }); return null }
-  if (u.roles.includes('profissional') && !u.roles.includes('aluno')) { json(res, 403, { error: 'Conta profissional não registra treino pessoal. Use sua conta de aluno separada.', pro_account: true }); return null }
+  if (u.roles.includes('profissional') && !u.roles.includes('aluno')) { json(res, 403, { error: 'Este perfil não tem o contexto de aluno para registrar treino pessoal.', pro_account: true }); return null }
   return u
 }
 
@@ -241,6 +241,15 @@ export function guidedRoutes({ json, readBody }) {
       let upId = isUuid(b.user_program_id) ? b.user_program_id : null
       if (upId && !(await q('select 1 from user_programs where id=$1 and user_id=$2', [upId, u.id])).rowCount) upId = null
       const pwId = isUuid(b.program_workout_id) && (await q('select 1 from program_workouts where id=$1', [b.program_workout_id])).rowCount ? b.program_workout_id : null
+      // V4 (decisão do Lucas): só se treina programa oficial/publicado ativo do aluno ou ficha de profissional vinculado.
+      // Sessões já existentes (ressincronização) seguem aceitas para não perder histórico.
+      const ppId = isUuid(b.pro_plan_id) ? b.pro_plan_id : null
+      if (!ex.rowCount) {
+        const okProgram = upId && pwId && (await q(`select 1 from user_programs up join programs p on p.id=up.program_id join program_workouts pw on pw.program_id=p.id
+          where up.id=$1 and up.user_id=$2 and pw.id=$3 and p.status='publicado'`, [upId, u.id, pwId])).rowCount
+        const okPlan = ppId && (await q(`select 1 from pro_plans where id=$1 and student_id=$2 and status='ativo'`, [ppId, u.id])).rowCount
+        if (!okProgram && !okPlan) return json(res, 403, { error: 'Só é possível treinar um programa publicado ativo ou uma ficha enviada pelo seu profissional.', code: 'ORIGIN_NOT_ALLOWED' })
+      }
       const volume = sets.reduce((a, s) => a + (+s.weight || 0) * (+s.reps || 0), 0)
       const started = new Date(b.started_at || Date.now()), finished = b.finished_at ? new Date(b.finished_at) : null
       const status = finished ? 'done' : 'in_progress'

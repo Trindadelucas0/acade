@@ -115,14 +115,13 @@ function StartHere({ profile }) {
     </div></div>
       : <div className="g-hero"><div className="g-in" style={{ maxWidth: '100%' }}>
         <span className="g-eyebrow">Comece por aqui</span>
-        <h2 style={{ marginTop: 6 }}>Como você quer treinar?</h2>
-        <p className="g-mut g-sm">Escolha um caminho. Dá para mudar quando quiser.</p>
+        <h2 style={{ marginTop: 6 }}>Escolha seu treino</h2>
+        <p className="g-mut g-sm">Programas publicados pelo AVAGYM e por profissionais verificados.</p>
+        <button className="g-btn" style={{ marginTop: 12 }} onClick={() => nav(profile ? '/recomendados' : '/onboarding')} data-testid="start-choose">ESCOLHER MEU TREINO</button>
       </div></div>}
     <div className="g-card g-list" style={{ marginTop: 10 }}>
-      <Li icon="sparkles" t={profile ? 'Programas para mim' : 'Receber uma recomendação'} s={profile ? 'Com base nas suas respostas' : '6 perguntas rápidas sobre objetivo, nível e tempo'} to={profile ? '/recomendados' : '/onboarding'} testid="start-reco" />
-      {routines.length > 0 ? <Li icon="folder" t="Minhas rotinas" s={routines.length + (routines.length > 1 ? ' rotinas prontas' : ' rotina pronta') + ' para iniciar'} to="/treinos?aba=rotinas" testid="start-routines" />
-        : <Li icon="pencil" t="Criar meu treino" s="Monte do zero ou comece por um plano pronto" to="/treinos?criar=1" testid="start-create" />}
-      <Li icon="bolt" t="Treino rápido" s="Registre um treino avulso agora" to="/home" testid="start-quick" />
+      <Li icon="clipboard" t="Todos os programas" s="Catálogo publicado" to="/programas" testid="start-catalog" />
+      {routines.length > 0 && <Li icon="folder" t="Rotinas antigas" s="Somente consulta" to="/treinos?aba=historico" testid="start-routines" />}
     </div>
   </section>
 }

@@ -3,6 +3,7 @@ import TimingSummary from '../../components/TimingSummary.jsx'
 import { useState } from 'react'
 import { C } from '../../lib/care.js'
 import { useLoad } from '../app/kit.jsx'
+import { ask, notifyError } from '../../lib/dialog.js'
 
 const fmt = d => d ? new Date(d).toLocaleString('pt-BR') : '—'
 const F = ({ l, children, err }) => <label style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 10 }}><span className="g-xs">{l}</span>{children}{err && <span className="g-warn g-xs" role="alert">{err}</span>}</label>
@@ -35,20 +36,20 @@ function useForm(init) {
 
 // ---------- conta: editar e excluir ----------
 export function UserEdit({ u, onChanged, onDeleted }) {
-  const { f, set, errs, msg, busy, run } = useForm({ name: u.name, email: u.email }), [dlg, confirm] = useConfirm()
+  const { f, set, errs, msg, busy, run } = useForm({ name: u.name, email: u.email }), [dlg, confirmDel] = useConfirm()
   return <div className="adm-card" style={{ marginTop: 12 }}><h3>Dados da conta</h3>
     <F l="Nome" err={errs.name}><input className="adm-in" value={f.name} onChange={set('name')} data-testid="ue-name" /></F>
     <F l="E-mail" err={errs.email}><input className="adm-in" value={f.email} onChange={set('email')} data-testid="ue-email" /></F>
     {msg && <p className="g-sm" role="status">{msg}</p>}
     <div className="adm-tools"><Save busy={busy} onClick={() => run(async () => { await C.updUser({ id: u.id, ...f }); onChanged && onChanged() })} data-testid="ue-save" />
-      <button className="adm-btn danger" onClick={() => confirm({ title: 'Excluir conta', text: `A conta de ${u.name} será anonimizada: dados pessoais apagados, vínculos encerrados e publicações removidas. Sessões, ranking e auditoria ficam sem identificação. Não dá para desfazer.`, needReason: false, onConfirm: async reason => { await C.delUser({ id: u.id, confirm: 'EXCLUIR', reason }); onDeleted && onDeleted() } })} data-testid="ue-delete">Excluir conta</button></div>
+      <button className="adm-btn danger" onClick={() => confirmDel({ title: 'Excluir conta', text: `A conta de ${u.name} será anonimizada: dados pessoais apagados, vínculos encerrados e publicações removidas. Sessões, ranking e auditoria ficam sem identificação. Não dá para desfazer.`, needReason: false, onConfirm: async reason => { await C.delUser({ id: u.id, confirm: 'EXCLUIR', reason }); onDeleted && onDeleted() } })} data-testid="ue-delete">Excluir conta</button></div>
     {dlg}</div>
 }
 
 // ---------- profissional: perfil e habilitações ----------
 export function ProEdit({ u, pro, onChanged }) {
   const { f, set, errs, msg, busy, run } = useForm({ display_name: pro?.display_name || u.name, bio: pro?.bio || '', specialties: (pro?.specialties || []).join(', '), capacity: pro?.capacity ?? 10, state: pro?.state || 'ativo', can_publish: !!pro?.can_publish })
-  const [q, qerr, reload] = useLoad(() => C.quals(u.id), [u.id]), [dlg, confirm] = useConfirm(), [nq, setNq] = useState({ kind: 'CREF', number: '', area: '', status: 'verificada' })
+  const [q, qerr, reload] = useLoad(() => C.quals(u.id), [u.id]), [dlg, confirmDel] = useConfirm(), [nq, setNq] = useState({ kind: 'CREF', number: '', area: '', status: 'verificada' })
   if (!pro) return <p className="g-mut g-sm">Perfil profissional ainda não criado.</p>
   return <div className="adm-card" style={{ marginTop: 12 }} data-testid="pro-edit"><h3>Perfil profissional</h3>
     <F l="Nome de exibição" err={errs.display_name}><input className="adm-in" value={f.display_name} onChange={set('display_name')} /></F>
@@ -61,25 +62,25 @@ export function ProEdit({ u, pro, onChanged }) {
     {msg && <p className="g-sm" role="status">{msg}</p>}
     <Save busy={busy} onClick={() => run(async () => { await C.proProfile({ user_id: u.id, display_name: f.display_name, bio: f.bio, specialties: f.specialties }); await C.updPro({ user_id: u.id, capacity: +f.capacity, state: f.state, can_publish: f.can_publish }); onChanged && onChanged() })} data-testid="pe-save" />
     <h3 style={{ marginTop: 16 }}>Habilitações</h3>
-    {qerr ? <p className="g-warn">{qerr}</p> : (q?.qualifications || []).map(x => <QualRow key={x.id} x={x} reload={reload} confirm={confirm} />)}
+    {qerr ? <p className="g-warn">{qerr}</p> : (q?.qualifications || []).map(x => <QualRow key={x.id} x={x} reload={reload} confirmDel={confirmDel} />)}
     {q && !q.qualifications.length && <p className="g-mut g-xs">Nenhuma habilitação.</p>}
     <div className="adm-tools" style={{ marginTop: 8 }}>
       <select className="adm-in" value={nq.kind} onChange={e => setNq({ ...nq, kind: e.target.value })}><option>CREF</option><option>CREFITO</option></select>
       <input className="adm-in" placeholder="Número" value={nq.number} onChange={e => setNq({ ...nq, number: e.target.value })} />
       <input className="adm-in" placeholder="Área" value={nq.area} onChange={e => setNq({ ...nq, area: e.target.value })} />
       <select className="adm-in" value={nq.status} onChange={e => setNq({ ...nq, status: e.target.value })}><option value="verificada">Verificada</option><option value="pendente">Pendente</option></select>
-      <button className="adm-btn" onClick={async () => { try { await C.saveQual({ user_id: u.id, ...nq }); setNq({ ...nq, number: '', area: '' }); reload() } catch (e) { alert(e.message) } }}>Adicionar</button></div>
+      <button className="adm-btn" onClick={async () => { try { await C.saveQual({ user_id: u.id, ...nq }); setNq({ ...nq, number: '', area: '' }); reload() } catch (e) { notifyError(e) } }}>Adicionar</button></div>
     {dlg}</div>
 }
-function QualRow({ x, reload, confirm }) {
+function QualRow({ x, reload, confirmDel }) {
   const [f, setF] = useState(x)
   return <div className="adm-tools" style={{ marginTop: 6 }}>
     <select className="adm-in" value={f.kind} onChange={e => setF({ ...f, kind: e.target.value })}><option>CREF</option><option>CREFITO</option></select>
     <input className="adm-in" value={f.number || ''} onChange={e => setF({ ...f, number: e.target.value })} aria-label="Número" />
     <input className="adm-in" value={f.area || ''} onChange={e => setF({ ...f, area: e.target.value })} aria-label="Área" />
     <select className="adm-in" value={f.status} onChange={e => setF({ ...f, status: e.target.value })}><option value="verificada">Verificada</option><option value="pendente">Pendente</option><option value="rejeitada">Rejeitada</option></select>
-    <button className="adm-btn ghost" onClick={async () => { try { await C.saveQual(f); reload() } catch (e) { alert(e.message) } }}>Salvar</button>
-    <button className="adm-btn danger" onClick={() => confirm({ title: 'Excluir habilitação', text: `${x.kind} ${x.number || ''} será excluída.`, onConfirm: async () => { await C.delQual({ id: x.id, confirm: 'EXCLUIR' }); reload() } })}>Excluir</button></div>
+    <button className="adm-btn ghost" onClick={async () => { try { await C.saveQual(f); reload() } catch (e) { notifyError(e) } }}>Salvar</button>
+    <button className="adm-btn danger" onClick={() => confirmDel({ title: 'Excluir habilitação', text: `${x.kind} ${x.number || ''} será excluída.`, onConfirm: async () => { await C.delQual({ id: x.id, confirm: 'EXCLUIR' }); reload() } })}>Excluir</button></div>
 }
 
 // ---------- ficha do aluno: anamnese e restrições ----------
@@ -92,7 +93,7 @@ export function StudentRecord({ u }) {
 function RecordForm({ u, d, reload }) {
   const a = d.anamnese || {}
   const { f, set, errs, msg, busy, run } = useForm({ objetivo: a.objetivo || 'hypertrophy', nivel: a.nivel || 'beginner', local: a.local || 'gym', dias: a.dias || 3, minutos: a.minutos || 45, restricoes: (a.restricoes || []).join(', ') })
-  const [dlg, confirm] = useConfirm(), [nr, setNr] = useState({ code: '', severity: '', notes: '' })
+  const [dlg, confirmDel] = useConfirm(), [nr, setNr] = useState({ code: '', severity: '', notes: '' })
   const sel = (k, opts) => <select className="adm-in" value={f[k]} onChange={set(k)} data-testid={'rec-' + k}>{opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
   return <div className="adm-card" style={{ marginTop: 12 }} data-testid="student-record"><h3>Ficha (anamnese)</h3>
     {!d.anamnese && <p className="g-mut g-xs">O aluno ainda não respondeu; o admin pode preencher.</p>}
@@ -107,28 +108,28 @@ function RecordForm({ u, d, reload }) {
     {msg && <p className="g-sm" role="status">{msg}</p>}
     <Save busy={busy} onClick={() => run(async () => { await C.saveRecord({ id: u.id, anamnese: { ...f, dias: +f.dias, minutos: +f.minutos } }); reload() })} data-testid="rec-save" />
     <h3 style={{ marginTop: 16 }}>Restrições de saúde</h3>
-    {d.restrictions.map(r => <RestrRow key={r.id} r={r} reload={reload} confirm={confirm} />)}
+    {d.restrictions.map(r => <RestrRow key={r.id} r={r} reload={reload} confirmDel={confirmDel} />)}
     {!d.restrictions.length && <p className="g-mut g-xs">Nenhuma restrição registrada.</p>}
     <div className="adm-tools" style={{ marginTop: 8 }}>
       <input className="adm-in" placeholder="Restrição (ex.: lombar)" value={nr.code} onChange={e => setNr({ ...nr, code: e.target.value })} data-testid="rs-code" />
       <select className="adm-in" value={nr.severity} onChange={e => setNr({ ...nr, severity: e.target.value })} aria-label="Gravidade"><option value="">Gravidade</option><option value="1">Leve</option><option value="2">Moderada</option><option value="3">Alta</option></select>
       <input className="adm-in" placeholder="Observações" value={nr.notes} onChange={e => setNr({ ...nr, notes: e.target.value })} />
-      <button className="adm-btn" onClick={async () => { try { await C.saveRestr({ user_id: u.id, ...nr }); setNr({ code: '', severity: '', notes: '' }); reload() } catch (e) { alert(e.message) } }} data-testid="rs-add">Adicionar</button></div>
+      <button className="adm-btn" onClick={async () => { try { await C.saveRestr({ user_id: u.id, ...nr }); setNr({ code: '', severity: '', notes: '' }); reload() } catch (e) { notifyError(e) } }} data-testid="rs-add">Adicionar</button></div>
     {dlg}</div>
 }
-function RestrRow({ r, reload, confirm }) {
+function RestrRow({ r, reload, confirmDel }) {
   const [f, setF] = useState({ ...r, severity: r.severity ?? '' })
   return <div className="adm-tools" style={{ marginTop: 6 }}>
     <input className="adm-in" value={f.code} onChange={e => setF({ ...f, code: e.target.value })} aria-label="Restrição" />
     <select className="adm-in" value={f.severity} onChange={e => setF({ ...f, severity: e.target.value })} aria-label="Gravidade"><option value="">—</option><option value="1">Leve</option><option value="2">Moderada</option><option value="3">Alta</option></select>
     <input className="adm-in" value={f.notes || ''} onChange={e => setF({ ...f, notes: e.target.value })} aria-label="Observações" />
-    <button className="adm-btn ghost" onClick={async () => { try { await C.saveRestr(f); reload() } catch (e) { alert(e.message) } }}>Salvar</button>
-    <button className="adm-btn danger" onClick={() => confirm({ title: 'Excluir restrição', text: `“${r.code}” será removida da ficha.`, onConfirm: async () => { await C.delRestr({ id: r.id, confirm: 'EXCLUIR' }); reload() } })}>Excluir</button></div>
+    <button className="adm-btn ghost" onClick={async () => { try { await C.saveRestr(f); reload() } catch (e) { notifyError(e) } }}>Salvar</button>
+    <button className="adm-btn danger" onClick={() => confirmDel({ title: 'Excluir restrição', text: `“${r.code}” será removida da ficha.`, onConfirm: async () => { await C.delRestr({ id: r.id, confirm: 'EXCLUIR' }); reload() } })}>Excluir</button></div>
 }
 
 // ---------- treinos, programas, sessões e vínculos do aluno ----------
 export function StudentTraining({ u, pros }) {
-  const [d, err, reload] = useLoad(() => C.training(u.id), [u.id]), [dlg, confirm] = useConfirm(), [edit, setEdit] = useState(null), [tf, setTf] = useState(null)
+  const [d, err, reload] = useLoad(() => C.training(u.id), [u.id]), [dlg, confirmDel] = useConfirm(), [edit, setEdit] = useState(null), [tf, setTf] = useState(null)
   if (err) return <p className="g-warn">{err}</p>
   if (!d) return <p className="g-mut">Carregando…</p>
   const active = (pros || []).filter(p => p.state === 'ativo')
@@ -136,25 +137,25 @@ export function StudentTraining({ u, pros }) {
     <div className="adm-card"><div className="g-row"><h3 style={{ flex: 1 }}>Treinos (fichas)</h3><button className="adm-btn" onClick={() => { location.hash = '#/pro/treino?student=' + u.id }} data-testid="pl-builder">+ Criar no construtor</button><button className="adm-btn ghost" onClick={() => setEdit({})} data-testid="pl-new">Edição rápida</button></div>
       {d.plans.map(p => <div key={p.id} className="adm-tools" style={{ marginTop: 6 }}><span style={{ flex: 1 }}><b>{p.title}</b> · {p.status} · v{p.version} · {p.owner}</span>
         <button className="adm-btn ghost" onClick={() => { location.hash = '#/pro/treino?id=' + p.id }}>Abrir no construtor</button><button className="adm-btn ghost" onClick={() => setEdit(p)}>Ver / editar</button>
-        {p.status !== 'arquivado' && <button className="adm-btn danger" onClick={() => confirm({ title: 'Excluir treino', text: `“${p.title}” será arquivado (sai do aluno; histórico e execuções ficam).`, needReason: false, onConfirm: async reason => { await C.admDelPlan({ id: p.id, confirm: 'EXCLUIR', reason }); reload() } })}>Excluir</button>}</div>)}
+        {p.status !== 'arquivado' && <button className="adm-btn danger" onClick={() => confirmDel({ title: 'Excluir treino', text: `“${p.title}” será arquivado (sai do aluno; histórico e execuções ficam).`, needReason: false, onConfirm: async reason => { await C.admDelPlan({ id: p.id, confirm: 'EXCLUIR', reason }); reload() } })}>Excluir</button>}</div>)}
       {!d.plans.length && <p className="g-mut g-xs">Nenhum treino.</p>}</div>
     {edit && <PlanEditor u={u} plan={edit} links={d.links.filter(l => l.status === 'ativo')} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); reload() }} />}
     <div className="adm-card" style={{ marginTop: 12 }}><h3>Programas guiados</h3>
       {d.programs.map(p => <div key={p.id} className="adm-tools" style={{ marginTop: 6 }}><span style={{ flex: 1 }}>{p.title || 'Programa'} · {p.status} · desde {fmt(p.started_at)}</span>
-        {p.status === 'active' && <button className="adm-btn danger" onClick={() => confirm({ title: 'Encerrar programa', text: 'O programa sai do aluno; sessões feitas continuam no histórico.', needReason: false, onConfirm: async reason => { await C.endProgram({ id: p.id, confirm: 'EXCLUIR', reason }); reload() } })}>Encerrar</button>}</div>)}
+        {p.status === 'active' && <button className="adm-btn danger" onClick={() => confirmDel({ title: 'Encerrar programa', text: 'O programa sai do aluno; sessões feitas continuam no histórico.', needReason: false, onConfirm: async reason => { await C.endProgram({ id: p.id, confirm: 'EXCLUIR', reason }); reload() } })}>Encerrar</button>}</div>)}
       {!d.programs.length && <p className="g-mut g-xs">Nenhum programa.</p>}</div>
     <div className="adm-card" style={{ marginTop: 12 }}><h3>Sessões (últimas 50)</h3>
       {d.sessions.map(s => <div key={s.id} className="adm-tools" style={{ marginTop: 6 }}><span style={{ flex: 1 }}>{fmt(s.started_at)} · {s.workout_name || 'Treino'} · {s.status}{s.voided_at ? ` · anulada (${s.void_reason})` : ''}{s.timing && <><br /><TimingSummary t={s.timing} compact /></>}</span>
-        {!s.voided_at && <button className="adm-btn danger" onClick={() => confirm({ title: 'Anular sessão', text: 'A sessão fica no histórico marcada como anulada e deixa de pontuar no ranking.', needReason: true, onConfirm: async reason => { await C.voidSession({ id: s.id, confirm: 'EXCLUIR', reason }); reload() } })}>Anular</button>}</div>)}
+        {!s.voided_at && <button className="adm-btn danger" onClick={() => confirmDel({ title: 'Anular sessão', text: 'A sessão fica no histórico marcada como anulada e deixa de pontuar no ranking.', needReason: true, onConfirm: async reason => { await C.voidSession({ id: s.id, confirm: 'EXCLUIR', reason }); reload() } })}>Anular</button>}</div>)}
       {!d.sessions.length && <p className="g-mut g-xs">Nenhuma sessão.</p>}</div>
     <div className="adm-card" style={{ marginTop: 12 }}><h3>Vínculos</h3>
       {d.links.map(l => <div key={l.id} className="adm-tools" style={{ marginTop: 6 }}><span style={{ flex: 1 }}>{l.coach} · {l.area || '—'} · {l.status}</span>
         {l.status === 'ativo' && <><button className="adm-btn ghost" onClick={() => setTf({ link: l, coach_id: '', reason: '' })} data-testid="lk-transfer">Transferir</button>
-          <button className="adm-btn danger" onClick={() => confirm({ title: 'Encerrar vínculo', text: `O vínculo com ${l.coach} será encerrado e o plano desse profissional arquivado. O histórico do aluno fica.`, needReason: true, onConfirm: async reason => { await C.endLink(l.id, reason); reload() } })}>Encerrar</button></>}</div>)}
+          <button className="adm-btn danger" onClick={() => confirmDel({ title: 'Encerrar vínculo', text: `O vínculo com ${l.coach} será encerrado e o plano desse profissional arquivado. O histórico do aluno fica.`, needReason: true, onConfirm: async reason => { await C.endLink(l.id, reason); reload() } })}>Encerrar</button></>}</div>)}
       {tf && <div className="adm-tools" style={{ marginTop: 8 }}>
         <select className="adm-in" value={tf.coach_id} onChange={e => setTf({ ...tf, coach_id: e.target.value })} aria-label="Novo profissional"><option value="">Novo profissional…</option>{active.filter(p => p.user_id !== tf.link.coach_id).map(p => <option key={p.user_id} value={p.user_id}>{p.display_name || p.name} ({p.available} vaga[s])</option>)}</select>
         <input className="adm-in" placeholder="Motivo" value={tf.reason} onChange={e => setTf({ ...tf, reason: e.target.value })} />
-        <button className="adm-btn" disabled={!tf.coach_id || tf.reason.trim().length < 3} onClick={async () => { if (!window.confirm('Confirmar a transferência do vínculo?')) return; try { await C.transfer({ link_id: tf.link.id, coach_id: tf.coach_id, reason: tf.reason, confirm: true }); setTf(null); reload() } catch (e) { alert(e.reasons ? e.reasons.join('\n') : e.message) } }}>Confirmar transferência</button>
+        <button className="adm-btn" disabled={!tf.coach_id || tf.reason.trim().length < 3} onClick={async () => { if (!await ask('Confirmar a transferência do vínculo?')) return; try { await C.transfer({ link_id: tf.link.id, coach_id: tf.coach_id, reason: tf.reason, confirm: true }); setTf(null); reload() } catch (e) { notifyError(e) } }}>Confirmar transferência</button>
         <button className="adm-btn ghost" onClick={() => setTf(null)}>Cancelar</button></div>}
       {!d.links.length && <p className="g-mut g-xs">Nenhum vínculo.</p>}</div>
     {dlg}</div>
@@ -190,17 +191,17 @@ const fetchLib = async v => (await import('../../lib/api.js')).api('/api/pro/lib
 
 // ---------- comunidade: publicações e comentários ----------
 export function Publicacoes({ DataTable, Drawer }) {
-  const [st, setSt] = useState(''), [qq, setQq] = useState(''), [d, err, reload] = useLoad(() => C.admPosts(st, qq), [st, qq]), [sel, setSel] = useState(null), [dlg, confirm] = useConfirm()
+  const [st, setSt] = useState(''), [qq, setQq] = useState(''), [d, err, reload] = useLoad(() => C.admPosts(st, qq), [st, qq]), [sel, setSel] = useState(null), [dlg, confirmDel] = useConfirm()
   const cols = [{ k: 'title', l: 'Título' }, { k: 'author', l: 'Autor' }, { k: 'status', l: 'Status' }, { k: 'likes', l: 'Curtidas' }, { k: 'comments', l: 'Comentários' }, { k: 'created_at', l: 'Data', r: r => fmt(r.created_at), sv: r => r.created_at }]
   const p = sel && (d?.posts || []).find(x => x.id === sel)
   return <>
     {err ? <p className="g-warn">{err}</p> : <DataTable name="publicacoes" cols={cols} rows={d?.posts} onRow={r => setSel(r.id)} filters={<>
       <select className="adm-in" value={st} onChange={e => setSt(e.target.value)} aria-label="Status"><option value="">Todos</option><option value="publicado">Publicados</option><option value="oculto">Ocultos</option><option value="removido">Removidos</option></select>
       <input className="adm-in" placeholder="Buscar no servidor" value={qq} onChange={e => setQq(e.target.value)} /></>} />}
-    {p && <Drawer title={p.title} onClose={() => setSel(null)}><PostEdit p={p} reload={reload} confirm={confirm} onGone={() => setSel(null)} /></Drawer>}
+    {p && <Drawer title={p.title} onClose={() => setSel(null)}><PostEdit p={p} reload={reload} confirmDel={confirmDel} onGone={() => setSel(null)} /></Drawer>}
     {dlg}</>
 }
-function PostEdit({ p, reload, confirm, onGone }) {
+function PostEdit({ p, reload, confirmDel, onGone }) {
   const { f, set, msg, busy, run } = useForm({ title: p.title, body: p.body, status: p.status === 'oculto' ? 'oculto' : 'publicado', reason: p.moderation_reason || '' })
   const [c, , rc] = useLoad(() => C.admComments(p.id), [p.id])
   return <div data-testid="post-edit">
@@ -212,28 +213,28 @@ function PostEdit({ p, reload, confirm, onGone }) {
       {f.status === 'oculto' && <F l="Motivo"><input className="adm-in" value={f.reason} onChange={set('reason')} /></F>}
       {msg && <p className="g-sm" role="status">{msg}</p>}
       <div className="adm-tools"><Save busy={busy} onClick={() => run(async () => { await C.updPost({ id: p.id, ...f }); reload() })} />
-        <button className="adm-btn danger" onClick={() => confirm({ title: 'Excluir publicação', text: 'A publicação sai do feed (fica no histórico de moderação).', needReason: false, onConfirm: async reason => { await C.delPost({ id: p.id, confirm: 'EXCLUIR', reason }); reload(); onGone() } })}>Excluir</button>
-        <button className="adm-btn ghost" onClick={async () => { if (!window.confirm(p.can_publish ? 'Suspender a permissão de publicar deste autor?' : 'Liberar a publicação para este autor?')) return; try { await C.updPro({ user_id: p.author_id, can_publish: !p.can_publish }); reload() } catch (e) { alert(e.message) } }}>{p.can_publish ? 'Banir de publicar' : 'Liberar publicação'}</button></div>
+        <button className="adm-btn danger" onClick={() => confirmDel({ title: 'Excluir publicação', text: 'A publicação sai do feed (fica no histórico de moderação).', needReason: false, onConfirm: async reason => { await C.delPost({ id: p.id, confirm: 'EXCLUIR', reason }); reload(); onGone() } })}>Excluir</button>
+        <button className="adm-btn ghost" onClick={async () => { if (!await ask(p.can_publish ? 'Suspender a permissão de publicar deste autor?' : 'Liberar a publicação para este autor?')) return; try { await C.updPro({ user_id: p.author_id, can_publish: !p.can_publish }); reload() } catch (e) { notifyError(e) } }}>{p.can_publish ? 'Banir de publicar' : 'Liberar publicação'}</button></div>
     </> : <p className="g-mut">Publicação removida.</p>}
     <h3 style={{ marginTop: 16 }}>Comentários</h3>
-    {(c?.comments || []).map(x => <CommentRow key={x.id} x={x} reload={rc} confirm={confirm} />)}
+    {(c?.comments || []).map(x => <CommentRow key={x.id} x={x} reload={rc} confirmDel={confirmDel} />)}
     {c && !c.comments.length && <p className="g-mut g-xs">Sem comentários.</p>}
   </div>
 }
-function CommentRow({ x, reload, confirm }) {
+function CommentRow({ x, reload, confirmDel }) {
   const [b, setB] = useState(x.body), [st, setSt] = useState(x.status === 'oculto' ? 'oculto' : 'visivel')
   if (x.status === 'removido') return <p className="g-xs g-mut">{x.author}: (removido)</p>
   return <div className="adm-tools" style={{ marginTop: 6 }}><span className="g-xs" style={{ minWidth: 90 }}>{x.author}</span>
     <input className="adm-in" style={{ flex: 1 }} value={b} onChange={e => setB(e.target.value)} aria-label="Comentário" />
     <select className="adm-in" value={st} onChange={e => setSt(e.target.value)} aria-label="Visibilidade"><option value="visivel">Visível</option><option value="oculto">Oculto</option></select>
-    <button className="adm-btn ghost" onClick={async () => { try { await C.updComment({ id: x.id, body: b, status: st }); reload() } catch (e) { alert(e.message) } }}>Salvar</button>
-    <button className="adm-btn danger" onClick={() => confirm({ title: 'Excluir comentário', text: 'O comentário será removido.', onConfirm: async () => { await C.delComment({ id: x.id, confirm: 'EXCLUIR' }); reload() } })}>Excluir</button></div>
+    <button className="adm-btn ghost" onClick={async () => { try { await C.updComment({ id: x.id, body: b, status: st }); reload() } catch (e) { notifyError(e) } }}>Salvar</button>
+    <button className="adm-btn danger" onClick={() => confirmDel({ title: 'Excluir comentário', text: 'O comentário será removido.', onConfirm: async () => { await C.delComment({ id: x.id, confirm: 'EXCLUIR' }); reload() } })}>Excluir</button></div>
 }
 
 // ---------- exercícios ----------
 export function ExerciseEdit({ ex, onSaved }) {
   const { f, set, errs, msg, busy, run } = useForm({ name_pt: ex.name || '', instructions_pt: ex.instructions_pt || '', media_url: ex.media_url || '', level: ex.level || '', equipment_id: ex.equipment_id || '', body_part: ex.body_part || '' })
-  const [dlg, confirm] = useConfirm()
+  const [dlg, confirmDel] = useConfirm()
   return <div className="adm-card" style={{ marginBottom: 12 }} data-testid="ex-edit"><h3>{ex.id ? 'Dados do exercício' : 'Novo exercício'}</h3>
     {ex.archived_at && <p className="g-warn g-sm">Arquivado em {fmt(ex.archived_at)}: não aparece na biblioteca.</p>}
     <F l="Nome" err={errs.name_pt}><input className="adm-in" value={f.name_pt} onChange={set('name_pt')} data-testid="ex-name" /></F>
@@ -247,6 +248,6 @@ export function ExerciseEdit({ ex, onSaved }) {
     <div className="adm-tools"><Save busy={busy} onClick={() => run(async () => { const r = await C.saveExercise({ id: ex.id, ...f }); onSaved && onSaved(r) })} data-testid="ex-save" />
       {ex.id && (ex.archived_at
         ? <button className="adm-btn ghost" onClick={() => run(async () => { await C.archiveExercise({ id: ex.id, restore: true }); onSaved && onSaved() }, 'Restaurado')}>Restaurar</button>
-        : <button className="adm-btn danger" onClick={() => confirm({ title: 'Excluir exercício', text: 'O exercício é arquivado: sai da biblioteca para novos treinos; treinos e históricos antigos continuam válidos.', onConfirm: async () => { await C.archiveExercise({ id: ex.id, confirm: 'EXCLUIR' }); onSaved && onSaved() } })} data-testid="ex-archive">Excluir</button>)}</div>
+        : <button className="adm-btn danger" onClick={() => confirmDel({ title: 'Excluir exercício', text: 'O exercício é arquivado: sai da biblioteca para novos treinos; treinos e históricos antigos continuam válidos.', onConfirm: async () => { await C.archiveExercise({ id: ex.id, confirm: 'EXCLUIR' }); onSaved && onSaved() } })} data-testid="ex-archive">Excluir</button>)}</div>
     {dlg}</div>
 }

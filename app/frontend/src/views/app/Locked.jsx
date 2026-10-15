@@ -1,12 +1,13 @@
-// Estado "aguardando liberação": a conta entra no app, mas as funcionalidades ficam travadas até a administração liberar.
+// Conta sem status ativo (ex.: suspensa): entra no app, mas as funcionalidades ficam travadas. V4: texto neutro (cadastro é aberto).
 import { useStore } from '../../store/useStore.js'
 import Icon from '../../components/Icon.jsx'
 import '../guided/guided.css'
 export const isPending = u => !!u && u.status && u.status !== 'ativo'
 export function PendingCard() {
+  const status = useStore(s => s.user?.status)
   return <div className="g-card g-pending" data-testid="pending">
-    <div className="g-row"><span className="g-ico"><Icon name="clock" /></span><b>Conta aguardando liberação</b></div>
-    <p className="g-mut g-sm" style={{ marginTop: 8 }}>Seu cadastro foi recebido. A equipe AVADESK vai revisar e liberar seu acesso aos treinos, à comunidade e aos profissionais. Você será avisado(a) aqui.</p>
+    <div className="g-row"><span className="g-ico"><Icon name="clock" /></span><b>{status === 'bloqueado' ? 'Conta suspensa' : 'Acesso indisponível'}</b></div>
+    <p className="g-mut g-sm" style={{ marginTop: 8 }}>{status === 'bloqueado' ? 'O acesso desta conta foi suspenso pela administração. Se acha que é um engano, fale com o suporte.' : 'Esta conta ainda não está ativa. Se acha que é um engano, fale com o suporte.'}</p>
   </div>
 }
 export default function Gate({ children, title }) {

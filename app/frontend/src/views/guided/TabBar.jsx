@@ -11,11 +11,11 @@ const HIDE = ['treinar', 'concluido', 'onboarding', 'workout']
 // cada rota pertence a uma aba
 const GROUP = {
   hoje: 'inicio', inicio: 'inicio', avisos: 'inicio', acompanhamento: 'inicio', conversa: 'inicio',
-  treinos: 'treinos', 'meu-programa': 'treinos', programas: 'treinos', programa: 'treinos', recomendados: 'treinos', library: 'treinos', plan: 'treinos', home: 'treinos',
+  treinos: 'treinos', 'meu-programa': 'treinos', programas: 'treinos', programa: 'treinos', recomendados: 'treinos', library: 'treinos',
   comunidade: 'comunidade', post: 'comunidade', profissional: 'comunidade', ranking: 'comunidade',
   progresso: 'progresso', stats: 'progresso', history: 'progresso', muscles: 'progresso'
 }
-// conta profissional (separada da conta de treino): navegação própria, sem a experiência de treino do aluno
+// contexto profissional: navegação própria (a mesma identidade pode treinar no contexto de aluno)
 export const tabOf = path => GROUP[path.split('/')[1] || 'hoje'] || 'perfil'
 export default function GuidedTabBar() {
   const nav = useNavigate(), loc = useLocation(), user = useStore(s => s.user)

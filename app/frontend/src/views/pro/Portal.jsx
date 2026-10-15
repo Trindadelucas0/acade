@@ -1,4 +1,4 @@
-// AVADESK PRO — ambiente do profissional (conta separada da conta de treino). Mobile-first.
+// AVADESK PRO — contexto profissional da mesma identidade (a pessoa também pode treinar como aluno). Mobile-first.
 // O profissional só vê os próprios alunos vinculados; vínculos e capacidade são decididos pelo admin (aqui ele apenas solicita).
 import TimingSummary from '../../components/TimingSummary.jsx'
 import { useState } from 'react'
@@ -12,6 +12,7 @@ import '../guided/guided.css'
 import Verification from '../v3/Verification.jsx'
 import Invites from '../v3/Invites.jsx'
 import ContextSwitch from '../v3/ContextSwitch.jsx'
+import { ask, askText, notifyError } from '../../lib/dialog.js'
 
 const thumb = m => mediaOf(m)?.img || null
 const goal = g => GOALS[g] || g || 'Objetivo não informado'
@@ -100,7 +101,7 @@ function StudentDetail({ id, go, sub }) {
       {s.restrictions?.length > 0 && <p className="g-note">Restrições informadas: {s.restrictions.join(', ')}</p>}
       <div className="g-actions" style={{ marginTop: 12 }}>
         <button className="g-btn" onClick={() => go('novo', { student: id })} data-testid="sd-criar">Criar treino</button>
-        <button className="g-btn g-ghost" onClick={async () => { const m = prompt('Mensagem para ' + s.name); if (m?.trim()) { try { const r = await C.proThread(id, m.trim()); nav('/conversa/' + r.thread.id) } catch (e) { alert(e.message) } } }} data-testid="sd-msg">Enviar mensagem</button>
+        <button className="g-btn g-ghost" onClick={async () => { const m = await askText('Mensagem para ' + s.name, { multiline: true, required: true, ok: 'Enviar' }); if (m?.trim()) { try { const r = await C.proThread(id, m.trim()); nav('/conversa/' + r.thread.id) } catch (e) { notifyError(e) } } }} data-testid="sd-msg">Enviar mensagem</button>
       </div></>}
     {tab === 'treinos' && <div className="g-card g-list">{d.plans.length ? d.plans.map(p => <button key={p.id} className="g-li" onClick={() => p.mine && go('novo', { id: p.id })}>
       <span className="g-ico"><Icon name="clipboard" /></span><span><b>{p.title}</b><br /><span className="g-mut g-xs">v{p.version} · {p.mine ? 'seu' : 'de outro profissional (leitura)'} · {dt(p.updated_at)}</span></span>
@@ -137,7 +138,7 @@ function PrescSheet({ id, onClose, go, reload }) {
       {(d.prescription.days || []).map((dy, i) => <div key={i} className="av-day"><b>{dy.name}</b>{dy.exercises.map((e, j) => <p key={j} className="g-xs g-mut" style={{ margin: '4px 0' }}>{e.name || e.exercise_id} · {e.sets}×{e.reps_max || '—'}{e.load ? ' · ' + e.load : ''}</p>)}</div>)}
       {d.prescription.mine && d.prescription.status !== 'arquivado' && <div className="g-actions" style={{ marginTop: 12 }}>
         <button className="g-btn g-sm" onClick={() => go('novo', { id })}>{d.prescription.status === 'ativo' ? 'Nova versão' : 'Editar rascunho'}</button>
-        <button className="g-btn g-danger g-sm" onClick={async () => { const r = prompt('Motivo do arquivamento'); if (r != null) { try { await P.archive(id, r); onClose(); reload() } catch (e) { alert(e.message) } } }}>Arquivar</button></div>}
+        <button className="g-btn g-danger g-sm" onClick={async () => { const r = await askText('Motivo do arquivamento', { ok: 'Arquivar', danger: true }); if (r != null) { try { await P.archive(id, r); onClose(); reload() } catch (e) { notifyError(e) } } }}>Arquivar</button></div>}
       <h3>Execuções</h3>{d.executions.length ? d.executions.map(x => <p key={x.id} className="g-xs g-mut">{dt(x.started_at)} · {x.sets_count} séries{x.prescribed_count ? ` · ${x.exercises_count}/${x.prescribed_count}` : ''}</p>) : <p className="g-xs g-mut">Ainda não executada.</p>}
       <h3>Histórico</h3>{d.history.map(h => <p key={h.id} className="g-xs g-mut">{dt(h.created_at)} · {h.action.replace(/_/g, ' ')} · {h.actor}{h.reason ? ' — ' + h.reason : ''}</p>)}
     </>}
@@ -168,8 +169,8 @@ function Capacidade() {
       {r.info_request && r.status === 'aguardando_info' && <p className="g-note g-xs">Administração pediu: {r.info_request}</p>}
       {r.decision_reason && <p className="g-xs">Decisão: {r.decision_reason}</p>}
       <div className="g-actions">
-        {r.status === 'aguardando_info' && <button className="g-btn g-sm" onClick={async () => { const n = prompt('Sua resposta'); if (n) { try { await P.reply(r.id, n); reload() } catch (e) { alert(e.message) } } }}>Responder</button>}
-        {['pendente', 'em_analise', 'aguardando_info'].includes(r.status) && <button className="g-btn g-ghost g-sm" onClick={async () => { if (confirm('Cancelar esta solicitação?')) { try { await P.cancel(r.id); reload() } catch (e) { alert(e.message) } } }}>Cancelar</button>}
+        {r.status === 'aguardando_info' && <button className="g-btn g-sm" onClick={async () => { const n = await askText('Sua resposta', { multiline: true, required: true, ok: 'Responder' }); if (n) { try { await P.reply(r.id, n); reload() } catch (e) { notifyError(e) } } }}>Responder</button>}
+        {['pendente', 'em_analise', 'aguardando_info'].includes(r.status) && <button className="g-btn g-ghost g-sm" onClick={async () => { if (await ask('Cancelar esta solicitação?', { ok: 'Cancelar solicitação', cancel: 'Voltar', danger: true })) { try { await P.cancel(r.id); reload() } catch (e) { notifyError(e) } } }}>Cancelar</button>}
       </div></div>) : <Empty>Nenhuma solicitação.</Empty>}</div>
     {form && <RequestForm type={form} d={d} onClose={() => setForm(null)} onDone={m => { setForm(null); setMsg(m); reload() }} />}
   </>

@@ -42,7 +42,7 @@ async function loadUser(id) {
 export async function requireAuth(req, res, json, opts) {
   const u = await authUser(req)
   if (!u) { json(res, 401, { error: 'Não autenticado' }); return null }
-  if (u.status !== 'ativo' && !(opts && opts.allowPending)) { json(res, 403, { pending: true, error: 'Sua conta está aguardando liberação da administração.' }); return null }
+  if (u.status !== 'ativo' && !(opts && opts.allowPending)) { json(res, 403, { pending: true, error: 'Esta conta não está ativa. Fale com o suporte.' }); return null }
   req.user = u; req.tenantId = u.tenant_id
   return u
 }

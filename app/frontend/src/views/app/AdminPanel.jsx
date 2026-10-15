@@ -3,10 +3,11 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { C, CAT_PT, dt } from '../../lib/care.js'
+import { ask as askConfirm, askText, showValue, notify, notifyError } from '../../lib/dialog.js'
 import { Empty, Load, Err, useLoad, Field, Tabs, Sheet } from './kit.jsx'
 
-const ask = (m, d = '') => { const r = prompt(m, d); return r == null ? null : r }
-const run = (fn, reload) => async (...a) => { try { const r = await fn(...a); reload && reload(); return r } catch (e) { alert(e.reasons ? e.reasons.join('\n') : e.message) } }
+const askIt = (m, d = '') => askText(m, { def: d == null ? '' : String(d) })
+const run = (fn, reload) => async (...a) => { try { const r = await fn(...a); reload && reload(); return r } catch (e) { notifyError(e) } }
 
 export function Visao({ go }) {
   const [d, err, reload] = useLoad(() => C.overview())
@@ -14,7 +15,7 @@ export function Visao({ go }) {
   if (!d) return <Load />
   const c = d.counts, I = ({ n, l, t }) => <button className="g-card" style={{ textAlign: 'left', cursor: 'pointer' }} onClick={() => go(t)}><b style={{ fontSize: 26 }}>{n}</b><br /><span className="g-mut g-xs">{l}</span></button>
   return <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 10 }}>
-    <I n={c.pendentes} l="Contas aguardando liberação" t="alunos" /><I n={c.alunos} l="Alunos ativos" t="alunos" />
+    <I n={c.pendentes} l="Contas com status pendente" t="alunos" /><I n={c.alunos} l="Alunos ativos" t="alunos" />
     <I n={c.profissionais} l="Profissionais ativos" t="profissionais" /><I n={c.habilitacoes} l="Habilitações a verificar" t="profissionais" />
     <I n={c.ocorrencias} l="Ocorrências abertas" t="filas" /><I n={c.atrasadas} l="Com prazo vencido" t="filas" />
     <I n={c.mensagens} l="Mensagens aguardando" t="filas" /><I n={c.propostas} l="Propostas pendentes" t="filas" />
@@ -46,10 +47,10 @@ export function Alunos() {
       <p className="g-mut g-xs">{u.email} · {u.roles.join(', ')} · plano: {u.plan_id || '—'} · vínculos: {u.links}{u.over_limit ? ' ⚠ acima do limite' : ''}</p>
       <div className="g-actions">
         {u.status !== 'ativo' && <button className="g-btn g-sm" onClick={run(() => C.setStatus(u.id, 'ativo'), reload)} data-testid="approve">Liberar acesso</button>}
-        {u.status === 'ativo' && <button className="g-btn g-danger g-sm" onClick={run(() => { const r = ask('Motivo do bloqueio'); return r != null && C.setStatus(u.id, 'bloqueado', r) }, reload)}>Bloquear</button>}
-        <select className="g-in" style={{ flex: 1, minWidth: 120 }} value={u.plan_id || ''} onChange={run(async e => { const r = await C.setPlan(u.id, e.target.value); if (r?.over_limit) alert(`Atenção: o aluno tem ${r.links} vínculo(s) e o plano permite ${r.max}. Nada foi encerrado; revise os vínculos.`) }, reload)} aria-label="Plano de acesso">
+        {u.status === 'ativo' && <button className="g-btn g-danger g-sm" onClick={run(async () => { const r = await askIt('Motivo do bloqueio'); return r != null && C.setStatus(u.id, 'bloqueado', r) }, reload)}>Bloquear</button>}
+        <select className="g-in" style={{ flex: 1, minWidth: 120 }} value={u.plan_id || ''} onChange={run(async e => { const r = await C.setPlan(u.id, e.target.value); if (r?.over_limit) notify(`Atenção: o aluno tem ${r.links} vínculo(s) e o plano permite ${r.max}. Nada foi encerrado; revise os vínculos.`) }, reload)} aria-label="Plano de acesso">
           <option value="" disabled>Plano de acesso…</option>{(pl?.plans || []).filter(p => p.active).map(p => <option key={p.id} value={p.id}>{p.name_pt} (até {p.max_professionals})</option>)}</select>
-        <button className="g-btn g-ghost g-sm" onClick={run(async () => { const r = await C.resetLink(u.id); prompt('Link de redefinição (uso único, 24 h). Envie ao usuário:', r.link) })}>Link de nova senha</button>
+        <button className="g-btn g-ghost g-sm" onClick={run(async () => { const r = await C.resetLink(u.id); await showValue('Link de redefinição (uso único, 24 h)', r.link, { text: 'Envie ao usuário.' }) })}>Link de nova senha</button>
         <button className="g-btn g-ghost g-sm" onClick={run(() => C.setRole(u.id, 'profissional', !u.roles.includes('profissional')), reload)}>{u.roles.includes('profissional') ? 'Remover profissional' : 'Tornar profissional'}</button>
         <button className="g-btn g-ghost g-sm" onClick={() => setOpen(open === u.id ? null : u.id)}>Histórico de treinos</button>
       </div>{open === u.id && <UserWorkouts id={u.id} />}</div>) : <Empty>Nenhuma conta aqui.</Empty>}</div>}
@@ -65,11 +66,11 @@ export function Profissionais() {
     {p.qualifications.map(q => <div key={q.id} className="g-row g-sm" style={{ marginTop: 6 }}><span>{q.kind} {q.number} <span className="g-mut">{q.area}</span></span><span className="g-sp" />
       <span className={'g-pill ' + (q.status === 'verificada' ? 'g-ok' : q.status === 'rejeitada' ? 'g-bad2' : 'g-warn2')}>{q.status}</span>
       {q.status !== 'verificada' && <button className="g-link" onClick={run(() => C.verify(q.id, 'verificada', ''), reload)} data-testid="verify">Verificar</button>}
-      {q.status === 'pendente' && <button className="g-link" style={{ color: 'var(--ag-bad)' }} onClick={run(() => { const n = ask('Motivo da rejeição'); return n != null && C.verify(q.id, 'rejeitada', n) }, reload)}>Rejeitar</button>}</div>)}
+      {q.status === 'pendente' && <button className="g-link" style={{ color: 'var(--ag-bad)' }} onClick={run(async () => { const n = await askIt('Motivo da rejeição'); return n != null && C.verify(q.id, 'rejeitada', n) }, reload)}>Rejeitar</button>}</div>)}
     <div className="g-actions">
-      <select className="g-in" style={{ flex: 1 }} value={p.state} aria-label="Situação" onChange={run(async e => { const reason = ask('Motivo da mudança de situação') ?? ''; const r = await C.updPro({ user_id: p.user_id, state: e.target.value, reason }); if (r?.pending) alert(`Suspenso. Pendências que continuam com ele (nada foi transferido): ${r.pending.links} vínculo(s), ${r.pending.occurrences} ocorrência(s), ${r.pending.threads} mensagem(ns). Redistribua pela aba Filas.`) }, reload)}>
+      <select className="g-in" style={{ flex: 1 }} value={p.state} aria-label="Situação" onChange={run(async e => { const reason = await askIt('Motivo da mudança de situação') ?? ''; const r = await C.updPro({ user_id: p.user_id, state: e.target.value, reason }); if (r?.pending) notify(`Suspenso. Pendências que continuam com ele (nada foi transferido): ${r.pending.links} vínculo(s), ${r.pending.occurrences} ocorrência(s), ${r.pending.threads} mensagem(ns). Redistribua pela aba Filas.`) }, reload)}>
         {['em_analise', 'ativo', 'suspenso', 'encerrado'].map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}</select>
-      <button className="g-btn g-ghost g-sm" onClick={run(() => { const c = ask('Capacidade máxima de alunos', p.capacity); return c != null && C.updPro({ user_id: p.user_id, capacity: +c }) }, reload)}>Capacidade</button>
+      <button className="g-btn g-ghost g-sm" onClick={run(async () => { const c = await askIt('Capacidade máxima de alunos', p.capacity); return c != null && C.updPro({ user_id: p.user_id, capacity: +c }) }, reload)}>Capacidade</button>
       <button className="g-btn g-ghost g-sm" onClick={run(() => C.updPro({ user_id: p.user_id, can_publish: !p.can_publish }), reload)} data-testid="toggle-publish">{p.can_publish ? 'Revogar publicação' : 'Autorizar publicação'}</button>
     </div></div>) : <Empty>Nenhum profissional. Torne um usuário profissional na aba Alunos.</Empty>}</div>
 }
@@ -95,7 +96,7 @@ export function Planos() {
       <Field label="Benefícios (um por linha)"><textarea className="g-in" value={ed.benefits} onChange={e => setEd({ ...ed, benefits: e.target.value })} /></Field>
       <Field label="Limite de profissionais vinculados"><input className="g-in" type="number" min="0" value={ed.max_professionals} onChange={e => setEd({ ...ed, max_professionals: e.target.value })} /></Field>
       <label className="g-row" style={{ marginTop: 10, minHeight: 44 }}><input type="checkbox" checked={ed.active} onChange={e => setEd({ ...ed, active: e.target.checked })} /> Ativo</label>
-      <button className="g-btn" style={{ marginTop: 12 }} onClick={run(async () => { const r = await C.savePlanAcc(ed); if (r?.over_limit) alert(`${r.over_limit} aluno(s) ficaram acima do novo limite. Nada foi encerrado.`); setEd(null) }, reload)}>Salvar</button>
+      <button className="g-btn" style={{ marginTop: 12 }} onClick={run(async () => { const r = await C.savePlanAcc(ed); if (r?.over_limit) notify(`${r.over_limit} aluno(s) ficaram acima do novo limite. Nada foi encerrado.`); setEd(null) }, reload)}>Salvar</button>
     </Sheet>}
   </div>
 }
@@ -112,12 +113,12 @@ export function Vinculos() {
       <select className="g-in" style={{ marginTop: 8 }} value={f.student_id} onChange={e => setF({ ...f, student_id: e.target.value })} aria-label="Aluno"><option value="">Aluno…</option>{(us?.users || []).filter(u => u.roles.includes('aluno')).map(u => <option key={u.id} value={u.id}>{u.name} ({u.links}/{u.max_professionals ?? '—'})</option>)}</select>
       <select className="g-in" style={{ marginTop: 8 }} value={f.coach_id} onChange={e => setF({ ...f, coach_id: e.target.value })} aria-label="Profissional"><option value="">Profissional…</option>{(ps?.professionals || []).map(p => <option key={p.user_id} value={p.user_id}>{p.display_name || p.name} · {p.state} · {p.available} vaga(s)</option>)}</select>
       <input className="g-in" style={{ marginTop: 8 }} placeholder="Área de atuação (opcional, ex.: Fisioterapia)" value={f.area} onChange={e => setF({ ...f, area: e.target.value })} />
-      <button className="g-btn" style={{ marginTop: 10 }} onClick={run(async () => { if (!confirm('Confirmar a atribuição?')) return; await C.link({ ...f, confirm: true }); setF({ student_id: '', coach_id: '', area: '' }) }, reload)} data-testid="create-link">Criar vínculo</button>
+      <button className="g-btn" style={{ marginTop: 10 }} onClick={run(async () => { if (!await askConfirm('Confirmar a atribuição?')) return; await C.link({ ...f, confirm: true }); setF({ student_id: '', coach_id: '', area: '' }) }, reload)} data-testid="create-link">Criar vínculo</button>
     </div>
     {!d ? <Load /> : <div className="g-card g-list" style={{ marginTop: 10 }}>{d.links.map(l => <div key={l.id} className="g-li" style={{ display: 'block' }}>
       <div className="g-row"><b>{l.student} → {l.coach}</b><span className="g-sp" /><span className={'g-pill ' + (l.status === 'ativo' ? 'g-ok' : '')}>{l.status}</span></div>
       <p className="g-mut g-xs">{l.area || ''} desde {dt(l.since)}{l.ended_at ? ' · encerrado ' + dt(l.ended_at) + ': ' + l.end_reason : ''}</p>
-      {l.status === 'ativo' && <button className="g-link" style={{ color: 'var(--ag-bad)' }} onClick={run(() => { const r = ask('Motivo do encerramento (o plano deste profissional será arquivado; o histórico é preservado)'); return r && C.endLink(l.id, r) }, reload)}>Encerrar vínculo</button>}
+      {l.status === 'ativo' && <button className="g-link" style={{ color: 'var(--ag-bad)' }} onClick={run(async () => { const r = await askIt('Motivo do encerramento (o plano deste profissional será arquivado; o histórico é preservado)'); return r && C.endLink(l.id, r) }, reload)}>Encerrar vínculo</button>}
     </div>)}</div>}
   </div>
 }
@@ -128,9 +129,9 @@ export function Filas() {
   if (!d) return <Load />
   const pros = (ps?.professionals || []).filter(p => p.state === 'ativo' && p.qualifications.some(q => q.status === 'verificada'))
   const assign = (type, item) => run(async () => {
-    const opts = pros.map((p, i) => `${i + 1}. ${p.display_name || p.name}`).join('\n'); const n = ask('Designar para:\n' + opts); if (!n) return
-    const p = pros[+n - 1]; if (!p) return alert('Opção inválida')
-    const review_reason = item.admin_review_required ? ask('Revisão obrigatória — registre o encaminhamento:') : undefined
+    const opts = pros.map((p, i) => `${i + 1}. ${p.display_name || p.name}`).join('\n'); const n = await askIt('Designar para:\n' + opts); if (!n) return
+    const p = pros[+n - 1]; if (!p) return notify('Opção inválida')
+    const review_reason = item.admin_review_required ? await askIt('Revisão obrigatória — registre o encaminhamento:') : undefined
     await C.assign({ type, id: item.id, professional_id: p.user_id, review_reason })
   }, reload)
   return <div>
@@ -139,7 +140,7 @@ export function Filas() {
       <div className="g-row"><b>{CAT_PT[o.category]} · {o.student_name}</b><span className="g-sp" />{o.admin_review_required ? <span className="g-pill g-bad2">revisão obrigatória</span> : o.overdue_flagged_at ? <span className="g-pill g-bad2">prazo vencido</span> : <span className="g-pill g-warn2">{o.status}</span>}</div>
       <p className="g-mut g-xs">Responsável: {o.responsible_name || '—'} · designado: {o.assigned_name || '—'} · prazo {dt(o.due_at) || '—'}</p>
       <div className="g-actions"><button className="g-btn g-sm" onClick={assign('occurrence', o)}>Designar</button>
-        <button className="g-btn g-ghost g-sm" onClick={run(() => { const r = ask('Motivo operacional do encerramento'); return r && C.admClose(o.id, r) }, reload)}>Encerrar (administrativo)</button></div></div>)
+        <button className="g-btn g-ghost g-sm" onClick={run(async () => { const r = await askIt('Motivo operacional do encerramento'); return r && C.admClose(o.id, r) }, reload)}>Encerrar (administrativo)</button></div></div>)
       : <Empty icon="check">Fila vazia.</Empty>}</div>
     <h3 style={{ marginTop: 14 }}>Mensagens aguardando</h3>
     <div className="g-card g-list">{d.threads.length ? d.threads.map(t => <div key={t.id} className="g-li" style={{ display: 'block' }}>

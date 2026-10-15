@@ -8,6 +8,7 @@ import Icon from '../../components/Icon.jsx'
 import { useStore } from '../../store/useStore.js'
 import { C, P, GOALS, REQ_ST, dt, uploadExMedia } from '../../lib/care.js'
 import { useLoad } from '../app/kit.jsx'
+import { ask, askText, showValue, notify, notifyError } from '../../lib/dialog.js'
 import { Alunos, Profissionais, Planos, Vinculos, Filas, Config, EXTRA } from '../app/AdminPanel.jsx'
 import '../guided/guided.css'
 import { UserEdit, ProEdit, StudentRecord, StudentTraining, Publicacoes, ExerciseEdit } from './AdminCrud.jsx'
@@ -46,7 +47,7 @@ function Drawer({ title, onClose, children }) {
   return <><div className="adm-drawer-bg" onClick={onClose} /><aside className="adm-drawer" role="dialog" aria-label={title}>
     <div className="g-row"><h2 style={{ flex: 1 }}>{title}</h2><button className="adm-btn ghost" onClick={onClose} aria-label="Fechar">✕</button></div>{children}</aside></>
 }
-const act = (fn, reload) => async (...a) => { try { const r = await fn(...a); reload && reload(); return r } catch (e) { alert(e.reasons ? e.reasons.join('\n') : e.message) } }
+const act = (fn, reload) => async (...a) => { try { const r = await fn(...a); reload && reload(); return r } catch (e) { notifyError(e) } }
 
 // ---------- gráficos (SVG, sem dependências) ----------
 function Line({ series, height = 150 }) {
@@ -80,7 +81,7 @@ function Dashboard({ go }) {
   const K = ({ n, l, s, to, cls }) => <button className={'adm-card adm-k ' + (cls || '')} style={{ textAlign: 'left', cursor: 'pointer', color: 'inherit' }} onClick={() => go(to)}><b>{n ?? 0}</b><span>{l}</span>{s && <small>{s}</small>}</button>
   return <>
     <div className="adm-grid" data-testid="adm-kpis">
-      <K n={u.pendente} l="Contas aguardando liberação" to="usuarios" cls={u.pendente ? 'warn' : ''} />
+      <K n={u.pendente} l="Contas com status pendente" to="usuarios" cls={u.pendente ? 'warn' : ''} />
       <K n={u.ativo} l="Usuários ativos" s={`${u.bloqueado || 0} bloqueado(s)`} to="usuarios" />
       <K n={p.ativo} l="Profissionais ativos" s={`${p.em_analise || 0} em análise · ${p.suspenso || 0} suspenso(s)`} to="profissionais" />
       <K n={`${capPct}%`} l="Uso da capacidade" s={`${cap.used || 0} de ${cap.capacity || 0} vagas`} to="profissionais" />
@@ -113,17 +114,17 @@ function Usuarios() {
     <div className="adm-tools"><button className="adm-btn" onClick={() => setNovo(true)} data-testid="nu-open">+ Novo usuário</button></div>
     {novo && <NovoUsuario plans={(pl?.plans || []).filter(p => p.active)} onClose={() => setNovo(false)} onDone={reload} />}
     {err ? <p className="g-warn">{err}</p> : <DataTable name="usuarios" cols={cols} rows={d?.users} onRow={r => { setSel(r.id); setDt('v360') }}
-      filters={<select className="adm-in" value={st} onChange={e => setSt(e.target.value)} aria-label="Status"><option value="">Todos os status</option><option value="pendente">Aguardando liberação</option><option value="ativo">Ativos</option><option value="bloqueado">Bloqueados</option></select>} />}
+      filters={<select className="adm-in" value={st} onChange={e => setSt(e.target.value)} aria-label="Status"><option value="">Todos os status</option><option value="pendente">Pendentes</option><option value="ativo">Ativos</option><option value="bloqueado">Bloqueados</option></select>} />}
     {u && <Drawer title={u.name} onClose={() => setSel(null)}>
       <dl className="adm-dl"><dt>E-mail</dt><dd>{u.email}</dd><dt>Status</dt><dd><Pill v={u.status} map={ST} /></dd><dt>Papéis</dt><dd>{u.roles.join(', ')}</dd><dt>Plano de acesso</dt><dd>{u.plan_id || '—'}</dd><dt>Vínculos ativos</dt><dd>{u.links}{u.over_limit ? ' (acima do limite do plano)' : ''}</dd></dl>
       <div className="adm-tools" style={{ marginTop: 14 }}>
         {u.status !== 'ativo' && <button className="adm-btn" onClick={act(() => C.setStatus(u.id, 'ativo'), reload)} data-testid="drw-approve">{u.status === 'bloqueado' ? 'Desbloquear' : 'Ativar conta'}</button>}
-        {u.status === 'ativo' && <button className="adm-btn danger" onClick={act(() => { const r = prompt('Motivo da suspensão'); return r && C.setStatus(u.id, 'bloqueado', r) }, reload)}>Suspender</button>}
-        <select className="adm-in" value={u.plan_id || ''} onChange={act(async e => { const r = await C.setPlan(u.id, e.target.value); if (r?.over_limit) alert(`O aluno tem ${r.links} vínculo(s) e o plano permite ${r.max}. Nada foi encerrado.`) }, reload)} aria-label="Plano de acesso">
+        {u.status === 'ativo' && <button className="adm-btn danger" onClick={act(async () => { const r = await askText('Motivo da suspensão', { required: true, ok: 'Suspender', danger: true }); return r && C.setStatus(u.id, 'bloqueado', r) }, reload)}>Suspender</button>}
+        <select className="adm-in" value={u.plan_id || ''} onChange={act(async e => { const r = await C.setPlan(u.id, e.target.value); if (r?.over_limit) notify(`O aluno tem ${r.links} vínculo(s) e o plano permite ${r.max}. Nada foi encerrado.`) }, reload)} aria-label="Plano de acesso">
           <option value="" disabled>Plano de acesso…</option>{(pl?.plans || []).filter(p => p.active).map(p => <option key={p.id} value={p.id}>{p.name_pt} (até {p.max_professionals})</option>)}</select>
-        <button className="adm-btn ghost" onClick={act(async () => { const r = await C.resetLink(u.id); prompt('Link de redefinição (uso único, 24 h):', r.link) })}>Link de nova senha</button>
+        <button className="adm-btn ghost" onClick={act(async () => { const r = await C.resetLink(u.id); await showValue('Link de redefinição (uso único, 24 h)', r.link) })}>Link de nova senha</button>
         <button className="adm-btn ghost" onClick={act(() => C.setRole(u.id, 'profissional', !u.roles.includes('profissional')), reload)}>{u.roles.includes('profissional') ? 'Remover papel profissional' : 'Tornar conta profissional'}</button>
-        <button className="adm-btn ghost" onClick={act(() => { const o = prompt('ID da outra conta da mesma pessoa (vazio = desfazer). Só para auditoria; nada é compartilhado.'); return o != null && C.samePerson(u.id, o.trim() || null, 'registro manual') }, reload)}>Mesma pessoa…</button>
+        <button className="adm-btn ghost" onClick={act(async () => { const o = await askText('ID da outra conta da mesma pessoa (vazio = desfazer). Só para auditoria; nada é compartilhado.'); return o != null && C.samePerson(u.id, o.trim() || null, 'registro manual') }, reload)}>Mesma pessoa…</button>
       </div>
       <p className="g-mut g-xs">Contas profissionais e de treino são separadas (e-mails diferentes). “Mesma pessoa” só fica registrado na auditoria.</p>
       <div className="adm-tools" role="tablist" style={{ marginTop: 12 }}>{[['v360', 'Visão 360°'], ['conta', 'Conta'], ...(u.roles.includes('profissional') ? [['pro', 'Profissional']] : []), ...(u.roles.includes('aluno') ? [['ficha', 'Ficha'], ['treinos', 'Treinos e vínculos']] : [])].map(([k, l]) =>
@@ -208,9 +209,9 @@ function Solicitacoes() {
         <dt>Criada</dt><dd>{dt(r.created_at)}</dd></dl>
       {(r.history || []).length > 0 && <details style={{ marginTop: 8 }}><summary className="g-mut g-xs">Histórico ({r.history.length})</summary>{r.history.map(h => <p key={h.id} className="g-xs g-mut">{dt(h.created_at)} · {REQ_ST[h.status] || h.status}{h.note ? ' — ' + h.note : ''}</p>)}</details>}
       {r.type === 'vagas' && ['pendente', 'em_analise', 'aguardando_info'].includes(r.status) && <div className="adm-tools" style={{ marginTop: 10 }}>
-        <button className="adm-btn" data-testid="rq-approve" onClick={act(async () => { const a = r.type === 'vagas' ? prompt('Quantidade aprovada', r.requested_amount) : ''; if (a == null) return; const why = prompt('Observação da aprovação (opcional)') || ''; await P.decide({ id: r.id, action: 'aprovar', amount: a === '' ? undefined : +a, reason: why }) }, reload)}>Aprovar</button>
-        <button className="adm-btn danger" onClick={act(async () => { const why = prompt('Justificativa da rejeição (obrigatória)'); if (why) await P.decide({ id: r.id, action: 'rejeitar', reason: why }) }, reload)}>Rejeitar</button>
-        <button className="adm-btn ghost" onClick={act(async () => { const why = prompt('Qual informação é necessária?'); if (why) await P.decide({ id: r.id, action: 'info', reason: why }) }, reload)}>Pedir informações</button>
+        <button className="adm-btn" data-testid="rq-approve" onClick={act(async () => { const a = r.type === 'vagas' ? await askText('Quantidade aprovada', { def: String(r.requested_amount ?? '') }) : ''; if (a == null) return; const why = await askText('Observação da aprovação (opcional)') || ''; await P.decide({ id: r.id, action: 'aprovar', amount: a === '' ? undefined : +a, reason: why }) }, reload)}>Aprovar</button>
+        <button className="adm-btn danger" onClick={act(async () => { const why = await askText('Justificativa da rejeição', { required: true, multiline: true, ok: 'Rejeitar', danger: true }); if (why) await P.decide({ id: r.id, action: 'rejeitar', reason: why }) }, reload)}>Rejeitar</button>
+        <button className="adm-btn ghost" onClick={act(async () => { const why = await askText('Qual informação é necessária?'); if (why) await P.decide({ id: r.id, action: 'info', reason: why }) }, reload)}>Pedir informações</button>
         {r.status === 'pendente' && <button className="adm-btn ghost" onClick={act(() => P.decide({ id: r.id, action: 'analisar' }), reload)}>Marcar em análise</button>}
       </div>}
     </div>)}</div> : <p className="g-mut">Nenhuma solicitação neste filtro.</p>}
@@ -381,8 +382,8 @@ function Lgpd() {
   const cols = [{ k: 'id', l: '#' }, { k: 'name', l: 'Titular' }, { k: 'email', l: 'E-mail' }, { k: 'kind', l: 'Tipo' }, { k: 'status', l: 'Status', r: r => <Pill v={r.status} map={ST} /> }, { k: 'reason', l: 'Motivo' },
     { k: 'created_at', l: 'Pedido em', r: r => dt(r.created_at), sv: r => r.created_at },
     { k: 'acao', l: 'Ação', csv: () => '', r: r => r.status === 'pendente' ? <span onClick={e => e.stopPropagation()} className="adm-tools" style={{ margin: 0 }}>
-      <button className="adm-btn danger" data-testid="lgpd-del" onClick={act(async () => { const c = prompt('A conta será anonimizada e os dados pessoais apagados. Digite EXCLUIR para confirmar.'); if (c !== 'EXCLUIR') return; await C.decideData({ id: r.id, action: 'excluir', confirm: 'EXCLUIR', note: 'pedido do titular' }) }, reload)}>Excluir (anonimizar)</button>
-      <button className="adm-btn ghost" onClick={act(async () => { const n = prompt('Motivo da recusa'); if (n) await C.decideData({ id: r.id, action: 'recusar', note: n }) }, reload)}>Recusar</button></span> : (r.decision_note || '—') }]
+      <button className="adm-btn danger" data-testid="lgpd-del" onClick={act(async () => { const c = await askText('Excluir (anonimizar) esta conta?', { text: 'A conta será anonimizada e os dados pessoais apagados.', label: 'Digite EXCLUIR para confirmar', match: 'EXCLUIR', ok: 'Excluir', danger: true }); if (c !== 'EXCLUIR') return; await C.decideData({ id: r.id, action: 'excluir', confirm: 'EXCLUIR', note: 'pedido do titular' }) }, reload)}>Excluir (anonimizar)</button>
+      <button className="adm-btn ghost" onClick={act(async () => { const n = await askText('Motivo da recusa', { required: true }); if (n) await C.decideData({ id: r.id, action: 'recusar', note: n }) }, reload)}>Recusar</button></span> : (r.decision_note || '—') }]
   return <>{err ? <p className="g-warn">{err}</p> : <DataTable name="lgpd" cols={cols} rows={d?.requests} filters={<select className="adm-in" value={st} onChange={e => setSt(e.target.value)}><option value="pendente">Pendentes</option><option value="">Todos</option><option value="concluida">Concluídos</option><option value="recusada">Recusados</option><option value="cancelada">Cancelados</option></select>} />}
     <p className="g-mut g-xs">Nada é apagado sem confirmação explícita. Registros de atendimento ficam vinculados à conta anonimizada.</p></>
 }
@@ -393,7 +394,7 @@ function Termos() {
       <input className="adm-in" style={{ width: '100%' }} placeholder="Versão (ex.: 2026-11-01)" value={f.version} onChange={e => setF({ ...f, version: e.target.value })} />
       <input className="adm-in" style={{ width: '100%', marginTop: 6 }} placeholder="Título" value={f.title} onChange={e => setF({ ...f, title: e.target.value })} />
       <textarea className="adm-in" style={{ width: '100%', marginTop: 6, minHeight: 160, padding: 10 }} placeholder="Texto" value={f.body} onChange={e => setF({ ...f, body: e.target.value })} />
-      <button className="adm-btn" style={{ marginTop: 8 }} onClick={act(async () => { if (!confirm('Publicar? Todos os usuários terão de aceitar a nova versão.')) return; await C.publishTerms(f); setMsg('Publicada'); setF({ version: '', title: '', body: '' }) }, reload)}>Publicar</button>{msg && <p className="g-acc g-sm">{msg}</p>}</div></div>
+      <button className="adm-btn" style={{ marginTop: 8 }} onClick={act(async () => { if (!await ask('Publicar? Todos os usuários terão de aceitar a nova versão.')) return; await C.publishTerms(f); setMsg('Publicada'); setF({ version: '', title: '', body: '' }) }, reload)}>Publicar</button>{msg && <p className="g-acc g-sm">{msg}</p>}</div></div>
 }
 function AuditoriaT() {
   const [d, err] = useLoad(() => C.audit())

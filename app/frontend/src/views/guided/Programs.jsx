@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import Icon from '../../components/Icon.jsx'
 import { G, GOALS, GOAL_PT, LEVEL_PT, LOC_PT, RESTR_PT, mediaOf, minutesLabel, repsLabel } from '../../lib/guided.js'
 import './guided.css'
+import { ask, notifyError } from '../../lib/dialog.js'
 
 export const Spin = () => <div className="ag"><div className="g-center g-dim" style={{ paddingTop: '40vh' }}><Icon name="dumbbell" /></div></div>
 
@@ -91,9 +92,9 @@ export function ProgramDetail() {
   const isActive = st?.active?.program_id === p.id
   const restr = st?.profile?.restricoes || []
   const start = async () => {
-    if (st?.active && !isActive && !confirm(`Trocar "${st.active.title}" por "${p.title}"? Seu histórico continua salvo.`)) return
+    if (st?.active && !isActive && !await ask(`Trocar "${st.active.title}" por "${p.title}"?`, { text: 'Seu histórico continua salvo.', ok: 'Trocar programa', cancel: 'Manter atual' })) return
     setBusy(true)
-    try { await G.start(p.id); nav('/hoje', { replace: true }) } catch (e) { alert(e.message) } finally { setBusy(false) }
+    try { await G.start(p.id); nav('/hoje', { replace: true }) } catch (e) { notifyError(e) } finally { setBusy(false) }
   }
   return <div className="ag" data-testid="program-detail">
     <div className="g-row" style={{ marginBottom: 10 }}>

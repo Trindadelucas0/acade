@@ -1,14 +1,14 @@
 import { describe, it, expect } from 'vitest'
-import { defaultTab, validTab, elapsedLabel, liveOf } from './start.js'
+import { defaultTab, validTab, normTab, elapsedLabel, liveOf } from './start.js'
 
 describe('Meus treinos — aba inicial', () => {
-  it('prioriza fichas do profissional, depois programa ativo, depois rotinas', () => {
+  it('V4: prioriza fichas do profissional; senão programas (rotinas antigas nunca são a aba inicial)', () => {
     expect(defaultTab({ plans: 1, active: true, routines: 3 })).toBe('profissionais')
     expect(defaultTab({ active: true, routines: 3 })).toBe('programas')
-    expect(defaultTab({ routines: 2 })).toBe('rotinas')
+    expect(defaultTab({ routines: 2 })).toBe('programas')
     expect(defaultTab({})).toBe('programas')
   })
-  it('valida a aba da URL', () => { expect(validTab('rotinas')).toBe(true); expect(validTab('duplicar')).toBe(false) })
+  it('valida a aba da URL; "rotinas" antigo vira histórico', () => { expect(validTab('rotinas')).toBe(true); expect(normTab('rotinas')).toBe('historico'); expect(validTab('duplicar')).toBe(false) })
 })
 describe('retomar treino', () => {
   const now = Date.parse('2026-10-15T12:00:00Z')
