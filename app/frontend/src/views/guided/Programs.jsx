@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { CoachLockNote, detachSystem } from '../../components/ActiveTraining.jsx'
+import { AT } from '../../lib/active.js'
 import ProgramBadges from '../../components/ProgramBadges.jsx'
 import { useNavigate, useParams } from 'react-router-dom'
 import Icon from '../../components/Icon.jsx'
@@ -41,6 +43,7 @@ export function Recommendations() {
   if (!d) return <Spin />
   const p = d.profile
   return <div className="ag" data-testid="recs">
+    <CoachLockNote />
     <span className="g-eyebrow">Encontramos para você</span>
     <h1>Seus 3 melhores programas</h1>
     <div className="g-chips" style={{ margin: '8px 0 4px' }}>
@@ -66,6 +69,7 @@ export function Library() {
   const [list, setList] = useState(null)
   useEffect(() => { setList(null); G.programs(goal).then(r => setList(r.programs)).catch(() => setList([])) }, [goal])
   return <div className="ag" data-testid="library">
+    <CoachLockNote />
     <span className="g-eyebrow">Programas</span>
     <h1>Escolha seu objetivo</h1>
     <p className="g-mut">Programas prontos, montados por profissionais. É só seguir.</p>
@@ -87,14 +91,16 @@ export function Library() {
 export function ProgramDetail() {
   const { id } = useParams()
   const nav = useNavigate()
-  const [p, setP] = useState(null), [st, setSt] = useState(null), [busy, setBusy] = useState(false), [open, setOpen] = useState(0)
+  const [p, setP] = useState(null), [st, setSt] = useState(null), [busy, setBusy] = useState(false), [open, setOpen] = useState(0), [locked, setLocked] = useState(false)
+  useEffect(() => { AT.get().then(r => setLocked(!!r.locked_to_pro)).catch(() => {}) }, [])
   useEffect(() => { G.program(id).then(r => setP(r.program)).catch(() => setP(false)); G.state().then(setSt).catch(() => {}) }, [id])
   if (p === false) return <div className="ag"><p>Programa não encontrado.</p></div>
   if (!p) return <Spin />
   const isActive = st?.active?.program_id === p.id
   const restr = st?.profile?.restricoes || []
   const start = async () => {
-    if (st?.active && !isActive && !await ask(`Trocar "${st.active.title}" por "${p.title}"?`, { text: 'Seu histórico continua salvo.', ok: 'Trocar programa', cancel: 'Manter atual' })) return
+    // V4.1: uma ficha por vez — para trocar, o programa atual é desvinculado (arquivado) antes
+    if (st?.active && !isActive) { const at = await AT.get().catch(() => null); if (!(await detachSystem(at || { program: { title: st.active.title } }))) return }
     setBusy(true)
     try { await G.start(p.id); nav('/hoje', { replace: true }) } catch (e) { notifyError(e) } finally { setBusy(false) }
   }
@@ -104,6 +110,7 @@ export function ProgramDetail() {
       <span className="g-eyebrow">{p.is_rehab ? 'Fisioterapia' : GOAL_PT[p.goal]}</span>
     </div>
     <Cover p={p} big badge={isActive ? 'Seu programa' : null} />
+    {!isActive && <CoachLockNote />}
     <h1>{p.title}</h1>
     <Meta p={p} />
     <p className="g-mut" style={{ marginTop: 12 }}>{p.description}</p>
@@ -139,7 +146,8 @@ export function ProgramDetail() {
     </div>)}
     <div className="g-bottom">
       {isActive ? <button className="g-btn" onClick={() => nav('/hoje')}>Ir para o treino de hoje</button>
-        : <button className="g-btn g-xl" disabled={busy} onClick={start} data-testid="start-program">{busy ? 'Preparando…' : 'COMEÇAR PROGRAMA'}</button>}
+        : locked ? <p className="g-note" data-testid="start-locked">Bloqueado: você treina com a ficha do seu profissional.</p>
+        : <button className="g-btn g-xl" disabled={busy} onClick={start} data-testid="start-program">{busy ? 'Preparando…' : st?.active ? 'DESVINCULAR ATUAL E COMEÇAR' : 'COMEÇAR PROGRAMA'}</button>}
     </div>
   </div>
 }

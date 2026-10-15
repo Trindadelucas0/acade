@@ -1,8 +1,11 @@
 /* natoGym service worker — runtime caching (works with Vite's hashed asset names).
    Media (img/gif) cache-first; everything else network-first with offline fallback. */
-const CACHE = 'natogym-rt-v1'
+// V4.1: o nome do cache leva o id do build (trocado no build) → versão nova = SW novo = PWA atualiza sozinho
+const BUILD = '__BUILD_ID__'
+const CACHE = 'avagym-rt-v41-' + BUILD
 
 self.addEventListener('install', () => self.skipWaiting())
+self.addEventListener('message', e => { if (e.data === 'SKIP_WAITING') self.skipWaiting() })
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(keys =>
     Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
@@ -37,7 +40,9 @@ self.addEventListener('fetch', e => {
       hit || fetch(e.request).then(res => { if (res.ok) c.put(e.request, res.clone()); return res })
     )))
   } else {
-    e.respondWith(fetch(e.request).then(res => {
+    // navegação/index.html e version.json: sempre da rede, sem cache HTTP (a versão nova aparece na hora)
+    const fresh = e.request.mode === 'navigate' || url.pathname === '/' || url.pathname.endsWith('/index.html') || url.pathname.endsWith('/version.json')
+    e.respondWith(fetch(fresh ? new Request(e.request, { cache: 'no-store' }) : e.request).then(res => {
       if (res.ok) caches.open(CACHE).then(c => c.put(e.request, res.clone()))
       return res
     }).catch(() => caches.match(e.request).then(hit => hit || caches.match('index.html'))))

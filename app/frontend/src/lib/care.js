@@ -60,12 +60,7 @@ export async function uploadExMedia(exercise_id, file, caption) {
   const r = await fetch(API_BASE + '/api/adm/exercises/upload?' + new URLSearchParams({ exercise_id, caption: caption || '' }), { method: 'POST', credentials: 'include', headers: { 'Content-Type': file.type || 'application/octet-stream' }, body: file })
   const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || 'Falha no envio'); return d
 }
-export async function exportMyData() {
-  const r = await fetch(API_BASE + '/api/me/export', { credentials: 'include' })
-  if (!r.ok) throw new Error('Não foi possível exportar')
-  const blob = await r.blob(), a = document.createElement('a')
-  a.href = URL.createObjectURL(blob); a.download = 'avadesk-meus-dados.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000)
-}
+// V4.1: exportMyData (Exportar dados) removido a pedido do Lucas.
 
 // AVADESK PRO e central administrativa
 export const P = {

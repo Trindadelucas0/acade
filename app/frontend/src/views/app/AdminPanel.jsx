@@ -33,7 +33,7 @@ function UserWorkouts({ id }) {
   const [d, err] = useLoad(() => C.userWorkouts(id), [id])
   if (err) return <p className="g-mut g-xs">{err}</p>
   if (!d) return <Load />
-  return <div className="g-xs g-mut" data-testid="adm-workouts">{d.workouts.length ? d.workouts.slice(0, 20).map((w, i) => <p key={i}>{w.d ? new Date(w.d).toLocaleDateString('pt-BR') : '—'} · {w.name || w.routine || 'Treino'} · {(w.ex || []).length} exercício(s)</p>) : 'Nenhum treino livre sincronizado.'}{d.bodyweight.length ? <p>Peso corporal: {d.bodyweight.length} registro(s)</p> : null}</div>
+  return <div className="g-xs g-mut" data-testid="adm-workouts">{d.workouts.length ? d.workouts.slice(0, 20).map((w, i) => <p key={i}>{w.d ? new Date(w.d).toLocaleDateString('pt-BR') : '—'} · {w.name || w.routine || 'Treino'} · {(w.ex || []).length} exercício(s)</p>) : 'Nenhum treino antigo sincronizado.'}{d.bodyweight.length ? <p>Peso corporal: {d.bodyweight.length} registro(s)</p> : null}</div>
 }
 export function Alunos() {
   const [st, setSt] = useState('pendente'), [qq, setQq] = useState(''), [open, setOpen] = useState(null)

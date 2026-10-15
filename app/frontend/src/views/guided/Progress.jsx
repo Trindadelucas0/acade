@@ -28,8 +28,8 @@ export default function Progress() {
     <MuscleStatus />
     <div className="g-card g-list" style={{ marginTop: 12 }}>
       <button className="g-li" onClick={() => nav('/muscles')} data-testid="open-3d"><span className="g-ico"><Icon name="person" /></span><span><b>Corpo 3D</b><br /><span className="g-mut g-xs">Veja no modelo anatômico o que você treinou</span></span></button>
-      <button className="g-li" onClick={() => nav('/stats')}><span className="g-ico"><Icon name="chart" /></span><span><b>Estatísticas detalhadas</b><br /><span className="g-mut g-xs">1RM, volume e gráficos do treino livre</span></span></button>
-      <button className="g-li" onClick={() => nav('/history')}><span className="g-ico"><Icon name="history" /></span><span><b>Histórico do treino livre</b></span></button>
+      <button className="g-li" onClick={() => nav('/stats')}><span className="g-ico"><Icon name="chart" /></span><span><b>Estatísticas detalhadas</b><br /><span className="g-mut g-xs">1RM, volume e gráficos (registros antigos)</span></span></button>
+      <button className="g-li" onClick={() => nav('/history')}><span className="g-ico"><Icon name="history" /></span><span><b>Histórico antigo (somente consulta)</b></span></button>
     </div>
     <h2>Treinos por semana</h2>
     <div className="g-card"><div className="g-bars">{weeks.map(w => <div key={w.k}><b>{w.n || ''}</b><i className={w.n ? '' : 'g-z'} style={{ height: (w.n / max * 100) + '%' }} />{w.l}</div>)}</div></div>
@@ -42,7 +42,7 @@ export default function Progress() {
     <h2>Histórico</h2>
     <div className="g-card g-list">{d.history.length ? d.history.map(h => <div key={h.id} className="g-li">
         <span className="g-ico"><Icon name="check" /></span>
-        <span style={{ minWidth: 0 }}><b>{h.workout_name}</b><br /><span className="g-mut g-xs">{new Date(h.started_at).toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'short' })} · {fmtMin(h.corrected && h.manual_sec != null ? h.manual_sec : h.duration_sec)}{h.corrected ? ' (tempo corrigido)' : ''} · {h.sets_count} séries{h.pain ? ' · dor registrada' : ''}{h.origin === 'legado' ? ' · treino livre antigo' : ''}{h.counts_in_metrics === false ? ' · fora das métricas' : ''}</span>{h.timing && !h.corrected && <><br /><TimingSummary t={h.timing} compact /></>}</span>
+        <span style={{ minWidth: 0 }}><b>{h.workout_name}</b><br /><span className="g-mut g-xs">{new Date(h.started_at).toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'short' })} · {fmtMin(h.corrected && h.manual_sec != null ? h.manual_sec : h.duration_sec)}{h.corrected ? ' (tempo corrigido)' : ''} · {h.sets_count} séries{h.pain ? ' · dor registrada' : ''}{h.origin === 'legado' ? ' · registro antigo' : ''}{h.counts_in_metrics === false ? ' · fora das métricas' : ''}</span>{h.timing && !h.corrected && <><br /><TimingSummary t={h.timing} compact /></>}</span>
         <span className="g-mut g-sm" style={{ marginLeft: 'auto', whiteSpace: 'nowrap' }}>{fmtKg(h.volume)}</span></div>)
       : <><p className="g-mut g-sm">Nenhum treino ainda.</p><button className="g-btn" style={{ marginTop: 10 }} onClick={() => nav('/hoje')}>Começar agora</button></>}</div>
   </div>

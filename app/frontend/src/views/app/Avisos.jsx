@@ -18,10 +18,10 @@ export function AvisosCard() {
 export default function Avisos() {
   const nav = useNavigate()
   const [d, err, reload] = useLoad(() => C.notifications())
-  if (err) return <div className="ag"><h1>Avisos</h1><Err msg={err} retry={reload} /></div>
+  if (err) return <div className="ag"><h1>Notificações</h1><Err msg={err} retry={reload} /></div>
   if (!d) return <div className="ag"><Load /></div>
   return <div className="ag" data-testid="avisos">
-    <span className="g-eyebrow">Início</span><div className="g-row"><h1>Avisos</h1><span className="g-sp" />{d.unread > 0 && <button className="g-link" onClick={async () => { await C.readAll(); reload() }}>Marcar todos como lidos</button>}</div>
+    <span className="g-eyebrow">Notificações</span><div className="g-row"><h1>Notificações</h1><span className="g-sp" />{d.unread > 0 && <button className="g-link" onClick={async () => { await C.readAll(); reload() }}>Marcar todos como lidos</button>}</div>
     <div className="g-card g-list">{d.notifications.length ? d.notifications.map(n => <button key={n.id} className="g-li" onClick={() => nav(n.link || '/hoje')} style={{ opacity: n.read_at ? .6 : 1 }}>
       <span className="g-ico"><Icon name="bell" /></span><span style={{ minWidth: 0 }}><b className="g-sm">{n.title}</b><br /><span className="g-mut g-xs">{n.body} · {dt(n.created_at)}</span></span></button>)
       : <Empty icon="bell">Nenhum aviso por enquanto.</Empty>}</div>

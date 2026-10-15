@@ -3,6 +3,7 @@ import { q } from './db/pool.js'
 import { requireTrainee } from './guided.js'
 import { apply, isOpen, EVENT_TYPES, pausedFromEvents } from './session-machine.js'
 import { notify } from './pro.js'
+import { activeTrainingOf } from './active-training.js'
 
 const isUuid = s => /^[0-9a-f-]{36}$/i.test(String(s || ''))
 const qs = req => new URL(req.url, 'http://x').searchParams
@@ -90,6 +91,11 @@ export function sessionsV4Routes({ json, readBody }) {
       if (ex) return json(res, 200, { id: ex.id, state: ex.state, started_at: ex.started_at, duplicate: true })
       const auth = await authorizeOrigin(u, b, { mode: 'start' })
       if (!auth.ok) return json(res, 403, { error: ORIGIN_MSG[auth.code] || ORIGIN_MSG.ORIGIN_NOT_ALLOWED, code: auth.code })
+      // V4.1: só o treino ativo (sistema OU profissional) pode ser iniciado
+      { const at = await activeTrainingOf(u.id)
+        if (at.kind === 'sistema' && auth.ppId) return json(res, 409, { error: 'Seu treino ativo é o programa do sistema. Para treinar a ficha do profissional, ative-a em Treinos.', code: 'NOT_ACTIVE_TRAINING' })
+        if (at.kind === 'profissional' && !auth.ppId) return json(res, 409, { error: 'Seu treino ativo é a ficha do profissional. Para voltar ao programa do sistema, escolha-o em Programas.', code: 'NOT_ACTIVE_TRAINING' })
+        if (at.kind === 'profissional' && auth.ppId && at.pro_plan?.id !== auth.ppId) return json(res, 409, { error: 'Esta não é a ficha ativa. Ative-a em Treinos.', code: 'NOT_ACTIVE_TRAINING' }) }
       // uma sessão aberta por vez: a anterior precisa ser resolvida (continuar/corrigir/descartar)
       const open = (await q(`select id,client_id,workout_name,started_at,state from sessions where user_id=$1 and state in ('em_andamento','pausada','aguardando_recuperacao','finalizando') and server_started_at is not null order by started_at desc limit 1`, [u.id])).rows[0]
       if (open && !b.force_new) return json(res, 409, { error: 'Você tem um treino ainda em aberto.', code: 'SESSION_OPEN', open })

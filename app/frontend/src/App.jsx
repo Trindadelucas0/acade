@@ -1,3 +1,4 @@
+import { applyTheme, loadTheme } from './lib/theme.js'
 import { useEffect, lazy, Suspense } from 'react'
 import { HashRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { useStore } from './store/useStore.js'
@@ -55,13 +56,8 @@ import AcceptInvite from './views/v3/AcceptInvite.jsx'
 
 bindUI(useUI)   // lets the shared controls open sheets without importing the store at module scope
 
-function applyPrefs(theme, accent) {
-  const de = document.documentElement
-  de.dataset.theme = 'dark'   // AVADESK Fitness: tema escuro premium único (o claro do openGym foi aposentado)
-  de.dataset.accent = 'avadesk'   // identidade fixa (grafite + limão)
-  const meta = document.querySelector('meta[name="theme-color"]')
-  if (meta) meta.content = de.dataset.theme === 'light' ? '#F8FAFC' : '#0E2439'
-}
+// V4.1: tema claro/escuro salvo no perfil (Postgres) — ver lib/theme.js
+function applyPrefs() { applyTheme() }
 
 function Shell() {
   const navigate = useNavigate()
@@ -70,7 +66,8 @@ function Shell() {
   const isGuest = useStore(s => s.isGuest())
   const langV = useLang()   // re-renders the whole shell when the language (pack) changes
   useEffect(() => { setNav(navigate) }, [navigate])
-  useEffect(() => { applyPrefs(S.theme, S.accent) }, [S.theme, S.accent])
+  useEffect(() => { applyPrefs() }, [])
+  useEffect(() => { if (user) loadTheme() }, [user?.id]) // eslint-disable-line
   useEffect(() => { setLang(S.lang || 'pt') }, [S.lang])
   useEffect(() => { document.documentElement.lang = (S.lang || 'pt') === 'pt' ? 'pt-BR' : S.lang }, [langV, S.lang])
   // every tab/route change starts at the top of the page

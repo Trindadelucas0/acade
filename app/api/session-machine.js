@@ -20,6 +20,7 @@ export const TRANSITIONS = {
 export const ACTIVITY = {
   set_done: ['em_andamento', 'aguardando_recuperacao'],
   set_edit: ['em_andamento', 'pausada', 'aguardando_recuperacao', 'finalizando'],
+  set_start: ['em_andamento'],
   rest_start: ['em_andamento'],
   rest_adjust: ['em_andamento'],
   rest_skip: ['em_andamento'],

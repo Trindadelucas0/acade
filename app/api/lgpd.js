@@ -61,21 +61,7 @@ export function lgpdRoutes({ json, readBody, legacyState, legacyErase }) {
       const r = await q(`select v.version,v.title,v.published_at,(select count(*)::int from term_acceptances a join users x on x.id=a.user_id where a.version=v.version and x.tenant_id=$1) aceites from terms_versions v order by published_at desc`, [u.tenant_id])
       json(res, 200, { versions: r.rows })
     },
-    // exportação imediata (portabilidade): JSON com tudo que referencia a conta
-    'GET /api/me/export': async (req, res) => {
-      const u = await requireAuth(req, res, json, { allowPending: true }); if (!u) return
-      const out = { gerado_em: new Date().toISOString(), conta: null, tabelas: {} }
-      out.conta = (await q('select id,name,email,status,created_at,last_seen_at from users where id=$1', [u.id])).rows[0]
-      for (const { t, c } of await userColumns()) {
-        if (t === 'audit_log' && c !== 'actor_id') continue
-        const rows = (await q(`select * from "${t}" where "${c}"=$1 limit 5000`, [u.id])).rows
-        if (rows.length) out.tabelas[`${t}.${c}`] = rows.map(r => { for (const k of Object.keys(r)) if (SENSITIVE.test(k)) delete r[k]; return r })
-      }
-      if (legacyState) out.treino_livre_local = await legacyState(u.id)
-      await audit(u.tenant_id, u.id, 'lgpd.exportacao', 'user', u.id)
-      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'Content-Disposition': 'attachment; filename="avadesk-meus-dados.json"' })
-      res.end(JSON.stringify(out, null, 2))
-    },
+    // V4.1: 'GET /api/me/export' (exportar dados) REMOVIDO a pedido do Lucas (autorização explícita). Código anterior no git (f05b4cc).
     'GET /api/me/requests': async (req, res) => {
       const u = await requireAuth(req, res, json, { allowPending: true }); if (!u) return
       json(res, 200, { requests: (await q('select id,kind,status,reason,decision_note,created_at,decided_at from data_requests where user_id=$1 order by created_at desc', [u.id])).rows })

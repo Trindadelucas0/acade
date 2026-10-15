@@ -1,5 +1,6 @@
 // AVADESK PRO — contexto profissional da mesma identidade (a pessoa também pode treinar como aluno). Mobile-first.
 // O profissional só vê os próprios alunos vinculados; vínculos e capacidade são decididos pelo admin (aqui ele apenas solicita).
+import Bell from '../../components/Bell.jsx'
 import TimingSummary from '../../components/TimingSummary.jsx'
 import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -203,8 +204,9 @@ export default function ProPortal() {
   const [dash, , reloadDash] = useLoad(() => tab === 'atendimentos' || tab === 'perfil' ? C.dash() : Promise.resolve(null), [tab])
   const TITLES = { painel: 'AVADESK PRO', alunos: 'Meus alunos', treinos: 'Meus treinos', atendimentos: 'Atendimentos', capacidade: 'Limite de alunos', perfil: 'Perfil profissional', verificacao: 'Verificação profissional', convites: 'Convidar alunos' }
   return <div className="ag" data-testid="pro">
-    <span className="g-eyebrow">AVADESK PRO</span><h1>{TITLES[tab] || 'AVADESK PRO'}</h1>
-    {['painel', 'treinos', 'convites', 'capacidade', 'perfil', 'verificacao'].includes(tab) && <div className="g-scrollx" style={{ marginTop: 8, marginBottom: 6 }}>{[['painel', 'Painel'], ['convites', 'Convites'], ['treinos', 'Meus treinos'], ['capacidade', 'Limite de alunos'], ['verificacao', 'Verificação'], ['perfil', 'Perfil profissional']].map(([k, l]) =>
+    {/* V4.1: cabeçalho com sino (notificações num lugar só) e atalhos ordenados por frequência de uso */}
+    <div className="g-row"><div style={{ minWidth: 0 }}><span className="g-eyebrow">AVADESK PRO</span><h1>{TITLES[tab] || 'AVADESK PRO'}</h1></div><span className="g-sp" /><Bell /></div>
+    {['painel', 'treinos', 'convites', 'capacidade', 'perfil', 'verificacao'].includes(tab) && <div className="g-scrollx" style={{ marginTop: 8, marginBottom: 6 }}>{[['painel', 'Painel'], ['treinos', 'Meus treinos'], ['convites', 'Convites'], ['capacidade', 'Limite de alunos'], ['verificacao', 'Verificação'], ['perfil', 'Perfil profissional']].map(([k, l]) =>
       <button key={k} className={'g-chipbtn' + (tab === k ? ' g-on' : '')} onClick={() => go(k)} data-testid={'pt-' + k}>{l}</button>)}<button className="g-chipbtn" onClick={() => nav('/pro/programas')} data-testid="pt-programas">Programas públicos</button></div>}
     <div style={{ marginTop: 8 }}>
       {tab === 'painel' && <Painel go={go} />}

@@ -23,8 +23,22 @@ const devMedia = () => ({
   }
 })
 
+// V4.1 — id do build: vai para o bundle (__BUILD_ID__), para dist/version.json e para o nome do cache do sw.js
+// (bytes do sw.js mudam a cada build → o navegador detecta a versão nova e o PWA instalado se atualiza sozinho).
+const BUILD_ID = process.env.BUILD_ID || new Date().toISOString().replace(/[-:T.Z]/g, '').slice(0, 14)
+const buildStamp = () => ({
+  name: 'build-stamp', apply: 'build',
+  closeBundle() {
+    const out = path.resolve('dist')
+    fs.writeFileSync(path.join(out, 'version.json'), JSON.stringify({ build: BUILD_ID, at: new Date().toISOString() }) + '\n')
+    const sw = path.join(out, 'sw.js')
+    if (fs.existsSync(sw)) fs.writeFileSync(sw, fs.readFileSync(sw, 'utf8').replace(/__BUILD_ID__/g, BUILD_ID))
+  }
+})
+
 export default defineConfig({
-  plugins: [react(), devMedia()],
+  plugins: [react(), devMedia(), buildStamp()],
+  define: { __BUILD_ID__: JSON.stringify(BUILD_ID) },
   // V4 · F1: specs do Playwright (e2e/) não rodam no vitest
   test: { exclude: ['e2e/**', 'node_modules/**', 'android/**', 'ios/**'] },
   server: {

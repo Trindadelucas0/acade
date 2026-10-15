@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Icon from '../../components/Icon.jsx'
 import { useStore } from '../../store/useStore.js'
-import { C, P, exportMyData } from '../../lib/care.js'
+import { C, P } from '../../lib/care.js'
 import { isProAccount, isNonTrainee } from './TabBar.jsx'
 import { G, GOAL_PT, LEVEL_PT, LOC_PT, RESTR_PT } from '../../lib/guided.js'
 import { MyTrophies } from '../app/Trofeus.jsx'
+import ThemePicker from '../../components/ThemePicker.jsx'
 import ContextSwitch from '../v3/ContextSwitch.jsx'
 import { MyInvites } from '../v3/AcceptInvite.jsx'
 import './guided.css'
@@ -27,41 +28,47 @@ export default function Profile() {
     <span className="g-eyebrow">Perfil</span>
     <h1>{user?.name || 'Visitante'}</h1>
     <p className="g-mut g-sm">{user?.email}{user?.tenant?.name ? ' · ' + user.tenant.name : ''}</p>
-    {user && <ContextSwitch />}
-    {user && !proAcc && (user.roles || []).includes('aluno') && user.status === 'ativo' && <MyInvites />}
-    {user && <div className="g-card" style={{ marginTop: 14 }} id="trofeus"><b className="g-sm">Troféus</b><MyTrophies /></div>}
-    {p && <div className="g-card" style={{ marginTop: 14 }}>
+    {/* V4.1: ordem por frequência de uso — aparência e treino primeiro; conta, dados e segurança depois (Nielsen #8, HIG "Settings") */}
+    {user && <ThemePicker />}
+    {!proAcc && <>
+    <h2>Treino</h2>
+    {p && <div className="g-card">
       <b className="g-sm">Suas respostas</b>
       <div className="g-chips" style={{ marginTop: 8 }}>
         <span className="g-chip g-on">{GOAL_PT[p.objetivo]}</span>{p.nivel && <span className="g-chip">{LEVEL_PT[p.nivel]}</span>}<span className="g-chip">{LOC_PT[p.local]}</span>
         {p.dias && <span className="g-chip">{p.dias} dias</span>}{p.minutos && <span className="g-chip">{p.minutos} min</span>}
         {(p.restricoes || []).map(r => <span key={r} className="g-chip">{RESTR_PT[r]}</span>)}
       </div>
-      <button className="g-link" onClick={() => nav('/onboarding')}>Refazer perguntas</button>
-      <button className="g-link" data-testid="profile-equipment" onClick={() => nav('/perfil/equipamentos')}>Equipamentos ({(p.equipamentos || []).length || (p.equipment_unknown ? 'não sei' : 'nenhum')})</button>
+      <div className="g-row" style={{ flexWrap: 'wrap', gap: 16 }}>
+        <button className="g-link" onClick={() => nav('/onboarding')}>Refazer perguntas</button>
+        <button className="g-link" data-testid="profile-equipment" onClick={() => nav('/perfil/equipamentos')}>Equipamentos ({(p.equipamentos || []).length || (p.equipment_unknown ? 'não sei' : 'nenhum')})</button>
+      </div>
     </div>}
+    <div className="g-card g-list" style={{ marginTop: 12 }}>
+      <Li icon="calendar" t="Meu treino ativo" s="Programa do sistema ou ficha do profissional" to="/meu-programa" />
+      <Li icon="person" t="Mapa muscular 3D" s="Toque no músculo e veja exercícios" to="/muscles" />
+      <Li icon="g-list" t="Biblioteca de exercícios" to="/library" />
+    </div>
+    </>}
     <h2>Conta</h2>
     <div className="g-card g-list">
+      <Li icon="bell" t="Notificações" to="/avisos" />
       {!proAcc && <Li icon="chat" t="Acompanhamento" s="Profissionais, dúvidas e ocorrências" to="/acompanhamento" />}
-      <Li icon="bell" t="Avisos" to="/avisos" />
       {(user?.capacities || []).length > 0 && <Li icon="sparkles" t="Meu plano" s="Plano, limites e uso" to="/planos" testid="my-plan" />}
       {user?.pro && <Li icon="clipboard" t="Área profissional" s="Alunos, atendimentos e perfil profissional" to="/pro" testid="pro-area" />}
       {user?.admin && <Li icon="shield" t="Painel administrativo" s="Liberações, profissionais, vínculos, filas e auditoria" to="/admin/painel" testid="admin-area" />}
     </div>
+    {user && <ContextSwitch />}
     {proAcc && <p className="g-note" style={{ marginTop: 10 }} data-testid="pro-account-note">Você está na área profissional. Para treinar, use “Usar a conta como › Treinar” acima — a mesma conta, com os dados de treino separados dos atendimentos.</p>}
+    {user && !proAcc && (user.roles || []).includes('aluno') && user.status === 'ativo' && <MyInvites />}
+    {user && <div className="g-card" style={{ marginTop: 14 }} id="trofeus"><b className="g-sm">Troféus</b><MyTrophies /></div>}
     {user && <MeusDados />}
     {user && <Seguranca />}
     {!proAcc && <>
-    <h2>Treino</h2>
-    <div className="g-card g-list">
-      <Li icon="calendar" t="Meu programa" to="/meu-programa" />
-      <Li icon="person" t="Mapa muscular 3D" s="Toque no músculo e veja exercícios" to="/muscles" />
-      <Li icon="g-list" t="Biblioteca de exercícios" to="/library" />
-    </div>
     <h2>Avançado</h2>
     <div className="g-card g-list">
       <Li icon="chart" t="Estatísticas detalhadas" to="/stats" />
-      <Li icon="gear" t="Preferências do treino" s="Unidades, tema, descanso, lembretes, backup" to="/settings" />
+      <Li icon="gear" t="Preferências do treino" s="Unidades, descanso, lembretes, backup" to="/settings" />
       {pro && <Li icon="clipboard" t="Programas (profissionais)" s="Status: rascunho, revisão, publicado, arquivado" to="/admin/programas" />}
     </div>
     </>}
@@ -91,8 +98,6 @@ function MeusDados() {
     <h2>Meus dados</h2>
     {code && <MyCode code={code} />}
     <div className="g-card g-list" data-testid="meus-dados">
-      <button className="g-li" onClick={async () => { try { await exportMyData(); setMsg('Arquivo gerado.') } catch (e) { setMsg(e.message) } }} data-testid="export-data">
-        <span className="g-ico"><Icon name="download" /></span><span><b>Exportar meus dados</b><br /><span className="g-mut g-xs">Arquivo JSON com cadastro, treinos, mensagens e aceites</span></span></button>
       {open ? <div className="g-li" style={{ display: 'block' }}><b>Pedido de exclusão em análise</b><p className="g-mut g-xs">Enviado em {new Date(open.created_at).toLocaleDateString('pt-BR')}. A administração confirma antes de excluir.</p>
         <button className="g-btn g-ghost g-sm" onClick={async () => { await C.cancelDelete(); load() }}>Cancelar pedido</button></div>
       : <button className="g-li" onClick={async () => { const r = await askText('Pedir a exclusão da conta?', { text: 'A administração analisa o pedido. Conte o motivo (opcional).', multiline: true, ok: 'Enviar pedido', danger: true }); if (r == null) return; try { await C.deleteRequest(r); setMsg('Pedido enviado à administração.'); load() } catch (e) { setMsg(e.message) } }} data-testid="delete-request">

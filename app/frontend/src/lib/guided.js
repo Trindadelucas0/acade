@@ -67,7 +67,7 @@ export function newSession(today) {
   return {
     client_id: (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2)),
     user_program_id: today.active.id, program_workout_id: w.id, workout_name: w.name, program_title: today.active.title,
-    started_at: new Date().toISOString(), exIdx: 0, rest: null, cur_start: Date.now(), last_end: null, pending_target: null, paused_sec: 0, paused_at: null,
+    started_at: new Date().toISOString(), exIdx: 0, rest: null, cur_start: null, last_end: null, pending_target: null, paused_sec: 0, paused_at: null,
     exercises: w.exercises.map(e => ({
       exercise_id: e.exercise_id, name: e.name, media: e.media, sets: e.sets || 3, reps_min: e.reps_min, reps_max: e.reps_max,
       duration_sec: e.duration_sec, rest_sec: e.rest_sec || 60, instructions: e.instructions, cautions: e.cautions || [],

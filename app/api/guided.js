@@ -7,6 +7,7 @@ import { BADGES_SQL } from './programs-editorial.js'
 import { pausedFromEvents } from './session-machine.js'
 // Todas as rotas exigem login (requireAuth) e são isoladas por tenant (tenantScope / user_id).
 import { q } from './db/pool.js'
+import { setActiveSystem, activeTrainingOf } from './active-training.js'
 import { requireAuth, requireRole, tenantScope } from './auth.js'
 // V4 F5: identidade única — treino pessoal exige o papel aluno (a mesma conta pode ter também o papel profissional)
 export async function requireTrainee(req, res, json) {
@@ -258,10 +259,15 @@ export function guidedRoutes({ json, readBody }) {
       const b = await readBody(req); if (!isUuid(b.program_id)) return json(res, 400, { error: 'id inválido' })
       const p = await q(`select id, published_revision_id from programs p where id=$1 and status='publicado' and ${tenantScope('p', 2)}`, [b.program_id, u.tenant_id])
       if (!p.rowCount) return json(res, 404, { error: 'Programa não encontrado' })
-      await q(`update user_programs set status='switched', ended_at=now(), end_reason='trocou de programa' where user_id=$1 and status='active'`, [u.id])
+      // V4.1: uma ficha por vez — aluno com ficha de profissional não escolhe programa avulso; quem tem programa precisa desvincular antes
+      { const at = await activeTrainingOf(u.id)
+        if (at.locked_to_pro) return json(res, 409, { error: 'Você treina com a ficha do seu profissional. Programas avulsos do sistema ficam bloqueados enquanto houver ficha ativa.', code: 'COACH_LOCKED' })
+        if (at.kind === 'sistema') { if (at.program.program_id === b.program_id) return json(res, 200, { user_program_id: at.program.id, already: true })
+          return json(res, 409, { error: 'Desvincule seu programa atual antes de escolher outro.', code: 'MUST_DETACH' }) } }
       const r = await q(`insert into user_programs(tenant_id,user_id,program_id,start_date,status,started_at,schedule) values($1,$2,$3,current_date,'active',now(),'{}') returning id`, [u.tenant_id, u.id, b.program_id])
       // V4: a adesão fica presa à revisão publicada agora (nova versão não troca o programa do aluno sozinha)
       if (p.rows[0].published_revision_id) await q('insert into user_program_revisions(user_program_id, revision_id) values($1,$2) on conflict do nothing', [r.rows[0].id, p.rows[0].published_revision_id])
+      await setActiveSystem(u, r.rows[0].id)   // V4.1: um treino ativo — a ficha do profissional fica inativa (não apagada)
       json(res, 200, { user_program_id: r.rows[0].id })
     },
     'POST /api/guided/abandon': async (req, res) => {

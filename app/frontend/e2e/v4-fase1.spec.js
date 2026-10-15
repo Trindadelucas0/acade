@@ -68,7 +68,7 @@ test('nenhuma entrada de "Criar meu treino" / treino livre; rotas legadas redire
 
 test('confirmação em modal (não nativo): Esc cancela, foco no modal, ação confirma', async ({ page }) => {
   await page.goto('/#/meu-programa')
-  const btn = page.getByRole('button', { name: /Abandonar/ }).first()
+  const btn = page.getByRole('button', { name: /^Desvincular programa$/ }).first()
   await btn.click()
   const dlg = page.getByTestId('dialog')
   await expect(dlg).toBeVisible()

@@ -33,18 +33,7 @@ export default function Settings() {
   const importRef = useRef(null)
   const wakeOK = wakeLockSupported()
 
-  const doExport = async () => {
-    const json = JSON.stringify(S, null, 2)
-    const name = 'avadesk-backup-' + todayISO() + '.json'
-    // WKWebView can't download blob URLs — the native build hands the file to the share sheet.
-    if (MOBILE) {
-      try { await shareExport(json, name); toast(t('Backup exported')) } catch (e) { /* share sheet dismissed */ }
-      return
-    }
-    const blob = new Blob([json], { type: 'application/json' })
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); URL.revokeObjectURL(a.href)
-    toast(t('Backup exported'))
-  }
+  // V4.1: exportação de backup (Exportar dados) removida a pedido do Lucas
   const doImport = ev => {
     const f = ev.target.files[0]; if (!f) return
     const rd = new FileReader()
@@ -79,7 +68,7 @@ export default function Settings() {
     {/* ---------- account (demo and mobile builds have nothing to sign in to) ---------- */}
     <Section title={MOBILE ? t('Your data') : DEMO ? t('Demo') : t('Account')}>
       {MOBILE ? <>
-        <Row icon="lock" iconTint="var(--acc)" title={t('All data stays on this phone')} subtitle={t('No account, no cloud — back it up anytime with Export below.')} />
+        <Row icon="lock" iconTint="var(--acc)" title={t('All data stays on this phone')}  />
         <Row icon="rocket" iconTint="var(--indigo)" title={t('Self-host avadesk')} subtitle={'Código aberto (AGPL) — veja o repositório.'} accessory="chevron"
           onClick={() => window.open(REPO, '_blank', 'noopener')} />
       </> : DEMO ? <>
@@ -162,7 +151,6 @@ export default function Settings() {
       {/* V4 F3: criação/importação de rotinas saiu (rotinas antigas são só consulta) */}
       {/* V4 F3: criação/importação de rotinas saiu (rotinas antigas são só consulta) */}
       {/* V4 F3: criação/importação de rotinas saiu (rotinas antigas são só consulta) */}
-      <Row icon="download" iconTint="var(--blue)" title={t('Export backup (JSON)')} accessory="chevron" onClick={doExport} />
       {/* V4 (doc 4.5): "Apagar tudo" saiu — nada do aluno é apagado. Limpa só o cache de arquivos do aparelho; a fila de sincronização e o histórico ficam. */}
       <Row icon="trash" iconTint="var(--blue)" title="Limpar cache deste aparelho" subtitle="Libera espaço. Seus treinos e o que ainda não sincronizou não são apagados." accessory="chevron" onClick={clearDeviceCache} data-testid="clear-cache" />
     </Section>

@@ -5,11 +5,8 @@ export async function run({ adm, p1, p2, stu, sid, P1, get, post, check }) {
   const email = `lgpd${Date.now()}@e2e.local`, terms = (await get(null, '/api/terms')).d.terms
   const reg = await post(null, '/api/auth/register', { name: 'Titular LGPD', email, password: 'senha-forte-1', accept_terms: true, terms_version: terms.version })
   const t = reg.d.token, uid = reg.d.user.id
-  const ex = await fetch(B + '/api/me/export', { headers: { Authorization: 'Bearer ' + t } })
-  const data = await ex.json()
-  check(ex.status === 200 && /attachment/.test(ex.headers.get('content-disposition') || '') && data.conta.email === email, 'exportação dos dados em JSON (download)')
-  check(!JSON.stringify(data).includes('password_hash') && data.tabelas['term_acceptances.user_id']?.length === 1, 'exportação inclui o aceite e omite segredos')
-  check((await get(null, '/api/me/export')).s === 401, 'exportação exige login')
+  // V4.1: exportação de dados removida do app → endpoint não existe mais
+  check((await get(t, '/api/me/export')).s === 404, 'exportação de dados removida (V4.1)')
   check((await post(t, '/api/me/delete-request', { reason: 'não uso mais' })).s === 200, 'pedido de exclusão criado')
   check((await post(t, '/api/me/delete-request', {})).s === 409, 'só um pedido de exclusão aberto por vez')
   check((await get(p1, '/api/adm/data-requests')).s === 403, 'profissional não vê a fila LGPD')
