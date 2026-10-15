@@ -71,7 +71,7 @@ export function lgpdRoutes({ json, readBody, legacyState, legacyErase }) {
         const rows = (await q(`select * from "${t}" where "${c}"=$1 limit 5000`, [u.id])).rows
         if (rows.length) out.tabelas[`${t}.${c}`] = rows.map(r => { for (const k of Object.keys(r)) if (SENSITIVE.test(k)) delete r[k]; return r })
       }
-      if (legacyState) out.treino_livre_local = legacyState(u.id)
+      if (legacyState) out.treino_livre_local = await legacyState(u.id)
       await audit(u.tenant_id, u.id, 'lgpd.exportacao', 'user', u.id)
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'Content-Disposition': 'attachment; filename="avadesk-meus-dados.json"' })
       res.end(JSON.stringify(out, null, 2))

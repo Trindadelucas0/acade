@@ -33,7 +33,7 @@ export default function Today() {
   useEffect(() => {
     flushQueue().then(setPend).catch(() => {})
     G.state().then(s => {
-      if (!s.profile && !localStorage.getItem('ag_onb_skip')) return nav('/onboarding', { replace: true })
+      if (!s.profile && !s.onboarding_skipped) return nav('/onboarding', { replace: true })
       setSt(s)
       if (s.active) G.today().then(setToday).catch(() => {})
     }).catch(e => setErr(e.status === 401 ? 'Entre com sua conta para usar os programas guiados.' : 'Sem conexão. Você ainda pode continuar um treino salvo no aparelho.'))

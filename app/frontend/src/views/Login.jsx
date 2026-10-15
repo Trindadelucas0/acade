@@ -163,7 +163,6 @@ function LoginForm() {
           <button type="button" className="lg-link" onClick={() => setGuest(true)}>Usar sem conta</button>
         </div>
         <InstallButton />
-        <div className="lg-credit">Modelo 3D: <a href="https://github.com/LluisV/Z-Anatomy" target="_blank" rel="noopener">Z-Anatomy</a> (BodyParts3D/DBCLS) — <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a> · Baseado no openGym (AGPL-3.0)</div>
       </form>
     </div>
   )

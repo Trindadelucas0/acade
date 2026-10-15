@@ -43,7 +43,14 @@ export const fmtKg = n => (Math.round((+n || 0) * 10) / 10).toLocaleString('pt-B
 const KEY = 'avagym_guided_session_v1', QUEUE = 'avagym_guided_queue_v1', LAST = 'avagym_guided_last_v1'
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d } catch { return d } }
 export const loadSession = () => read(KEY, null)
-export const saveSessionLocal = s => { if (s) localStorage.setItem(KEY, JSON.stringify(s)); else localStorage.removeItem(KEY) }
+// V3 F7: o treino em andamento também vai para o banco (retomar em outro aparelho); o localStorage fica como cache offline
+let liveTm = null
+const pushLive = s => { clearTimeout(liveTm); liveTm = setTimeout(() => { (s ? api('/api/me/live-session', { method: 'PUT', body: JSON.stringify({ session: s }) }) : api('/api/me/live-session/clear', { method: 'POST', body: '{}' })).catch(() => {}) }, s ? 1500 : 0) }
+export const saveSessionLocal = s => { if (s) localStorage.setItem(KEY, JSON.stringify(s)); else localStorage.removeItem(KEY); pushLive(s) }
+export async function restoreLiveSession() {
+  if (read(KEY, null)) return
+  try { const r = await api('/api/me/live-session'); if (r.session) localStorage.setItem(KEY, JSON.stringify(r.session)) } catch { /* offline ou visitante */ }
+}
 export const lastFinished = () => read(LAST, null)
 export const setLastFinished = s => localStorage.setItem(LAST, JSON.stringify(s))
 

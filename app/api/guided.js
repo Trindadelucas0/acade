@@ -158,7 +158,8 @@ export function guidedRoutes({ json, readBody }) {
       if (!wk.has(ws.getTime())) { streak = 0; for (let t = ws.getTime() - 7 * 864e5; wk.has(t); t -= 7 * 864e5) streak++ }
       let done = 0
       if (active) done = await sessionsDoneIn(active.id)
-      json(res, 200, { profile, active: active && { ...active, sessions_done: done, week_index: Math.min(active.weeks || 1, Math.floor((Date.now() - new Date(active.started_at)) / (7 * 864e5)) + 1) }, week: { done: week.length, target: active ? active.days_per_week : (profile ? profile.dias : 3), sessions: week }, streak_weeks: streak })
+      const skipped = !!(await q('select onboarding_skipped_at from users where id=$1', [u.id])).rows[0]?.onboarding_skipped_at
+      json(res, 200, { profile, onboarding_skipped: skipped, active: active && { ...active, sessions_done: done, week_index: Math.min(active.weeks || 1, Math.floor((Date.now() - new Date(active.started_at)) / (7 * 864e5)) + 1) }, week: { done: week.length, target: active ? active.days_per_week : (profile ? profile.dias : 3), sessions: week }, streak_weeks: streak })
     },
     'POST /api/guided/onboarding': async (req, res) => {
       const u = await requireTrainee(req, res, json); if (!u) return

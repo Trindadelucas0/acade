@@ -83,9 +83,6 @@ export default function MuscleMap() {
               <span>{e.name_pt}</span><span style={{ color: '#9fb3c8', fontSize: 12, whiteSpace: 'nowrap' }}>{e.equipment}{e.level ? ' · ' + (LEVEL[e.level] || e.level) : ''}</span></li>)}
           </ul> : <div style={{ color: '#9fb3c8', fontSize: 13, marginTop: 6 }}>Nenhum exercício cadastrado para este músculo ainda.</div>}
       </div>}
-      <div style={{ fontSize: 10.5, color: '#6d849c', textAlign: 'center', padding: '6px 10px 10px', background: muscle ? '#0E2439' : 'transparent' }}>
-        Modelo 3D: <a style={{ color: '#8fb0cf', display: 'inline-flex', alignItems: 'center', minHeight: 44, padding: '0 4px' }} href="https://github.com/LluisV/Z-Anatomy" target="_blank" rel="noopener">Z-Anatomy</a> (BodyParts3D/DBCLS), <a style={{ color: '#8fb0cf', display: 'inline-flex', alignItems: 'center', minHeight: 44, padding: '0 4px' }} href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a> — modificado
-      </div>
     </div>
   )
 }

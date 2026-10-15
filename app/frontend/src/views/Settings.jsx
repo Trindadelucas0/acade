@@ -170,12 +170,6 @@ export default function Settings() {
         subtitle={t('to install avadesk as a full-screen app.') + ' ' + (user ? t('Your data syncs with your profile — sign in anywhere to see it.') : t('Guest data stays on this device — export a backup now and then!'))} />
     </Section>}
 
-    <div className="dim small" style={{ textAlign: 'center', marginTop: 4, lineHeight: 1.6 }}>
-      <b>{t('About & license')}</b><br />
-      {t('AVADESK is based on AVAGYM.')}<br />
-      {/* AGPL-3.0 ┬º13: oferecer o c├│digo-fonte aos usu├írios da rede. Defina VITE_SOURCE_URL com o reposit├│rio da vers├úo modificada. */}
-      <a href={ 'AVADESK'} target="_blank" rel="noopener">{t('')}</a> ┬À {t('AVADESK')}
-    </div>
   </div>
 }
 

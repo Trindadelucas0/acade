@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import Icon from '../../components/Icon.jsx'
 import { G, GOALS } from '../../lib/guided.js'
 import { useStore } from '../../store/useStore.js'
+import { api } from '../../lib/api.js'
 import './guided.css'
 
 const STEPS = [
@@ -41,7 +42,6 @@ export default function Onboarding() {
   const finish = async () => {
     setBusy(true); setErr('')
     try {
-      localStorage.removeItem('ag_onb_skip')
       await G.onboarding({ ...a, restricoes: a.restricoes.filter(r => r !== 'none') })
       nav('/recomendados', { replace: true })
     } catch (e) { setErr(e.message || 'Não foi possível salvar') } finally { setBusy(false) }
@@ -69,7 +69,7 @@ export default function Onboarding() {
         </button>
       })}
     </div>
-    {i === 0 && <button className="g-link" style={{ marginTop: 16 }} onClick={() => { localStorage.setItem('ag_onb_skip', '1'); nav('/hoje', { replace: true }) }} data-testid="onb-skip">Agora não — quero conhecer o app primeiro</button>}
+    {i === 0 && <button className="g-link" style={{ marginTop: 16 }} onClick={async () => { try { await api('/api/me/onboarding/skip', { method: 'POST', body: '{}' }) } catch { /* segue mesmo offline */ } nav('/hoje', { replace: true }) }} data-testid="onb-skip">Agora não — quero conhecer o app primeiro</button>}
     {st.multi && <div className="g-bottom">
       {err && <p className="g-warn" style={{ marginBottom: 10 }}>{err}</p>}
       {a.restricoes.some(r => r !== 'none') && <p className="g-note" style={{ marginBottom: 12 }}>O AVADESK Fitness não faz diagnóstico. Se a dor for forte ou frequente, procure um médico ou fisioterapeuta.</p>}

@@ -4,6 +4,7 @@ import { localTZ } from '../lib/format.js'
 import { registerCustom } from '../lib/exercises.js'
 import { DEMO, DEMO_SEEDED } from '../lib/demo.js'
 import { MOBILE, nativeLoad, nativeSave, syncReminder } from '../lib/mobile.js'
+import { importLegacyLocal } from '../lib/localImport.js'
 
 const KEY = 'gym_state_v1'
 export const DEF = {
@@ -109,15 +110,16 @@ export const useStore = create((set, get) => {
     },
     async pullState() {
       try {
-        const { state } = await api('/api/data')
+        const { state, active: srvActive } = await api('/api/data')
         const S = get().S
         const dirty = localStorage.getItem('gym_dirty') === '1'
         if (state && (!hasData(S) || ((state._ts || 0) >= (S._ts || 0) && !dirty))) {
-          const active = S.active
+          const active = S.active || srvActive || null   // V3 F7: treino livre em andamento também fica no banco
           const next = Object.assign(clone(DEF), state)
           if (active) next.active = active
           persist(next, false)
-        } else if (hasData(S)) { await get().pushState() }
+        } else if (hasData(S)) { await get().pushState() }   // 1º login com dados antigos do navegador: sobem para o banco
+        await importLegacyLocal()
       } catch (e) { /* offline — keep local */ }
     },
 

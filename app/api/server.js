@@ -19,6 +19,7 @@ import { identityRoutes } from './identity.js';
 import { entitlementRoutes, entitlementGate } from './entitlements.js';
 import { inviteRoutes } from './invites.js';
 import { saasRoutes } from './saas.js';
+import { appStateRoutes, readStatePg, eraseStatePg } from './appstate.js';
 import { requireAuth } from './auth.js';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
@@ -60,9 +61,8 @@ function atomicWrite(file, content) {
   fs.renameSync(tmp, file);
 }
 const stateFile = uid => path.join(DATA, 'state-' + uid.replace(/[^a-zA-Z0-9_-]/g, '') + '.json');
-function readState(uid) {
-  try { return JSON.parse(fs.readFileSync(stateFile(uid), 'utf8')); } catch { return null; }
-}
+// V3 F7: estado do treino livre no Postgres (user_app_state); o arquivo state-<id>.json só é lido para importar
+const readState = uid => readStatePg(uid);
 
 /* ---------- push notifications (Web Push / VAPID) ---------- */
 const vapidFile = path.join(DATA, 'vapid.json');
@@ -131,10 +131,10 @@ function userNow(tz) {
     return { date: `${g('year')}-${g('month')}-${g('day')}`, hhmm: `${g('hour')}:${g('minute')}` };
   } catch { return null; } // unknown/invalid tz string — skip this user rather than guess
 }
-setInterval(() => {
+setInterval(async () => {
   for (const user of db.users) {
     if (!db.subs.some(s => s.userId === user.id)) continue;
-    const S = readState(user.id);
+    const S = await readState(user.id).catch(() => null);
     if (!S?.reminder?.on) continue;
     const now = userNow(S.reminder.tz || 'UTC');
     if (!now || S.reminder.time !== now.hhmm) continue;
@@ -269,25 +269,7 @@ const routes = {
     json(res, 200, { ok: true }, { 'Set-Cookie': clearCookie });
   },
 
-  'GET /api/data': async (req, res) => {
-    const user = readSession(req);
-    if (!user) return json(res, 401, { error: 'not signed in' });
-    try {
-      const state = JSON.parse(fs.readFileSync(stateFile(user.id), 'utf8'));
-      json(res, 200, { state });
-    } catch { json(res, 200, { state: null }); }
-  },
-
-  'PUT /api/data': async (req, res) => {
-    const user = readSession(req);
-    if (!user) return json(res, 401, { error: 'not signed in' });
-    const body = await readBody(req);
-    if (!body.state || typeof body.state !== 'object') return json(res, 400, { error: 'state required' });
-    delete body.state.active;              // in-progress workouts stay device-local
-    atomicWrite(stateFile(user.id), JSON.stringify(body.state));
-    json(res, 200, { ok: true, ts: body.state._ts || null });
-  },
-
+  // GET/PUT /api/data: ver appstate.js (Postgres)
   'GET /api/push/public-key': async (req, res) => json(res, 200, { key: vapid.publicKey }),
 
   'POST /api/push/subscribe': async (req, res) => {
@@ -363,7 +345,7 @@ const routes = {
     const a = await requireRole('admin')(req, res, json); if (!a) return;
     const id = new URL(req.url, 'http://x').searchParams.get('id') || '';
     if (!/^[0-9a-f-]{36}$/i.test(id)) return json(res, 400, { error: 'id inválido' });
-    const S = readState(id) || {};
+    const S = (await readState(id)) || {};
     json(res, 200, { unit: S.unit || 'kg', lastSync: S._ts || null, bodyweight: S.bodyweight || [], workouts: (S.workouts || []).slice().reverse(), routines: (S.routines || []).map(r => ({ id: r.id, name: r.name, count: (r.ex || []).length })) });
   }
 };
@@ -382,7 +364,7 @@ Object.assign(routes, authRoutes({ json, readBody, bridge: pgBridge, clearCookie
 Object.assign(routes, guidedRoutes({ json, readBody }));
 Object.assign(routes, proRoutes({ json, readBody }));
 Object.assign(routes, communityRoutes({ json, readBody }));  // feed, curtidas, comentários, denúncias, moderação
-Object.assign(routes, lgpdRoutes({ json, readBody, legacyState: readState, legacyErase: uid => { try { fs.unlinkSync(stateFile(uid)) } catch {} db.users = db.users.filter(x => x.id !== uid); saveDb() } }));
+Object.assign(routes, lgpdRoutes({ json, readBody, legacyState: readState, legacyErase: uid => { eraseStatePg(uid).catch(() => {}); try { fs.unlinkSync(stateFile(uid)) } catch {} db.users = db.users.filter(x => x.id !== uid); saveDb() } }));
 Object.assign(routes, rankingRoutes({ json, readBody }));
 Object.assign(routes, exerciseMediaRoutes({ json, readBody }));
 Object.assign(routes, portalRoutes({ json, readBody }));   // AVADESK PRO + central de solicitações + KPIs   // vídeos e fotos extras dos exercícios (admin)    // ranking semanal/mensal        // profissionais, vínculos, atendimento, admin   // treino guiado (onboarding, programas, sessões)
@@ -394,7 +376,8 @@ Object.assign(routes, prizeRoutes({ json, readBody }));  // V5-E: troféus e pre
 Object.assign(routes, identityRoutes({ json, readBody }));  // V3 F2: identidade global, contexto, verificação profissional
 Object.assign(routes, entitlementRoutes({ json, readBody, requireAuth, requireRole }));  // V3 F3: motor de planos
 Object.assign(routes, inviteRoutes({ json, readBody }));  // V3 F4: convites do profissional (Profissional Free)
-Object.assign(routes, saasRoutes({ json }));  // V3 F5: código público do aluno + visão 360° do admin
+Object.assign(routes, saasRoutes({ json }));
+Object.assign(routes, appStateRoutes({ json, readBody, readSession, dataDir: DATA }));  // V3 F7: estado do usuário no Postgres  // V3 F5: código público do aluno + visão 360° do admin
 
 http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
