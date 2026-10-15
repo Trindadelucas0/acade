@@ -222,3 +222,4 @@ body:has(.ag),html:has(.ag){background:var(--ag-bg)!important}
 .ag .g-week .g-d:not(.g-done) i{color:var(--ag-mut)}
 .ag .g-link{min-height:44px}
 .ag .g-btn:disabled{cursor:not-allowed}
+@media (max-width:360px){.ag .g-tabs{gap:2px}.ag .g-tabs button{padding:0 7px;font-size:12.5px}.ag .g-tabs .g-badge{margin-left:4px!important}}
