@@ -1,6 +1,7 @@
 // V5 Entrega 1 - foto de perfil, perfil social e cartões #TáPago. SOMENTE LOCAL: API de teste com e-mail desligado e
 // E2E_AUTO_UNLOCK_DOMAIN=e2e.local; contas fictícias @e2e.local criadas a cada execução.
 import { test, expect } from '@playwright/test'
+import { fillContact } from './_contact.js'
 const PASS = 'e2e-Avadesk-2026'
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64')
 async function newUser(page, tag) {
@@ -49,7 +50,7 @@ test('perfil social: foto (enviar, trocar, remover), @identificador, bio, objeti
   await page.getByTestId('social-handle').fill('@' + handle.toUpperCase())
   await expect(page.getByTestId('handle-status')).toHaveAttribute('data-state', 'ok')
   await page.getByTestId('social-bio').fill('Treinando para evoluir')
-  await page.getByTestId('social-city').fill('Campinas')
+  await fillContact(page, { cep: '13010000', city: 'Campinas' })
   await page.getByTestId('social-goal').click(); await page.locator('[role=option][data-value="ganho_de_massa"]').click()
   await page.getByTestId('social-private').check()
   await page.screenshot({ path: 'test-artifacts/visual/perfil-editar-mobile-claro.png' })

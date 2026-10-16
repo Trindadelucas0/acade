@@ -121,7 +121,7 @@ export function ProgramDetail() {
       <div className="g-row g-xs g-mut" style={{ margin: '12px 0 6px' }}><Icon name="target" /> Músculos trabalhados</div>
       <p className="g-sm">{p.muscles_pt.join(' · ')}</p>
       <div className="g-row g-xs g-mut" style={{ margin: '12px 0 6px' }}><Icon name="person" /> Autor</div>
-      <p className="g-sm">{p.author_name || 'Equipe AVAGYM'} · versão {p.version}{p.origin_kind === 'seed' && !p.author_verified ? ' · autoria ainda não verificada' : ''}</p>
+      <p className="g-sm">{p.author_name || 'Autor não informado'} · versão {p.version}{p.origin_kind === 'seed' && !p.author_verified ? ' · autoria ainda não verificada' : ''}</p>
       <ProgramBadges p={p} />
     </div>
     <h2>{p.workouts.length} treinos que se repetem na semana</h2>

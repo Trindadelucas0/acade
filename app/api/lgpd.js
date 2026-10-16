@@ -32,7 +32,9 @@ const SENSITIVE = /password_hash|token_hash/
 // tabelas de dados pessoais apagadas na exclusão; o restante (atendimento, publicações, auditoria) é mantido vinculado à conta anonimizada
 const PERSONAL = new Set(['post_likes', 'follows', 'notifications', 'ranking_prefs', 'ranking_pref_history', 'password_resets', 'user_access_plans', 'body_goals',
   // V5 (segurança/LGPD): identidade social, avatar, seguidores e curtidas em comentários
-  'social_profiles', 'user_avatar', 'social_follows', 'comment_likes'])
+  'social_profiles', 'user_avatar', 'social_follows', 'comment_likes',
+  // V5: contato e endereco
+  'user_contact'])
 
 // V5: arquivos de mídia do titular — avatar (storage) e uploads referenciados como /api/media?f=<nome> em colunas *url*
 import { UPLOADS_DIR, LEGACY_UPLOADS_DIR } from './storage/index.js'   // QA BUG-013

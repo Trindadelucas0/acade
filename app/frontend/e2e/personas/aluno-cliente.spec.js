@@ -1,5 +1,6 @@
 // Persona: Marina Souza, 29, analista, Android, nível técnico médio. Quer hipertrofia, 3x/semana, sem personal.
 import { test, expect } from '@playwright/test'
+import { fillContact } from '../_contact.js'
 import { persona, login, go, doWorkout, BASE, PASS, ADMIN, DESKTOP, MOBILE } from './_kit.js'
 test.use({ actionTimeout: 7000, navigationTimeout: 15000 }); test.setTimeout(600000)
 const step = persona('aluno-cliente', 'AL')
@@ -11,7 +12,7 @@ test('Marina (aluna cliente) — jornada completa', async ({ browser }) => {
     await p0.getByLabel('Nome', { exact: false }).first().fill('Marina Souza'); await p0.getByLabel('E-mail').fill(email)
     const pw = p0.locator('input[type=password]'); await pw.nth(0).fill(PASS); if (await pw.count() > 1) await pw.nth(1).fill(PASS)
     await p0.getByRole('button', { name: 'Criar conta', exact: true }).first().click(); await p0.waitForTimeout(800); await expect(p0).not.toHaveURL(/#\/hoje/) })
-  await step(p0, 'Cadastro com termos aceitos (Quero treinar)', async () => { await p0.getByTestId('accept-terms').check(); await p0.getByTestId('birth-date').fill('1990-01-01'); await p0.locator('form button[type=submit]').click(); await expect(p0.locator('.lg-field')).toHaveCount(0, { timeout: 10000 }) })
+  await step(p0, 'Cadastro com termos aceitos (Quero treinar)', async () => { await p0.getByTestId('accept-terms').check(); await p0.getByTestId('birth-date').fill('1990-01-01'); await fillContact(p0); await p0.locator('form button[type=submit]').click(); await expect(p0.locator('.lg-field')).toHaveCount(0, { timeout: 10000 }) })
   await c0.close()
   let { ctx, page } = await login(browser, email)
   await step(page, 'Conta nova aparece travada, com aviso claro', () => go(page, '/#/hoje', 'lock-banner'))

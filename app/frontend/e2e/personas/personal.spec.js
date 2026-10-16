@@ -1,5 +1,6 @@
 // Persona: Carlos Mendes, 34, personal trainer CREF, iPhone, nível técnico médio-alto. Quer acompanhar ~10 alunos e montar fichas rápido.
 import { test, expect } from '@playwright/test'
+import { fillContact } from '../_contact.js'
 import { persona, login, go, registerApi, BASE, PASS, ADMIN, DESKTOP, MOBILE } from './_kit.js'
 test.use({ actionTimeout: 7000, navigationTimeout: 15000 }); test.setTimeout(600000)
 const step = persona('personal', 'PE')
@@ -8,7 +9,7 @@ test('Carlos (personal) — da verificação ao atendimento', async ({ browser, 
   const c0 = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { Origin: new URL(BASE).origin }, viewport: MOBILE, colorScheme: 'light', locale: 'pt-BR' }), p0 = await c0.newPage()
   await step(p0, 'Cadastro como "Sou profissional"', async () => { await p0.goto('/#/'); await p0.getByRole('button', { name: 'Criar conta' }).first().click(); await p0.getByTestId('intent-profissional').click(); await expect(p0.getByTestId('intent-pro-note')).toBeVisible()
     await p0.getByLabel('Nome', { exact: false }).first().fill(name); await p0.getByLabel('E-mail').fill(email); const pw = p0.locator('input[type=password]'); await pw.nth(0).fill(PASS); if (await pw.count() > 1) await pw.nth(1).fill(PASS)
-    await p0.getByTestId('accept-terms').check(); await p0.getByTestId('birth-date').fill('1990-01-01'); await p0.locator('form button[type=submit]').click(); await expect(p0.locator('.lg-field')).toHaveCount(0, { timeout: 10000 }) })
+    await p0.getByTestId('accept-terms').check(); await p0.getByTestId('birth-date').fill('1990-01-01'); await fillContact(p0); await p0.locator('form button[type=submit]').click(); await expect(p0.locator('.lg-field')).toHaveCount(0, { timeout: 10000 }) })
   await c0.close()
   let P = await login(browser, email)
   await step(P.page, 'Painel do personal abre', () => go(P.page, '/#/pro'))

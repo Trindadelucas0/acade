@@ -8,6 +8,7 @@ import crypto from 'node:crypto'
 import { q, transaction } from './db/pool.js'
 import { allowPasswordEmail, queuePasswordLink, tokenHash, invalidatePasswordLinks } from './password-email.js'
 import { currentTerms, acceptTerms, termsStatus } from './lgpd.js'
+import { parseContact, saveContact, contactOf, contactComplete } from './contact.js'
 import { acceptAtSignup } from './legal.js'   // aceite no cadastro (mesma transacao)
 
 const SECRET = process.env.JWT_SECRET
@@ -117,6 +118,9 @@ export function authRoutes({ json, readBody, bridge, clearCookies }) {
       if (!okDate) errors.birth_date = 'Informe uma data de nascimento válida'
       else { const n = new Date(); let age = n.getFullYear() - bd.getUTCFullYear(); const md = (n.getMonth() + 1) * 100 + n.getDate(), bm = (bd.getUTCMonth() + 1) * 100 + bd.getUTCDate(); if (md < bm) age--; if (age < 18) errors.birth_date = 'É preciso ter 18 anos ou mais para criar a conta' }
       if (terms && b.accept_terms === true && b.terms_version !== terms.version) errors.terms = 'É preciso aceitar os termos de uso (versão ' + terms.version + ')'
+      // V5: contato e endereco no cadastro (a tela exige o conjunto completo; clientes antigos sem 'contact' seguem aceitos e recebem o aviso para completar)
+      const ct = b.contact && typeof b.contact === 'object' ? parseContact(b.contact, { required: true }) : null
+      if (ct) Object.assign(errors, ct.errors)
       if (Object.keys(errors).length) return json(res, 400, { error: Object.values(errors)[0], errors })
       const t = await q('select id from tenants where slug=$1 and active', [String(b.tenant || process.env.DEFAULT_TENANT || 'avadesk')])
       if (!t.rowCount) return json(res, 400, { error: 'Academia não encontrada' })
@@ -129,6 +133,7 @@ export function authRoutes({ json, readBody, bridge, clearCookies }) {
         try { u = await q('insert into users(tenant_id,name,email,password_hash,birth_date) values($1,$2,$3,$4,$5) returning id', [t.rows[0].id, name.slice(0, 80), email, hash, b.birth_date]) }
         catch (e) { if (e.code === '23505') return null; throw e }   // corrida: o índice único decide
         await q(`insert into user_roles values($1,$2,'aluno')`, [u.rows[0].id, t.rows[0].id])
+        if (ct) await saveContact(u.rows[0].id, t.rows[0].id, ct.data, u.rows[0].id, 'cadastro.contato')
         if (intent === 'profissional') {
           await q(`insert into user_roles values($1,$2,'profissional') on conflict do nothing`, [u.rows[0].id, t.rows[0].id])
           await q(`insert into professional_profiles(user_id,tenant_id,display_name) values($1,$2,$3) on conflict do nothing`, [u.rows[0].id, t.rows[0].id, name.slice(0, 80)])
@@ -185,7 +190,7 @@ export function authRoutes({ json, readBody, bridge, clearCookies }) {
     },
     'GET /api/auth/me': async (req, res) => {
       const u = await requireAuth(req, res, json, { allowPending: true }); if (!u) return
-      json(res, 200, { user: { ...pub(u), ...(await termsStatus(u.id)) } })
+      json(res, 200, { user: { ...pub(u), ...(await termsStatus(u.id)), profile_incomplete: !u.roles?.includes('admin') && !contactComplete(await contactOf(u.id)) } })
     },
     // Resposta idêntica para contas existentes, ausentes, bloqueadas e limitadas.
     'POST /api/auth/forgot': async (req, res) => {

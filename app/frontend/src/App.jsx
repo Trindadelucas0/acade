@@ -63,6 +63,7 @@ import Plans from './views/v3/Plans.jsx'
 import { PublicPlans, Subscription } from './views/billing/Billing.jsx'   // V5 cobranca
 import { NavigationAccess } from './components/NavigationAccess.jsx'
 import AcceptInvite from './views/v3/AcceptInvite.jsx'
+import ProfileNotice from './components/ProfileNotice.jsx'
 
 bindUI(useUI)   // lets the shared controls open sheets without importing the store at module scope
 
@@ -105,6 +106,7 @@ function Shell() {
           re-mounts the boundary, so the tab bar is always a way out */}
       <div id="app" className="vfade" key={loc.pathname}>
         {authed && !user?.must_change_password && <LockBanner />}
+        {authed && user?.profile_incomplete && !user?.must_change_password && !user?.needs_terms && <ProfileNotice />}
         <ErrorBoundary>
           {!authed ? <Login /> : user?.must_change_password ? <MustChangePassword /> : user?.needs_terms ? <LegalGate onAccepted={() => useStore.getState().setUser({ ...user, needs_terms: false })} /> : isAdminAccount(user) ? (
             <Routes>

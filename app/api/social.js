@@ -4,6 +4,7 @@ import crypto from 'node:crypto'
 import { q } from './db/pool.js'
 import { requireAuth, audit } from './auth.js'
 import { notify } from './pro.js'
+import { contactOf, publicContact } from './contact.js'
 import { countsInMetrics } from './metrics.js'
 import { storage, validKey, verifySig, mimeOf } from './storage/index.js'
 
@@ -172,10 +173,11 @@ export function socialRoutes({ json, readBody }) {
       if (!isUuid(id)) { const h = normHandle(p.get('handle')); id = h ? (await q('select user_id from social_profiles where lower(handle)=$1', [h])).rows[0]?.user_id : null }
       const t = isUuid(id) && (await q('select id,name,tenant_id,disabled_at from users where id=$1', [id])).rows[0]
       if (!t || t.tenant_id !== u.tenant_id || t.disabled_at) return deny(json, res, 404, 'NOT_FOUND', 'Perfil não encontrado.')
-      const [s, c, a, v, f] = await Promise.all([socialOf(id), counts(id), avatarOf(id), isVerified(id), q('select status from social_follows where follower_id=$1 and followee_id=$2', [u.id, id])])
+      const [s, c, a, v, f, ct, em] = await Promise.all([socialOf(id), counts(id), avatarOf(id), isVerified(id), q('select status from social_follows where follower_id=$1 and followee_id=$2', [u.id, id]), contactOf(id), q('select email from users where id=$1', [id])])
+      const pc = publicContact(ct, em.rows[0]?.email)   // V5: so o que o titular liberou; endereco completo nunca
       const me = u.id === id, follow = f.rows[0]?.status || null, priv = !!s?.is_private, full = me || !priv || follow === 'ativo'
       json(res, 200, { id, name: s?.display_name || t.name, handle: s?.handle || null, avatar: a, verified: v, is_private: priv, me, follow, followers: c.followers, following: c.following,
-        ...(full ? { bio: s?.bio || null, goal: s?.goal || null, city: s?.city || null } : { restricted: true }) })
+        ...(full ? { bio: s?.bio || null, goal: s?.goal || null, city: pc.city_uf || (ct?.city ? null : s?.city || null), neighborhood: pc.neighborhood || null, phone: pc.phone || null, email: pc.email || null } : { restricted: true }) })
     },
     'POST /api/social/follow': async (req, res) => {
       const u = await requireAuth(req, res, json); if (!u) return

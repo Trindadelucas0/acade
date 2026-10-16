@@ -9,6 +9,9 @@ import AvatarEditor from '../../components/AvatarEditor.jsx'
 import GSelect from '../../components/GSelect.jsx'
 import { GOAL_LABEL, normHandle, validHandle } from '../../lib/socialRules.js'
 import { Av } from '../app/kit.jsx'
+import ContactFields from '../../components/ContactFields.jsx'
+import { EMPTY_CONTACT, validateContact, toApi, fromApi, maskPhone, maskCep } from '../../lib/contact.js'
+import '../../components/contact.css'
 import './guided.css'
 import './socialProfile.css'
 
@@ -28,8 +31,10 @@ function useHandleCheck(h, enabled) {
   return st
 }
 
-function EditDialog({ d, onClose, onSaved }) {
+function EditDialog({ d, contact, onClose, onSaved }) {
   const locked = !!d.handle_locked
+  const [ct, setCt] = useState(() => fromApi(contact?.contact)), [vis, setVis] = useState(() => ({ show_phone: false, show_email: false, show_address: false, show_city: true, ...Object.fromEntries(Object.entries(contact?.contact || {}).filter(([k]) => k.startsWith('show_'))) }))
+  const ctTouched = contact?.complete || Object.values(ct).some(v => String(v || '').trim())
   const [f, setF] = useState({ ...d.profile }), [errs, setErrs] = useState({}), [msg, setMsg] = useState(''), [busy, setBusy] = useState(false), [confirm, setConfirm] = useState(false)
   const box = useRef(null)
   const h = normHandle(f.handle), newHandle = !locked && !!h
@@ -51,8 +56,11 @@ function EditDialog({ d, onClose, onSaved }) {
   const doSave = async () => {
     setBusy(true); setMsg(''); setErrs({})
     try {
+      if (ctTouched) { const ce = validateContact(ct); if (Object.keys(ce).length) { setErrs(ce); setMsg(Object.values(ce)[0]); setConfirm(false); setBusy(false); return } }
       const body = { display_name: f.display_name, bio: f.bio, goal: f.goal, city: f.city, is_private: f.is_private, ...(locked ? {} : { handle: h }) }
-      await api('/api/me/social', { method: 'POST', body: JSON.stringify(body) }); onSaved('Perfil salvo.')
+      await api('/api/me/social', { method: 'POST', body: JSON.stringify(body) })
+      if (ctTouched) await api('/api/me/contact', { method: 'POST', body: JSON.stringify({ ...toApi(ct), ...vis }) })
+      onSaved('Perfil salvo.')
     } catch (e) { setErrs(e.errors || {}); setMsg(e.message); setConfirm(false) } finally { setBusy(false) }
   }
   const save = () => newHandle && !confirm ? setConfirm(true) : doSave()
@@ -78,9 +86,14 @@ function EditDialog({ d, onClose, onSaved }) {
         <section className="sp-sec"><h3>Sobre você</h3>
           <label className="sp-f"><span>Bio <em>{160 - (f.bio || '').length} restantes</em></span><textarea className="g-in" maxLength={160} rows={3} value={f.bio} onChange={set('bio')} data-testid="social-bio" /></label>
           <div className="sp-row2">
-            <label className="sp-f"><span>Cidade (opcional)</span><input className="g-in" maxLength={60} value={f.city} onChange={set('city')} data-testid="social-city" /></label>
             <label className="sp-f"><span>Objetivo (opcional)</span><GSelect label="Objetivo" value={f.goal} onChange={v => setF({ ...f, goal: v })} options={[['', 'Não mostrar'], ...Object.entries(GOAL_LABEL)]} testid="social-goal" /></label>
           </div>
+        </section>
+        <section className="sp-sec" data-testid="social-contact"><h3>Contato e endereço</h3>
+          <ContactFields value={ct} onChange={setCt} errors={errs} />
+          <div className="ct-toggles" data-testid="contact-visibility"><b className="g-sm">O que aparece no meu perfil</b>
+            {[['show_city', 'Cidade e UF'], ['show_phone', 'Telefone'], ['show_email', 'E-mail'], ['show_address', 'Bairro']].map(([k, l]) => <label key={k}><input type="checkbox" checked={!!vis[k]} onChange={e => setVis({ ...vis, [k]: e.target.checked })} data-testid={'vis-' + k} /><span>{l}</span></label>)}
+            <small className="g-mut g-xs">Rua, número, complemento e CEP nunca aparecem para outras pessoas.</small></div>
         </section>
         <section className="sp-sec" data-testid="social-privacy"><h3>Quem vê meu perfil</h3>
           <div className="sp-opts" role="radiogroup" aria-label="Quem vê meu perfil">
@@ -101,11 +114,14 @@ function EditDialog({ d, onClose, onSaved }) {
 
 export default function SocialProfile() {
   const nav = useNavigate(), user = useStore(s => s.user)
+  const [ct, setCt] = useState(null)
   const [d, setD] = useState(null), [err, setErr] = useState(''), [msg, setMsg] = useState(''), [reqs, setReqs] = useState([]), [n, setN] = useState(0), [edit, setEdit] = useState(false)
   useEffect(() => {
     api('/api/me/social').then(setD).catch(e => setErr(e.message))
+    api('/api/me/contact').then(setCt).catch(() => setCt({ contact: {}, complete: false }))
     api('/api/me/follow-requests').then(r => setReqs(r.requests || [])).catch(() => {})
   }, [n])
+  useEffect(() => { if (/[?&]editar=1/.test(location.hash) && d) setEdit(true) }, [!!d])
   if (err) return <div className="ag"><h1>Perfil social</h1><p className="g-warn">{err}</p></div>
   if (!d) return <div className="ag"><p className="g-mut" role="status">Carregando.</p></div>
   const p = d.profile, name = p.display_name || d.name
@@ -122,7 +138,7 @@ export default function SocialProfile() {
         <span className={'sp-badge' + (p.is_private ? ' priv' : '')} data-testid="social-visibility">{p.is_private ? '🔒 Privado' : '🌐 Público'}</span>
       </div>
       <p className="sp-handle" data-testid="social-card-handle">{p.handle ? '@' + p.handle : <span className="g-mut">Sem @identificador</span>}</p>
-      {(p.city || p.goal) && <p className="sp-meta">{p.city && <span data-testid="social-card-city">📍 {p.city}</span>}{p.goal && <span>🎯 {GOAL_LABEL[p.goal] || p.goal}</span>}</p>}
+      {(() => { const cc = ct?.contact?.city ? ct.contact.city + (ct.contact.uf ? '/' + ct.contact.uf : '') : p.city; return (cc || p.goal) && <p className="sp-meta">{cc && <span data-testid="social-card-city">📍 {cc}</span>}{p.goal && <span>🎯 {GOAL_LABEL[p.goal] || p.goal}</span>}</p> })()}
       <p className={'sp-bio' + (p.bio ? '' : ' g-mut')} data-testid="social-card-bio">{p.bio || 'Você ainda não escreveu uma bio.'}</p>
       <div className="sp-stats" data-testid="social-counts"><span><b>{d.followers}</b> seguidor(es)</span><span><b>{d.following}</b> seguindo</span></div>
       <div className="sp-actions">
@@ -131,7 +147,14 @@ export default function SocialProfile() {
       </div>
       {msg && <p className="g-sm" role="status" data-testid="social-saved" style={{ marginTop: 10 }}>{msg}</p>}
     </article>
+    {ct && <article className="g-card ct-sum" style={{ marginTop: 12 }} data-testid="contact-summary"><div className="g-row"><h3 style={{ margin: 0 }}>Contato e endereço</h3><span className="g-sp" /><button className="g-btn g-ghost g-sm" onClick={() => setEdit(true)} data-testid="contact-edit">Editar</button></div>
+      {!ct.complete && <p className="g-warn g-sm" data-testid="contact-incomplete">Complete seu telefone e endereço. Eles ficam privados, a menos que você escolha mostrar.</p>}
+      {(() => { const c = ct.contact || {}, V = on => <span className="ct-vis">{on ? 'público' : 'privado'}</span>
+        return <dl><dt>Telefone</dt><dd>{c.phone ? maskPhone(c.phone) : '-'}{V(c.show_phone)}</dd><dt>E-mail</dt><dd>{user?.email || '-'}{V(c.show_email)}</dd>
+          <dt>Endereço</dt><dd>{c.street ? `${c.street}, ${c.number}${c.complement ? ' - ' + c.complement : ''}` : '-'}<span className="ct-vis">nunca público</span></dd>
+          <dt>Bairro</dt><dd>{c.neighborhood || '-'}{V(c.show_address)}</dd><dt>Cidade/UF</dt><dd>{c.city ? c.city + '/' + (c.uf || '') : '-'}{V(c.show_city)}</dd><dt>CEP</dt><dd>{c.cep ? maskCep(c.cep) : '-'}<span className="ct-vis">nunca público</span></dd></dl> })()}
+    </article>}
     {reqs.length > 0 && <><h2>Pedidos para seguir</h2><div className="g-card g-list" data-testid="follow-requests">{reqs.map(r => <div key={r.id} className="g-row" style={{ gap: 8, padding: '6px 0' }}><Av name={r.name} url={r.avatar} size={36} /><span style={{ flex: 1 }}>{r.name}</span><button className="g-btn g-sm" onClick={() => decide(r.id, true)}>Aceitar</button><button className="g-btn g-ghost g-sm" onClick={() => decide(r.id, false)}>Recusar</button></div>)}</div></>}
-    {edit && <EditDialog d={d} onClose={() => setEdit(false)} onSaved={m => { setEdit(false); setMsg(m); setN(x => x + 1) }} />}
+    {edit && <EditDialog d={d} contact={ct} onClose={() => setEdit(false)} onSaved={m => { setEdit(false); setMsg(m); setN(x => x + 1); if (user?.profile_incomplete) useStore.getState().setUser({ ...user, profile_incomplete: false }) }} />}
   </div>
 }

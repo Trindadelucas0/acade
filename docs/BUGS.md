@@ -41,3 +41,5 @@ A seção "Reteste QA" de cada bug é preenchida só pelo agente de testes.
 | [BUG-034](bugs/BUG-034.md) | 2026-10-16 | AVADESK restante no bundle e no nome da organização | todos | corrigido, aguardando reteste |
 | [BUG-035](bugs/BUG-035.md) | 2026-10-16 | Programas prontos do seed antigo em /api/programs | aluno | corrigido no código; arquivar em produção no deploy |
 | [BUG-036](bugs/BUG-036.md) | 2026-10-16 | /api/plan 400, paywall desligado, preços a definir | QA | esperado/aguardando preços (documentado) |
+| [BUG-037](bugs/BUG-037.md) | 2026-10-16 | Autor 'Equipe AVAGYM' inventado no fallback do programa | aluno | corrigido, aguardando reteste |
+| [BUG-038](bugs/BUG-038.md) | 2026-10-16 | confirm()/prompt() nativos na cobrança | aluno/profissional | corrigido, aguardando reteste |

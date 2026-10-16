@@ -2,6 +2,7 @@
 // Todo estado e regra ficam no servidor (/api/billing, /api/public/plans); aqui so exibimos e enviamos.
 import { useState, useEffect } from 'react'
 import { api } from '../../lib/api.js'
+import { ask, askText } from '../../lib/dialog.js'
 import Icon from '../../components/Icon.jsx'
 import { useStore } from '../../store/useStore.js'
 import './billing.css'
@@ -184,7 +185,7 @@ export function Subscription() {
         {['inadimplente', 'carencia', 'suspensa'].includes(s.status) && <button className="bl-btn" disabled={busy} onClick={() => act('/api/billing/pay-now', { audience: aud }, r => r.result === 'ativa' ? 'Pagamento aprovado. Assinatura em dia.' : 'Pagamento em análise.')} data-testid={'pay-now-' + aud}>Pagar agora</button>}
         <button className="g-btn" onClick={() => setCardFor(cardFor === aud ? null : aud)} data-testid={'change-card-' + aud}>Trocar cartão</button>
         {s.cancel_at_period_end ? <button className="g-btn" disabled={busy} onClick={() => act('/api/billing/reactivate', { audience: aud }, 'Cancelamento desfeito.')} data-testid={'reactivate-' + aud}>Desfazer cancelamento</button>
-          : s.status !== 'cancelada' && <button className="g-btn bl-danger" disabled={busy} onClick={() => { const reason = prompt('Quer nos contar o motivo? (opcional)'); if (reason === null) return; act('/api/billing/cancel', { audience: aud, reason }, r => r.result === 'agendado' ? `Cancelamento agendado: acesso até ${dBR(r.until)}.` : 'Assinatura encerrada.') }} data-testid={'cancel-' + aud}>Cancelar assinatura</button>}
+          : s.status !== 'cancelada' && <button className="g-btn bl-danger" disabled={busy} onClick={async () => { const reason = await askText('Quer nos contar o motivo? (opcional)', { ok: 'Cancelar assinatura', cancel: 'Voltar' }); if (reason === null || reason === undefined) return; act('/api/billing/cancel', { audience: aud, reason }, r => r.result === 'agendado' ? `Cancelamento agendado: acesso até ${dBR(r.until)}.` : 'Assinatura encerrada.') }} data-testid={'cancel-' + aud}>Cancelar assinatura</button>}
       </div>}
       {cardFor === aud && <div className="bl-cardpick">
         {me.cards.filter(c => c.id !== s.card?.id).map(c => <button key={c.id} className="g-btn" onClick={() => act('/api/billing/change-card', { audience: aud, card_id: c.id }, 'Cartão atualizado.').then(() => setCardFor(null))}>Usar {(c.brand || 'cartão') + ' final ' + c.last4}</button>)}
@@ -205,7 +206,7 @@ export function Subscription() {
       <tbody>{me.charges.map(c => <tr key={c.id}><td>{dBR(c.created_at)}</td><td>{c.description || c.kind}</td><td>{brl(c.amount_cents)}</td><td>{{ paga: 'Paga', recusada: 'Recusada', pendente: 'Pendente', estornada: 'Estornada' }[c.status] || c.status}{c.failure_message ? ' — ' + c.failure_message : ''}</td></tr>)}</tbody></table></div></section>}
 
     {me.cards.length > 0 && <section className="bl-sub" data-testid="cards"><h3>Cartões salvos</h3>{me.cards.map(c => <div key={c.id} className="bl-row bl-cardrow"><span>{(c.brand || 'Cartão') + ' final ' + c.last4} · {String(c.exp_month).padStart(2, '0')}/{c.exp_year}</span><span className="bl-sp" />
-      <button className="g-btn" disabled={busy} onClick={() => confirm('Remover este cartão?') && act('/api/billing/cards/remove', { id: c.id }, 'Cartão removido.')}>Remover</button></div>)}</section>}
+      <button className="g-btn" disabled={busy} onClick={async () => (await ask('Remover este cartão?', { ok: 'Remover', cancel: 'Voltar', danger: true })) && act('/api/billing/cards/remove', { id: c.id }, 'Cartão removido.')}>Remover</button></div>)}</section>}
     <p className="bl-fine"><a href="#/precos">Ver página pública de planos</a> · <a href="#/legal/assinatura">Termos de assinatura</a></p>
     {buy && <Checkout plan={buy} cfg={cfg} cards={me.cards} onClose={() => setBuy(null)} onDone={t => { setBuy(null); setNote({ ok: true, t }); load() }} />}
   </div>

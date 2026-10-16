@@ -2,6 +2,7 @@
 // sem gate de termos logo apos o cadastro. BUG-020: cabecalhos de seguranca do gateway nao quebram o app.
 // Roda SOMENTE contra a pilha de teste (API 8797 / avagym_test), servida pelo gateway em :4459.
 import { test, expect } from '@playwright/test'
+import { fillContact } from './_contact.js'
 const PASS = 'e2e-Avadesk-2026'
 test('raiz abre o Login; cadastro com aceite entra direto, sem gate de termos', async ({ page, baseURL }) => {
   test.skip(/:4449\b/.test(baseURL), 'nao roda contra o ambiente do Lucas')
@@ -29,6 +30,7 @@ test('raiz abre o Login; cadastro com aceite entra direto, sem gate de termos', 
   await page.getByTestId('birth-date').fill(minor.toISOString().slice(0, 10)); await page.locator('form button[type=submit]').click()
   await expect(page.getByText('É preciso ter 18 anos ou mais para criar a conta')).toBeVisible()
   await page.getByTestId('birth-date').fill('1990-01-01'); await page.getByTestId('accept-health').check()
+  await fillContact(page)
   await page.locator('form button[type=submit]').click()
   await expect(page.locator('.lg-field')).toHaveCount(0, { timeout: 15000 })
   await page.waitForTimeout(2000)
