@@ -20,7 +20,8 @@ import UserPanel, { accountTypePT, mensalidadePT } from './UserPanel.jsx'
 import AdminPrograms from '../guided/AdminPrograms.jsx'
 import AdminLogs from './AdminLogs.jsx'   // V5: logs e auditoria (request_audit + audit_log)
 import ManagementDashboard from './ManagementDashboard.jsx'
-import AdmBilling from '../billing/AdmBilling.jsx'   // V5 cobranca: planos, precos, cupons, parceiros, assinaturas
+import AdmBilling from '../billing/AdmBilling.jsx'
+import AdmMonetizacao from '../billing/AdmMonetizacao.jsx'   // Monetizacao F7   // V5 cobranca: planos, precos, cupons, parceiros, assinaturas
 import { AdmEmpresa } from '../app/Legal.jsx'
 
 // ---------- utilitários ----------
@@ -345,6 +346,7 @@ function Wrap({ children }) { return <div className="ag">{children}</div> }
 const NAV = [
  ['Visão geral', [['dashboard','Visão geral','chart']]],
  ['Pessoas', [['usuarios','Contas','person'],['profissionais','Profissionais e verificação','clipboard'],['vinculos','Vínculos e convites','users']]],
+ ['Monetização', [['monetizacao','Monetização','sparkles']]],
  ['Planos e capacidade', [['cobranca','Cobrança, preços e cupons','sparkles'],['assinaturas','Assinaturas','sparkles'],['planos','Limites de acompanhamento','shield'],['solicitacoes','Solicitações de vagas','flag']]],
  ['Treinos', [['modelos','Modelos de treino','pencil'],['exercicios','Biblioteca e mídia','dumbbell']]],
  ['Comunidade', [['publicacoes','Publicações e moderação','chat'],['grupos','Grupos e desafios','users'],['ranking','Ranking','sparkles']]],
@@ -382,6 +384,7 @@ export default function AdminApp() {
 
 
       {tab === 'cobranca' && <AdmBilling />}
+      {tab === 'monetizacao' && <AdmMonetizacao />}
       {tab === 'assinaturas' && <AdmSubscriptions />}
       {tab === 'publicacoes' && <><SubTabs items={[['publicacoes','Publicações e comentários'],['moderacao','Moderação']]} current={sub} onChange={setSub}/>{sub==='moderacao'?<ExtraSection name="moderacao"/>:<Publicacoes DataTable={DataTable} Drawer={Drawer}/>}</>}
 

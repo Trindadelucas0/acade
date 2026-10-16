@@ -83,14 +83,14 @@ function PlanRow({ p, onSaved }) {
     <Msg m={m} />
   </div>
 }
-function Planos() {
+export function Planos() {
   const [d, e, load] = useGet('/api/adm/billing/plans')
   if (e) return <p className="bl-err">{e}</p>; if (!d) return <p>Carregando…</p>
   return <div className="ag"><p className="adm-sub">Mudanças de recursos ou limites criam uma nova versão: quem já assina continua na versão contratada. Para vender, defina preço maior que zero e marque "À venda".</p>
     {d.plans.filter(p => ['aluno_free', 'profissional_free', 'individual', 'pro'].includes(p.id)).map(p => <PlanRow key={p.id + p.version + (p.updated_at || '')} p={p} onSaved={load} />)}</div>
 }
 
-function Cupons() {
+export function Cupons() {
   const [d, e, load] = useGet('/api/adm/billing/campaigns'), [pt] = useGet('/api/adm/billing/partners'), [m, setM] = useState(null)
   const [c, setC] = useState({ name: '', kind: 'oficial', benefit: 'desconto', discount_pct: 20, discount_cycles: 1, trial_days: '', partner_user_id: '', applies_to: '' })
   const [k, setK] = useState({ campaign_id: '', code: '', max_redemptions: '' })
@@ -120,7 +120,7 @@ function Cupons() {
   </div>
 }
 
-function Parceiros() {
+export function Parceiros() {
   const [d, e, load] = useGet('/api/adm/billing/partners'), [f, setF] = useState({ user_id: '', commission_pct: '', status: 'ativo' }), [m, setM] = useState(null)
   if (e) return <p className="bl-err">{e}</p>; if (!d) return <p>Carregando…</p>
   const save = async b => { try { await post('/api/adm/billing/partners', b); setM({ ok: true, t: 'Parceiro salvo.' }); load() } catch (x) { setM({ ok: false, t: x.message }) } }
@@ -135,7 +135,7 @@ function Parceiros() {
   </div>
 }
 
-function Assinaturas() {
+export function Assinaturas() {
   const [d, e, load] = useGet('/api/adm/billing/subscriptions'), [sel, setSel] = useState(null), [ch, setCh] = useState(null), [m, setM] = useState(null)
   const [all] = useGet('/api/adm/billing/charges')
   const open = async s => { setSel(s); setCh(await api('/api/adm/billing/charges?subscription_id=' + s.id).catch(() => null)) }

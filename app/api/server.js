@@ -27,6 +27,7 @@ import { identityRoutes } from './identity.js';
 import { entitlementRoutes, entitlementGate } from './entitlements.js';
 import { monetizationGate, accessRoutes } from './access.js';
 import { referralRoutes } from './referral.js';
+import { monetizationAdminRoutes } from './monetization-admin.js';
 import { inviteRoutes } from './invites.js';
 import { managementRoutes } from './management.js';
 import { saasRoutes } from './saas.js';
@@ -412,7 +413,8 @@ Object.assign(routes, prizeRoutes({ json, readBody }));  // V5-E: troféus e pre
 Object.assign(routes, identityRoutes({ json, readBody }));  // V3 F2: identidade global, contexto, verificação profissional
 Object.assign(routes, entitlementRoutes({ json, readBody, requireAuth, requireRole }));
 Object.assign(routes, accessRoutes({ json, requireAuth }));
-Object.assign(routes, referralRoutes({ json, requireAuth }));  // Monetizacao F5: /convite/CODIGO e painel de indicacoes  // Monetizacao F3: GET /api/access/me  // V3 F3: motor de planos
+Object.assign(routes, referralRoutes({ json, requireAuth }));
+Object.assign(routes, monetizationAdminRoutes({ json, readBody, requireRole }));  // Monetizacao F7: Admin > Monetizacao  // Monetizacao F5: /convite/CODIGO e painel de indicacoes  // Monetizacao F3: GET /api/access/me  // V3 F3: motor de planos
 Object.assign(routes, inviteRoutes({ json, readBody }));  // V3 F4: convites do profissional (Profissional Free)
 Object.assign(routes, saasRoutes({ json }));
 Object.assign(routes, managementRoutes({ json }));
