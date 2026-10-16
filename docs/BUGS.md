@@ -43,3 +43,5 @@ A seção "Reteste QA" de cada bug é preenchida só pelo agente de testes.
 | [BUG-036](bugs/BUG-036.md) | 2026-10-16 | /api/plan 400, paywall desligado, preços a definir | QA | esperado/aguardando preços (documentado) |
 | [BUG-037](bugs/BUG-037.md) | 2026-10-16 | Autor 'Equipe AVAGYM' inventado no fallback do programa | aluno | corrigido, aguardando reteste |
 | [BUG-038](bugs/BUG-038.md) | 2026-10-16 | confirm()/prompt() nativos na cobrança | aluno/profissional | corrigido, aguardando reteste |
+| [BUG-039](bugs/BUG-039.md) | 2026-10-16 | POST /api/logout (Sair) não revogava a sessão | todos | corrigido, aguardando reteste |
+| [BUG-040](bugs/BUG-040.md) | 2026-10-16 | Remover cartão sem id válido: 400 genérico | aluno/profissional | corrigido, aguardando reteste |

@@ -129,7 +129,8 @@ export function billingRoutes({ json, readBody }) {
     },
     'POST /api/billing/cards/remove': async (req, res) => {
       const u = await requireAuth(req, res, json); if (!u) return
-      const b = await readBody(req); if (!isUuid(b.id)) return json(res, 400, { error: 'Cartão inválido' })
+      // BUG-040: aceita id ou card_id (mesmo nome do subscribe/change-card) e explica o erro
+      const b = await readBody(req); b.id = b.id || b.card_id; if (!isUuid(b.id)) return json(res, 400, { error: 'Informe o cartão a remover (id do cartão).', code: 'INVALID_INPUT' })
       const inUse = (await q(`select 1 from subscriptions where payment_method_id=$1 and status in ('ativa','trial','inadimplente','carencia') and not cancel_at_period_end`, [b.id])).rowCount
       if (inUse) return json(res, 409, { error: 'Este cartão paga uma assinatura ativa. Troque o cartão da assinatura antes de removê-lo.', code: 'CARD_IN_USE' })
       const r = await q('update payment_methods set removed_at=now(), is_default=false, token=$3 where id=$1 and user_id=$2 and removed_at is null returning id', [b.id, u.id, 'removido'])

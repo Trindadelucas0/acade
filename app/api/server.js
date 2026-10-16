@@ -2,7 +2,7 @@
    No framework, JSON-file storage, signed session cookies.               */
 import './env.js';
 import http from 'node:http';
-import { authRoutes, clearTokenCookie, authUser, pub, requireRole } from './auth.js';
+import { authRoutes, clearTokenCookie, authUser, pub, requireRole, revokeRequestToken } from './auth.js';
 import { guidedRoutes } from './guided.js';
 import { activeTrainingRoutes } from './active-training.js';
 import { accountRoutes, accessGate } from './accounts-v42.js';
@@ -275,7 +275,8 @@ const routes = {
     json(res, 200, { user: { id: user.id, name: user.name, admin: isAdmin(user) } });
   },
 
-  'POST /api/logout': async (req, res) => json(res, 200, { ok: true }, { 'Set-Cookie': [clearCookie, clearTokenCookie] }),
+  // BUG-039: o botao Sair usa esta rota; ela tem de revogar o token igual a /api/auth/logout (antes so limpava o cookie)
+  'POST /api/logout': async (req, res) => { await revokeRequestToken(req).catch(e => console.error('logout revoke', e.message)); json(res, 200, { ok: true }, { 'Set-Cookie': [clearCookie, clearTokenCookie] }) },
 
   // "Sign out everywhere" — bumps this user's session version, which invalidates every cookie
   // ever issued for the account, on every device, including a copy someone else walked off with.
