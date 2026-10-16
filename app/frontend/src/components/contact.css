@@ -16,3 +16,6 @@
 .lg-in:focus{border-color:#c8f135}
 select.lg-in{color-scheme:dark;-webkit-appearance:none;appearance:none}
 .lg-field.err .lg-in{border-color:#ff5a6a}
+
+.ct-lgpd{font-size:12px;line-height:1.4;opacity:.8;margin:0 0 4px}
+.ct-lgpd a{text-decoration:underline}

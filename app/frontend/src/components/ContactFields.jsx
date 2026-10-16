@@ -20,6 +20,7 @@ export default function ContactFields({ value, onChange, errors = {}, cls = 'g-i
     <span>{label}</span><input className={cls} value={value[k] || ''} onChange={e => set(k, e.target.value)} aria-invalid={!!errors[k]} data-testid={'ct-' + k} {...props} />
     {extra}{errors[k] && <em className="ct-err">{errors[k]}</em>}</label>
   return <div className="ct-grid" data-testid="contact-fields">
+    <p className="ct-lgpd" data-testid="contact-lgpd">Usamos seu telefone e endere�o s� para identificar sua conta, contato sobre a sua conta e assinatura, seguran�a e preven��o a fraudes. Telefone, e-mail e endere�o ficam privados por padr�o; rua, n�mero, complemento e CEP nunca aparecem no perfil p�blico. Saiba mais na <a href="#/legal/privacidade" target="_blank" rel="noopener noreferrer">Pol�tica de Privacidade</a>.</p>
     {F('phone', 'Telefone (com DDD)', { inputMode: 'tel', autoComplete: 'tel-national', placeholder: '(11) 98765-4321', onChange: e => set('phone', maskPhone(e.target.value)) })}
     {F('cep', 'CEP', { inputMode: 'numeric', autoComplete: 'postal-code', placeholder: '00000-000', onChange: e => { const m = maskCep(e.target.value); set('cep', m); if (onlyDigits(m).length === 8) findCep(m) } },
       <small className="ct-hint" role="status" aria-live="polite" data-testid="cep-status">{busy ? 'Buscando endereço.' : cepMsg}</small>)}

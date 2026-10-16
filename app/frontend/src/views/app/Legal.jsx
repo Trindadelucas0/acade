@@ -108,7 +108,7 @@ export function LegalGate({ onAccepted }) {
       {open === k && <div style={{ maxHeight: '45vh', overflow: 'auto' }}><LegalDoc text={DOCS[k].text} map={map} /></div>}
     </div>)}
     <div className="g-card" style={{ marginTop: 12, display: 'grid', gap: 10 }}>
-      <label style={{ display: 'flex', gap: 8 }}><input type="checkbox" checked={ok1} onChange={e => setOk1(e.target.checked)} data-testid="legal-ok-terms" /><span>Li e aceito os <Link to="/legal/termos" target="_blank">Termos de Uso</Link> e a <Link to="/legal/privacidade" target="_blank">Política de Privacidade</Link> e declaro ter 18 anos ou mais. <b>(obrigatório)</b></span></label>
+      <label style={{ display: 'flex', gap: 8 }}><input type="checkbox" checked={ok1} onChange={e => setOk1(e.target.checked)} data-testid="legal-ok-terms" /><span>Li e aceito os <Link to="/legal/termos" target="_blank">Termos de Uso</Link> e a <Link to="/legal/privacidade" target="_blank">Política de Privacidade</Link>. <b>(obrigatório)</b></span></label>
       {isPro && <label style={{ display: 'flex', gap: 8 }}><input type="checkbox" checked={ok2} onChange={e => setOk2(e.target.checked)} data-testid="legal-ok-pro" /><span>Li e aceito o <Link to="/legal/profissional" target="_blank">Termo do Profissional</Link>. <b>(obrigatório)</b></span></label>}
       <label style={{ display: 'flex', gap: 8 }}><input type="checkbox" checked={health} onChange={e => setHealth(e.target.checked)} data-testid="legal-health" /><span>Autorizo o tratamento dos meus dados de saúde (relatos de dor, avaliação física, IMC e fotos de evolução), inclusive o compartilhamento com o profissional vinculado. <i>(opcional — pode ser revogado em Documentos legais)</i></span></label>
     </div>

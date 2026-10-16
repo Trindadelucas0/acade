@@ -38,7 +38,7 @@ import Progress from './views/guided/Progress.jsx'
 import Profile from './views/guided/Profile.jsx'
 import MyEquipment from './views/guided/MyEquipment.jsx'
 import AdminPrograms from './views/guided/AdminPrograms.jsx'
-// AVADESK Fitness
+// AVAGYM
 import Treinos from './views/app/Treinos.jsx'
 import Comunidade, { PostPage, ProfessionalPage } from './views/app/Comunidade.jsx'
 import Ranking from './views/app/Ranking.jsx'

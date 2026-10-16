@@ -1,4 +1,4 @@
-// AVADESK Fitness — chamadas de acompanhamento, profissional e administração.
+// AVAGYM — chamadas de acompanhamento, profissional e administração.
 import { api } from './api.js'
 const post = (p, b) => api(p, { method: 'POST', body: JSON.stringify(b || {}) })
 export const C = {

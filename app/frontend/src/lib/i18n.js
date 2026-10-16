@@ -6,7 +6,7 @@
 import { useSyncExternalStore } from 'react'
 
 // UI languages. de/pt have no instruction pack upstream — instructions fall back to English.
-// AVADESK Fitness: só português (padrão) e inglês. Os outros pacotes continuam no repositório, fora do seletor.
+// AVAGYM: só português (padrão) e inglês. Os outros pacotes continuam no repositório, fora do seletor.
 export const LANGS = { pt: 'Português (Brasil)', en: 'English' }
 export const INSTR_LANGS = ['en', 'es', 'fr', 'it', 'tr', 'ru', 'zh', 'hi', 'pl', 'ko', 'pt']
 const DATE_LOCALES = {

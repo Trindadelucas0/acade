@@ -18,7 +18,9 @@ test('raiz abre o Login; cadastro com aceite entra direto, sem gate de termos', 
   await expect(page.getByTestId('terms-gate')).toHaveCount(0)
   await page.getByRole('button', { name: 'Criar conta' }).first().click()
   await expect(page.getByTestId('intent-aluno')).toBeVisible()
-  await expect(page.locator('a[href="#/legal/termos"]')).toBeVisible(); await expect(page.locator('a[href="#/legal/privacidade"]')).toBeVisible()
+  await expect(page.locator('a[href="#/legal/termos"]')).toBeVisible(); await expect(page.locator('a[href="#/legal/privacidade"]').first()).toBeVisible()
+  // aviso LGPD de finalidade junto ao telefone/endereco, com link para a Politica de Privacidade
+  await expect(page.getByTestId('contact-lgpd')).toContainText('Pol�tica de Privacidade'); await expect(page.getByTestId('contact-lgpd').locator('a[href="#/legal/privacidade"]')).toBeVisible()
   const email = `cad.e2e.${Date.now()}@e2e.local`
   await page.getByLabel('Nome', { exact: false }).first().fill('Cadastro Aceite'); await page.getByLabel('E-mail').fill(email)
   const pw = page.locator('input[type=password]'); await pw.nth(0).fill(PASS); if (await pw.count() > 1) await pw.nth(1).fill(PASS)
