@@ -133,6 +133,18 @@ function LoginForm() {
     </div>
   )
 
+  if (mode === 'forgot') return <div className="lg-wrap"><Hero /><form className="lg-card" onSubmit={async e => {
+    e.preventDefault()
+    if (!EMAIL_RE.test(f.email.trim())) return setErrs({email:'Informe um e-mail válido'})
+    setBusy(true); setMsg('')
+    try { const r = await api('/api/auth/forgot', {method:'POST',body:JSON.stringify({email:f.email.trim()})}); setMsg(r.message) }
+    catch (e) { setMsg(e.message) } finally { setBusy(false) }
+  }}><div className="lg-brand">AVADESK <b>Fitness</b></div><h1>Recuperar acesso</h1><p className="lg-sub">Informe seu e-mail para receber o link de recuperação.</p>
+    {field('email','E-mail','email','email',{inputMode:'email'})}
+    {msg && <p className="lg-msg" role="status">{msg}</p>}
+    <button className="lg-btn" disabled={busy}>{busy ? 'Enviando…' : 'Enviar link de recuperação'}</button>
+    <button type="button" className="lg-btn ghost" onClick={() => {setMode('login');setMsg('');setErrs({})}}>Voltar para entrar</button>
+  </form></div>
   return (
     <div className="lg-wrap">
       <Hero />
@@ -154,9 +166,7 @@ function LoginForm() {
           {readTerms && <div className="lg-terms-box"><TermsText terms={terms} /></div>}
           {errs.terms && <em>{errs.terms}</em>}
         </div>}
-        {!reg && <button type="button" className="lg-forgot" onClick={async () => {
-          if (!EMAIL_RE.test(f.email.trim())) return setErrs({ ...errs, email: 'Informe seu e-mail acima para recuperar o acesso' })
-          try { const r = await api('/api/auth/forgot', { method: 'POST', body: JSON.stringify({ email: f.email.trim() }) }); setMsg(r.message) } catch (e) { setMsg(e.message) } }}>Esqueci a senha</button>}
+        {!reg && <button type="button" className="lg-forgot" onClick={() => { setMode('forgot'); setMsg(''); setErrs({}) }}>Esqueci a senha</button>}
         {msg && <div className="lg-msg" role="alert">{msg}</div>}
         {exists && reg && <div className="lg-alt" data-testid="email-exists">
           <button type="button" className="lg-link" onClick={() => { setMode('login'); setErrs({}); setMsg(''); setExists(false) }}>Entrar com este e-mail</button>

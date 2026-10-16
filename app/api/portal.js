@@ -6,6 +6,7 @@ import { countsInMetrics } from './metrics.js'
 import { q } from './db/pool.js'
 import { requireAuth, audit } from './auth.js'
 import { notify, notifyAdmins, isLinked } from './pro.js'
+import { professionalOccupancy, summarizeCapacity } from './management.js'
 import { capacitySummary } from './entitlements.js'
 
 const isUuid = s => /^[0-9a-f-]{36}$/i.test(String(s || ''))
@@ -279,6 +280,11 @@ export function portalRoutes({ json, readBody }) {
           (select json_agg(h order by h.id) from pro_request_history h where h.request_id=r.id) history
         from pro_requests r join users x on x.id=r.professional_id left join professional_profiles pp on pp.user_id=x.id left join users s on s.id=r.student_id
         where r.tenant_id=$1 and ($2::text is null or r.type=$2) and r.status = any($3) order by r.created_at`, [u.tenant_id, type, sts])
+      const limits = new Map()
+      for (const row of r.rows) {
+        if (!limits.has(row.professional_id)) limits.set(row.professional_id, await capacitySummary(row.professional_id))
+        const lim = limits.get(row.professional_id); row.live_capacity = lim.effective_limit; row.live_active = lim.used; row.available = lim.available
+      }
       json(res, 200, { requests: r.rows })
     },
     'POST /api/adm/requests/decide': async (req, res) => {
@@ -371,7 +377,7 @@ export function portalRoutes({ json, readBody }) {
       const [users, pros, cap, links, reqs, occ, th, comm, rank, signups, sess, posts, overdue] = await Promise.all([
         one(`select status, count(*)::int n from users where tenant_id=$1 group by 1`),
         one(`select pp.state, count(*)::int n from professional_profiles pp where tenant_id=$1 group by 1`),
-        one(`select coalesce(sum(capacity),0)::int capacity, (select count(*)::int from coach_students where tenant_id=$1 and status='ativo') used from professional_profiles where tenant_id=$1 and state='ativo'`),
+        professionalOccupancy({ query: q }, t).then(pros => [summarizeCapacity(pros)]),
         one(`select status, count(*)::int n from coach_students where tenant_id=$1 group by 1`),
         one(`select type, status, count(*)::int n from pro_requests where tenant_id=$1 group by 1,2`),
         one(`select status, count(*)::int n, count(*) filter (where overdue_flagged_at is not null)::int overdue from occurrences where tenant_id=$1 group by 1`),

@@ -24,6 +24,7 @@ import { prizeRoutes } from './prizes.js';
 import { identityRoutes } from './identity.js';
 import { entitlementRoutes, entitlementGate } from './entitlements.js';
 import { inviteRoutes } from './invites.js';
+import { managementRoutes } from './management.js';
 import { saasRoutes } from './saas.js';
 import { appStateRoutes, readStatePg, eraseStatePg } from './appstate.js';
 import { requireAuth } from './auth.js';
@@ -392,6 +393,7 @@ Object.assign(routes, identityRoutes({ json, readBody }));  // V3 F2: identidade
 Object.assign(routes, entitlementRoutes({ json, readBody, requireAuth, requireRole }));  // V3 F3: motor de planos
 Object.assign(routes, inviteRoutes({ json, readBody }));  // V3 F4: convites do profissional (Profissional Free)
 Object.assign(routes, saasRoutes({ json }));
+Object.assign(routes, managementRoutes({ json }));
 Object.assign(routes, appStateRoutes({ json, readBody, readSession, dataDir: DATA }));  // V3 F7: estado do usuário no Postgres  // V3 F5: código público do aluno + visão 360° do admin
 
 http.createServer(async (req, res) => {

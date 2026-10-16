@@ -73,29 +73,39 @@ function Assess({ o, onClose, onDone }) {
   </Sheet>
 }
 
-export function Atendimentos({ d, reload }) {
+export function Atendimentos({ d: source, reload }) {
+  const [filter, setFilter] = useState('pendentes'), [query, setQuery] = useState('')
+  const matches = item => {
+    const closed = ['encerrada', 'encerrado', 'respondida', 'aceita', 'aceito', 'rejeitada', 'rejeitado', 'aprovada', 'recusada'].includes(item.status)
+    const pending = ['pendente', 'aguardando', 'aberta', 'registrada'].includes(item.status) || !item.status
+    const state = filter === 'encerrados' ? closed : filter === 'andamento' ? !closed && !pending : !closed && pending
+    return state && [item.student_name,item.exercise_name,item.description,item.last_body,item.plan_title].filter(Boolean).join(' ').toLowerCase().includes(query.toLowerCase())
+  }
+  const d = { ...source, occurrences: source.occurrences.filter(matches).sort((a,b) => (a.student_name || '').localeCompare(b.student_name || '', 'pt-BR')), threads: source.threads.filter(matches), proposals: source.proposals.filter(matches) }
   const nav = useNavigate()
   const [assess, setAssess] = useState(null), [prop, setProp] = useState(null)
   return <div>
+    <Tabs cur={filter} set={setFilter} tabs={[['pendentes', 'Pendentes'], ['andamento', 'Em andamento'], ['encerrados', 'Encerrados']]} />
+    <label className="g-field"><span>Buscar aluno ou assunto</span><input className="g-in" value={query} onChange={e => setQuery(e.target.value)} /></label>
     <h2>Ocorrências</h2>
     <div className="g-card g-list">{d.occurrences.length ? d.occurrences.map(o => <div key={o.id} className="g-li" style={{ display: 'block' }}>
       <div className="g-row"><b>{CAT_PT[o.category]}</b><span className="g-sp" /><span className={'g-pill ' + (o.overdue_flagged_at ? 'g-bad2' : 'g-warn2')}>{o.overdue_flagged_at ? 'Prazo vencido' : OCC_ST[o.status]}</span></div>
       <p className="g-mut g-xs">{o.student_name}{o.exercise_name ? ' · ' + o.exercise_name : ''} · {dt(o.created_at)}{o.assigned_to && o.responsible_id !== o.assigned_to ? ' · designação' : ''}</p>
       {o.description && <p className="g-sm">{o.description}</p>}
-      <div className="g-actions"><button className="g-btn g-sm" onClick={() => setAssess(o)} data-testid="assess">Orientar</button>
+      {o.status !== 'encerrada' && <div className="g-actions"><button className="g-btn g-sm" onClick={() => setAssess(o)} data-testid="assess">Orientar</button>
         <button className="g-btn g-ghost g-sm" onClick={() => setProp(o)}>Propor alteração</button>
-        <button className="g-btn g-ghost g-sm" onClick={async () => { const r = await askText('Motivo do encerramento', { ok: 'Encerrar' }); if (r != null) { try { await C.closeOcc(o.id, r); reload() } catch (e) { notifyError(e) } } }}>Encerrar</button></div>
-    </div>) : <Empty icon="check">Nenhuma ocorrência pendente.</Empty>}</div>
+        <button className="g-btn g-ghost g-sm" onClick={async () => { const r = await askText('Motivo do encerramento', { ok: 'Encerrar' }); if (r != null) { try { await C.closeOcc(o.id, r); reload() } catch (e) { notifyError(e) } } }}>Encerrar</button></div>}
+    </div>) : <Empty icon="check">Nenhuma ocorrência neste filtro.</Empty>}</div>
     <h2>Dúvidas e mensagens</h2>
     <div className="g-card g-list">{d.threads.length ? d.threads.map(t => <button key={t.id} className="g-li" onClick={() => nav('/conversa/' + t.id)}>
       <span className="g-ico"><Icon name="chat" /></span><span style={{ minWidth: 0 }}><b>{t.student_name}{t.exercise_name ? ' · ' + t.exercise_name : ''}</b><br /><span className="g-mut g-xs">{t.last_body?.slice(0, 70)}</span></span>
-      <span className={'g-pill ' + (t.status === 'aguardando' ? 'g-warn2' : 'g-ok')} style={{ marginLeft: 'auto' }}>{t.status}</span></button>) : <Empty icon="chat">Nenhuma mensagem aguardando.</Empty>}</div>
+      <span className={'g-pill ' + (t.status === 'aguardando' ? 'g-warn2' : 'g-ok')} style={{ marginLeft: 'auto' }}>{t.status}</span></button>) : <Empty icon="chat">Nenhuma mensagem neste filtro.</Empty>}</div>
     <h2>Propostas para avaliar</h2>
     <div className="g-card g-list">{d.proposals.length ? d.proposals.map(p => <div key={p.id} className="g-li" style={{ display: 'block' }}>
       <b>{p.plan_title || 'Plano'}</b> <span className="g-mut g-xs">por {p.author_name} · tentativa {p.attempt}</span><p className="g-sm">{p.description}</p>
-      {p.decider_id === d.me && <div className="g-actions"><button className="g-btn g-sm" onClick={async () => { const o = await askText('Aceitar a proposta?', { label: 'Observação (opcional)', ok: 'Aceitar' }); if (o == null) return; try { await C.decide({ id: p.id, accept: true, reason: o }); reload() } catch (e) { notifyError(e) } }}>Aceitar</button>
+      {p.status === 'pendente' && p.decider_id === d.me && <div className="g-actions"><button className="g-btn g-sm" onClick={async () => { const o = await askText('Aceitar a proposta?', { label: 'Observação (opcional)', ok: 'Aceitar' }); if (o == null) return; try { await C.decide({ id: p.id, accept: true, reason: o }); reload() } catch (e) { notifyError(e) } }}>Aceitar</button>
         <button className="g-btn g-danger g-sm" onClick={async () => { const r = await askText('Motivo da rejeição', { required: true, ok: 'Rejeitar', danger: true }); if (r) { try { await C.decide({ id: p.id, accept: false, reason: r }); reload() } catch (e) { notifyError(e) } } }}>Rejeitar</button></div>}
-    </div>) : <Empty>Nenhuma proposta pendente.</Empty>}</div>
+    </div>) : <Empty>Nenhuma proposta neste filtro.</Empty>}</div>
     {assess && <Assess o={assess} onClose={() => setAssess(null)} onDone={() => { setAssess(null); reload() }} />}
     {prop && <Sheet title="Propor alteração no treino" onClose={() => setProp(null)}><ProposalForm o={prop} onDone={() => { setProp(null); reload() }} /></Sheet>}
   </div>

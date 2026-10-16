@@ -97,6 +97,7 @@ export default function WorkoutBuilder() {
       <select className="wb-in" value="" onChange={e => { const t = templates.find(x => x.id === e.target.value); if (!t) return; const go = () => { useTemplate(t); setMeta(m => ({ ...m, templateId: t.id, templateScope: t.scope || 'global' })); setDay(0) }; total ? ask('Usar modelo', 'Substituir a ficha atual pelo modelo “' + t.title + '”?', go) : go() }} aria-label="Usar modelo" data-testid="wb-template">
         <option value="">Usar modelo…</option>{templates.map(t => <option key={t.id} value={t.id}>{t.scope === 'pessoal' ? '★ ' : ''}{t.title}</option>)}</select>
     </header>
+    <p className="org-stage">1. Dados gerais → 2. Dias e exercícios → 3. Revisar e enviar</p>
     <section className="wb-head">
       <label className="wb-f wb-f2"><span>Nome do treino</span><input className="wb-in" value={w.title} onChange={e => setW({ ...w, title: e.target.value })} placeholder="ex.: Hipertrofia A/B" data-testid="wb-title" /></label>
       <label className="wb-f"><span>Especialidade</span><input className="wb-in" value={w.specialty} onChange={e => setW({ ...w, specialty: e.target.value })} placeholder="Musculação" data-testid="wb-specialty" /></label>
@@ -127,7 +128,7 @@ export default function WorkoutBuilder() {
       <h3 id="wb-dlg-t">{dlg.title}</h3><p>{dlg.text}</p>
       {dlg.input != null && <input className="wb-in" autoFocus value={dlg.val} onChange={e => setDlg({ ...dlg, val: e.target.value })} onKeyDown={e => { if (e.key === 'Enter') { dlg.onOk(dlg.val); setDlg(null) } }} data-testid="wb-dialog-in" />}
       <div className="wb-actions"><button className="wb-btn ghost" onClick={() => setDlg(null)}>Cancelar</button><button className="wb-btn" onClick={() => { dlg.onOk(dlg.val); setDlg(null) }} data-testid="wb-dialog-ok">Confirmar</button></div></div></div>}
-    <footer className="wb-foot">
+    <footer className="wb-foot"><b>Revisar e enviar</b>
       {msg && <p className={'wb-msg' + (msg.bad ? ' bad' : msg.ok ? ' ok' : '')} role={msg.bad ? 'alert' : 'status'} data-testid="wb-msg">{msg.t}</p>}
       <div className="wb-actions">
         <button className="wb-btn ghost" disabled={!!busy} onClick={saveTemplate} data-testid="wb-save-tpl">{busy === 'tpl' ? 'Salvando…' : 'Salvar como modelo'}</button>
@@ -183,12 +184,14 @@ function ExCard({ e, i, g, n, sel, toggle, set, move, ungroup, remove, onDragSta
         {F('Carga (kg)', 'load_kg', { inputMode: 'decimal' })}
         {F('Tempo (s) — isometria/cardio', 'duration_sec', { type: 'number', min: 0 })}
         {F(g && g.pos < g.size - 1 ? 'Descanso (s) — 0 no bi-set' : 'Descanso entre séries (s)', 'rest_sec', { type: 'number', min: 0, max: 600 })}
+        <details className="org-details wb-advanced"><summary>Ajustes avançados</summary><div className="wb-fields">
         {F('Cadência (ex.: 3-1-2)', 'tempo', { placeholder: '3-1-2' })}
         {F('RPE (1–10)', 'rpe', { inputMode: 'decimal' })}
         {F('RIR (reps em reserva)', 'rir', { type: 'number', min: 0, max: 10 })}
         <label className="wb-f"><span>Lado</span><select className="wb-in" value={e.side} onChange={v => set({ side: v.target.value })}>{Object.entries(SIDE_PT).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
         <label className="wb-f"><span>Técnica</span><select className="wb-in" value={e.technique} onChange={v => set({ technique: v.target.value })} data-testid={`wb-tech-${i}`}>{Object.entries(TECH_PT).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
         <label className="wb-f"><span>Vídeo de referência</span><select className="wb-in" value={e.video_url || ''} onChange={v => set({ video_url: v.target.value })}><option value="">Mídia padrão do exercício</option>{(media || []).map(x => <option key={x.id} value={x.url}>{x.caption || 'Vídeo ' + x.id}</option>)}</select></label>
+        </div></details>
       </div>
       <label className="wb-chk"><input type="checkbox" checked={perOn} onChange={v => set({ per_set: v.target.checked ? Array.from({ length: e.sets }, () => ({ reps: e.reps, load_kg: e.load_kg })) : [] })} data-testid={`wb-per-${i}`} /> Variar repetições e carga por série (ex.: 12/10/8)</label>
       {perOn && <table className="wb-per"><thead><tr><th>Série</th><th>Repetições</th><th>Carga (kg)</th></tr></thead><tbody>

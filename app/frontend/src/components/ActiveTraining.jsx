@@ -31,7 +31,7 @@ export default function ActiveTrainingBanner({ at, compact, onChange }) {
     {name ? <b style={{ display: 'block', marginTop: 6 }}>{name}</b> : <p className="g-mut g-sm" style={{ marginTop: 6 }}>Você ainda não tem treino ativo.</p>}
     {at.kind === 'sistema' && <>
       {at.pending_pro_plans?.length > 0 && <p className="g-note" style={{ marginTop: 8 }} data-testid="pending-pro">Seu profissional enviou a ficha <b>{at.pending_pro_plans[0].title}</b>. Você só pode ter uma ficha por vez: desvincule o programa atual para aceitá-la.</p>}
-      <button className="g-link" onClick={() => detachSystem(at, onChange)} data-testid="active-detach">Desvincular programa</button>
+      {!compact && <details className="org-details"><summary>Gerenciar programa</summary><button className="g-link" onClick={() => detachSystem(at, onChange)} data-testid="active-detach">Desvincular programa</button></details>}
     </>}
     {at.kind === 'profissional' && <p className="g-mut g-xs" style={{ marginTop: 6 }} data-testid="pro-locked">Ficha passada pelo seu profissional. Só ele pode retirá-la ou trocá-la; enquanto isso, programas avulsos do sistema ficam bloqueados.</p>}
     {!at.kind && <button className="g-link" onClick={() => nav('/recomendados')}>Escolher um programa</button>}

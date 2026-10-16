@@ -35,7 +35,7 @@ export function ChFeed({ c, setDlg }) {
     {d.can_post && <div className="g-card">
       <textarea className="g-in" rows={3} maxLength={2000} placeholder="Compartilhe com quem está no desafio" value={txt} onChange={e => setTxt(e.target.value)} data-testid="cf-text" aria-label="Texto da publicação" />
       <FilePick accept="image/png,image/jpeg,image/webp,video/mp4,video/webm" file={file} onFile={setFile} label="Anexar foto (até 2,5 MB) ou vídeo (até 50 MB)" testid="cf-file" />
-      {st && <p className={st === 'falhou' ? 'g-warn' : 'g-note'} role="status" data-testid="cf-state">{st === 'enviando' ? 'Enviando…' : 'Falhou — toque em Publicar para tentar de novo'}</p>}
+      {st && <p className={st === 'falhou' ? 'g-warn' : 'g-note'} role="status" data-testid="cf-state">{st === 'enviando' ? 'Enviando…' : 'Não foi possível publicar. Toque em Publicar para tentar novamente.'}</p>}
       {msg && <p className="g-warn" role="alert">{msg}</p>}
       <div className="g-row" style={{ gap: 8 }}><button className="g-btn g-ghost" disabled={st === 'enviando'} onClick={() => send(true)}>Salvar rascunho</button><button className="g-btn" disabled={st === 'enviando' || (!txt.trim() && !file)} onClick={() => send(false)} data-testid="cf-send">Publicar</button></div>
       <p className="g-mut g-xs">Curtidas e comentários não contam pontos. Publicações daqui não aparecem no feed geral.</p></div>}

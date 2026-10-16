@@ -1,12 +1,12 @@
+import { useNavigationAccess } from '../../components/NavigationAccess.jsx'
 import { UnlockRequest, ExportRequest } from '../v3/V42.jsx'
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import Icon from '../../components/Icon.jsx'
 import { useStore } from '../../store/useStore.js'
 import { C, P } from '../../lib/care.js'
-import { isProAccount, isNonTrainee } from './TabBar.jsx'
-import { G, GOAL_PT, LEVEL_PT, LOC_PT, RESTR_PT } from '../../lib/guided.js'
-import { MyTrophies } from '../app/Trofeus.jsx'
+import { isNonTrainee } from './TabBar.jsx'
+import { G, GOAL_PT, LEVEL_PT, LOC_PT } from '../../lib/guided.js'
 import ThemePicker from '../../components/ThemePicker.jsx'
 import ContextSwitch from '../v3/ContextSwitch.jsx'
 import { MyInvites } from '../v3/AcceptInvite.jsx'
@@ -15,69 +15,50 @@ import { askText, ask, notify, notifyError } from '../../lib/dialog.js'
 import { api } from '../../lib/api.js'
 
 export default function Profile() {
-  const nav = useNavigate()
-  const user = useStore(s => s.user)
-  const signOut = useStore(s => s.signOut)
+  const nav = useNavigate(), [sp] = useSearchParams()
+  const user = useStore(s => s.user), signOut = useStore(s => s.signOut)
+  const can = useNavigationAccess(), proAcc = isNonTrainee(user)
+  const section = sp.get('liberacao') ? 'privacidade' : sp.get('secao') || 'conta'
   const [st, setSt] = useState(null)
-  const proAcc = isNonTrainee(user)
-  useEffect(() => { if (!proAcc) G.state().then(setSt).catch(() => {}) }, [proAcc])
+  useEffect(() => { if (!proAcc && section === 'preferencias' && can('perguntas')) G.state().then(setSt).catch(() => {}) }, [proAcc, section])
   const p = st?.profile
-  const pro = user?.roles?.some(r => r === 'admin' || r === 'profissional')
-  const Li = ({ icon, t, s, to, onClick, testid }) => <button className="g-li" onClick={onClick || (() => nav(to))} data-testid={testid}>
-    <span className="g-ico"><Icon name={icon} /></span><span><b>{t}</b>{s && <><br /><span className="g-mut g-xs">{s}</span></>}</span><span className="g-chev"><Icon name="play" /></span></button>
+  const Li = ({ icon, t, s, to, onClick, testid }) => <button className="g-li" onClick={onClick || (() => nav(to))} data-testid={testid}><span className="g-ico"><Icon name={icon} /></span><span><b>{t}</b>{s && <><br /><span className="g-mut g-xs">{s}</span></>}</span><span className="g-chev"><Icon name="play" /></span></button>
+  const titles = { preferencias: 'Preferências', privacidade: 'Privacidade e segurança', ajuda: 'Ajuda', dados: 'Conta' }
   return <div className="ag" data-testid="profile">
-    <span className="g-eyebrow">Perfil</span>
-    <h1>{user?.name || 'Visitante'}</h1>
-    <p className="g-mut g-sm">{user?.email}{user?.tenant?.name ? ' · ' + user.tenant.name : ''}</p>
-    {/* V4.1: ordem por frequência de uso — aparência e treino primeiro; conta, dados e segurança depois (Nielsen #8, HIG "Settings") */}
-    {user && <ThemePicker />}
-    {!proAcc && <>
-    <h2>Treino</h2>
-    {p && <div className="g-card">
-      <b className="g-sm">Suas respostas</b>
-      <div className="g-chips" style={{ marginTop: 8 }}>
-        <span className="g-chip g-on">{GOAL_PT[p.objetivo]}</span>{p.nivel && <span className="g-chip">{LEVEL_PT[p.nivel]}</span>}<span className="g-chip">{LOC_PT[p.local]}</span>
-        {p.dias && <span className="g-chip">{p.dias} dias</span>}{p.minutos && <span className="g-chip">{p.minutos} min</span>}
-        {(p.restricoes || []).map(r => <span key={r} className="g-chip">{RESTR_PT[r]}</span>)}
+    {section !== 'conta' && <button className="g-link org-back" onClick={() => nav('/perfil')}>← Perfil</button>}
+    <span className="g-eyebrow">Perfil</span><h1>{titles[section] || user?.name || 'Visitante'}</h1>
+    {section === 'conta' && <>
+      <p className="g-mut g-sm">{user?.email}{user?.tenant?.name ? ' · ' + user.tenant.name : ''}</p>
+      {user && <ContextSwitch />}
+      <div className="g-card g-list org-list">
+        <Li icon="person" t="Conta" s="Identificação e convites" to="/perfil?secao=dados" />
+        <Li icon="gear" t="Preferências" s="Aparência, idioma e treino" to="/perfil?secao=preferencias" testid="profile-preferences" />
+        {user && <Li icon="sparkles" t="Meu plano" s="Acesso, recursos e limites" to="/planos" testid="my-plan" />}
+        {user && <Li icon="lock" t="Privacidade e segurança" s="Senha, aparelhos e seus dados" to="/perfil?secao=privacidade" testid="profile-security" />}
+        <Li icon="bell" t="Notificações" to="/avisos" />
+        <Li icon="list" t="Ajuda" s="Rever as dicas de uso" to="/perfil?secao=ajuda" />
       </div>
-      <div className="g-row" style={{ flexWrap: 'wrap', gap: 16 }}>
-        <button className="g-link" onClick={() => nav('/onboarding')}>Refazer perguntas</button>
-        <button className="g-link" data-testid="profile-equipment" onClick={() => nav('/perfil/equipamentos')}>Equipamentos ({(p.equipamentos || []).length || (p.equipment_unknown ? 'não sei' : 'nenhum')})</button>
-      </div>
-    </div>}
-    <div className="g-card g-list" style={{ marginTop: 12 }}>
-      <Li icon="calendar" t="Meu treino ativo" s="Programa do sistema ou ficha do profissional" to="/meu-programa" />
-      <Li icon="person" t="Mapa muscular 3D" s="Toque no músculo e veja exercícios" to="/muscles" />
-      <Li icon="g-list" t="Biblioteca de exercícios" to="/library" />
-    </div>
+      {user?.admin && <div className="org-list"><Li icon="shield" t="Painel administrativo" to="/admin/painel" testid="admin-area" /></div>}
+      {user?.pro && !proAcc && <Li icon="clipboard" t="Área profissional" to="/pro" testid="pro-area" />}
+      {user && <button className="g-btn g-ghost org-list" onClick={signOut}>Sair da conta</button>}
     </>}
-    <h2>Conta</h2>
-    <div className="g-card g-list">
-      <Li icon="bell" t="Notificações" to="/avisos" />
-      {!proAcc && <Li icon="chat" t="Acompanhamento" s="Profissionais, dúvidas e ocorrências" to="/acompanhamento" />}
-      {(user?.capacities || []).length > 0 && <Li icon="sparkles" t="Meu plano" s="Plano, limites e uso" to="/planos" testid="my-plan" />}
-      {user?.pro && <Li icon="clipboard" t="Área profissional" s="Alunos, atendimentos e perfil profissional" to="/pro" testid="pro-area" />}
-      {user?.admin && <Li icon="shield" t="Painel administrativo" s="Liberações, profissionais, vínculos, filas e auditoria" to="/admin/painel" testid="admin-area" />}
-    </div>
-    {user && <ContextSwitch />}
-    {proAcc && <p className="g-note" style={{ marginTop: 10 }} data-testid="pro-account-note">Você está na área profissional. Para treinar, use “Usar a conta como › Treinar” acima — a mesma conta, com os dados de treino separados dos atendimentos.</p>}
-    {user && !proAcc && (user.roles || []).includes('aluno') && user.status === 'ativo' && <MyInvites />}
-    {user && <div className="g-card" style={{ marginTop: 14 }} id="trofeus"><b className="g-sm">Troféus</b><MyTrophies /></div>}
-    {user && <MeusDados />}
-    {user && <Seguranca />}
-    {!proAcc && <>
-    <h2>Avançado</h2>
-    <div className="g-card g-list">
-      <Li icon="chart" t="Estatísticas detalhadas" to="/stats" />
-      <Li icon="gear" t="Preferências do treino" s="Unidades, descanso, lembretes, backup" to="/settings" />
-      {pro && <Li icon="clipboard" t="Programas (profissionais)" s="Status: rascunho, revisão, publicado, arquivado" to="/admin/programas" />}
-    </div>
+    {section === 'dados' && <><p className="g-mut">{user?.name} · {user?.email}</p>{user && !proAcc && user.status === 'ativo' && <><MyCodePanel /><MyInvites /></>}</>}
+    {section === 'preferencias' && <>
+      {user && <ThemePicker />}
+      {!proAcc && can('perguntas') && <div className="org-section"><h2>Preferências de treino</h2>{p && <p className="g-mut g-sm">{GOAL_PT[p.objetivo]} · {LEVEL_PT[p.nivel]} · {LOC_PT[p.local]}</p>}<div className="g-card g-list"><Li icon="pencil" t="Refazer perguntas" to="/onboarding" /><Li icon="dumbbell" t="Equipamentos" to="/perfil/equipamentos" testid="profile-equipment" /></div></div>}
+      <div className="g-card g-list org-list"><Li icon="gear" t="Idioma e configurações do treino" s="Unidades, descanso, som e lembretes" to="/settings" /></div>
     </>}
-    {user && <button className="g-btn g-danger" style={{ marginTop: 18 }} onClick={() => signOut()}>Sair da conta</button>}
+    {section === 'privacidade' && user && <><MeusDados /><Seguranca /></>}
+    {section === 'ajuda' && <><p className="g-mut">Reveja as dicas da área que você está usando.</p><button className="g-btn" data-testid="tour-restart" onClick={() => dispatchEvent(new Event('avagym:tour-restart'))}>Rever orientações</button></>}
   </div>
 }
+function MyCodePanel() {
+  const [code, setCode] = useState('')
+  useEffect(() => { P.myCode().then(r => setCode(r.code)).catch(() => {}) }, [])
+  return code ? <MyCode code={code} /> : null
+}
 
-// LGPD: exportação imediata e pedido de exclusão (analisado pela administração)
+// LGPD: pedido de cópia por e-mail e exclusão analisada pela administração.
 // V3 · F5: código público do aluno — o profissional usa para encontrar e convidar (o aluno aceita sozinho)
 function MyCode({ code }) {
   const [ok, setOk] = useState('')
@@ -90,15 +71,13 @@ function MyCode({ code }) {
 }
 function MeusDados() {
   const user = useStore(s => s.user)
-  const [req, setReq] = useState(null), [msg, setMsg] = useState(''), [code, setCode] = useState('')
-  useEffect(() => { if (!isNonTrainee(user) && user?.status === 'ativo') P.myCode().then(r => setCode(r.code)).catch(() => {}) }, [user])
+  const [req, setReq] = useState(null), [msg, setMsg] = useState('')
   const load = () => C.myRequests().then(r => setReq(r.requests)).catch(() => {})
   useEffect(() => { load() }, [])
   const open = (req || []).find(r => r.kind === 'exclusao' && r.status === 'pendente')
   return <>
     <div id="liberacao"><UnlockRequest /></div>
     <h2>Meus dados</h2>
-    {code && <MyCode code={code} />}
     <div className="g-card" style={{ marginBottom: 10 }}><ExportRequest /></div>
     <div className="g-card g-list" data-testid="meus-dados">
       {open ? <div className="g-li" style={{ display: 'block' }}><b>Pedido de exclusão em análise</b><p className="g-mut g-xs">Enviado em {new Date(open.created_at).toLocaleDateString('pt-BR')}. A administração confirma antes de excluir.</p>
@@ -120,12 +99,11 @@ function Seguranca() {
     catch (e) { setErr(e.message || 'Não foi possível trocar a senha') } finally { setBusy(false) }
   }
   const all = async () => {
-    if (!(await ask('Sair de todos os aparelhos?', { text: 'Você vai precisar entrar de novo em todos eles, inclusive neste.', ok: 'Sair de todos', danger: true }))) return
+    if (!(await ask('Sair de todos os aparelhos?', { text: 'Será necessário entrar novamente em todos os dispositivos, inclusive neste.', ok: 'Sair de todos', danger: true }))) return
     try { await signOutAll() } catch (e) { notifyError(e) }
   }
   return <>
     <h2>Segurança</h2>
-    <div className="g-card" style={{ marginBottom: 10 }}><button className="g-btn g-ghost g-block" data-testid="tour-restart" onClick={() => dispatchEvent(new Event('avagym:tour-restart'))}>Ver tour de novo</button></div>
     <div className="g-card" data-testid="security">
       {!open ? <button className="g-btn g-ghost g-sm" onClick={() => setOpen(true)} data-testid="pw-open">Trocar senha</button> : <>
         <label className="g-sm">Senha atual<input className="g-in" type="password" autoComplete="current-password" value={f.current_password} onChange={e => setF({ ...f, current_password: e.target.value })} data-testid="pw-cur" /></label>

@@ -30,17 +30,15 @@ await post(adm, '/api/adm/access/set', { user_id: uid, unlocked: true })
 // 2) personal cria aluno
 const ce = `cli${Date.now()}@lock.test`
 r = await post(p1, '/api/pro/clients', { name: 'Cliente do Personal', email: ce })
-check(r.s === 201 && r.d.temp_password?.length >= 10, 'personal cadastra aluno e recebe senha provisória')
-const tmp = r.d.temp_password, cid = r.d.id
+check(r.s === 201 && r.d.email_queued && !r.d.temp_password, 'personal cadastra aluno e enfileira link sem expor senha')
+const cid = r.d.id
 check((await post(p1, '/api/pro/clients', { name: 'Xavier Duplicado', email: ce })).s === 409, 'e-mail repetido recusado')
-let lg = await post(null, '/api/auth/login', { email: ce, password: tmp })
+const reset = (await q("select action_path from email_outbox where ref=$1 and kind='primeiro_acesso' order by id desc limit 1", [cid])).rows[0]
+r = await post(null, '/api/auth/reset', { token: reset.action_path.split('t=')[1], password: 'NovaSenha-123' })
+check(r.s === 200, 'aluno define senha pelo link de primeiro acesso')
+let lg = await post(null, '/api/auth/login', { email: ce, password: 'NovaSenha-123' })
 let ct = lg.d.token
-check(lg.s === 200 && lg.d.user.must_change_password && lg.d.user.account_type === 'personal_client' && lg.d.user.client_locked, '1º login: obrigado a trocar a senha; conta do personal')
-check((await get(ct, '/api/care')).s === 403, 'sem trocar a senha, o app não abre')
-r = await post(ct, '/api/auth/password', { current_password: tmp, new_password: tmp })
-check(r.s === 400, 'senha nova precisa ser diferente')
-r = await post(ct, '/api/auth/password', { current_password: tmp, new_password: 'NovaSenha-123' })
-check(r.s === 200 && !r.d.user.must_change_password, 'troca a senha provisória'); ct = r.d.token
+check(lg.s === 200 && !lg.d.user.must_change_password && lg.d.user.account_type === 'personal_client' && lg.d.user.client_locked, 'conta do personal acessa após definir senha')
 await post(ct, '/api/terms/accept', { version: terms.version })
 check((await get(ct, '/api/guided/programs')).d.code === 'CLIENT_SCOPE', 'aluno do personal não vê o catálogo do sistema')
 check((await post(ct, '/api/guided/start', { program_id: prog.id })).s === 403, 'aluno do personal não inicia programa do sistema')

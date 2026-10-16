@@ -17,3 +17,6 @@ createRoot(document.getElementById('root')).render(
 if (!MOBILE && 'serviceWorker' in navigator && location.protocol === 'https:') {
   setupPwaUpdate()   // V4.1: registro + auto-atualização segura (lib/pwa-update.js)
 }
+
+// Shared responsive navigation follows theme and legacy styles.
+import './styles/organization.css'

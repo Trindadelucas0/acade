@@ -52,7 +52,7 @@ export function UnlockRequest({ compact }) {
       <b>{d.scoped_client ? 'Acesso incluído no plano do seu personal' : 'Ações travadas até a liberação'}</b></div>
     {!compact && <p className="g-sm g-mut" style={{ marginTop: 6 }}>{d.scoped_client
       ? 'Você usa as fichas, a comunidade e os desafios do seu personal. Para o restante do app, peça a liberação.'
-      : 'Você pode ver todas as telas. Ações como iniciar treino, publicar ou cadastrar ficam travadas até a liberação.'}</p>}
+      : 'Consulte seu plano e solicite a liberação. Ações como iniciar treino, publicar ou cadastrar dependem da aprovação.'}</p>}
     {open ? <p className="g-sm" data-testid="unlock-pending" style={{ marginTop: 8 }}>Pedido enviado em {dt(open.created_at)}. Em análise.</p> : <>
       {last?.status === 'recusada' && <p className="g-xs g-warn">Último pedido recusado{last.decision_note ? `: ${last.decision_note}` : ''}.</p>}
       {!compact && <textarea className="g-in" rows={2} maxLength={500} placeholder="Conte o motivo (opcional)" value={reason} onChange={e => setReason(e.target.value)} style={{ width: '100%', marginTop: 8 }} />}
@@ -64,7 +64,7 @@ export function UnlockRequest({ compact }) {
 export function LockBanner() {
   const u = useStore(s => s.user)
   if (!isLockedUser(u)) return null
-  return <div className="v42-banner" data-testid="lock-banner" role="status"><Icon name="lock" /><span>{isScoped(u) ? 'Conta do seu personal: algumas áreas estão travadas.' : 'Conta em liberação: você pode ver tudo, mas as ações estão travadas.'}</span>
+  return <div className="v42-banner" data-testid="lock-banner" role="status"><Icon name="lock" /><span>{isScoped(u) ? 'Conta do seu personal: algumas áreas estão travadas.' : 'Conta em liberação: ações indisponíveis até a aprovação.'}</span>
     <a href="#/perfil?liberacao=1">Solicitar liberação</a></div>
 }
 // abre sozinho quando a API responde ACCESS_LOCKED / CLIENT_SCOPE (o bloqueio de verdade é no backend)
@@ -93,18 +93,18 @@ export function ScopeGate({ title, children }) {
 }
 
 // ---------- personal: cadastrar aluno ----------
-export function ProClients() {
+export function ProClients({ mode = 'all' }) {
   const [d, err, reload] = useLoad(() => api('/api/pro/clients'))
   const [name, setName] = useState(''), [email, setEmail] = useState(''), [msg, setMsg] = useState(''), [busy, setBusy] = useState(false), [cred, setCred] = useState(null)
   const create = async e => {
     e.preventDefault(); setBusy(true); setMsg('')
-    try { const r = await post('/api/pro/clients', { name, email }); setCred({ email: r.email, pw: r.temp_password }); setName(''); setEmail(''); reload() }
+    try { const r = await post('/api/pro/clients', { name, email }); setCred({ email: r.email }); setName(''); setEmail(''); reload() }
     catch (e) { setMsg(e.message) } finally { setBusy(false) }
   }
-  const reset = async c => { try { const r = await post('/api/pro/clients/reset-password', { id: c.id }); setCred({ email: c.email, pw: r.temp_password }) } catch (e) { setMsg(e.message) } }
+  const reset = async c => { try { const r = await post('/api/pro/clients/reset-password', { id: c.id }); setCred({ email: c.email }) } catch (e) { setMsg(e.message) } }
   return <section className="g-card" data-testid="pro-clients">
-    <h3 className="g-h3">Cadastrar aluno</h3>
-    <p className="g-xs g-mut">A conta entra no seu plano. O sistema gera uma senha provisória e o aluno troca no primeiro acesso.</p>
+    {mode !== 'list' && <><h3 className="g-h3">Cadastrar aluno</h3>
+    <p className="g-xs g-mut">A conta entra no seu plano. O aluno recebe por e-mail um link para definir a própria senha.</p>
     <form onSubmit={create} className="g-col" style={{ gap: 8, marginTop: 8 }}>
       <label className="g-field"><span className="g-mut g-xs">Nome</span><input value={name} onChange={e => setName(e.target.value)} required minLength={2} data-testid="pc-name" /></label>
       <label className="g-field"><span className="g-mut g-xs">E-mail</span><input type="email" value={email} onChange={e => setEmail(e.target.value)} required data-testid="pc-email" /></label>
@@ -112,18 +112,18 @@ export function ProClients() {
       <button className="g-btn" disabled={busy} data-testid="pc-create">{busy ? 'Criando…' : 'Criar conta do aluno'}</button>
     </form>
     {cred && <div className="g-card v42-cred" data-testid="pc-cred" style={{ marginTop: 10 }}>
-      <b>Senha provisória (aparece só agora)</b>
+      <b>Link para definir senha colocado na fila de envio</b>
       <p className="g-sm">{cred.email}</p>
-      <code data-testid="pc-temp" style={{ fontSize: 18 }}>{cred.pw}</code>
       <div className="g-actions" style={{ marginTop: 8 }}>
-        <button className="g-btn" onClick={() => navigator.clipboard?.writeText(`E-mail: ${cred.email}\nSenha provisória: ${cred.pw}`)}>Copiar acesso</button>
-        <button className="g-btn g-ghost" onClick={() => setCred(null)}>Já enviei</button></div></div>}
-    <h4 className="g-h3" style={{ marginTop: 14 }}>Alunos criados por você</h4>
+        <button className="g-btn g-ghost" onClick={() => setCred(null)}>Fechar</button></div></div>}
+    </>}
+    {mode !== 'create' && <><h4 className="g-h3" style={{ marginTop: 14 }}>Alunos criados por você</h4>
     {err && <p className="g-warn g-sm">{err}</p>}
     {d && !d.clients.length && <p className="g-xs g-mut">Nenhum ainda.</p>}
     {d?.clients.map(c => <div key={c.id} className="g-row" style={{ justifyContent: 'space-between', padding: '8px 0', borderTop: '1px solid var(--ag-line,#ffffff14)' }}>
       <div><b className="g-sm">{c.name}</b><p className="g-xs g-mut" style={{ margin: 0 }}>{c.email} · {c.pending_first_login ? 'aguardando 1º acesso' : 'ativo'}</p></div>
-      <button className="g-btn g-ghost" onClick={() => reset(c)} data-testid="pc-reset">Nova senha</button></div>)}
+      <button className="g-btn g-ghost" onClick={() => reset(c)} data-testid="pc-reset">Reenviar link</button></div>)}
+    </>}
   </section>
 }
 
@@ -184,7 +184,7 @@ export function ExportRequest() {
   return <div data-testid="export-request">
     <p className="g-sm g-mut">Receba uma cópia dos seus dados (LGPD, portabilidade). O arquivo é enviado ao e-mail da conta; não há download direto. Limite: 1 pedido a cada 24 h.</p>
     {last && <p className="g-xs" data-testid="export-last">Último pedido: {dt(last.created_at)} · {last.mail_status === 'enviado' ? 'enviado' : 'na fila de envio'}</p>}
-    {d && !d.mail_configured && <p className="g-xs g-mut">O envio de e-mails ainda está sendo configurado; seu pedido fica na fila e sai assim que estiver pronto.</p>}
+    {d && !d.mail_configured && <p className="g-xs g-mut">O serviço de e-mail está em configuração. Sua solicitação permanece na fila de envio.</p>}
     {!open ? <button className="g-btn g-ghost" onClick={() => setOpen(true)} data-testid="export-open">Pedir cópia dos meus dados</button> :
       <form onSubmit={send} className="g-col" style={{ gap: 8 }}>
         <label className="g-field"><span className="g-mut g-xs">Confirme sua senha</span><input type="password" autoComplete="current-password" value={pw} onChange={e => setPw(e.target.value)} required data-testid="export-pw" /></label>

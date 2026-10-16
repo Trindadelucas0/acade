@@ -3,19 +3,21 @@
 import { AdmLiberacoes } from '../v3/V42.jsx'
 import { GR } from '../../lib/groups.js'
 import { CH, CAT, CF, TR, PZ, CRIT_PT, PRIZE_PT, PROOF_PT, STATUS_PT } from '../../lib/challenges.js'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import Icon from '../../components/Icon.jsx'
 import { useStore } from '../../store/useStore.js'
 import { C, P, GOALS, REQ_ST, dt, uploadExMedia } from '../../lib/care.js'
 import { useLoad } from '../app/kit.jsx'
 import { ask, askText, showValue, notify, notifyError } from '../../lib/dialog.js'
-import { Alunos, Profissionais, Planos, Vinculos, Filas, Config, EXTRA } from '../app/AdminPanel.jsx'
+import { UserWorkouts, Profissionais, Planos, Vinculos, Filas, Config, EXTRA } from '../app/AdminPanel.jsx'
 import '../guided/guided.css'
 import { UserEdit, ProEdit, StudentRecord, StudentTraining, Publicacoes, ExerciseEdit } from './AdminCrud.jsx'
 import AdmVerifications from '../v3/AdmVerifications.jsx'
 import AdmSubscriptions from '../v3/AdmSubscriptions.jsx'
 import AdmUser360 from '../v3/AdmUser360.jsx'
+import AdminPrograms from '../guided/AdminPrograms.jsx'
+import ManagementDashboard from './ManagementDashboard.jsx'
 
 // ---------- utilitários ----------
 const csvEsc = v => { const s = v == null ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v); return /[",;\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s }
@@ -24,7 +26,7 @@ export function downloadCSV(name, cols, rows) {
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + out], { type: 'text/csv;charset=utf-8' })); a.download = name + '.csv'; a.click()
 }
 export function DataTable({ cols, rows, onRow, name, filters, pageSize = 15, empty = 'Nada encontrado.' }) {
-  const [q, setQ] = useState(''), [sort, setSort] = useState(null), [page, setPage] = useState(0)
+  const [q, setQ] = useState(''), [sort, setSort] = useState(null), [page, setPage] = useState(0), [expanded, setExpanded] = useState(null)
   const list = useMemo(() => {
     let l = rows || []
     if (q) { const t = q.toLowerCase(); l = l.filter(r => cols.some(c => String(c.csv ? c.csv(r) : r[c.k] ?? '').toLowerCase().includes(t))) }
@@ -36,8 +38,9 @@ export function DataTable({ cols, rows, onRow, name, filters, pageSize = 15, emp
     <div className="adm-tools"><input placeholder="Buscar…" value={q} onChange={e => { setQ(e.target.value); setPage(0) }} data-testid="dt-search" />{filters}
       <span style={{ flex: 1 }} /><span className="g-mut g-xs">{list.length} registro(s)</span>
       <button className="adm-btn ghost" onClick={() => downloadCSV(name || 'export', cols, list)} data-testid="dt-csv">Exportar CSV</button></div>
+    <label className="org-mobile-sort">Ordenar por<select className="adm-in" value={sort?.k || ''} onChange={e => setSort(e.target.value ? {k:e.target.value,d:1} : null)}><option value="">Ordem original</option>{cols.map(c => <option key={c.k} value={c.k}>{c.l}</option>)}</select><button className="adm-btn ghost" disabled={!sort} onClick={() => setSort(s => ({...s,d:-s.d}))}>{sort?.d === -1 ? 'Decrescente' : 'Crescente'}</button></label>
     <div className="adm-tbl-wrap"><table className="adm-tbl"><thead><tr>{cols.map(c => <th key={c.k} onClick={() => setSort(s => ({ k: c.k, d: s?.k === c.k ? -s.d : 1 }))}>{c.l}{sort?.k === c.k ? (sort.d > 0 ? ' ▲' : ' ▼') : ''}</th>)}</tr></thead>
-      <tbody>{list.slice(pg * pageSize, pg * pageSize + pageSize).map((r, i) => <tr key={r.id ?? i} onClick={() => onRow && onRow(r)} data-testid="dt-row">{cols.map(c => <td key={c.k}>{c.r ? c.r(r) : String(r[c.k] ?? '—')}</td>)}</tr>)}
+      <tbody>{list.slice(pg * pageSize, pg * pageSize + pageSize).map((r, i) => <tr key={r.id ?? i} className={expanded === (r.id ?? i) ? 'org-expanded' : ''} onClick={() => onRow && onRow(r)} tabIndex={onRow ? 0 : undefined} onKeyDown={e => { if(onRow && e.target === e.currentTarget && ['Enter',' '].includes(e.key)){e.preventDefault();onRow(r)} }} data-testid="dt-row">{cols.map(c => <td key={c.k} data-label={c.l}>{c.r ? c.r(r) : String(r[c.k] ?? '—')}</td>)}{cols.length > 3 && <td className="org-mobile-more"><button className="adm-btn ghost" aria-expanded={expanded === (r.id ?? i)} onClick={e => {e.stopPropagation();setExpanded(v => v === (r.id ?? i) ? null : r.id ?? i)}}>{expanded === (r.id ?? i) ? 'Ver menos' : 'Ver mais campos'}</button></td>}</tr>)}
         {!list.length && <tr><td colSpan={cols.length} className="g-mut">{empty}</td></tr>}</tbody></table></div>
     {pages > 1 && <div className="adm-pager"><button className="adm-btn ghost" disabled={pg === 0} onClick={() => setPage(pg - 1)}>Anterior</button>Página {pg + 1} de {pages}<button className="adm-btn ghost" disabled={pg >= pages - 1} onClick={() => setPage(pg + 1)}>Próxima</button></div>}
   </div>
@@ -50,63 +53,11 @@ function Drawer({ title, onClose, children }) {
 }
 const act = (fn, reload) => async (...a) => { try { const r = await fn(...a); reload && reload(); return r } catch (e) { notifyError(e) } }
 
-// ---------- gráficos (SVG, sem dependências) ----------
-function Line({ series, height = 150 }) {
-  const all = series.flatMap(s => s.data.map(d => d.n)), max = Math.max(1, ...all)
-  const keys = [...new Set(series.flatMap(s => s.data.map(d => d.wk)))].sort(), W = 600, H = height
-  const x = i => keys.length < 2 ? W / 2 : 10 + i * (W - 20) / (keys.length - 1), y = n => H - 18 - n / max * (H - 34)
-  return <div><svg viewBox={`0 0 ${W} ${H}`} className="adm-chart" preserveAspectRatio="none" role="img" aria-label="Gráfico de linhas">
-    {[0, .5, 1].map(f => <line key={f} x1="0" x2={W} y1={y(max * f)} y2={y(max * f)} stroke="#ffffff10" />)}
-    {series.map(s => { const by = Object.fromEntries(s.data.map(d => [d.wk, d.n])); return <g key={s.l}>
-      <polyline fill="none" stroke={s.c} strokeWidth="2.5" points={keys.map((k, i) => `${x(i)},${y(by[k] || 0)}`).join(' ')} />
-      {keys.map((k, i) => <circle key={k} cx={x(i)} cy={y(by[k] || 0)} r="3" fill={s.c}><title>{k}: {by[k] || 0}</title></circle>)}</g> })}
-  </svg><div className="adm-legend">{series.map(s => <span key={s.l}><i style={{ background: s.c }} />{s.l}</span>)}</div></div>
-}
-function Bars({ items }) {
-  const max = Math.max(1, ...items.map(i => i.n))
-  return <div>{items.map(i => <div key={i.l} style={{ display: 'grid', gridTemplateColumns: '130px 1fr 40px', gap: 8, alignItems: 'center', margin: '6px 0', fontSize: 12.5 }}>
-    <span className="g-mut">{i.l}</span><div className="av-bar"><i style={{ width: (i.n / max * 100) + '%', background: i.c }} /></div><b>{i.n}</b></div>)}</div>
-}
-
-// ---------- seções ----------
-function Dashboard({ go }) {
-  const [d, err] = useLoad(() => P.kpis())
-  if (err) return <p className="g-warn">{err}</p>
-  if (!d) return <p className="g-mut">Carregando…</p>
-  const by = (arr, k) => Object.fromEntries((arr || []).map(x => [x[k], x.n]))
-  const u = by(d.users, 'status'), p = by(d.pros, 'state'), l = by(d.links, 'status')
-  const reqOpen = (d.requests || []).filter(r => ['pendente', 'em_analise', 'aguardando_info'].includes(r.status)).reduce((a, r) => a + r.n, 0)
-  const occOpen = (d.occurrences || []).filter(o => o.status !== 'encerrada').reduce((a, o) => a + o.n, 0)
-  const thWait = (d.threads || []).filter(o => o.status === 'aguardando').reduce((a, o) => a + o.n, 0)
-  const cap = d.capacity || {}, capPct = cap.capacity ? Math.round(cap.used / cap.capacity * 100) : 0
-  const K = ({ n, l, s, to, cls }) => <button className={'adm-card adm-k ' + (cls || '')} style={{ textAlign: 'left', cursor: 'pointer', color: 'inherit' }} onClick={() => go(to)}><b>{n ?? 0}</b><span>{l}</span>{s && <small>{s}</small>}</button>
-  return <>
-    <div className="adm-grid" data-testid="adm-kpis">
-      <K n={u.pendente} l="Contas com status pendente" to="usuarios" cls={u.pendente ? 'warn' : ''} />
-      <K n={u.ativo} l="Usuários ativos" s={`${u.bloqueado || 0} bloqueado(s)`} to="usuarios" />
-      <K n={p.ativo} l="Profissionais ativos" s={`${p.em_analise || 0} em análise · ${p.suspenso || 0} suspenso(s)`} to="profissionais" />
-      <K n={`${capPct}%`} l="Uso da capacidade" s={`${cap.used || 0} de ${cap.capacity || 0} vagas`} to="profissionais" />
-      <K n={l.ativo} l="Vínculos ativos" s={`${l.encerrado || 0} encerrado(s)`} to="vinculos" />
-      <K n={reqOpen} l="Solicitações abertas" to="solicitacoes" cls={reqOpen ? 'warn' : ''} />
-      <K n={occOpen} l="Ocorrências abertas" s={`${d.overdue?.occ || 0} com prazo vencido`} to="filas" cls={d.overdue?.occ ? 'bad' : ''} />
-      <K n={thWait} l="Mensagens aguardando" s={`${d.overdue?.th || 0} fora do prazo (SLA)`} to="filas" cls={d.overdue?.th ? 'bad' : ''} />
-      <K n={d.community?.posts30} l="Publicações (30 dias)" s={`${d.community?.likes30 || 0} curtidas · ${d.community?.reports || 0} denúncia(s)`} to="moderacao" cls={d.community?.reports ? 'warn' : ''} />
-      <K n={d.ranking?.participants} l="Participantes do ranking" to="ranking" />
-    </div>
-    <div className="adm-row2">
-      <div className="adm-card"><h3>Atividade por semana (12 semanas)</h3>
-        <Line series={[{ l: 'Cadastros', c: '#c8f135', data: d.series.signups }, { l: 'Treinos concluídos', c: '#5ec8ff', data: d.series.sessions }, { l: 'Publicações', c: '#ffb547', data: d.series.posts }]} /></div>
-      <div className="adm-card"><h3>Usuários por status</h3><Bars items={[{ l: 'Ativos', n: u.ativo || 0, c: '#c8f135' }, { l: 'Pendentes', n: u.pendente || 0, c: '#ffb547' }, { l: 'Bloqueados', n: u.bloqueado || 0, c: '#ff6b6b' }]} />
-        <h3 style={{ marginTop: 16 }}>Profissionais por situação</h3><Bars items={[{ l: 'Ativos', n: p.ativo || 0, c: '#c8f135' }, { l: 'Em análise', n: p.em_analise || 0, c: '#ffb547' }, { l: 'Suspensos', n: p.suspenso || 0, c: '#ff6b6b' }, { l: 'Encerrados', n: p.encerrado || 0, c: '#6b6e66' }]} /></div>
-    </div>
-  </>
-}
-
-function Usuarios() {
+function Usuarios({ pendingOnly = false }) {
   const [st, setSt] = useState(''), [d, err, reload] = useLoad(() => C.users(st, ''), [st])
   const [pl] = useLoad(() => C.plans()), [sel, setSel] = useState(null)
   const cols = [{ k: 'name', l: 'Nome' }, { k: 'email', l: 'E-mail' }, { k: 'status', l: 'Status', r: r => <Pill v={r.status} map={ST} /> },
-    { k: 'share_code', l: 'Código' }, { k: 'subs', l: 'Assinaturas', csv: r => (r.subs || []).map(s => s.plan + ' ' + s.status).join(', '), r: r => (r.subs || []).map(s => s.plan + (s.status !== 'ativa' ? ' (' + s.status + ')' : '') + (s.over_limit ? ' ⚠' : '')).join(' · ') || '—' }, { k: 'verification', l: 'Verificação', r: r => r.verification || '—' },
+    { k: 'access_unlocked_at', l: 'Ações do aplicativo', r: r => r.roles.includes('admin') ? 'Administrador' : r.access_unlocked_at ? 'Liberadas' : 'Travadas' }, { k: 'account_type', l: 'Tipo', r: r => r.account_type === 'personal_client' ? 'Aluno de personal' : 'Conta independente' }, { k: 'share_code', l: 'Código' }, { k: 'subs', l: 'Assinaturas', csv: r => (r.subs || []).map(s => s.plan + ' ' + s.status).join(', '), r: r => (r.subs || []).map(s => s.plan + (s.status !== 'ativa' ? ' (' + s.status + ')' : '') + (s.over_limit ? ' ⚠' : '')).join(' · ') || '—' }, { k: 'verification', l: 'Verificação', r: r => r.verification || '—' },
     { k: 'roles', l: 'Papéis', csv: r => r.roles.join(', '), r: r => r.roles.join(', ') }, { k: 'plan_id', l: 'Plano' }, { k: 'links', l: 'Vínculos', r: r => <>{r.links}{r.over_limit ? ' ⚠' : ''}</> },
     { k: 'created_at', l: 'Cadastro', r: r => r.created_at ? new Date(r.created_at).toLocaleDateString('pt-BR') : '—', sv: r => r.created_at }]
   const u = sel && (d?.users || []).find(x => x.id === sel)
@@ -114,24 +65,25 @@ function Usuarios() {
   return <>
     <div className="adm-tools"><button className="adm-btn" onClick={() => setNovo(true)} data-testid="nu-open">+ Novo usuário</button></div>
     {novo && <NovoUsuario plans={(pl?.plans || []).filter(p => p.active)} onClose={() => setNovo(false)} onDone={reload} />}
-    {err ? <p className="g-warn">{err}</p> : <DataTable name="usuarios" cols={cols} rows={d?.users} onRow={r => { setSel(r.id); setDt('v360') }}
+    {err ? <p className="g-warn">{err}</p> : <DataTable name="usuarios" cols={cols} rows={pendingOnly ? d?.users?.filter(u => u.status === 'pendente' || (!u.roles.includes('admin') && !u.access_unlocked_at)) : d?.users} onRow={r => { setSel(r.id); setDt('v360') }}
       filters={<select className="adm-in" value={st} onChange={e => setSt(e.target.value)} aria-label="Status"><option value="">Todos os status</option><option value="pendente">Pendentes</option><option value="ativo">Ativos</option><option value="bloqueado">Bloqueados</option></select>} />}
     {u && <Drawer title={u.name} onClose={() => setSel(null)}>
-      <dl className="adm-dl"><dt>E-mail</dt><dd>{u.email}</dd><dt>Status</dt><dd><Pill v={u.status} map={ST} /></dd><dt>Papéis</dt><dd>{u.roles.join(', ')}</dd><dt>Plano de acesso</dt><dd>{u.plan_id || '—'}</dd><dt>Vínculos ativos</dt><dd>{u.links}{u.over_limit ? ' (acima do limite do plano)' : ''}</dd></dl>
+      <dl className="adm-dl"><dt>E-mail</dt><dd>{u.email}</dd><dt>Status</dt><dd><Pill v={u.status} map={ST} /></dd><dt>Papéis</dt><dd>{u.roles.join(', ')}</dd><dt>Limite de acompanhamento</dt><dd>{u.plan_id || '—'}</dd><dt>Vínculos ativos</dt><dd>{u.links}{u.over_limit ? ' (acima do limite do plano)' : ''}</dd></dl>
       <div className="adm-tools" style={{ marginTop: 14 }}>
         {u.status !== 'ativo' && <button className="adm-btn" onClick={act(() => C.setStatus(u.id, 'ativo'), reload)} data-testid="drw-approve">{u.status === 'bloqueado' ? 'Desbloquear' : 'Ativar conta'}</button>}
         {u.status === 'ativo' && <button className="adm-btn danger" onClick={act(async () => { const r = await askText('Motivo da suspensão', { required: true, ok: 'Suspender', danger: true }); return r && C.setStatus(u.id, 'bloqueado', r) }, reload)}>Suspender</button>}
-        <select className="adm-in" value={u.plan_id || ''} onChange={act(async e => { const r = await C.setPlan(u.id, e.target.value); if (r?.over_limit) notify(`O aluno tem ${r.links} vínculo(s) e o plano permite ${r.max}. Nada foi encerrado.`) }, reload)} aria-label="Plano de acesso">
-          <option value="" disabled>Plano de acesso…</option>{(pl?.plans || []).filter(p => p.active).map(p => <option key={p.id} value={p.id}>{p.name_pt} (até {p.max_professionals})</option>)}</select>
+        <select className="adm-in" value={u.plan_id || ''} onChange={act(async e => { const r = await C.setPlan(u.id, e.target.value); if (r?.over_limit) notify(`O aluno tem ${r.links} vínculo(s) e o plano permite ${r.max}. Nada foi encerrado.`) }, reload)} aria-label="Limite de acompanhamento">
+          <option value="" disabled>Limite de acompanhamento…</option>{(pl?.plans || []).filter(p => p.active).map(p => <option key={p.id} value={p.id}>{p.name_pt} (até {p.max_professionals})</option>)}</select>
         <button className="adm-btn ghost" onClick={act(async () => { const r = await C.resetLink(u.id); await showValue('Link de redefinição (uso único, 24 h)', r.link) })}>Link de nova senha</button>
         <button className="adm-btn ghost" onClick={act(() => C.setRole(u.id, 'profissional', !u.roles.includes('profissional')), reload)}>{u.roles.includes('profissional') ? 'Remover papel profissional' : 'Dar papel profissional'}</button>
         {!u.roles.includes('aluno') && <button className="adm-btn ghost" onClick={act(() => C.setRole(u.id, 'aluno', true), reload)}>Dar papel de aluno</button>}
         <button className="adm-btn ghost" onClick={act(async () => { const o = await askText('ID da outra conta da mesma pessoa (vazio = desfazer). Só para auditoria; nada é compartilhado.'); return o != null && C.samePerson(u.id, o.trim() || null, 'registro manual') }, reload)}>Mesma pessoa…</button>
       </div>
-      <p className="g-mut g-xs">Uma pessoa, uma conta: a mesma conta pode treinar (aluno) e atender (profissional). Cada área tem seu próprio plano.</p>
-      <div className="adm-tools" role="tablist" style={{ marginTop: 12 }}>{[['v360', 'Visão 360°'], ['conta', 'Conta'], ...(u.roles.includes('profissional') ? [['pro', 'Profissional']] : []), ...(u.roles.includes('aluno') ? [['ficha', 'Ficha'], ['treinos', 'Treinos e vínculos']] : [])].map(([k, l]) =>
+      <div className="mg-account-state"><b>Situação da conta:</b> {u.status} · <b>Ações do aplicativo:</b> {u.roles.includes('admin') ? 'Administrador' : u.access_unlocked_at ? 'Liberadas' : 'Travadas'}<p className="g-mut g-xs">Ativar o cadastro não destrava as ações do aplicativo. Use a aba Liberação das ações.</p></div><p className="g-mut g-xs">Uma pessoa, uma conta: a mesma conta pode treinar (aluno) e atender (profissional). Cada área tem seu próprio plano.</p>
+      <div className="adm-tools" role="tablist" style={{ marginTop: 12 }}>{[['v360', 'Visão 360°'], ['conta', 'Conta'], ['historico', 'Histórico sincronizado'], ...(u.roles.includes('profissional') ? [['pro', 'Profissional']] : []), ...(u.roles.includes('aluno') ? [['ficha', 'Ficha'], ['treinos', 'Treinos e vínculos']] : [])].map(([k, l]) =>
         <button key={k} role="tab" aria-selected={dtab === k} className={'adm-btn ' + (dtab === k ? '' : 'ghost')} onClick={() => setDt(k)} data-testid={'udt-' + k}>{l}</button>)}</div>
       {dtab === 'v360' && <AdmUser360 key={u.id} id={u.id} onChanged={reload} />}
+      {dtab === 'historico' && <UserWorkouts id={u.id} />}
       {dtab === 'conta' && <UserEdit key={u.id} u={u} onChanged={reload} onDeleted={() => { setSel(null); reload() }} />}
       {dtab === 'pro' && u.roles.includes('profissional') && <ProEdit key={u.id} u={u} pro={(pros?.professionals || []).find(p => p.user_id === u.id)} onChanged={() => { reloadPros(); reload() }} />}
       {dtab === 'ficha' && <StudentRecord key={u.id} u={u} />}
@@ -142,7 +94,7 @@ function Usuarios() {
 
 // Admin cria conta já liberada (aluno ou profissional). Depois, a mesma conta pode ganhar o outro papel.
 function NovoUsuario({ plans, onClose, onDone }) {
-  const [f, setF] = useState({ type: 'aluno', name: '', email: '', password: '', plan_id: '', coach_id: '', area: '', capacity: 10, can_publish: false, q_kind: 'CREF', q_number: '', q_verified: false })
+  const [f, setF] = useState({ type: 'aluno', name: '', email: '', password: '', plan_id: '', coach_id: '', area: '', can_publish: false, q_kind: 'CREF', q_number: '', q_verified: false })
   const [errs, setErrs] = useState({}), [msg, setMsg] = useState(''), [busy, setBusy] = useState(false), [res, setRes] = useState(null)
   const [n, setN] = useState(0), [pros] = useLoad(() => C.admPros(), [n])
   const set = k => e => { const v = e.target.type === 'checkbox' ? e.target.checked : e.target.value; setF(x => ({ ...x, [k]: v })) }
@@ -151,7 +103,7 @@ function NovoUsuario({ plans, onClose, onDone }) {
     e.preventDefault(); setBusy(true); setErrs({}); setMsg('')
     const b = { type: f.type, name: f.name, email: f.email, password: f.password || undefined }
     if (f.type === 'aluno') Object.assign(b, { plan_id: f.plan_id || undefined, coach_id: f.coach_id || undefined, area: f.coach_id ? f.area : undefined })
-    else Object.assign(b, { capacity: +f.capacity, can_publish: f.can_publish, area: f.area, qualification: f.q_number || f.q_verified ? { kind: f.q_kind, number: f.q_number, area: f.area, verified: f.q_verified } : undefined })
+    else Object.assign(b, { can_publish: f.can_publish, area: f.area, qualification: f.q_number || f.q_verified ? { kind: f.q_kind, number: f.q_number, area: f.area, verified: f.q_verified } : undefined })
     try { const r = await C.createUser(b); setRes(r); setN(x => x + 1); onDone && onDone() }
     catch (x) { setErrs(x.errors || {}); setMsg(x.message) } finally { setBusy(false) }
   }
@@ -172,8 +124,8 @@ function NovoUsuario({ plans, onClose, onDone }) {
       {L('E-mail', <input className="adm-in" type="email" value={f.email} onChange={set('email')} required data-testid="nu-email" />, 'email')}
       {L('Senha temporária (vazio = gerar automaticamente)', <input className="adm-in" type="text" autoComplete="new-password" value={f.password} onChange={set('password')} data-testid="nu-pass-in" />, 'password')}
       {f.type === 'aluno' ? <>
-        {L('Plano de acesso (opcional)', <select className="adm-in" value={f.plan_id} onChange={set('plan_id')} data-testid="nu-plan"><option value="">Sem plano por enquanto</option>{plans.map(p => <option key={p.id} value={p.id}>{p.name_pt} (até {p.max_professionals})</option>)}</select>, 'plan_id')}
-        {L('Vincular a um profissional (opcional, exige plano)', <select className="adm-in" value={f.coach_id} onChange={set('coach_id')} data-testid="nu-coach"><option value="">Sem vínculo por enquanto</option>{(pros?.professionals || []).filter(p => p.state === 'ativo').map(p => <option key={p.user_id} value={p.user_id}>{p.display_name || p.name} ({p.available} vaga[s])</option>)}</select>, 'coach_id')}
+        {L('Limite de acompanhamento (opcional)', <select className="adm-in" value={f.plan_id} onChange={set('plan_id')} data-testid="nu-plan"><option value="">Sem plano por enquanto</option>{plans.map(p => <option key={p.id} value={p.id}>{p.name_pt} (até {p.max_professionals})</option>)}</select>, 'plan_id')}
+        {L('Vincular a um profissional (opcional, exige plano)', <select className="adm-in" value={f.coach_id} onChange={set('coach_id')} data-testid="nu-coach"><option value="">Sem vínculo por enquanto</option>{(pros?.professionals || []).filter(p => p.state === 'ativo').map(p => <option key={p.user_id} value={p.user_id}>{p.display_name || p.name} ({p.available == null ? 'sem limite' : p.available + ' vaga(s)'})</option>)}</select>, 'coach_id')}
         {f.coach_id && L('Área do vínculo', <input className="adm-in" value={f.area} onChange={set('area')} placeholder="ex.: Musculação" data-testid="nu-area" />, 'area')}
       </> : <>
         {L('Área / especialidade', <input className="adm-in" value={f.area} onChange={set('area')} placeholder="ex.: Musculação" data-testid="nu-area" />, 'area')}
@@ -192,18 +144,19 @@ function NovoUsuario({ plans, onClose, onDone }) {
 }
 
 function Solicitacoes() {
-  const [type, setType] = useState(''), [group, setGroup] = useState('pendentes')
-  const [d, err, reload] = useLoad(() => P.requests(type, group), [type, group])
+  const [history, setHistory] = useState(false), [group, setGroup] = useState('pendentes')
+  const type = history ? '' : 'vagas'
+  const [d, err, reload] = useLoad(() => P.requests(type, history ? 'concluidas' : group), [type, group, history])
   return <>
     <div className="adm-tools">
-      {[['', 'Todas'], ['vagas', 'Vagas']].map(([k, l]) => <button key={k} className={'adm-btn ' + (type === k ? '' : 'ghost')} onClick={() => setType(k)} data-testid={'rq-t-' + (k || 'todas')}>{l}</button>)}
+      <button className={'adm-btn ' + (!history ? '' : 'ghost')} onClick={() => setHistory(false)}>Pedidos de vagas</button><button className={'adm-btn ' + (history ? '' : 'ghost')} onClick={() => setHistory(true)}>Histórico</button>
       <span style={{ width: 16 }} />
-      {[['pendentes', 'Pendentes'], ['em_analise', 'Em análise'], ['concluidas', 'Concluídas']].map(([k, l]) => <button key={k} className={'adm-btn ' + (group === k ? '' : 'ghost')} onClick={() => setGroup(k)}>{l}</button>)}
+      {!history && [['pendentes', 'Pendentes'], ['em_analise', 'Em análise'], ['concluidas', 'Concluídas']].map(([k, l]) => <button key={k} className={'adm-btn ' + (group === k ? '' : 'ghost')} onClick={() => setGroup(k)}>{l}</button>)}
     </div>
     {err ? <p className="g-warn">{err}</p> : !d ? <p className="g-mut">Carregando…</p> : d.requests.length ? <div className="adm-row2">{d.requests.map(r => <div key={r.id} className="adm-card" data-testid="rq-card">
       <div className="g-row"><b>#{r.id} · {r.type === 'vagas' ? 'Mais vagas' : 'Vínculo (fluxo antigo)'}</b><span style={{ flex: 1 }} /><Pill v={REQ_ST[r.status]} map={{ [REQ_ST[r.status]]: ST[r.status] }} /></div>
       <dl className="adm-dl" style={{ marginTop: 8 }}><dt>Profissional</dt><dd>{r.professional} ({r.pro_state})</dd>
-        <dt>Capacidade atual</dt><dd>{r.live_active}/{r.live_capacity} ({Math.max(0, r.live_capacity - r.live_active)} livre[s])</dd>
+        <dt>Capacidade atual</dt><dd>{r.live_active} / {r.live_capacity == null ? 'Sem limite' : r.live_capacity}{r.available != null && ` (${r.available} livres)`}</dd>
         {r.type === 'vagas' ? <><dt>Pedido</dt><dd>+{r.requested_amount} vaga(s)</dd></> : <><dt>Aluno</dt><dd>{r.student_name}</dd><dt>Especialidade</dt><dd>{r.specialty}</dd></>}
         <dt>Justificativa</dt><dd>{r.justification}</dd>{r.note && <><dt>Observação</dt><dd style={{ whiteSpace: 'pre-wrap' }}>{r.note}</dd></>}
         {r.decision_reason && <><dt>Decisão</dt><dd>{r.decision_reason}</dd></>}{r.new_limit != null && <><dt>Limite</dt><dd>{r.previous_limit} → {r.new_limit}</dd></>}
@@ -391,7 +344,7 @@ function Lgpd() {
 function Termos() {
   const [d, err, reload] = useLoad(() => C.terms()), [f, setF] = useState({ version: '', title: '', body: '' }), [msg, setMsg] = useState('')
   return <div className="adm-row2"><div>{err ? <p className="g-warn">{err}</p> : <DataTable name="termos" cols={[{ k: 'version', l: 'Versão' }, { k: 'title', l: 'Título' }, { k: 'published_at', l: 'Publicada', r: r => dt(r.published_at) }, { k: 'aceites', l: 'Aceites' }]} rows={d?.versions} />}</div>
-    <div className="adm-card"><h3>Publicar nova versão</h3><p className="g-mut g-xs">Versões publicadas não mudam. Ao publicar, todos aceitam de novo no próximo acesso.</p>
+    <div className="adm-card"><h3>Publicar nova versão</h3><p className="g-mut g-xs">Versões publicadas não podem ser alteradas. Uma nova publicação exige que todos aceitem os termos novamente no próximo acesso.</p>
       <input className="adm-in" style={{ width: '100%' }} placeholder="Versão (ex.: 2026-11-01)" value={f.version} onChange={e => setF({ ...f, version: e.target.value })} />
       <input className="adm-in" style={{ width: '100%', marginTop: 6 }} placeholder="Título" value={f.title} onChange={e => setF({ ...f, title: e.target.value })} />
       <textarea className="adm-in" style={{ width: '100%', marginTop: 6, minHeight: 160, padding: 10 }} placeholder="Texto" value={f.body} onChange={e => setF({ ...f, body: e.target.value })} />
@@ -405,45 +358,60 @@ function AuditoriaT() {
 function Wrap({ children }) { return <div className="ag">{children}</div> }
 
 const NAV = [
-  ['Visão geral', [['dashboard', 'Dashboard', 'chart']]],
-  ['Pessoas', [['usuarios', 'Usuários', 'person'], ['alunos', 'Liberações rápidas', 'check'], ['liberacoes', 'Liberação de contas', 'lock'], ['profissionais', 'Profissionais e habilitações', 'clipboard'], ['verificacoes', 'Verificação profissional', 'check'], ['vinculos', 'Vínculos', 'users'], ['solicitacoes', 'Central de solicitações', 'flag']]],
-  ['Operação', [['filas', 'Filas e prazos (SLA)', 'bell'], ['planos', 'Planos de acesso', 'shield'], ['assinaturas', 'Planos SaaS e assinaturas', 'sparkles'], ['modelos', 'Modelos de treino', 'pencil'], ['grupos', 'Grupos', 'users'], ['desafios', 'Desafios', 'trophy'], ['exercicios', 'Biblioteca e mídia', 'dumbbell']]],
-  ['Comunidade', [['publicacoes', 'Publicações e comentários', 'pencil'], ['moderacao', 'Moderação', 'chat'], ['ranking', 'Auditoria do ranking', 'sparkles']]],
-  ['Governança', [['auditoria', 'Auditoria', 'list'], ['lgpd', 'LGPD', 'lock'], ['termos', 'Termos de uso', 'info'], ['config', 'Configurações', 'gear']]]]
-const TITLE = Object.fromEntries(NAV.flatMap(([, it]) => it.map(([k, l]) => [k, l])))
+ ['Visão geral', [['dashboard','Visão geral','chart']]],
+ ['Pessoas', [['usuarios','Contas','person'],['profissionais','Profissionais e verificação','clipboard'],['vinculos','Vínculos e convites','users']]],
+ ['Planos e capacidade', [['assinaturas','Assinaturas','sparkles'],['planos','Limites de acompanhamento','shield'],['solicitacoes','Solicitações de vagas','flag']]],
+ ['Treinos', [['programas','Programas guiados','clipboard'],['modelos','Modelos de treino','pencil'],['exercicios','Biblioteca e mídia','dumbbell']]],
+ ['Comunidade', [['publicacoes','Publicações e moderação','chat'],['grupos','Grupos e desafios','users'],['ranking','Ranking','sparkles']]],
+ ['Operação', [['filas','Atendimentos e prazos','bell']]],
+ ['Sistema', [['lgpd','Privacidade e termos','lock'],['auditoria','Auditoria','list'],['config','Configurações','gear']]]]
+const TITLE=Object.fromEntries(NAV.flatMap(([,items])=>items.map(([k,l])=>[k,l])))
+const OLD_TABS={alunos:['usuarios','contas'],liberacoes:['usuarios','liberacoes'],verificacoes:['profissionais','verificacoes'],moderacao:['publicacoes','moderacao'],desafios:['grupos','desafios'],termos:['lgpd','termos'],visao:['dashboard','']}
+function SubTabs({items,current,onChange}) { return <div className="mg-subtabs" role="tablist">{items.map(([k,l])=><button key={k} role="tab" aria-selected={current===k} className={'adm-btn '+(current===k?'':'ghost')} onClick={()=>onChange(k)}>{l}</button>)}</div> }
+function ExtraSection({name}) { const Component=EXTRA[name]; return Component?<Wrap><Component/></Wrap>:<p>Indisponível.</p> }
+function AdminInvites() {
+ const [d,err,reload]=useLoad(()=>P.managementInvites())
+ return <><p className="adm-sub">O profissional convida e o aluno aceita. Consulta dos últimos 200 convites.</p>{err?<><p role="alert">{err}</p><button className="adm-btn" onClick={reload}>Tentar novamente</button></>:!d?<p>Carregando…</p>:<DataTable name="convites" rows={d.invites} cols={[{k:'professional',l:'Profissional'},{k:'student',l:'Aluno'},{k:'status',l:'Situação'},{k:'created_at',l:'Criado em',r:r=>dt(r.created_at)},{k:'expires_at',l:'Validade',r:r=>dt(r.expires_at)}]}/>}</>
+}
 export default function AdminApp() {
   const [sp, setSp] = useSearchParams(), nav = useNavigate(), [open, setOpen] = useState(false)
-  const tab = TITLE[sp.get('tab')] ? sp.get('tab') : sp.get('tab') === 'visao' ? 'dashboard' : 'dashboard', go = t => { setSp({ tab: t }); setOpen(false) }
+  const old=Object.hasOwn(OLD_TABS,sp.get('tab')) ? OLD_TABS[sp.get('tab')] : null
+  const tab=old?.[0] || (Object.hasOwn(TITLE,sp.get('tab')) ? sp.get('tab') : 'dashboard')
+  const defaults={usuarios:'contas',profissionais:'perfis',vinculos:'vinculos',publicacoes:'publicacoes',grupos:'grupos',lgpd:'lgpd'}
+  const sub=old?.[1] || sp.get('secao') || defaults[tab]
+  const go=value=>{const [t,section]=value.split(':');setSp({tab:t,...(section?{secao:section}:{})});setOpen(false)}
+  const setSub=section=>go(tab+':'+section)
+  useEffect(() => { if (old) setSp({tab:old[0],...(old[1]?{secao:old[1]}:{})},{replace:true}) }, [sp.get('tab')])
   const X = EXTRA[tab]
   return <div className="adm" data-testid="admin-panel">
-    <aside className={'adm-side' + (open ? ' open' : '')} aria-label="Menu administrativo">
+    <aside className={'adm-side' + (open ? ' open' : '')} aria-label="Menu administrativo" id="admin-navigation">
       <div className="adm-brand">AVADESK <b>Admin</b></div>
       {NAV.map(([g, items]) => <div key={g}><h6>{g}</h6>{items.map(([k, l, ic]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => go(k)} data-testid={'adm-' + k}><Icon name={ic} />{l}</button>)}</div>)}
       <h6>Conta</h6><button onClick={() => nav('/comunidade')} data-testid="adm-comunidade-app"><Icon name="chevronLeft" />Ver comunidade</button><button onClick={() => nav('/perfil')}><Icon name="chevronLeft" />Minha conta</button><button onClick={() => useStore.getState().signOut()} data-testid="adm-sair"><Icon name="chevronLeft" />Sair</button>
     </aside>
     <main className="adm-main">
-      <div className="adm-mtop"><button className="adm-btn ghost" style={{ minWidth: 44, minHeight: 44, fontSize: 18 }} onClick={() => setOpen(!open)} aria-label="Menu">☰</button><b>{TITLE[tab]}</b></div>
+      <div className="adm-mtop"><button className="adm-btn ghost" style={{ minWidth: 44, minHeight: 44, fontSize: 18 }} onClick={() => setOpen(!open)} aria-label="Menu" aria-expanded={open} aria-controls="admin-navigation">☰</button><b>{TITLE[tab]}</b></div>
       <h1>{TITLE[tab]}</h1><p className="adm-sub">AVADESK Fitness · central administrativa</p>
-      {tab === 'dashboard' && <Dashboard go={go} />}
-      {tab === 'usuarios' && <Usuarios />}
-      {tab === 'liberacoes' && <AdmLiberacoes />}
-      {tab === 'verificacoes' && <AdmVerifications />}
+      {tab === 'dashboard' && <ManagementDashboard go={go} />}
+      {tab === 'usuarios' && <><SubTabs items={[['contas','Contas'],['pendencias','Pendências'],['liberacoes','Liberação das ações']]} current={sub} onChange={setSub}/>{sub==='liberacoes'?<AdmLiberacoes/>:<Usuarios key={sub} pendingOnly={sub==='pendencias'}/>}</>}
+
+
       {tab === 'assinaturas' && <AdmSubscriptions />}
-      {tab === 'publicacoes' && <Publicacoes DataTable={DataTable} Drawer={Drawer} />}
-      {tab === 'alunos' && <Wrap><Alunos /></Wrap>}
-      {tab === 'profissionais' && <Wrap><Profissionais /></Wrap>}
-      {tab === 'vinculos' && <Wrap><Vinculos /></Wrap>}
+      {tab === 'publicacoes' && <><SubTabs items={[['publicacoes','Publicações e comentários'],['moderacao','Moderação']]} current={sub} onChange={setSub}/>{sub==='moderacao'?<ExtraSection name="moderacao"/>:<Publicacoes DataTable={DataTable} Drawer={Drawer}/>}</>}
+
+      {tab === 'profissionais' && <><SubTabs items={[['perfis','Perfis e habilitações'],['verificacoes','Verificação profissional']]} current={sub} onChange={setSub}/>{sub==='verificacoes'?<AdmVerifications/>:<Wrap><Profissionais/></Wrap>}</>}
+      {tab === 'vinculos' && <><SubTabs items={[['vinculos','Vínculos'],['convites','Convites']]} current={sub} onChange={setSub}/>{sub==='convites'?<AdminInvites/>:<Wrap><Vinculos/></Wrap>}</>}
       {tab === 'solicitacoes' && <Solicitacoes />}
       {tab === 'filas' && <Wrap><Filas /></Wrap>}
-      {tab === 'planos' && <Wrap><Planos /></Wrap>}
+      {tab === 'planos' && <><p className="adm-sub">Define quantos profissionais podem acompanhar cada aluno. Recursos e vagas de alunos do personal são geridos em Assinaturas.</p><Wrap><Planos/></Wrap></>}
       {tab === 'modelos' && <Modelos />}
-      {tab === 'grupos' && <AdmGrupos />}
-      {tab === 'desafios' && <AdmDesafios />}
+      {tab === 'programas' && <Wrap><AdminPrograms/></Wrap>}
+ {tab === 'grupos' && <><SubTabs items={[['grupos','Grupos'],['desafios','Desafios']]} current={sub} onChange={setSub}/>{sub==='desafios'?<AdmDesafios/>:<AdmGrupos/>}</>}
+
       {tab === 'exercicios' && <Exercicios />}
       {['moderacao', 'ranking'].includes(tab) && (X ? <Wrap><X /></Wrap> : <p className="g-mut">Indisponível.</p>)}
       {tab === 'auditoria' && <AuditoriaT />}
-      {tab === 'lgpd' && <Lgpd />}
-      {tab === 'termos' && <Termos />}
+      {tab === 'lgpd' && <><SubTabs items={[["lgpd","Privacidade e pedidos"],["termos","Termos de uso"]]} current={sub} onChange={setSub}/>{sub==='termos'?<Termos/>:<Lgpd/>}</>}
       {tab === 'config' && <Wrap><Config /></Wrap>}
     </main>
   </div>

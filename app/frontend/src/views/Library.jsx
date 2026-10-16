@@ -26,14 +26,20 @@ export default function Library() {
     <div className="hdr"><div><h1>{t('Exercises')}</h1><div className="sub">{t('{0} exercises with animations', EXDB.length)}</div></div><button className="btn sm" onClick={() => location.hash = '#/muscles'} style={{ marginLeft: 'auto' }}>Mapa 3D</button></div>
     <div className="search" style={{ marginBottom: 10 }}><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
       <input className="input" placeholder={t('Search…')} value={q} onChange={e => { setQ(e.target.value); setShown(40) }} /></div>
-    <div className="chips" style={{ marginBottom: eqOpts.length > 1 ? 8 : 12 }}>
-      <button className={'chip nocap' + (!bp ? ' on' : '')} onClick={() => { setBp(''); setEq(''); setShown(40) }}>{t('All')}</button>
-      {BODYPARTS.map(b => <button key={b} className={'chip' + (bp === b ? ' on' : '')} onClick={() => { setBp(b); setEq(''); setShown(40) }}>{t(b)}</button>)}
+    <div className="library-filters">
+      <label>Grupo muscular
+        <select className="input" value={bp} onChange={e => { setBp(e.target.value); setEq(''); setShown(40) }}>
+          <option value="">{t('All')}</option>
+          {BODYPARTS.map(b => <option key={b} value={b}>{t(b)}</option>)}
+        </select>
+      </label>
+      {eqOpts.length > 1 && <label>Equipamento
+        <select className="input" value={eqOn} onChange={e => { setEq(e.target.value); setShown(40) }}>
+          <option value="">{t('Any equipment')}</option>
+          {eqOpts.map(x => <option key={x} value={x}>{t(x)}</option>)}
+        </select>
+      </label>}
     </div>
-    {eqOpts.length > 1 && <div className="chips" style={{ marginBottom: 12 }}>
-      <button className={'chip nocap' + (!eqOn ? ' on' : '')} onClick={() => { setEq(''); setShown(40) }}>{t('Any equipment')}</button>
-      {eqOpts.map(x => <button key={x} className={'chip' + (eqOn === x ? ' on' : '')} onClick={() => { setEq(x); setShown(40) }}>{t(x)}</button>)}
-    </div>}
     <div className="list">
       {f.slice(0, shown).map(e => {
         const best = bestWeightFor(S, e.id)

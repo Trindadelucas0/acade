@@ -245,6 +245,7 @@ export function proRoutes({ json, readBody }) {
     // ================= profissional =================
     'GET /api/pro/dashboard': async (req, res) => {
       const u = await guard('profissional')(req, res, json); if (!u) return
+      const history = qs(req).get('include_history') === '1'
       await sweepOverdue(u.tenant_id)
       const prof = (await q(PRO_SQL + ` from professional_profiles pp join users u on u.id=pp.user_id where pp.user_id=$1`, [u.id])).rows[0]
       const quals = (await q('select id,kind,number,area,status,note from professional_qualifications where user_id=$1 order by id', [u.id])).rows
@@ -252,11 +253,11 @@ export function proRoutes({ json, readBody }) {
           (select count(*) from sessions x where x.user_id=s.id and ${countsInMetrics('x')} and x.started_at > now() - interval '7 days') week_sessions
         from coach_students cs join users s on s.id=cs.student_id where cs.coach_id=$1 and cs.status='ativo' order by s.name`, [u.id])).rows
       const [occ, th, pr] = await Promise.all([
-        q(`select o.*, s.name student_name from occurrences o join users s on s.id=o.student_id where (o.responsible_id=$1 or o.assigned_to=$1) and o.status<>'encerrada' order by o.created_at`, [u.id]),
+        q(`select o.*, s.name student_name from occurrences o join users s on s.id=o.student_id where (o.responsible_id=$1 or o.assigned_to=$1) and o.tenant_id=$2 ${history ? '' : "and o.status<>'encerrada'"} order by o.created_at desc ${history ? 'limit 200' : ''}`, [u.id, u.tenant_id]),
         q(`select t.*, s.name student_name, (select body from messages m where m.thread_id=t.id order by id desc limit 1) last_body from threads t join users s on s.id=t.student_id
-           where (t.responsible_id=$1 or t.assigned_to=$1) and t.status<>'encerrada' order by t.updated_at desc`, [u.id]),
+           where (t.responsible_id=$1 or t.assigned_to=$1) and t.tenant_id=$2 ${history ? '' : "and t.status<>'encerrada'"} order by t.updated_at desc ${history ? 'limit 200' : ''}`, [u.id, u.tenant_id]),
         q(`select cp.*, a.name author_name, p.title plan_title from change_proposals cp join users a on a.id=cp.author_id left join pro_plans p on p.id=cp.plan_id
-           where cp.status='pendente' and (cp.decider_id=$1 or cp.author_id=$1) order by cp.created_at`, [u.id])])
+           where (cp.decider_id=$1 or cp.author_id=$1) and cp.tenant_id=$2 ${history ? '' : "and cp.status='pendente'"} order by cp.created_at desc ${history ? 'limit 200' : ''}`, [u.id, u.tenant_id])])
       const lim = await capacitySummary(u.id)
       json(res, 200, { profile: prof ? { ...proView(prof), capacity: lim.effective_limit, can_publish: prof.can_publish } : null, qualifications: quals, students,
         occurrences: occ.rows, threads: th.rows, proposals: pr.rows, capacity: { max: lim.effective_limit, active: lim.used, available: lim.available }, limit: lim })
@@ -431,7 +432,7 @@ export function proRoutes({ json, readBody }) {
       const st = qs(req).get('status'), s = '%' + (qs(req).get('q') || '') + '%'
       const r = await q(`select u.id,u.name,u.email,u.status,u.created_at,u.share_code,(select pp.verification_status from professional_profiles pp where pp.user_id=u.id) verification,
           coalesce((select json_agg(json_build_object('audience',s.audience,'plan',p.name,'status',s.status,'over_limit',s.over_limit) order by s.audience) from subscriptions s join plans p on p.id=s.plan_id where s.user_id=u.id and s.status<>'cancelada'),'[]') subs, coalesce(array_agg(distinct ur.role_id) filter (where ur.role_id is not null),'{}') roles,
-          uap.plan_id, ap.max_professionals, (select count(*) from coach_students cs where cs.student_id=u.id and cs.status='ativo')::int links
+          u.access_unlocked_at, u.account_type, uap.plan_id, ap.max_professionals, (select count(*) from coach_students cs where cs.student_id=u.id and cs.status='ativo')::int links
         from users u left join user_roles ur on ur.user_id=u.id left join user_access_plans uap on uap.user_id=u.id left join access_plans ap on ap.id=uap.plan_id
         where u.tenant_id=$1 and ($2::text is null or u.status=$2) and (u.name ilike $3 or u.email ilike $3 or u.share_code ilike $3) group by u.id,uap.plan_id,ap.max_professionals order by u.created_at desc limit 200`, [u.tenant_id, st || null, s])
       json(res, 200, { users: r.rows.map(x => ({ ...x, over_limit: x.plan_id ? x.links > x.max_professionals : false })) })
@@ -444,7 +445,7 @@ export function proRoutes({ json, readBody }) {
       const r = await q(`update users set status=$2, approved_by=case when $2='ativo' then $3::uuid else approved_by end, approved_at=case when $2='ativo' then now() else approved_at end where id=$1 and tenant_id=$4 returning id`, [b.id, b.status, u.id, u.tenant_id])
       if (!r.rowCount) return json(res, 404, { error: 'Usuário não encontrado' })
       await audit(u.tenant_id, u.id, 'conta.' + b.status, 'user', b.id, { reason: txt(b.reason, 300) || null })
-      if (b.status === 'ativo') await notify(b.id, 'conta', 'Seu acesso foi liberado!', 'Agora você pode usar treinos, comunidade e acompanhamento.', '/hoje')
+      if (b.status === 'ativo') await notify(b.id, 'conta', 'Seu cadastro foi ativado', 'O cadastro está ativo. A liberação das ações do aplicativo é administrada separadamente.', '/hoje')
       json(res, 200, { ok: true })
     },
     'POST /api/adm/users/role': async (req, res) => {

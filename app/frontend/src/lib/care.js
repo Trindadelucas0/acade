@@ -8,7 +8,7 @@ export const C = {
   pros: area => api('/api/professionals' + (area ? '?area=' + encodeURIComponent(area) : '')), pro: id => api('/api/professional?id=' + id),
   searchEx: t => api('/api/exercises/search?q=' + encodeURIComponent(t)),
   // profissional
-  dash: () => api('/api/pro/dashboard'), saveProfile: b => post('/api/pro/profile', b), addQual: b => post('/api/pro/qualifications', b),
+  dash: (history = false) => api('/api/pro/dashboard' + (history ? '?include_history=1' : '')), saveProfile: b => post('/api/pro/profile', b), addQual: b => post('/api/pro/qualifications', b),
   student: id => api('/api/pro/student?id=' + id), savePlan: b => post('/api/pro/plans', b), archivePlan: (id, reason) => post('/api/pro/plans/archive', { id, reason }),
   assess: b => post('/api/pro/assess', b), closeOcc: (id, reason) => post('/api/pro/close-occurrence', { id, reason }), closeThread: id => post('/api/pro/close-thread', { id }),
   propose: b => post('/api/pro/proposals', b), decide: b => post('/api/pro/proposals/decide', b),
@@ -64,6 +64,8 @@ export async function uploadExMedia(exercise_id, file, caption) {
 
 // AVADESK PRO e central administrativa
 export const P = {
+  management: period => api('/api/adm/management?period=' + period),
+  managementInvites: () => api('/api/adm/management/invites'),
   home: () => api('/api/pro/home'), students: (filter, q) => api('/api/pro/students?' + new URLSearchParams({ filter: filter || 'todos', q: q || '' })),
   student: id => api('/api/pro/student/full?id=' + id), library: f => api('/api/pro/library?' + new URLSearchParams(f || {})), templates: () => api('/api/pro/templates'),
   list: f => api('/api/pro/prescriptions?' + new URLSearchParams(f || {})), get: id => api('/api/pro/prescription?id=' + id),

@@ -42,7 +42,7 @@ export default function Ranking({ embedded }) {
     <h2>Classificação</h2>
     <div className="g-card">{d.top.length ? d.top.map(r => <div key={r.position} className={'g-rank' + (d.me?.position === r.position ? ' g-me' : '')}><span className="g-pos">#{r.position}</span><Av name={r.name} url={r.photo_url} size={36} /><span style={{ flex: 1 }}><b className="g-sm">{r.name}</b><br /><span className="g-xs g-mut">{r.days} dia(s)</span></span><b>{r.points}</b></div>)
       : <Empty icon="trophy">Ninguém pontuou ainda neste período. Cada treino válido vale 100 pontos.</Empty>}</div>
-    <p className="g-xs g-dim" style={{ marginTop: 8 }}>Desempate: mais dias com treino, depois mais sessões, depois quem chegou primeiro à pontuação. São regras administrativas do ranking, sem significado clínico. Curtidas, comentários e cargas não pontuam.</p>
+    <details className="org-details"><summary>Como pontua</summary><p className="g-xs g-dim" style={{ marginTop: 8 }}>Desempate: mais dias com treino, depois mais sessões, depois quem chegou primeiro à pontuação. São regras administrativas do ranking, sem significado clínico. Curtidas, comentários e cargas não pontuam.</p></details>
     {sheet === 'priv' && <Privacy pref={d.pref} onClose={() => setSheet(null)} onDone={() => { setSheet(null); reload() }} />}
     {sheet === 'pts' && <Sheet title="Minha pontuação" onClose={() => setSheet(null)}>
       <p className="g-mut g-sm">Período: {per === 'semana' ? 'semana atual' : 'mês atual'} ({d.period.start} a {d.period.end})</p>

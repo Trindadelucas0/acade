@@ -20,6 +20,7 @@ export default function Train() {
   const nav = useNavigate()
   const [sp] = useSearchParams()
   const [s, setS] = useState(() => loadSession())
+  const [draft, setDraft] = useState(null), [beginBusy, setBeginBusy] = useState(false)
   // V4: treino aberto há ≥ 1h sem atividade (local) ou aberto no servidor (outro aparelho) → "Treino ainda em aberto"
   const [recover, setRecover] = useState(() => { const x = loadSession(); return x && !x.finishing && !x.finished_at && idleMin(x) >= FORGOTTEN_MIN ? { local: true } : null })
   const [fix, setFix] = useState(false), [rbusy, setRbusy] = useState(false)
@@ -33,9 +34,12 @@ export default function Train() {
   const begin = async n => {
     if (starting.current) return   // StrictMode/efeito repetido: um único início por montagem
     starting.current = true
+    setBeginBusy(true)
+    n.started_at = new Date().toISOString()
     const r = await startRemote(n)
+    setBeginBusy(false)
     if (!r.ok && r.open) { setRecover({ remote: r.open }); return }
-    if (!r.ok) { setErr(r.error || 'Este treino não pode ser iniciado.'); return }
+    if (!r.ok) { starting.current = false; setErr(r.error || 'Este treino não pode ser iniciado.'); return }
     n.server = !!r.server; n.offline_start = !!r.offline; n.last_activity = Date.now()
     if (r.started_at) n.started_at = r.started_at
     saveSessionLocal(n); setS(n)
@@ -49,12 +53,12 @@ export default function Train() {
       const n = newSession({ active: { id: null, title: plan.title + ' · ' + plan.owner_name }, workout: { id: null, name: plan.title + (dd?.name && plan.days.length > 1 ? ' · ' + dd.name : ''), exercises: exs.map(e => ({ ...e, suggestion: { weight: e.weight, reps: e.reps } })) } })
       n.exercises = n.exercises.map((e, i) => { const o = exs[i]; return { ...e, timed: o.timed, rest_sec: o.rest_sec ?? 60, group: o.group ?? null, per_set: o.per_set || [], tempo: o.tempo || '', rpe: o.rpe ?? null, rir: o.rir ?? null, side: o.side || 'bilateral', technique: o.technique || 'normal', notes: o.notes || '', reps_label: o.reps || '', load_kg: o.load_kg ?? null } })
       n.plan_desc = plan.description || plan.notes || ''; n.day_desc = dd?.description || ''
-      n.plan_id = plan.id; begin(n) }).catch(e => setErr(e.message || 'Plano indisponível')); return }
+      n.plan_id = plan.id; setDraft(n) }).catch(e => setErr(e.message || 'Plano indisponível')); return }
     G.today(sp.get('w')).then(t => {
       if (!t.active) return nav('/recomendados', { replace: true })
       if (!t.workout) return setErr('Este programa não tem treinos.')
-      begin(newSession(t))
-    }).catch(() => setErr('Sem conexão para baixar o treino. Tente de novo.'))
+      setDraft(newSession(t))
+    }).catch(() => setErr('Sem conexão para baixar o treino. Tente novamente.'))
   }, [s, sp, nav, recover]) // eslint-disable-line
   // sessão retomada criada antes de a mídia existir: completa mídia/instruções pelo servidor
   useEffect(() => {
@@ -103,6 +107,20 @@ export default function Train() {
   if (recover && rinfo) return <OpenSessionScreen info={rinfo} busy={rbusy} onContinue={recContinue} onCorrect={() => setFix(true)} onDiscard={recDiscard} />
 
   if (err) return <div className="ag g-full"><p className="g-warn">{err}</p><button className="g-btn" style={{ marginTop: 16 }} onClick={() => nav('/hoje')}>Voltar</button></div>
+  if (!s && draft) return <div className="ag g-full" data-testid="workout-weights">
+    <h1>Defina os pesos</h1>
+    <p className="g-mut">{draft.workout_name} · O cronômetro só começa quando você confirmar. Use 0 kg nos exercícios sem carga.</p>
+    <form onSubmit={e => { e.preventDefault(); if (!beginBusy) begin(draft) }}>
+      {draft.exercises.map((e, i) => <div className="g-card" key={i}>
+        {e.timed ? <p>{e.name} · exercício por tempo, sem peso para informar.</p> : <label>{e.name} · Peso (kg)
+          <input className="g-in" type="number" inputMode="decimal" min="0" step="0.1" required disabled={beginBusy} value={e.weight ?? ''}
+            onChange={ev => { const value = ev.target.value; setDraft(x => ({ ...x, exercises: x.exercises.map((ex, k) => k === i ? { ...ex, weight: value === '' ? null : Number(value) } : ex) })) }} />
+        </label>}
+      </div>)}
+      <button className="g-btn" type="submit" disabled={beginBusy} data-testid="confirm-workout-weights">{beginBusy ? 'Iniciando…' : 'Confirmar pesos e iniciar treino'}</button>
+      <button className="g-btn g-ghost" type="button" disabled={beginBusy} onClick={() => nav('/hoje')}>Voltar</button>
+    </form>
+  </div>
   if (!s) return <Spin />
 
   function update(fn) {
@@ -164,14 +182,14 @@ export default function Train() {
       <button className="g-icbtn" onClick={quit} aria-label="Encerrar treino"><Icon name="flag" /></button>
     </div>
 
+    <div className="g-row"><h1 style={{ fontSize: 24, margin: 0 }} data-testid="ex-name">{ex.name}</h1><span className="g-sp" /><button className="g-link" onClick={() => setHow(h => !h)}>{how ? 'Fechar' : 'Como fazer'}</button></div>
     {m && !bad[ex.exercise_id] ? <div className="g-media" onClick={() => setHow(h => !h)}>
       <img key={ex.exercise_id} src={m.gif || m.img} alt={ex.name} data-testid="ex-media"
         onError={e => { if (m.img && e.currentTarget.src !== new URL(m.img, location.href).href) e.currentTarget.src = m.img; else setBad(b => ({ ...b, [ex.exercise_id]: 1 })) }} />
     </div> : <div className="g-media g-x g-noimg" data-testid="ex-media-placeholder">
       <Icon name="stretch" /><span className="g-xs g-mut">Sem vídeo para este exercício — siga as instruções abaixo</span>
     </div>}
-    <ExtraMedia id={ex.exercise_id} />
-    <div className="g-row"><h1 style={{ fontSize: 24, margin: 0 }} data-testid="ex-name">{ex.name}</h1><span className="g-sp" /><button className="g-link" onClick={() => setHow(h => !h)}>{how ? 'Fechar' : 'Como fazer'}</button></div>
+    {how && <ExtraMedia id={ex.exercise_id} />}
     {(how || !m || bad[ex.exercise_id]) && <p className="g-mut g-sm" style={{ marginTop: 6 }}>{ex.instructions || 'Faça o movimento devagar e com controle. Pare se sentir dor.'}</p>}
     {ex.cautions?.length > 0 && <p className="g-warn" style={{ marginTop: 6 }}>Atenção: faça com cuidado se sente {ex.cautions.map(c => RESTR_PT[c.code]?.toLowerCase()).join(', ')}. Pare se doer.</p>}
 

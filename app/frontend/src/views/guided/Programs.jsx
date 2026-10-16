@@ -78,10 +78,12 @@ export function Library() {
       <span><b>Recomendados para você</b><br /><span className="g-mut g-sm">Com base nas suas respostas</span></span>
       <span className="g-sp" /><Icon name="play" />
     </button>
-    <div className="g-scrollx">
-      <button className={'g-chipbtn' + (!goal ? ' g-on' : '')} onClick={() => setGoal('')}>Todos</button>
-      {GOALS.map(([v, l]) => <button key={v} className={'g-chipbtn' + (goal === v ? ' g-on' : '')} onClick={() => setGoal(v)}>{v === 'rehab' ? 'Fisioterapia' : l}</button>)}
-    </div>
+    <label className="g-filter-field">Objetivo
+      <select className="g-in" value={goal} onChange={e => setGoal(e.target.value)}>
+        <option value="">Todos os objetivos</option>
+        {GOALS.map(([v, l]) => <option key={v} value={v}>{v === 'rehab' ? 'Fisioterapia' : l}</option>)}
+      </select>
+    </label>
     <div style={{ marginTop: 12 }}>
       {!list ? <p className="g-dim g-center">Carregando…</p> : list.map(p => <ProgramCard key={p.id} p={p} onClick={() => nav('/programa/' + p.id)} />)}
     </div>
