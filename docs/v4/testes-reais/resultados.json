@@ -130,89 +130,551 @@
  {
   "flow": "normal",
   "step": "Concluir treino (salvo no servidor)",
-  "ok": false,
-  "err": "page.waitForTimeout: Target page, context or browser has been closed",
+  "ok": true,
+  "err": "",
   "shot": "prints/017-normal-concluir-treino-salvo-no-servidor-.png",
   "url": "/#/concluido"
  },
  {
   "flow": "normal",
   "step": "Comunidade: publicações",
-  "ok": false,
-  "err": "page.goto: Target page, context or browser has been closed",
+  "ok": true,
+  "err": "",
   "shot": "prints/018-normal-comunidade-publicac-o-es.png",
-  "url": "/#/concluido"
+  "url": "/#/comunidade"
  },
  {
   "flow": "normal",
   "step": "Aluno não publica no feed (regra: só profissionais)",
-  "ok": false,
-  "err": "\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed",
+  "ok": true,
+  "err": "",
   "shot": "prints/019-normal-aluno-na-o-publica-no-feed-regra-so-prof.png",
-  "url": "/#/concluido"
+  "url": "/#/comunidade"
  },
  {
   "flow": "normal",
   "step": "Desafios",
-  "ok": false,
-  "err": "page.goto: Target page, context or browser has been closed",
+  "ok": true,
+  "err": "",
   "shot": "prints/020-normal-desafios.png",
-  "url": "/#/concluido"
+  "url": "/#/comunidade?tab=desafios"
  },
  {
   "flow": "normal",
   "step": "Entrar em um desafio",
-  "ok": false,
-  "err": "locator.click: Target page, context or browser has been closed",
+  "ok": true,
+  "err": "",
   "shot": "prints/021-normal-entrar-em-um-desafio.png",
-  "url": "/#/concluido"
+  "url": "/#/desafio/a144fb97-c602-48a2-87f7-f08e9acbdf8a"
  },
  {
   "flow": "normal",
   "step": "Grupos",
-  "ok": false,
-  "err": "page.goto: Target page, context or browser has been closed",
+  "ok": true,
+  "err": "",
   "shot": "prints/022-normal-grupos.png",
-  "url": "/#/concluido"
+  "url": "/#/comunidade?tab=grupos"
  },
  {
   "flow": "normal",
   "step": "Ranking",
-  "ok": false,
-  "err": "page.goto: Target page, context or browser has been closed",
+  "ok": true,
+  "err": "",
   "shot": "prints/023-normal-ranking.png",
-  "url": "/#/concluido"
+  "url": "/#/comunidade?tab=ranking"
  },
  {
   "flow": "normal",
   "step": "Progresso (histórico, recordes)",
-  "ok": false,
-  "err": "page.goto: Target page, context or browser has been closed",
+  "ok": true,
+  "err": "",
   "shot": "prints/024-normal-progresso-histo-rico-recordes-.png",
-  "url": "/#/concluido"
+  "url": "/#/progresso"
  },
  {
   "flow": "normal",
   "step": "Perfil",
-  "ok": false,
-  "err": "page.goto: Target page, context or browser has been closed",
+  "ok": true,
+  "err": "",
   "shot": "prints/025-normal-perfil.png",
-  "url": "/#/concluido"
+  "url": "/#/perfil"
  },
  {
   "flow": "normal",
   "step": "Tema sol/lua: alterna para escuro",
-  "ok": false,
-  "err": "locator.click: Target page, context or browser has been closed",
+  "ok": true,
+  "err": "",
   "shot": "prints/026-normal-tema-sol-lua-alterna-para-escuro.png",
-  "url": "/#/concluido"
+  "url": "/#/perfil"
  },
  {
   "flow": "normal",
   "step": "Tema volta para claro",
-  "ok": false,
-  "err": "locator.click: Target page, context or browser has been closed",
+  "ok": true,
+  "err": "",
   "shot": "prints/027-normal-tema-volta-para-claro.png",
-  "url": "/#/concluido"
+  "url": "/#/perfil"
+ },
+ {
+  "flow": "personal",
+  "step": "Painel do personal",
+  "ok": true,
+  "err": "",
+  "shot": "prints/028-personal-painel-do-personal.png",
+  "url": "/#/pro"
+ },
+ {
+  "flow": "personal",
+  "step": "Verificação profissional",
+  "ok": true,
+  "err": "",
+  "shot": "prints/029-personal-verificac-a-o-profissional.png",
+  "url": "/#/pro?tab=verificacao"
+ },
+ {
+  "flow": "personal",
+  "step": "Alunos → Adicionar aluno",
+  "ok": true,
+  "err": "",
+  "shot": "prints/030-personal-alunos-adicionar-aluno.png",
+  "url": "/#/pro?tab=adicionar"
+ },
+ {
+  "flow": "personal",
+  "step": "Convidar aluno existente (código/convite)",
+  "ok": true,
+  "err": "",
+  "shot": "prints/031-personal-convidar-aluno-existente-co-digo-convite.png",
+  "url": "/#/pro?tab=convites"
+ },
+ {
+  "flow": "personal",
+  "step": "Cadastrar aluno novo: senha provisória aparece uma vez",
+  "ok": true,
+  "err": "",
+  "shot": "prints/032-personal-cadastrar-aluno-novo-senha-proviso-ria-a.png",
+  "url": "/#/pro?tab=cadastrar"
+ },
+ {
+  "flow": "personal",
+  "step": "Aluno: primeiro login",
+  "ok": true,
+  "err": "",
+  "shot": "prints/033-personal-aluno-primeiro-login.png",
+  "url": "/#/hoje"
+ },
+ {
+  "flow": "personal",
+  "step": "Aluno troca a senha provisória",
+  "ok": true,
+  "err": "",
+  "shot": "prints/034-personal-aluno-troca-a-senha-proviso-ria.png",
+  "url": "/#/hoje"
+ },
+ {
+  "flow": "personal",
+  "step": "Aluno aceita os termos",
+  "ok": true,
+  "err": "",
+  "shot": "prints/035-personal-aluno-aceita-os-termos.png",
+  "url": "/#/hoje"
+ },
+ {
+  "flow": "personal",
+  "step": "Personal cria e envia a ficha",
+  "ok": true,
+  "err": "",
+  "shot": "prints/036-personal-personal-cria-e-envia-a-ficha.png",
+  "url": "/#/pro?tab=treinos"
+ },
+ {
+  "flow": "personal",
+  "step": "Aluno vê a ficha como treino ativo",
+  "ok": true,
+  "err": "",
+  "shot": "prints/037-personal-aluno-ve-a-ficha-como-treino-ativo.png",
+  "url": "/#/treinos"
+ },
+ {
+  "flow": "personal",
+  "step": "Aluno coberto não pode desvincular",
+  "ok": true,
+  "err": "",
+  "shot": "prints/038-personal-aluno-coberto-na-o-pode-desvincular.png",
+  "url": "/#/treinos"
+ },
+ {
+  "flow": "personal",
+  "step": "Aluno inicia a ficha",
+  "ok": true,
+  "err": "",
+  "shot": "prints/039-personal-aluno-inicia-a-ficha.png",
+  "url": "/#/treinar?plan=ab8dfb0a-4dca-4ed3-8682-296052ce6fa3"
+ },
+ {
+  "flow": "personal",
+  "step": "Aluno informa pesos e treina",
+  "ok": true,
+  "err": "",
+  "shot": "prints/040-personal-aluno-informa-pesos-e-treina.png",
+  "url": "/#/treinar?plan=ab8dfb0a-4dca-4ed3-8682-296052ce6fa3"
+ },
+ {
+  "flow": "personal",
+  "step": "Aluno abre \"Tenho uma dúvida\"",
+  "ok": true,
+  "err": "",
+  "shot": "prints/041-personal-aluno-abre-tenho-uma-du-vida-.png",
+  "url": "/#/treinar?plan=ab8dfb0a-4dca-4ed3-8682-296052ce6fa3"
+ },
+ {
+  "flow": "personal",
+  "step": "Acompanhamento do aluno",
+  "ok": true,
+  "err": "",
+  "shot": "prints/042-personal-acompanhamento-do-aluno.png",
+  "url": "/#/acompanhamento"
+ },
+ {
+  "flow": "personal",
+  "step": "Atendimentos: Pendentes / Em andamento / Encerrados",
+  "ok": true,
+  "err": "",
+  "shot": "prints/043-personal-atendimentos-pendentes-em-andamento-ence.png",
+  "url": "/#/pro?tab=atendimentos"
+ },
+ {
+  "flow": "personal",
+  "step": "Personal publica na comunidade",
+  "ok": true,
+  "err": "",
+  "shot": "prints/044-personal-personal-publica-na-comunidade.png",
+  "url": "/#/comunidade"
+ },
+ {
+  "flow": "personal",
+  "step": "Mais (perfil, verificação, plano)",
+  "ok": true,
+  "err": "",
+  "shot": "prints/045-personal-mais-perfil-verificac-a-o-plano-.png",
+  "url": "/#/pro?tab=mais"
+ },
+ {
+  "flow": "codigo",
+  "step": "Cadastro pelo código: conta do personal",
+  "ok": true,
+  "err": "",
+  "shot": "prints/046-codigo-cadastro-pelo-co-digo-conta-do-personal.png",
+  "url": "/#/onboarding"
+ },
+ {
+  "flow": "codigo",
+  "step": "Treinos: \"Você está vinculado a …\" (sem ficha publicada)",
+  "ok": true,
+  "err": "",
+  "shot": "prints/047-codigo-treinos-voce-esta-vinculado-a-sem-ficha-.png",
+  "url": "/#/treinos"
+ },
+ {
+  "flow": "codigo",
+  "step": "Início mostra o personal vinculado",
+  "ok": true,
+  "err": "",
+  "shot": "prints/048-codigo-ini-cio-mostra-o-personal-vinculado.png",
+  "url": "/#/hoje"
+ },
+ {
+  "flow": "codigo",
+  "step": "Perfil: card Meus profissionais",
+  "ok": true,
+  "err": "",
+  "shot": "prints/049-codigo-perfil-card-meus-profissionais.png",
+  "url": "/#/perfil"
+ },
+ {
+  "flow": "codigo",
+  "step": "Abrir o profissional pelo card",
+  "ok": true,
+  "err": "",
+  "shot": "prints/050-codigo-abrir-o-profissional-pelo-card.png",
+  "url": "/#/profissional/21b3edbd-2ae2-419f-a50c-9d1a45c51651"
+ },
+ {
+  "flow": "codigo",
+  "step": "Acompanhamento mostra o personal",
+  "ok": true,
+  "err": "",
+  "shot": "prints/051-codigo-acompanhamento-mostra-o-personal.png",
+  "url": "/#/acompanhamento"
+ },
+ {
+  "flow": "pendente",
+  "step": "Admin marca a mensalidade do personal como pendente",
+  "ok": true,
+  "err": "",
+  "shot": "prints/052-pendente-admin-marca-a-mensalidade-do-personal-co.png",
+  "url": "about:blank"
+ },
+ {
+  "flow": "pendente",
+  "step": "Aluno vê o aviso \"personal pendente: só visualiza\"",
+  "ok": true,
+  "err": "",
+  "shot": "prints/053-pendente-aluno-ve-o-aviso-personal-pendente-so-vi.png",
+  "url": "/#/hoje"
+ },
+ {
+  "flow": "pendente",
+  "step": "Aluno consegue ver os treinos",
+  "ok": true,
+  "err": "",
+  "shot": "prints/054-pendente-aluno-consegue-ver-os-treinos.png",
+  "url": "/#/treinos"
+ },
+ {
+  "flow": "pendente",
+  "step": "Admin volta a mensalidade do personal para em dia",
+  "ok": true,
+  "err": "",
+  "shot": "prints/055-pendente-admin-volta-a-mensalidade-do-personal-pa.png",
+  "url": "about:blank"
+ },
+ {
+  "flow": "admin",
+  "step": "Visão geral",
+  "ok": true,
+  "err": "",
+  "shot": "prints/056-admin-visa-o-geral.png",
+  "url": "/#/admin/painel?tab=dashboard"
+ },
+ {
+  "flow": "admin",
+  "step": "Contas",
+  "ok": true,
+  "err": "",
+  "shot": "prints/057-admin-contas.png",
+  "url": "/#/admin/painel?tab=usuarios"
+ },
+ {
+  "flow": "admin",
+  "step": "Pendências",
+  "ok": true,
+  "err": "",
+  "shot": "prints/058-admin-pende-ncias.png",
+  "url": "/#/admin/painel?tab=usuarios&secao=pendencias"
+ },
+ {
+  "flow": "admin",
+  "step": "Liberação das ações (lote)",
+  "ok": true,
+  "err": "",
+  "shot": "prints/059-admin-liberac-a-o-das-ac-o-es-lote-.png",
+  "url": "/#/admin/painel?tab=usuarios&secao=liberacoes"
+ },
+ {
+  "flow": "admin",
+  "step": "Profissionais",
+  "ok": true,
+  "err": "",
+  "shot": "prints/060-admin-profissionais.png",
+  "url": "/#/admin/painel?tab=profissionais"
+ },
+ {
+  "flow": "admin",
+  "step": "Verificação profissional",
+  "ok": true,
+  "err": "",
+  "shot": "prints/061-admin-verificac-a-o-profissional.png",
+  "url": "/#/admin/painel?tab=profissionais&secao=verificacoes"
+ },
+ {
+  "flow": "admin",
+  "step": "Vínculos",
+  "ok": true,
+  "err": "",
+  "shot": "prints/062-admin-vi-nculos.png",
+  "url": "/#/admin/painel?tab=vinculos"
+ },
+ {
+  "flow": "admin",
+  "step": "Convites",
+  "ok": true,
+  "err": "",
+  "shot": "prints/063-admin-convites.png",
+  "url": "/#/admin/painel?tab=vinculos&secao=convites"
+ },
+ {
+  "flow": "admin",
+  "step": "Assinaturas dos personais",
+  "ok": true,
+  "err": "",
+  "shot": "prints/064-admin-assinaturas-dos-personais.png",
+  "url": "/#/admin/painel?tab=assinaturas"
+ },
+ {
+  "flow": "admin",
+  "step": "Limites de acompanhamento",
+  "ok": true,
+  "err": "",
+  "shot": "prints/065-admin-limites-de-acompanhamento.png",
+  "url": "/#/admin/painel?tab=planos"
+ },
+ {
+  "flow": "admin",
+  "step": "Solicitações de vagas",
+  "ok": true,
+  "err": "",
+  "shot": "prints/066-admin-solicitac-o-es-de-vagas.png",
+  "url": "/#/admin/painel?tab=solicitacoes"
+ },
+ {
+  "flow": "admin",
+  "step": "Programas guiados",
+  "ok": true,
+  "err": "",
+  "shot": "prints/067-admin-programas-guiados.png",
+  "url": "/#/admin/painel?tab=programas"
+ },
+ {
+  "flow": "admin",
+  "step": "Modelos de treino",
+  "ok": true,
+  "err": "",
+  "shot": "prints/068-admin-modelos-de-treino.png",
+  "url": "/#/admin/painel?tab=modelos"
+ },
+ {
+  "flow": "admin",
+  "step": "Biblioteca e mídia",
+  "ok": true,
+  "err": "",
+  "shot": "prints/069-admin-biblioteca-e-mi-dia.png",
+  "url": "/#/admin/painel?tab=exercicios"
+ },
+ {
+  "flow": "admin",
+  "step": "Publicações",
+  "ok": true,
+  "err": "",
+  "shot": "prints/070-admin-publicac-o-es.png",
+  "url": "/#/admin/painel?tab=publicacoes"
+ },
+ {
+  "flow": "admin",
+  "step": "Moderação",
+  "ok": true,
+  "err": "",
+  "shot": "prints/071-admin-moderac-a-o.png",
+  "url": "/#/admin/painel?tab=publicacoes&secao=moderacao"
+ },
+ {
+  "flow": "admin",
+  "step": "Grupos",
+  "ok": true,
+  "err": "",
+  "shot": "prints/072-admin-grupos.png",
+  "url": "/#/admin/painel?tab=grupos"
+ },
+ {
+  "flow": "admin",
+  "step": "Desafios",
+  "ok": true,
+  "err": "",
+  "shot": "prints/073-admin-desafios.png",
+  "url": "/#/admin/painel?tab=grupos&secao=desafios"
+ },
+ {
+  "flow": "admin",
+  "step": "Ranking",
+  "ok": true,
+  "err": "",
+  "shot": "prints/074-admin-ranking.png",
+  "url": "/#/admin/painel?tab=ranking"
+ },
+ {
+  "flow": "admin",
+  "step": "Atendimentos e prazos",
+  "ok": true,
+  "err": "",
+  "shot": "prints/075-admin-atendimentos-e-prazos.png",
+  "url": "/#/admin/painel?tab=filas"
+ },
+ {
+  "flow": "admin",
+  "step": "LGPD",
+  "ok": true,
+  "err": "",
+  "shot": "prints/076-admin-lgpd.png",
+  "url": "/#/admin/painel?tab=lgpd"
+ },
+ {
+  "flow": "admin",
+  "step": "Termos",
+  "ok": true,
+  "err": "",
+  "shot": "prints/077-admin-termos.png",
+  "url": "/#/admin/painel?tab=lgpd&secao=termos"
+ },
+ {
+  "flow": "admin",
+  "step": "Auditoria",
+  "ok": true,
+  "err": "",
+  "shot": "prints/078-admin-auditoria.png",
+  "url": "/#/admin/painel?tab=auditoria"
+ },
+ {
+  "flow": "admin",
+  "step": "Configurações",
+  "ok": true,
+  "err": "",
+  "shot": "prints/079-admin-configurac-o-es.png",
+  "url": "/#/admin/painel?tab=config"
+ },
+ {
+  "flow": "admin",
+  "step": "Painel do usuário (mensalidade, assinatura)",
+  "ok": true,
+  "err": "",
+  "shot": "prints/080-admin-painel-do-usua-rio-mensalidade-assinatur.png",
+  "url": "/#/admin/painel?tab=usuarios"
+ },
+ {
+  "flow": "admin",
+  "step": "Mensalidade em dia / pendente visível",
+  "ok": true,
+  "err": "",
+  "shot": "prints/081-admin-mensalidade-em-dia-pendente-visi-vel.png",
+  "url": "/#/admin/painel?tab=usuarios"
+ },
+ {
+  "flow": "admin",
+  "step": "Assinatura do personal no painel",
+  "ok": true,
+  "err": "",
+  "shot": "prints/082-admin-assinatura-do-personal-no-painel.png",
+  "url": "/#/admin/painel?tab=usuarios"
+ },
+ {
+  "flow": "admin",
+  "step": "Tour do admin abre por Ajuda",
+  "ok": true,
+  "err": "",
+  "shot": "prints/083-admin-tour-do-admin-abre-por-ajuda.png",
+  "url": "/#/admin/painel"
+ },
+ {
+  "flow": "codigo-aluno",
+  "step": "Personal digita código de aluno: popup explica",
+  "ok": true,
+  "err": "",
+  "shot": "prints/090-codigo-aluno-popup-personal.png"
+ },
+ {
+  "flow": "codigo-aluno",
+  "step": "Botão leva a Convites no modo Profissional",
+  "ok": true,
+  "err": "",
+  "shot": "prints/091-codigo-aluno-vai-para-convites.png"
  }
 ]
