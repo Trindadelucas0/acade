@@ -9,6 +9,7 @@ import { SIM_CARDS } from './providers/simulado.js'
 import * as core from './core.js'
 import * as cp from './coupons.js'
 import { pageNum } from '../sqlsafe.js'
+import { clearMonetizationCache } from '../access.js'
 
 const qs = req => new URL(req.url, 'http://x').searchParams
 const isUuid = s => /^[0-9a-f-]{36}$/i.test(String(s || ''))
@@ -110,18 +111,19 @@ export function billingRoutes({ json, readBody }) {
     'POST /api/billing/coupon/validate': async (req, res) => {
       const u = await requireAuth(req, res, json); if (!u) return
       const b = await readBody(req)
-      const v = await cp.validateCode(u, b.code)
+      const v = await cp.validateCode(u, b.code, null, { audience: ['aluno', 'profissional'].includes(b.audience) && u.roles.includes(b.audience) ? b.audience : undefined })
       if (v.error) return json(res, 200, { valid: false, error: v.error, code: v.code })
-      const pol = await core.policy(u.tenant_id)
-      json(res, 200, { valid: true, code: v.code.code, benefit: v.campaign.benefit, trial_days: v.campaign.benefit === 'trial' ? (v.campaign.trial_days || pol.experimental_dias) : null,
+      json(res, 200, { valid: true, code: v.code.code, coupon_kind: v.code.kind, benefit: v.trial ? 'trial' : v.campaign.benefit, trial_days: v.trial ? cp.TRIAL_HOURS / 24 : null, trial_hours: v.trial ? cp.TRIAL_HOURS : null, plan_id: v.plan_id || null,
         discount_pct: v.campaign.discount_pct, discount_cycles: v.campaign.discount_cycles, applies_to: v.campaign.applies_to, kind: v.campaign.kind,
-        partner: v.campaign.kind === 'parceiro' ? { id: v.campaign.partner_user_id, name: v.partner_name } : null })
+        partner: v.referrer ? { id: v.referrer, name: v.partner_name } : null })
     },
     'POST /api/billing/coupon/redeem': async (req, res) => {
       const u = await requireAuth(req, res, json); if (!u) return
-      if (!u.roles.includes('aluno')) return json(res, 403, { error: 'O período experimental é para contas de aluno.', code: 'PERMISSION_DENIED' })
+      // D7: o teste vale para aluno (Individual) e personal (PRO); o publico vem do papel da conta, nunca do preco/plano do corpo
       const b = await readBody(req)
-      send(json, res, await cp.redeemTrial(u, b.code))
+      const audience = b.audience === 'profissional' ? 'profissional' : b.audience === 'aluno' ? 'aluno' : (u.active_context === 'profissional' || !u.roles.includes('aluno') ? 'profissional' : 'aluno')
+      if (!u.roles.includes(audience)) return json(res, 403, { error: audience === 'profissional' ? 'O teste do PRO é para contas de profissional.' : 'O teste do Individual é para contas de aluno.', code: 'PERMISSION_DENIED' })
+      send(json, res, await cp.redeemTrial(u, b.code, { audience }))
     },
     'POST /api/billing/cards': async (req, res) => {
       const u = await requireAuth(req, res, json); if (!u) return
@@ -185,6 +187,7 @@ export function billingRoutes({ json, readBody }) {
     },
     'POST /api/adm/billing/settings': async (req, res) => {
       const u = await admin(req, res, json); if (!u) return
+      res.on('finish', clearMonetizationCache)   // Monetizacao F3: o interruptor vale na hora
       const b = await readBody(req), set = []
       if (b.monetizacao_ativa != null) set.push(['monetizacao_ativa', b.monetizacao_ativa === true])
       const int = (v, min, max) => Number.isInteger(+v) && +v >= min && +v <= max

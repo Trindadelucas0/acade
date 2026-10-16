@@ -45,3 +45,6 @@ A seção "Reteste QA" de cada bug é preenchida só pelo agente de testes.
 | [BUG-038](bugs/BUG-038.md) | 2026-10-16 | confirm()/prompt() nativos na cobrança | aluno/profissional | corrigido, aguardando reteste |
 | [BUG-039](bugs/BUG-039.md) | 2026-10-16 | POST /api/logout (Sair) não revogava a sessão | todos | corrigido, aguardando reteste |
 | [BUG-040](bugs/BUG-040.md) | 2026-10-16 | Remover cartão sem id válido: 400 genérico | aluno/profissional | corrigido, aguardando reteste |
+| [BUG-041](bugs/BUG-041.md) | 2026-10-16 | Teste gratuito reutilizável com outra conta do mesmo titular | aluno/profissional | corrigido, aguardando reteste |
+| [BUG-042](bugs/BUG-042.md) | 2026-10-16 | Recursos premium sem verificação central de acesso | todos | corrigido (ativo só com Monetização ligada), aguardando reteste |
+| [BUG-043](bugs/BUG-043.md) | 2026-10-16 | Limite da campanha estourava sob concorrência | admin | corrigido, aguardando reteste |
