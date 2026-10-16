@@ -14,7 +14,7 @@ Produção: **https://ornygym.avadesk.com.br** (antigo: https://academ.avadesk.c
 | Processos PM2 | `avagym-api` (/opt/avagym/app/api/server.js, porta 8797) e `avagym-web` (gateway, porta 4460) |
 | Gateway | `/opt/avagym/app/web/gateway.mjs` (no repo): serve `frontend/dist` e mídia, proxy /api, cabeçalhos de segurança (CSP frame-ancestors 'none', nosniff, XFO DENY, Referrer-Policy, Permissions-Policy, COOP, HSTS) e 301 HTTP->HTTPS via X-Forwarded-Proto |
 | Borda | Cloudflare Tunnel (`cloudflared` como serviço, token em `/etc/cloudflared/token`, configurado no painel Zero Trust). Sem nginx no caminho |
-| E-mail | Resend: `EMAIL_PROVIDER=resend`, `RESEND_API_KEY`, `RESEND_FROM=AVAGYM <nao-responda@ornygym.avadesk.com.br>` |
+| E-mail | Resend (domínio verificado: avadesk.com.br; ornygym.avadesk.com.br criado no Resend aguardando DNS): `EMAIL_PROVIDER=resend`, `RESEND_API_KEY`, `RESEND_FROM=AVAGYM <nao-responda@avadesk.com.br>` |
 
 ## Deploy (sempre nesta ordem)
 ```bash
@@ -42,9 +42,12 @@ curl -s $U/sw.js | grep -c AVADESK          # 0
 ```
 E-mail: admin logado -> `POST /api/adm/email-test {"to":"..."}` devolve `provider_id` (id do Resend).
 
+## Gateway: domínio antigo
+PM2 `avagym-web` com `CANONICAL_HOST=ornygym.avadesk.com.br` e `ALIAS_HOSTS=academ.avadesk.com.br`: o endereço antigo recebe 301/308 para o novo (precisa do hostname academ no túnel).
+
 ## Passos que dependem do painel Cloudflare (Lucas)
 1. **Always Use HTTPS:** Cloudflare > avadesk.com.br > SSL/TLS > Edge Certificates > Always Use HTTPS = On. (O gateway já redireciona; isto só adianta na borda.)
-2. **Hostname do túnel:** Zero Trust > Networks > Tunnels > (túnel da VPS) > Public Hostname > Add: `ornygym` . `avadesk.com.br` -> `http://localhost:4460`.
+2. **Hostnames do túnel:** Zero Trust > Networks > Tunnels > (túnel da VPS) > Public Hostname: `ornygym.avadesk.com.br` (já existe) e **adicionar** `academ.avadesk.com.br`, ambos -> `http://localhost:4460`.
 3. **DNS do Resend** para `ornygym.avadesk.com.br`: registros SPF/DKIM/MX informados pelo Resend (Domains), proxy desligado (nuvem cinza).
 
 ## Variáveis do .env (sem valores)
