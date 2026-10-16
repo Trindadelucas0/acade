@@ -1,4 +1,4 @@
-// Criar e enviar treino (AVADESK PRO): modelo ou do zero → dados → dias e exercícios da biblioteca → revisão → disponibilizar.
+// Criar e enviar treino (AVAGYM): modelo ou do zero → dados → dias e exercícios da biblioteca → revisão → disponibilizar.
 // Nunca diz que enviou sem a confirmação do servidor; ficha incompleta não é publicada.
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'

@@ -943,3 +943,10 @@ h4.sec{
 :root[data-theme="light"][data-accent="avadesk"]{ --on-acc:#FFFFFF }
 h1,h2,h3,h4,.sec{font-family:var(--font-head),var(--font-body),system-ui,sans-serif}
 :root[data-theme="light"] h1,:root[data-theme="light"] h2{color:var(--navy)}
+
+/* QA a11y: area de toque do switch >= 44px sem mudar o desenho */
+.sw{position:relative}
+.sw::after{content:'';position:absolute;inset:-7px -4px}
+
+/* QA: rotulo real para leitores de tela sem ocupar espaco visual */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }

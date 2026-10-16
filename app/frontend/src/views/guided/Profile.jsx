@@ -34,6 +34,7 @@ export default function Profile() {
       {user && (user.roles || []).includes('aluno') && <MyCoachesCard />}
       <div className="g-card g-list org-list">
         <Li icon="person" t="Conta" s="Identificação e convites" to="/perfil?secao=dados" />
+        <Li icon="person" t="Perfil social" s="Foto, nome, @identificador e privacidade" to="/perfil/social" testid="profile-social" />
         <Li icon="gear" t="Preferências" s="Aparência, idioma e treino" to="/perfil?secao=preferencias" testid="profile-preferences" />
         {user && <Li icon="sparkles" t="Meu plano" s="Acesso, recursos e limites" to="/planos" testid="my-plan" />}
         {user && <Li icon="lock" t="Privacidade e segurança" s="Senha, aparelhos e seus dados" to="/perfil?secao=privacidade" testid="profile-security" />}

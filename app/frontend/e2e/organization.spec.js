@@ -122,7 +122,7 @@ for (const width of [360,390,768,1440]) for (const colorScheme of ['light','dark
       await page.goto('/#'+path);await expect(page.locator('h1')).toBeVisible();await fits(page)
     }
     await page.evaluate(()=>document.fonts.ready)
-    await page.screenshot({path:`e2e-results/organization/pro-${width}-${colorScheme}.png`,fullPage:true,animations:'disabled'})
+    await page.screenshot({path:`test-artifacts/organization/pro-${width}-${colorScheme}.png`,fullPage:true,animations:'disabled'})
     expect(errors).toEqual([])
   })
 }
@@ -133,7 +133,7 @@ for (const width of [360,390,768,1440]) test(`aluno e admin sem transbordamento 
     const paths=profile==='aluno'?['/hoje','/treinos','/progresso','/perfil','/perfil?secao=preferencias']:['/admin/painel','/admin/painel?tab=usuarios']
     for(const path of paths){await page.goto('http://localhost:4451/#'+path);await expect(page.locator('h1').first()).toBeVisible();await fits(page)}
     await page.evaluate(()=>document.fonts.ready)
-    await page.screenshot({path:`e2e-results/organization/${profile}-${width}-${colorScheme}.png`,fullPage:true,animations:'disabled'})
+    await page.screenshot({path:`test-artifacts/organization/${profile}-${width}-${colorScheme}.png`,fullPage:true,animations:'disabled'})
     expect(errors).toEqual([]);await context.close()
   }
 })
@@ -150,7 +150,7 @@ test('admin: grupos, análise progressiva, tabela mobile e erro recuperável',as
   await expect(page.getByText('Operação',{exact:true})).toBeVisible()
   await page.getByTestId('adm-usuarios').click()
   await expect(page.getByTestId('dt-row')).toBeVisible();await fits(page)
-  await page.screenshot({path:'e2e-results/organization/admin-mobile.png',fullPage:true})
+  await page.screenshot({path:'test-artifacts/organization/admin-mobile.png',fullPage:true})
   await page.goto('/#/admin/painel')
   await page.route('**/api/adm/management?*',route=>route.fulfill({status:500,json:{error:'Falha controlada'}}))
   await page.getByRole('button',{name:'Atualizar',exact:true}).click()

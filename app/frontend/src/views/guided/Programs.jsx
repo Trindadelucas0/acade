@@ -1,3 +1,4 @@
+import GSelect from '../../components/GSelect.jsx'
 import { useEffect, useState } from 'react'
 import { CoachLockNote, detachSystem } from '../../components/ActiveTraining.jsx'
 import { AT } from '../../lib/active.js'
@@ -79,10 +80,7 @@ export function Library() {
       <span className="g-sp" /><Icon name="play" />
     </button>
     <label className="g-filter-field">Objetivo
-      <select className="g-in" value={goal} onChange={e => setGoal(e.target.value)}>
-        <option value="">Todos os objetivos</option>
-        {GOALS.map(([v, l]) => <option key={v} value={v}>{v === 'rehab' ? 'Fisioterapia' : l}</option>)}
-      </select>
+      <GSelect label="Objetivo" value={goal} onChange={setGoal} options={[['', 'Todos os objetivos'], ...GOALS.map(([v, l]) => [v, v === 'rehab' ? 'Fisioterapia' : l])]} testid="prog-goal" />
     </label>
     <div style={{ marginTop: 12 }}>
       {!list ? <p className="g-dim g-center">Carregando…</p> : list.map(p => <ProgramCard key={p.id} p={p} onClick={() => nav('/programa/' + p.id)} />)}

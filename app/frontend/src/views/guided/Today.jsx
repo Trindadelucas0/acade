@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { useCoaches } from '../../components/MyCoaches.jsx'
+import { useCoaches, CoachContext } from '../../components/MyCoaches.jsx'
+import { trainingPriority, shouldOfferOnboarding, coachContextState } from '../../lib/trainingPriority.js'
 import { useNavigate } from 'react-router-dom'
 import Icon from '../../components/Icon.jsx'
 import { useStore } from '../../store/useStore.js'
@@ -32,15 +33,23 @@ export default function Today() {
   const local = loadSession()
   const [at, setAt] = useState(null), [care, setCare] = useState(null)
   useEffect(() => { C.care().then(setCare).catch(() => {}) }, [])
-  useEffect(() => { AT.get().then(setAt).catch(() => {}) }, [])
+  const [atFail, setAtFail] = useState(false), coaches = useCoaches()
+  useEffect(() => { AT.get().then(setAt).catch(() => setAtFail(true)) }, [])
   useEffect(() => {
     flushQueue().then(setPend).catch(() => {})
     G.state().then(s => {
-      if (!s.profile && !s.onboarding_skipped && !user?.client_locked) return nav('/onboarding', { replace: true })   // V4.2: aluno do personal não passa pelo onboarding do sistema
       setSt(s)
       if (s.active) G.today().then(setToday).catch(() => {})
     }).catch(e => setErr(e.status === 401 ? 'Entre com sua conta para usar os programas guiados.' : 'Sem conexão. Você ainda pode continuar um treino salvo no aparelho.'))
   }, [nav])
+  // V4.4 U2: sessão aberta > ficha > vínculo sem ficha > programa > sem treino. O questionário só aparece no último caso
+  // e nunca com dados incompletos (falha de carregamento não é "sem treino").
+  useEffect(() => {
+    if (!st || user?.client_locked || coaches === null || (at === null && !atFail)) return
+    const pr = trainingPriority({ liveSession: !!local, proPlan: !!(at?.pro_plan || at?.available?.pro_plans?.length || at?.pending_pro_plans?.length), coaches, systemProgram: !!st.active, failed: atFail })
+    if (window.history.state?.usr?.noOnboarding) return   // QA AD-40/43: veio de rota sem permissao -> fica no Inicio
+    if (shouldOfferOnboarding(pr, { profile: st.profile, skipped: st.onboarding_skipped })) nav('/onboarding', { replace: true })
+  }, [st, at, atFail, coaches])
   if (isPending(user)) return <div className="ag" data-testid="today"><span className="g-eyebrow">Início</span><h1>Olá{user.name ? ', ' + user.name.split(' ')[0] : ''}!</h1><div style={{ marginTop: 14 }}><PendingCard /></div></div>
   if (err) return <div className="ag"><h1>Hoje</h1><p className="g-mut">{err}</p>
     {local && <button className="g-btn g-xl" style={{ marginTop: 20 }} onClick={() => nav('/treinar')}>CONTINUAR TREINO</button>}</div>
@@ -61,7 +70,7 @@ export default function Today() {
 
     {pend > 0 && <p className="g-note" style={{ margin: '8px 0' }} data-testid="pending-sync">{rejectedCount() > 0 ? `${rejectedCount()} registro(s) recusado(s) pelo servidor ficam guardados no aparelho (nada é apagado). ` : ''}{pend - rejectedCount() > 0 ? `${pend - rejectedCount()} registro(s) aguardando conexão para sincronizar.` : ''}</p>}
 
-    {!st.active ? <><ResumeBar /><StartHere profile={!!st.profile} at={at} care={care} /></> : <>
+    {!st.active ? <><ResumeBar /><StartHere profile={!!st.profile} at={at} care={care} coaches={coaches} /></> : <>
       <div className="g-hero" style={{ marginTop: 14 }} data-testid="today-card">
         {cover && <img src={cover.img} alt="" />}
         <div className="g-in">
@@ -96,8 +105,7 @@ export default function Today() {
 }
 
 // V3 · F6 — Início do aluno gratuito sem programa ativo: ficha do profissional (se houver) ou caminhos para começar
-function StartHere({ profile, at, care }) {
-  const coaches = useCoaches()   // V4.3: vinculado sem ficha publicada → mostra com quem
+function StartHere({ profile, at, care, coaches }) {
   const nav = useNavigate(), can = useNavigationAccess(), plans = care?.plans
   const p = (at?.pro_plan && plans?.find(x => x.id === at.pro_plan.id)) || plans?.[0], multi = p?.days?.length > 1
   return <section data-testid="start-here" style={{ marginTop: 14 }}>
@@ -109,12 +117,12 @@ function StartHere({ profile, at, care }) {
     </div></div>
       : <div className="g-hero"><div className="g-in" style={{ maxWidth: '100%' }}>
         <span className="g-eyebrow">Comece por aqui</span>
-        {useStore.getState().user?.client_locked ? <><h2 style={{ marginTop: 6 }}>Aguardando sua ficha</h2>
-        <p className="g-mut g-sm" data-testid="client-wait">{coaches?.length ? <>Você está vinculado a <b>{coaches.map(c => c.name).join(' e ')}</b>. A ficha aparece aqui quando for publicada.</> : 'Seu personal ainda não enviou uma ficha. Ela aparece aqui assim que for publicada.'}</p></> : <>
+        {(() => { const cs = coachContextState({ coaches, hasProPlan: false, scoped: !!useStore.getState().user?.client_locked }); return cs === 'A' || cs === 'B' ? <><h2 style={{ marginTop: 6 }}>Aguardando sua ficha</h2>
+        <CoachContext state={cs} coaches={coaches} testid="client-wait" />
+        {cs === 'B' && can('programas') && <><p className="g-mut g-sm" style={{ marginTop: 8 }}>Enquanto isso, você pode seguir um programa do AVAGYM.</p><button className="g-btn g-ghost" style={{ marginTop: 8 }} onClick={() => nav(profile ? '/programas' : '/onboarding')} data-testid="start-choose">VER PROGRAMAS</button></>}</> : <>
         <h2 style={{ marginTop: 6 }}>Escolha seu treino</h2>
         <p className="g-mut g-sm">Programas publicados pelo AVAGYM e por profissionais verificados.</p>
-        {coaches?.length > 0 && <p className="g-sm" style={{ marginTop: 6 }} data-testid="today-coach-linked">Você está vinculado a <b>{coaches.map(c => c.name).join(' e ')}</b>. A ficha aparece aqui quando for publicada.</p>}
-        {can('programas') ? <button className="g-btn" style={{ marginTop: 12 }} onClick={() => nav(profile ? '/programas' : '/onboarding')} data-testid="start-choose">ESCOLHER MEU TREINO</button> : <button className="g-link" onClick={() => nav('/planos')}>Consultar meu acesso</button>}</>}
+        {can('programas') ? <button className="g-btn" style={{ marginTop: 12 }} onClick={() => nav(profile ? '/programas' : '/onboarding')} data-testid="start-choose">ESCOLHER MEU TREINO</button> : <button className="g-link" onClick={() => nav('/planos')}>Consultar meu acesso</button>}</> })()}
       </div></div>}
 
   </section>

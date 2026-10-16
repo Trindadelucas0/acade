@@ -30,7 +30,7 @@ let me = (await get(a.tok, '/api/auth/me')).d.user
 check(me.capacities.includes('aluno') && me.capacities.includes('profissional'), 'continua aluno + ganha profissional (mesma identidade)')
 check(me.verification === 'pendente', 'status: pendente (em análise após envio)')
 check((await get(a.tok, '/api/guided/state')).s === 200, 'continua treinando normalmente enquanto não é verificado')
-r = await post(a.tok, '/api/pro/verification', { full_name: 'Aluna Fisio', council: 'CREFITO', registry_number: '123456-F', registry_uf: 'RS', specialties: ['Reabilitação'] })
+r = await post(a.tok, '/api/pro/verification', { full_name: 'Aluna Fisio', council: 'CREFITO', registry_number: String(Date.now()).slice(-6) + '-F' /* unico por execucao (024) */, registry_uf: 'RS', specialties: ['Reabilitação'] })
 check(r.s === 200 || r.s === 201, 'envia dados do CREFITO')
 check((await post(a.tok, '/api/pro/verification', { full_name: 'X', council: 'XYZ', registry_number: '1' })).s === 400, 'conselho inválido é recusado')
 r = await post(a.tok, '/api/pro/verification/document', { data: 'data:application/pdf;base64,' + Buffer.from('%PDF-1.4\n%%EOF').toString('base64'), file_name: 'crefito.pdf' })

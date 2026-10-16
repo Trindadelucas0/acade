@@ -2,7 +2,7 @@
 // Também garante: Biblioteca de exercícios NÃO aparece para aluno (só personal/admin).
 import { test, expect } from '@playwright/test'
 import fs from 'node:fs'
-const TAG = process.env.TAG || 'depois', SCREEN = process.env.SCREEN || 'treinos', OUT = `../../docs/v4/${SCREEN}-redesign/${TAG}`; fs.mkdirSync(OUT, { recursive: true })
+const TAG = process.env.TAG || 'depois', SCREEN = process.env.SCREEN || 'treinos', OUT = process.env.SHOTS_DIR || `test-artifacts/${SCREEN}-redesign/${TAG}`; fs.mkdirSync(OUT, { recursive: true })
 const B = 'http://localhost:4449', PASS = 'e2e-Avadesk-2026'
 test.setTimeout(240000)
 async function reg(rq, name) { const t = (await (await rq.get('/api/terms')).json()).terms, email = `tv.${Date.now()}.${Math.random().toString(36).slice(2, 6)}@e2e.local`

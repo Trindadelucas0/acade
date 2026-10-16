@@ -2,7 +2,7 @@
 import { test, expect } from '@playwright/test'
 import fs from 'node:fs'
 test.skip(!process.env.MANUAL, 'só para gerar o manual')
-const OUT = process.env.SHOTS_DIR || 'e2e-results/manual'
+const OUT = process.env.SHOTS_DIR || 'test-artifacts/manual'
 fs.mkdirSync(OUT, { recursive: true })
 const PASS = 'e2e-Avadesk-2026'
 const BLUR = /@|e2e|[Tt]este|TESTE|Exemplo|EXEMPLO|Zé|ZÉ|\bV3 |Prof\. |admin\.|\b(?=[A-Z0-9]*\d)[A-Z0-9]{8}\b|\/#\/convite/

@@ -25,16 +25,16 @@ export default function Library() {
   return <>
     <div className="hdr"><div><h1>{t('Exercises')}</h1><div className="sub">{t('{0} exercises with animations', EXDB.length)}</div></div><button className="btn sm" onClick={() => location.hash = '#/muscles'} style={{ marginLeft: 'auto' }}>Mapa 3D</button></div>
     <div className="search" style={{ marginBottom: 10 }}><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
-      <input className="input" placeholder={t('Search…')} value={q} onChange={e => { setQ(e.target.value); setShown(40) }} /></div>
+      <label className="sr-only" htmlFor="lib-q">Buscar exercício</label><input id="lib-q" className="input" placeholder={t('Search…')} value={q} onChange={e => { setQ(e.target.value); setShown(40) }} /></div>
     <div className="library-filters">
       <label>Grupo muscular
-        <select className="input" value={bp} onChange={e => { setBp(e.target.value); setEq(''); setShown(40) }}>
+        <select id="lib-bp" className="input" value={bp} onChange={e => { setBp(e.target.value); setEq(''); setShown(40) }}>
           <option value="">{t('All')}</option>
           {BODYPARTS.map(b => <option key={b} value={b}>{t(b)}</option>)}
         </select>
       </label>
       {eqOpts.length > 1 && <label>Equipamento
-        <select className="input" value={eqOn} onChange={e => { setEq(e.target.value); setShown(40) }}>
+        <select id="lib-eq" className="input" value={eqOn} onChange={e => { setEq(e.target.value); setShown(40) }}>
           <option value="">{t('Any equipment')}</option>
           {eqOpts.map(x => <option key={x} value={x}>{t(x)}</option>)}
         </select>

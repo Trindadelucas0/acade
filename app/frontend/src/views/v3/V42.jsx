@@ -47,17 +47,23 @@ export function UnlockRequest({ compact }) {
   if (!d.locked) return null
   const open = d.requests.find(r => r.status === 'pendente'), last = d.requests[0]
   const send = async () => { setBusy(true); setMsg(''); try { await post('/api/me/unlock-request', { reason }); reload() } catch (e) { setMsg(e.message) } finally { setBusy(false) } }
-  return <div className="g-card v42-lock" data-testid="unlock-box">
+  // V4.4 U4 (Modo A): etapas, data real do pedido e previsão apenas quando a administração configurou um prazo (sem contagem regressiva)
+  const state = d.state || (open ? 'pendente' : last?.status === 'recusada' ? 'recusada' : 'sem_pedido')
+  const steps = [['Cadastro realizado', d.account_created_at ? dt(d.account_created_at) : null, true], ['Solicitação recebida', open ? dt(open.created_at) : null, !!open], ['Aguardando análise', null, !!open], ['Liberação', null, false]]
+  return <div className="g-card v42-lock" data-testid="unlock-box" data-state={state}>
     <div className="g-row" style={{ gap: 10, alignItems: 'center' }}><span className="g-ico"><Icon name="lock" /></span>
-      <b>{d.scoped_client ? 'Acesso incluído no plano do seu personal' : 'Ações travadas até a liberação'}</b></div>
+      <b>{d.scoped_client ? 'Acesso incluído no plano do seu personal' : state === 'suspensa' ? 'Acesso suspenso' : state === 'pendente' ? 'Conta em análise' : 'Ações travadas até a liberação'}</b></div>
     {!compact && <p className="g-sm g-mut" style={{ marginTop: 6 }}>{d.scoped_client
       ? 'Você usa as fichas, a comunidade e os desafios do seu personal. Para o restante do app, peça a liberação.'
-      : 'Consulte seu plano e solicite a liberação. Ações como iniciar treino, publicar ou cadastrar dependem da aprovação.'}</p>}
-    {open ? <p className="g-sm" data-testid="unlock-pending" style={{ marginTop: 8 }}>Pedido enviado em {dt(open.created_at)}. Em análise.</p> : <>
-      {last?.status === 'recusada' && <p className="g-xs g-warn">Último pedido recusado{last.decision_note ? `: ${last.decision_note}` : ''}.</p>}
+      : 'Você pode navegar por todas as telas. Ações como iniciar treino, publicar ou cadastrar dependem da liberação.'}</p>}
+    {!compact && !d.scoped_client && state !== 'suspensa' && <ol className="g-sm" data-testid="unlock-steps" style={{ margin: '10px 0 0', paddingLeft: 20 }}>{steps.map(([t, when, done]) => <li key={t} style={{ opacity: done ? 1 : 0.6 }}>{done ? '✓ ' : ''}{t}{when ? ' — ' + when : ''}</li>)}</ol>}
+    {state === 'suspensa' && <p className="g-sm" data-testid="unlock-suspended" style={{ marginTop: 8 }}>O acesso desta conta foi suspenso pela administração. Se acredita que é um engano, envie um pedido de liberação explicando o motivo.</p>}
+    {open ? <><p className="g-sm" data-testid="unlock-pending" style={{ marginTop: 8 }}>Pedido enviado em {dt(open.created_at)}. Em análise.</p>
+      <p className="g-xs g-mut" data-testid="unlock-sla">{d.sla_text ? 'Previsão informada pela administração: ' + d.sla_text : 'Sua solicitação está aguardando análise. Ainda não há prazo informado.'}</p></> : <>
+      {last?.status === 'recusada' && <p className="g-xs g-warn" data-testid="unlock-refused">Último pedido recusado{last.decision_note ? ': ' + last.decision_note : ''}. Você pode revisar as informações e enviar um novo pedido.</p>}
       {!compact && <textarea className="g-in" rows={2} maxLength={500} placeholder="Conte o motivo (opcional)" value={reason} onChange={e => setReason(e.target.value)} style={{ width: '100%', marginTop: 8 }} />}
       {msg && <p className="g-bad2 g-sm">{msg}</p>}
-      <button className="g-btn" style={{ marginTop: 8 }} disabled={busy} onClick={send} data-testid="unlock-request-btn"><Icon name="lock" /> Solicitar liberação</button></>}
+      <button className="g-btn" style={{ marginTop: 8 }} disabled={busy} onClick={send} data-testid="unlock-request-btn"><Icon name="lock" /> {last?.status === 'recusada' ? 'Enviar novo pedido' : 'Solicitar liberação'}</button></>}
   </div>
 }
 // faixa fixa no topo das telas para contas travadas
@@ -148,7 +154,7 @@ export function PlanHistory({ plans }) {
 // ---------- admin: liberação de contas (único lugar; substitui "Liberações rápidas") ----------
 const TYPE_PT = x => x.account_type === 'personal_client' ? 'Aluno de ' + (x.coach_name || 'personal') : 'Usuário normal'
 export function AdmLiberacoes() {
-  const [d, err, reload] = useLoad(() => api('/api/adm/access')), [msg, setMsg] = useState(''), [tab, setTab] = useState('pedidos'), [sel, setSel] = useState([]), [busy, setBusy] = useState(false)
+  const [d, err, reload] = useLoad(() => api('/api/adm/access')), [fst, setFst] = useState('pendente'), [old, setOld] = useState(true), [msg, setMsg] = useState(''), [tab, setTab] = useState('pedidos'), [sel, setSel] = useState([]), [busy, setBusy] = useState(false)
   const act = async (p, b) => { setMsg(''); try { await post(p, b); reload() } catch (e) { setMsg(e.message) } }
   const batch = async unlocked => {
     setBusy(true); setMsg(''); let ok = 0
@@ -161,15 +167,19 @@ export function AdmLiberacoes() {
   const aguard = d.locked_users.filter(x => !x.was_blocked), trav = d.locked_users.filter(x => x.was_blocked)
   const TABS = [['pedidos', 'Pedidos', pend.length], ['aguardando', 'Aguardando', aguard.length], ['liberadas', 'Liberadas', d.unlocked_users.length], ['travadas', 'Travadas', trav.length]]
   const rows = tab === 'aguardando' ? aguard : tab === 'liberadas' ? d.unlocked_users : trav
+  // V4.4 U4: filtro por situação, mais antigos primeiro e tempo em espera
+  const reqs = d.requests.filter(r => !fst || r.status === fst).sort((a, b) => old ? new Date(a.created_at) - new Date(b.created_at) : new Date(b.created_at) - new Date(a.created_at))
+  const waitTxt = h => h == null ? '-' : h < 1 ? 'menos de 1 h' : h < 48 ? Math.round(h) + ' h' : Math.round(h / 24) + ' dias'
   const toggle = id => setSel(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id])
   return <div data-testid="adm-liberacoes">
     <p className="adm-sub">Contas novas veem todas as telas, mas as ações ficam travadas até você liberar. Travar não apaga nada.</p>
     <div className="adm-tools" role="tablist" data-testid="lib-tabs">{TABS.map(([k, l, n]) => <button key={k} role="tab" aria-selected={tab === k} className={'adm-btn ' + (tab === k ? '' : 'ghost')} onClick={() => { setTab(k); setSel([]) }} data-testid={'lib-tab-' + k}>{l} ({n})</button>)}</div>
     {msg && <p className="g-note" role="status">{msg}</p>}
-    {tab === 'pedidos' ? <table className="adm-table" data-testid="lib-pedidos"><thead><tr><th>Quando</th><th>Conta</th><th>Tipo</th><th>Motivo</th><th>Situação</th><th></th></tr></thead><tbody>
-      {d.requests.map(r => <tr key={r.id}><td>{dt(r.created_at)}</td><td>{r.name}<br /><small>{r.email}</small></td><td>{TYPE_PT(r)}</td><td>{r.reason || '—'}</td><td>{r.status}</td>
-        <td>{r.status === 'pendente' && <><button className="adm-btn" data-testid="lib-aprovar" onClick={() => act('/api/adm/access/decide', { id: r.id, action: 'aprovar' })}>Aprovar</button> <button className="adm-btn ghost" onClick={async () => { const n = await askText('Recusar o pedido?', { text: 'Motivo da recusa (opcional). A pessoa verá esta nota.', ok: 'Recusar', danger: true }); if (n != null) act('/api/adm/access/decide', { id: r.id, action: 'recusar', note: n }) }}>Recusar</button></>}</td></tr>)}
-      {!d.requests.length && <tr><td colSpan={6}>Nenhum pedido.</td></tr>}
+    {tab === 'pedidos' && <div className="adm-tools" data-testid="lib-filters"><label>Situação <select value={fst} onChange={e => setFst(e.target.value)} data-testid="lib-filter-status"><option value="pendente">Pendentes</option><option value="aprovada">Aprovados</option><option value="recusada">Recusados</option><option value="">Todos</option></select></label> <label><input type="checkbox" checked={old} onChange={e => setOld(e.target.checked)} data-testid="lib-sort-oldest" /> Mais antigos primeiro</label></div>}
+    {tab === 'pedidos' ? <table className="adm-table" data-testid="lib-pedidos"><thead><tr><th>Quando</th><th>Em espera</th><th>Conta</th><th>Tipo</th><th>Motivo</th><th>Situação</th><th></th></tr></thead><tbody>
+      {reqs.map(r => <tr key={r.id}><td>{dt(r.created_at)}</td><td data-testid="lib-wait">{waitTxt(r.wait_hours)}</td><td>{r.name}<br /><small>{r.email}</small></td><td>{TYPE_PT(r)}</td><td>{r.reason || '—'}</td><td>{r.status}</td>
+        <td>{r.status === 'pendente' && <><button className="adm-btn" data-testid="lib-aprovar" onClick={() => act('/api/adm/access/decide', { id: r.id, action: 'aprovar' })}>Aprovar</button> <button className="adm-btn ghost" onClick={async () => { const n = await askText('Recusar o pedido?', { text: 'Motivo da recusa (obrigatório). A pessoa verá esta nota. A pessoa verá esta nota.', ok: 'Recusar', danger: true }); if (n != null) act('/api/adm/access/decide', { id: r.id, action: 'recusar', note: n }) }}>Recusar</button></>}</td></tr>)}
+      {!reqs.length && <tr><td colSpan={7}>Nenhum pedido nesta situação.</td></tr>}
     </tbody></table> : <>
       <div className="adm-tools" data-testid="lib-batch">
         <label><input type="checkbox" checked={rows.length > 0 && sel.length === rows.length} onChange={e => setSel(e.target.checked ? rows.map(x => x.id) : [])} data-testid="lib-all" /> Selecionar todas</label>

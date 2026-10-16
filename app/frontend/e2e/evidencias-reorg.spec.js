@@ -1,7 +1,7 @@
 // Evidências da reorganização: telas principais em 360/390/768/1440, claro e escuro (contas de teste).
 import { test } from '@playwright/test'
 import fs from 'node:fs'
-const OUT = process.env.SHOTS_DIR || 'e2e-results/reorg'; fs.mkdirSync(OUT, { recursive: true })
+const OUT = process.env.SHOTS_DIR || 'test-artifacts/reorg'; fs.mkdirSync(OUT, { recursive: true })
 const PASS = 'e2e-Avadesk-2026', W = [360, 390, 768, 1440], SCH = ['light', 'dark']
 const SCREENS = { aluno: [['hoje', '/#/hoje'], ['treinos', '/#/treinos'], ['comunidade', '/#/comunidade'], ['progresso', '/#/progresso'], ['perfil', '/#/perfil'], ['meu-plano', '/#/planos']],
   pro: [['painel', '/#/pro'], ['atendimentos', '/#/pro?tab=atendimentos']], admin: [['visao-geral', '/#/admin/painel'], ['contas', '/#/admin/painel?tab=usuarios']] }

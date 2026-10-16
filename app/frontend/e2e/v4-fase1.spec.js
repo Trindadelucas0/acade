@@ -4,7 +4,7 @@ import { test, expect } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import fs from 'node:fs'
 
-const SHOTS = process.env.SHOTS_DIR || 'e2e-results/shots'
+const SHOTS = process.env.SHOTS_DIR || 'test-artifacts/shots'
 fs.mkdirSync(SHOTS, { recursive: true })
 const PASS = 'e2e-Avadesk-2026'
 const VIEWPORTS = [[320, 640], [360, 740], [375, 667], [390, 844], [430, 932], [768, 1024], [1280, 800]]

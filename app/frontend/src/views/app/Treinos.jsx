@@ -1,6 +1,7 @@
 // V4 · F1 — Treinos do aluno: Programas · Do meu profissional · Rotinas antigas (somente consulta).
 // O aluno não monta treino (decisão do Lucas): só treina programa publicado ou ficha do profissional vinculado.
-import { useCoaches, CoachLinkedNote } from '../../components/MyCoaches.jsx'
+import { useCoaches, CoachContext } from '../../components/MyCoaches.jsx'
+import { coachContextState } from '../../lib/trainingPriority.js'
 import { useNavigationAccess } from '../../components/NavigationAccess.jsx'
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -82,13 +83,11 @@ export default function Treinos() {
             <button className="g-link" onClick={() => detachSystem(at, reload)} data-testid="active-detach">Desvincular programa</button></div>
         </> : <>
           <h2 className="tr-title">Nenhum treino ativo</h2>
-          {isClient ? <p className="g-sm g-mut" data-testid="client-wait-pro">Aguardando a ficha do seu personal. Quando ele publicar, ela aparece aqui.</p>
-            : coaches?.length ? <p className="g-sm g-mut">Você está vinculado a <b>{coaches.map(c => c.name).join(' e ')}</b>. A ficha aparece aqui quando for publicada.</p>
-            : <p className="g-sm g-mut">Escolha um programa pronto ou receba a ficha de um profissional.</p>}
+          {(() => { const cs = coachContextState({ coaches, hasProPlan: false, scoped: isClient }); return cs === 'D' ? <p className="g-sm g-mut">Escolha um programa pronto ou receba a ficha de um profissional.</p> : <CoachContext state={cs} coaches={coaches} testid="client-wait-pro" /> })()}
           {!isClient && can('programas') && <section data-testid="tab-programas"><button className="g-btn g-xl tr-start" onClick={() => nav(st?.profile ? '/recomendados' : '/onboarding')} data-testid="treinos-start"><Icon name="sparkles" /> Escolher meu treino</button></section>}
         </>}
       </section>
-      {coaches?.length > 0 && !activePlan && <CoachLinkedNote coaches={coaches} />}
+      {a && !activePlan && coaches?.length > 0 && <CoachContext state="B" coaches={coaches} />}
 
       {/* 2 · EXPLORAR PROGRAMAS — só se permitido */}
       {!isClient && can('programas') && <section className="tr-sec">

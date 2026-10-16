@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 import fs from 'node:fs'
-const fixture=JSON.parse(fs.readFileSync('e2e-results/management-fixture.json','utf8'))
+const fixture=JSON.parse(fs.readFileSync('test-artifacts/management-fixture.json','utf8'))
 const API='http://localhost:8791'
 test.describe.configure({mode:'serial'})
 test.use({ colorScheme:'dark' })
@@ -31,14 +31,14 @@ test('gestão: dados, períodos, atalhos, abas e links antigos',async({page})=>{
  await page.goto('/#/admin/programas');await expect(page.getByTestId('admin-programs')).toBeVisible();await expect(page).toHaveURL(/tab=programas/)
  await page.goto('/#/admin/painel?tab=vinculos&secao=convites');await expect(page.getByRole('columnheader',{name:'Profissional',exact:true})).toBeVisible()
  await page.goto('/#/admin/painel?tab=solicitacoes');await expect(page.getByRole('button',{name:'Histórico',exact:true})).toBeVisible()
- await page.goto('/#/admin/painel');await expect(page.getByRole('heading',{name:'Indicadores',exact:true})).toBeVisible();await page.screenshot({path:'e2e-results/management-desktop.png',fullPage:true})
+ await page.goto('/#/admin/painel');await expect(page.getByRole('heading',{name:'Indicadores',exact:true})).toBeVisible();await page.screenshot({path:'test-artifacts/management-desktop.png',fullPage:true})
 })
 test('celular sem transbordamento, menu e recuperação de erro',async({page})=>{
  await page.setViewportSize({width:390,height:844});await openAdmin(page)
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
  await page.getByRole('button',{name:'Menu',exact:true}).click();await expect(page.getByTestId('adm-programas')).toBeVisible();await page.getByTestId('adm-programas').click();await expect(page.getByTestId('admin-programs')).toBeVisible()
  await page.goto('/#/admin/painel');await expect(page.getByRole('heading',{name:'Indicadores',exact:true})).toBeVisible()
- await page.screenshot({path:'e2e-results/management-mobile.png',fullPage:true})
+ await page.screenshot({path:'test-artifacts/management-mobile.png',fullPage:true})
  await page.route('**/api/adm/management?*',r=>r.fulfill({status:500,json:{error:'Falha de teste'}}))
  await page.getByRole('button',{name:'Atualizar',exact:true}).click();await expect(page.getByRole('button',{name:'Tentar novamente',exact:true})).toBeVisible()
  await page.unroute('**/api/adm/management?*');await page.getByRole('button',{name:'Tentar novamente',exact:true}).click();await expect(page.getByRole('heading',{name:'Indicadores',exact:true})).toBeVisible()

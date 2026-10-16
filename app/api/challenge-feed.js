@@ -12,7 +12,7 @@ import { getChallenge, canManage } from './challenges.js'
 import { canMoveProof } from './challenge-rules.js'
 import { loadAndCompute, podiumOf, spDay, formulaOf, checkGoals } from './challenge-score.js'
 
-const UP = path.join(path.dirname(fileURLToPath(import.meta.url)), 'uploads')
+import { UPLOADS_DIR as UP, uploadFile } from './storage/index.js'   // QA BUG-013: midia no DATA_DIR (backup/redeploy), leitura com fallback da pasta antiga
 const isUuid = s => /^[0-9a-f-]{36}$/i.test(String(s || ''))
 const txt = (s, n = 2000) => String(s ?? '').trim().slice(0, n)
 const qs = req => new URL(req.url, 'http://x').searchParams
@@ -22,7 +22,7 @@ export const LIMITS = { foto: 2.5 * 1024 * 1024, video: 50 * 1024 * 1024 }
 const LIVE_FEED = ['inscricoes_abertas', 'agendado', 'em_andamento', 'apurando', 'concluido']
 const memberOf = async (cid, uid) => (await q('select * from challenge_members where challenge_id=$1 and user_id=$2', [cid, uid])).rows[0]
 const inside = m => m && ['ativo', 'aprovado'].includes(m.status)
-const mediaFile = url => { const m = /^\/api\/media\?f=([a-f0-9]{24}\.(png|jpg|webp|mp4|webm))$/.exec(url || ''); return m && path.join(UP, m[1]) }
+const mediaFile = url => { const m = /^\/api\/media\?f=([a-f0-9]{24}\.(png|jpg|webp|mp4|webm))$/.exec(url || ''); return m && uploadFile(m[1]) }
 const fileName = url => (/f=([a-f0-9]{24}\.\w+)$/.exec(url || '') || [])[1]
 const mediaRow = async (url, uid, cid) => (await q('select * from challenge_media where file=$1 and user_id=$2 and challenge_id=$3', [fileName(url), uid, cid])).rows[0]
 const ownsMedia = async (url, uid, cid) => !!(await mediaRow(url, uid, cid))

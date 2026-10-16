@@ -5,6 +5,7 @@ import path from 'node:path'
 import { q } from './db/pool.js'
 import { authUser } from './auth.js'
 import { importLegacyFor } from './legacy-import.js'
+import { legacyStateOf } from './legacy-store.js'   // V5: state-<id>.json importado para legacy_state_files
 
 const isUuid = s => /^[0-9a-f-]{36}$/i.test(String(s || ''))
 const MAX = 5 * 1024 * 1024   // estado serializado (mesmo teto prático do arquivo antigo)
@@ -27,6 +28,9 @@ export async function readStateRow(uid) {
   if (f && fs.existsSync(f)) {
     try { const st = JSON.parse(fs.readFileSync(f, 'utf8')); await writeStatePg(uid, st, null); return { state: st, active_workout: null } } catch { /* arquivo inválido */ }
   }
+  // V5: o arquivo antigo foi importado para o banco (legacy_state_files) - usa a copia de la
+  const lst = await legacyStateOf(uid).catch(() => null)
+  if (lst) { await writeStatePg(uid, lst, null); return { state: lst, active_workout: null } }
   return null
 }
 export const readStatePg = async uid => (await readStateRow(uid))?.state || null

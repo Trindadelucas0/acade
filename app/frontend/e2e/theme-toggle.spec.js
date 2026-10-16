@@ -1,7 +1,7 @@
 // V4.3 — sol/lua no cabeçalho: 1 toque alterna claro <-> escuro; logado salva users.theme_pref; sem login só cache visual.
 import { test, expect } from '@playwright/test'
 import fs from 'node:fs'
-const OUT = process.env.SHOTS_DIR || 'e2e-results/tema'; fs.mkdirSync(OUT, { recursive: true })
+const OUT = process.env.SHOTS_DIR || 'test-artifacts/tema'; fs.mkdirSync(OUT, { recursive: true })
 const PASS = 'e2e-Avadesk-2026', M = { width: 390, height: 844 }
 const theme = page => page.evaluate(() => document.documentElement.dataset.theme)
 test('sem login: alterna e guarda só o cache visual', async ({ browser }) => {

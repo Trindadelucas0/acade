@@ -24,6 +24,7 @@ export default function Progress() {
   return <div className="ag" data-testid="progress">
     <span className="g-eyebrow">Progresso</span>
     <h1>Você está evoluindo</h1>
+    <button className="g-btn g-ghost" style={{ marginTop: 8 }} onClick={() => nav('/compartilhar?tipo=semana')} data-testid="progress-share"><Icon name="sparkles" /> Compartilhar minha semana #TáPago</button>
     <div className="g-stat" style={{ marginTop: 14 }}>
       <div><b>{d.totals.n}</b><span>Treinos</span></div><div><b>{fmtMin(d.totals.secs)}</b><span>Treinando</span></div><div><b>{(d.totals.vol / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} t</b><span>Levantadas</span></div>
     </div>

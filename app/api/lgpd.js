@@ -2,14 +2,21 @@
 // Exclusão nunca é automática: entra na fila do admin e só é executada com confirmação explícita (anonimização).
 import { q } from './db/pool.js'
 import { requireAuth, requireRole, audit } from './auth.js'
+import { legalStatus, acceptBaseDocs } from './legal.js'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { storage } from './storage/index.js'
 
 export async function currentTerms() { return (await q('select version,title,body,published_at from terms_versions order by published_at desc, version desc limit 1')).rows[0] || null }
 export async function termsStatus(userId) {
-  const t = await currentTerms(); if (!t) return { needs_terms: false }
-  const a = await q('select 1 from term_acceptances where user_id=$1 and version=$2', [userId, t.version])
-  return { needs_terms: !a.rowCount, terms_version: t.version }
+  const t = await currentTerms(), ls = await legalStatus(userId)   // legal.js: Termos/Privacidade/Profissional versionados pelo admin
+  let old = false
+  if (t) old = !(await q('select 1 from term_acceptances where user_id=$1 and version=$2', [userId, t.version])).rowCount
+  return { needs_terms: old || !!ls.needs_legal, terms_version: t ? t.version : null, ...ls }
 }
 export async function acceptTerms(userId, version, req) {
+  await acceptBaseDocs(userId, req).catch(e => console.error('[legal] aceite base', e.message))   // QA: evita pedir os termos duas vezes
   await q('insert into term_acceptances(user_id,version,ip,user_agent) values($1,$2,$3,$4) on conflict do nothing',
     [userId, version, String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').slice(0, 64), String(req.headers['user-agent'] || '').slice(0, 200)])
 }
@@ -23,7 +30,27 @@ async function userColumns() {
 }
 const SENSITIVE = /password_hash|token_hash/
 // tabelas de dados pessoais apagadas na exclusão; o restante (atendimento, publicações, auditoria) é mantido vinculado à conta anonimizada
-const PERSONAL = new Set(['post_likes', 'follows', 'notifications', 'ranking_prefs', 'ranking_pref_history', 'password_resets', 'user_access_plans', 'body_goals'])
+const PERSONAL = new Set(['post_likes', 'follows', 'notifications', 'ranking_prefs', 'ranking_pref_history', 'password_resets', 'user_access_plans', 'body_goals',
+  // V5 (segurança/LGPD): identidade social, avatar, seguidores e curtidas em comentários
+  'social_profiles', 'user_avatar', 'social_follows', 'comment_likes'])
+
+// V5: arquivos de mídia do titular — avatar (storage) e uploads referenciados como /api/media?f=<nome> em colunas *url*
+import { UPLOADS_DIR, LEGACY_UPLOADS_DIR } from './storage/index.js'   // QA BUG-013
+async function purgeMedia(uid) {
+  let files = 0
+  const av = (await q('select key_512, key_128 from user_avatar where user_id=$1', [uid])).rows[0]
+  if (av) for (const k of [av.key_512, av.key_128]) { await storage().delete('public', k).then(() => files++).catch(() => {}) }
+  const cols = (await q(`select table_name t, column_name c from information_schema.columns where table_schema='public' and data_type='text' and column_name like '%url%'`)).rows
+  for (const { t, c: owner } of await userColumns()) for (const col of cols.filter(x => x.t === t)) {
+    const rows = (await q(`select "${col.c}" v from "${t}" where "${owner}"=$1 and "${col.c}" like '/api/media?f=%'`, [uid])).rows
+    for (const { v } of rows) {
+      const name = path.basename(new URLSearchParams(String(v).split('?')[1] || '').get('f') || '')
+      if (!/^[\w.-]{8,120}$/.test(name)) continue   // só nomes gerados pelo servidor; nunca caminhos
+      try { fs.rmSync(path.join(UPLOADS_DIR, name), { force: true }); fs.rmSync(path.join(LEGACY_UPLOADS_DIR, name), { force: true }); files++ } catch {}
+    }
+  }
+  return files
+}
 
 // V4.2: monta o JSON da exportação (restaurado da V4 f05b4cc) — usado pelo pedido por e-mail
 let _legacyState = null
@@ -44,10 +71,12 @@ let _legacyErase = null
 // Exclusão = anonimização: apaga dados pessoais, mantém sessões/ranking/auditoria sem identificação; encerra vínculos; remove posts
 export async function anonymizeUser(uid) {
   const removed = {}
+  removed.arquivos_midia = await purgeMedia(uid).catch(e => { console.error('lgpd.purgeMedia', e && e.message); return 0 })
   for (const { t, c } of await userColumns()) if (PERSONAL.has(t)) { const r = await q(`delete from "${t}" where "${c}"=$1`, [uid]); removed[t] = (removed[t] || 0) + r.rowCount }
   await q(`update users set name='Conta excluída', email='excluida-'||id||'@removido.invalid', password_hash=null, status='bloqueado', disabled_at=now() where id=$1`, [uid])
   if (_legacyErase) _legacyErase(uid)
-  await q(`update posts set status='removido' where author_id=$1`, [uid]).catch(() => {})
+  await q('update social_handles set user_id=null where user_id=$1', [uid]).catch(() => {})   // V5: @ continua reservado, sem vínculo com a pessoa
+  await q(`update posts set status='removido', image_url=null where author_id=$1`, [uid]).catch(() => {})
   await q(`update coach_students set status='encerrado', ended_at=now(), end_reason='conta excluída' where (student_id=$1 or coach_id=$1) and status='ativo'`, [uid]).catch(() => {})
   await q(`update professional_profiles set state='encerrado', can_publish=false where user_id=$1`, [uid]).catch(() => {})
   return removed

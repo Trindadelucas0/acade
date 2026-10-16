@@ -6,6 +6,7 @@ import { requireAuth, audit } from './auth.js'
 import { linkFailures, createLink, notify } from './pro.js'
 import { anonymizeUser } from './lgpd.js'
 import { normDays, planProblems, flat } from './portal.js'
+import { likeTerm, likeEsc, pageNum } from './sqlsafe.js'
 
 const isUuid = s => /^[0-9a-f-]{36}$/i.test(String(s || ''))
 const txt = (s, n = 2000) => String(s ?? '').trim().slice(0, n)
@@ -228,7 +229,7 @@ export function adminCrudRoutes({ json, readBody }) {
     // ---------- comunidade ----------
     'GET /api/adm/posts': async (req, res) => {
       const u = await admin(req, res, json); if (!u) return
-      const p = qs(req), st = ['publicado', 'oculto', 'removido', 'rascunho'].includes(p.get('status')) ? p.get('status') : null, term = '%' + txt(p.get('q'), 60) + '%'
+      const p = qs(req), st = ['publicado', 'oculto', 'removido', 'rascunho'].includes(p.get('status')) ? p.get('status') : null, term = likeTerm(txt(p.get('q'), 60))
       const r = await q(`select p.id,p.title,p.body,p.category,p.status,p.moderation_reason,p.created_at,p.author_id,a.name author,
           (select count(*) from post_comments c where c.post_id=p.id)::int comments, (select count(*) from post_likes l where l.post_id=p.id)::int likes,
           coalesce(pp.can_publish,false) can_publish

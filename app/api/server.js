@@ -12,8 +12,10 @@ import { sessionsV4Routes, forgottenSweep } from './sessions-v4.js';
 import { editorialRoutes } from './programs-editorial.js';
 import { proRoutes } from './pro.js';
 import { communityRoutes } from './community.js';
+import { socialRoutes } from './social.js';
 import { rankingRoutes } from './ranking.js';
 import { lgpdRoutes, termsStatus } from './lgpd.js';
+import { legalRoutes } from './legal.js';
 import { exerciseMediaRoutes } from './exmedia.js';
 import { portalRoutes } from './portal.js';
 import { adminCrudRoutes } from './admcrud.js';
@@ -26,12 +28,17 @@ import { entitlementRoutes, entitlementGate } from './entitlements.js';
 import { inviteRoutes } from './invites.js';
 import { managementRoutes } from './management.js';
 import { saasRoutes } from './saas.js';
+import { billingRoutes } from './billing/routes.js';
+import { setPush as setBillingPush, startBillingJob } from './billing/core.js';
 import { appStateRoutes, readStatePg, eraseStatePg } from './appstate.js';
 import { requireAuth } from './auth.js';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import webpush from 'web-push';
+import { loadLegacy, persistLegacy, serverKey, importStateFiles } from './legacy-store.js';   // V5-PG-STORE
+import { watchResponse, recordRequest, auditRoutes, startAuditPurge } from './audit-log.js';
+import { writeStatePg } from './appstate.js';
 
 const PORT = +(process.env.PORT || 3000);
 const DATA = process.env.DATA_DIR || '/data';
@@ -52,16 +59,17 @@ fs.mkdirSync(DATA, { recursive: true });
 
 /* ---------- secret + db ---------- */
 const secretFile = path.join(DATA, 'secret');
-if (!fs.existsSync(secretFile)) fs.writeFileSync(secretFile, crypto.randomBytes(32).toString('hex'), { mode: 0o600 });
-const SECRET = fs.readFileSync(secretFile, 'utf8').trim();
+// V5: segredo no Postgres (server_keys); arquivo antigo importado uma vez. SESSION_SECRET (env) tem prioridade.
+const SECRET = String(await serverKey('session_secret', { envValue: process.env.SESSION_SECRET, file: secretFile, parse: v => v.trim() || null, gen: () => crypto.randomBytes(32).toString('hex') })).trim();
 
 const dbFile = path.join(DATA, 'db.json');
-let db = { users: [], creds: [], subs: [], invites: [] };
-try { db = JSON.parse(fs.readFileSync(dbFile, 'utf8')); } catch {}
+// V5: o `db` legado (ponte gymsid, passkeys, push, convites) vive no Postgres; db.json e importado uma vez e renomeado
+let db = await loadLegacy(DATA);
+void dbFile;
 db.subs = db.subs || [];
 db.invites = db.invites || [];
 const isAdmin = user => !!user && (user.admin === true || ADMIN_UIDS.includes(user.id));
-function saveDb() { atomicWrite(dbFile, JSON.stringify(db, null, 2)); }
+function saveDb() { persistLegacy(db); }
 function atomicWrite(file, content) {
   const tmp = file + '.tmp';
   fs.writeFileSync(tmp, content);
@@ -74,8 +82,9 @@ const readState = uid => readStatePg(uid);
 /* ---------- push notifications (Web Push / VAPID) ---------- */
 const vapidFile = path.join(DATA, 'vapid.json');
 let vapid;
-try { vapid = JSON.parse(fs.readFileSync(vapidFile, 'utf8')); }
-catch { vapid = webpush.generateVAPIDKeys(); fs.writeFileSync(vapidFile, JSON.stringify(vapid), { mode: 0o600 }); }
+// V5: chaves VAPID no Postgres (server_keys); VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY (env) tem prioridade; vapid.json importado uma vez
+vapid = await serverKey('vapid', { envValue: process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY ? { publicKey: process.env.VAPID_PUBLIC_KEY, privateKey: process.env.VAPID_PRIVATE_KEY } : null, file: vapidFile, parse: v => { const j = JSON.parse(v); return j.publicKey && j.privateKey ? j : null }, gen: () => webpush.generateVAPIDKeys() });
+await importStateFiles(DATA, writeStatePg).catch(e => console.error('[legacy] importacao de state-*.json:', e.message));
 const VAPID_SUBJECT = process.env.VAPID_SUBJECT || (SECURE ? ORIGIN : 'mailto:admin@localhost');
 webpush.setVapidDetails(VAPID_SUBJECT, vapid.publicKey, vapid.privateKey);
 
@@ -92,7 +101,7 @@ async function sendPush(userId, payload) {
     // actually control anyway.
     try { await webpush.sendNotification({ endpoint: sub.endpoint, keys: sub.keys }, body, { urgency: 'high' }); }
     catch (e) {
-      console.error('push send failed', userId, e.statusCode, e.body || e.message);
+      console.error('push send failed', userId, e.statusCode, e.statusCode ? '' : e.message);   // sem corpo da resposta (endpoint/token)
       if (e.statusCode === 404 || e.statusCode === 410) {
         db.subs = db.subs.filter(s => s.endpoint !== sub.endpoint); dirty = true;
       }
@@ -367,6 +376,7 @@ function pgBridge(u) {
   saveDb();
   return [sessionCookie(x)];
 }
+Object.assign(routes, auditRoutes({ json, readBody, requireRole }));   // V5: tela de logs e auditoria do admin
 Object.assign(routes, authRoutes({ json, readBody, bridge: pgBridge, clearCookies: [clearCookie] }));
 Object.assign(routes, guidedRoutes({ json, readBody }));
 Object.assign(routes, activeTrainingRoutes({ json, readBody }));
@@ -380,7 +390,9 @@ if (process.env.SESSION_SWEEP !== 'off') setInterval(() => {
 }, 5 * 60 * 1000).unref();
 Object.assign(routes, proRoutes({ json, readBody }));
 Object.assign(routes, communityRoutes({ json, readBody }));  // feed, curtidas, comentários, denúncias, moderação
+Object.assign(routes, socialRoutes({ json, readBody }));  // V5 E1: perfil social, foto, seguidores, cartões #TáPago
 Object.assign(routes, lgpdRoutes({ json, readBody, legacyState: readState, legacyErase: uid => { eraseStatePg(uid).catch(() => {}); try { fs.unlinkSync(stateFile(uid)) } catch {} db.users = db.users.filter(x => x.id !== uid); saveDb() } }));
+Object.assign(routes, legalRoutes({ json, readBody }));  // dados da empresa + aceite dos documentos legais
 Object.assign(routes, rankingRoutes({ json, readBody }));
 Object.assign(routes, exerciseMediaRoutes({ json, readBody }));
 Object.assign(routes, portalRoutes({ json, readBody }));   // AVADESK PRO + central de solicitações + KPIs   // vídeos e fotos extras dos exercícios (admin)    // ranking semanal/mensal        // profissionais, vínculos, atendimento, admin   // treino guiado (onboarding, programas, sessões)
@@ -394,6 +406,7 @@ Object.assign(routes, entitlementRoutes({ json, readBody, requireAuth, requireRo
 Object.assign(routes, inviteRoutes({ json, readBody }));  // V3 F4: convites do profissional (Profissional Free)
 Object.assign(routes, saasRoutes({ json }));
 Object.assign(routes, managementRoutes({ json }));
+Object.assign(routes, billingRoutes({ json, readBody }));  // V5: monetizacao (planos, cupons, cobranca, parceiros, webhooks)
 Object.assign(routes, appStateRoutes({ json, readBody, readSession, dataDir: DATA }));  // V3 F7: estado do usuário no Postgres  // V3 F5: código público do aluno + visão 360° do admin
 
 /* ---------- segurança: headers + rate limit (auditoria 2026-10) ---------- */
@@ -402,10 +415,19 @@ const SEC_HEADERS = {
   'X-Frame-Options': 'DENY',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
   'Cross-Origin-Resource-Policy': 'same-origin',
+  'Cross-Origin-Opener-Policy': 'same-origin',
+  // API só devolve JSON e mídia: nenhum documento dela pode rodar script ou ser emoldurado
+  'Content-Security-Policy': "default-src 'none'; img-src 'self'; media-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=()',
   ...(SECURE ? { 'Strict-Transport-Security': 'max-age=31536000; includeSubDomains' } : {})
 };
-// IP real: Cloudflare manda cf-connecting-ip; depois o primeiro x-forwarded-for; por fim o socket.
-const clientIp = req => String(req.headers['cf-connecting-ip'] || (req.headers['x-forwarded-for'] || '').split(',')[0] || req.socket?.remoteAddress || '').trim().slice(0, 64);
+// IP real (segurança): o PRIMEIRO item de x-forwarded-for é escrito pelo cliente e permitia burlar o rate limit.
+// Ordem confiável: cf-connecting-ip (túnel Cloudflare) -> x-real-ip (nginx sobrescreve com $remote_addr) -> socket.
+// TRUST_PROXY=off ignora cabeçalhos (API exposta direto, sem proxy).
+const clientIp = req => {
+  const h = process.env.TRUST_PROXY === 'off' ? {} : req.headers;
+  return String(h['cf-connecting-ip'] || h['x-real-ip'] || req.socket?.remoteAddress || '').trim().slice(0, 64);
+};
 // Janela fixa em memória. Rotas sensíveis (login, cadastro, recuperação) por IP; RATE_LIMIT=off desliga (testes locais).
 const RL_RULES = {
   'POST /api/auth/login': [20, 15 * 60e3],
@@ -413,27 +435,76 @@ const RL_RULES = {
   'POST /api/auth/forgot': [5, 15 * 60e3],
   'POST /api/auth/reset': [10, 15 * 60e3],
   'POST /api/auth/password': [10, 15 * 60e3],
+  // Segurança: ações de escrita sensíveis (por sessão quando autenticado; academia com Wi-Fi compartilhado não trava todos)
+  'POST /api/posts': [30, 10 * 60e3], 'POST /api/comments': [60, 10 * 60e3], 'POST /api/messages': [60, 10 * 60e3],
+  'POST /api/posts/like': [300, 10 * 60e3], 'POST /api/comments/like': [300, 10 * 60e3], 'POST /api/challenges/posts/like': [300, 10 * 60e3],
+  'POST /api/reports': [20, 60 * 60e3], 'POST /api/follows': [60, 10 * 60e3], 'POST /api/social/follow': [60, 10 * 60e3],
+  'POST /api/uploads': [30, 10 * 60e3], 'POST /api/me/avatar': [20, 60 * 60e3], 'POST /api/challenges/media': [30, 10 * 60e3],
+  'POST /api/challenges/media/stream': [30, 10 * 60e3], 'POST /api/challenges/posts': [30, 10 * 60e3], 'POST /api/challenges/posts/comment': [60, 10 * 60e3],
+  'POST /api/challenges/proofs': [30, 60 * 60e3], 'POST /api/pro/verification/document': [20, 60 * 60e3],
+  'GET /api/social/handle-check': [120, 60e3],
+  // V5 monetizacao: cupom (validacao/resgate), cartao e checkout por sessao
+  'POST /api/billing/coupon/validate': [30, 10 * 60e3], 'POST /api/billing/coupon/redeem': [10, 60 * 60e3], 'POST /api/billing/cards': [10, 60 * 60e3],
+  'POST /api/billing/subscribe': [10, 60 * 60e3], 'POST /api/billing/pay-now': [10, 60 * 60e3], 'POST /api/billing/change-card': [10, 60 * 60e3],
+  'POST /api/billing/webhook/asaas': [600, 60e3],
+  'POST /api/me/export-request': [5, 60 * 60e3], 'POST /api/me/delete-request': [5, 60 * 60e3], 'POST /api/me/social': [30, 10 * 60e3],
 };
+const RL_PER_SESSION = key => !key.startsWith('POST /api/auth/');
+function rlSubject(key, req) {
+  if (RL_PER_SESSION(key)) {
+    const tok = (req.headers.authorization || '').replace(/^Bearer\s+/i, '') || (/(?:^|;\s*)avagym_token=([^;]+)/.exec(req.headers.cookie || '') || [])[1];
+    if (tok) return 's:' + crypto.createHash('sha256').update(tok).digest('hex').slice(0, 24);
+  }
+  return 'ip:' + clientIp(req);
+}
+const ALLOWED_ORIGINS = new Set([ORIGIN, ...String(process.env.CSRF_ALLOWED_ORIGINS || '').split(',')].map(o => o.trim().replace(/\/+$/, '')).filter(Boolean));
+function originAllowed(req) {
+  let o = req.headers.origin;
+  if (!o && req.headers.referer) { try { o = new URL(req.headers.referer).origin } catch { return false } }
+  if (!o) return true;
+  return ALLOWED_ORIGINS.has(String(o).replace(/\/+$/, ''));
+}
 const rlHits = new Map();
 function rateLimited(key, req) {
   const rule = RL_RULES[key]; if (!rule || process.env.RATE_LIMIT === 'off') return 0;
-  const k = key + '|' + clientIp(req), now = Date.now();
+  const k = key + '|' + rlSubject(key, req), now = Date.now();
   let e = rlHits.get(k); if (!e || e.reset < now) { e = { n: 0, reset: now + rule[1] }; rlHits.set(k, e); }
   return ++e.n > rule[0] ? Math.ceil((e.reset - now) / 1000) : 0;
 }
 setInterval(() => { const now = Date.now(); for (const [k, e] of rlHits) if (e.reset < now) rlHits.delete(k); }, 60e3).unref();
 
+// rotas sem login (todas as outras exigem sessao no middleware central)
+// QA: reset do rate limit so para suites de teste. Existe apenas fora de producao, com DB_NAME *_test e TEST_RL_RESET=1; senao a rota nem e registrada (404).
+const TEST_RL_RESET = process.env.NODE_ENV !== 'production' && /_test$/.test(process.env.DB_NAME || '') && process.env.TEST_RL_RESET === '1';
+if (TEST_RL_RESET) routes['POST /api/test/rate-limit/reset'] = async (req, res) => { const n = rlHits.size; rlHits.clear(); json(res, 200, { ok: true, cleared: n }) };
+const PUBLIC_ROUTES = new Set(['GET /api/config', 'GET /api/health', 'GET /api/media', 'GET /api/media/pub', 'GET /api/media/private', 'GET /api/push/public-key', 'GET /api/terms',
+  'GET /api/legal/company', 'POST /api/auth/forgot', 'POST /api/auth/login', 'POST /api/auth/logout', 'POST /api/auth/register', 'POST /api/auth/reset', 'POST /api/logout',
+  'POST /api/billing/webhook/asaas', 'POST /api/billing/webhook/simulado']);
+const decodeURIComponentSafe = v => { try { return decodeURIComponent(v) } catch { return '\u0000' } };
 http.createServer(async (req, res) => {
+  const t0 = performance.now(), audit = watchResponse(res);
+  res.on('finish', () => recordRequest({ method: req.method, key: req.method + ' ' + new URL(req.url, 'http://x').pathname, path: new URL(req.url, 'http://x').pathname, status: audit.status, code: audit.code,
+    ms: performance.now() - t0, ip: clientIp(req), ua: req.headers['user-agent'], user: req.auditUser, legacyUser: req.auditLegacy, routeKnown: !!routes[req.method + ' ' + new URL(req.url, 'http://x').pathname] }));
   for (const [h, v] of Object.entries(SEC_HEADERS)) res.setHeader(h, v);
   const url = new URL(req.url, 'http://x');
   const key = req.method + ' ' + url.pathname;
+  // CSRF (sessão por cookie, SameSite=Lax): escrita vinda de outra origem é recusada. Navegadores sempre mandam Origin
+  // em POST cross-site; chamadas servidor-a-servidor (sem Origin/Referer) seguem normalmente.
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && !originAllowed(req)) return json(res, 403, { error: 'Origem não permitida', code: 'CSRF_ORIGIN' });
   const retry = rateLimited(key, req);
   if (retry) return json(res, 429, { error: 'Muitas tentativas. Aguarde alguns minutos e tente de novo.' }, { 'Retry-After': String(retry) });
   const handler = routes[key];
   if (!handler) return json(res, 404, { error: 'not found' });
+  // V5 middleware central: validacao basica da URL, autenticacao e autorizacao antes de qualquer rota (defesa em profundidade;
+  // as rotas continuam conferindo papel/escopo). Auditoria de cada acao em request_audit (audit-log.js).
+  if (url.pathname.length > 512 || url.search.length > 4096 || /[\u0000-\u001f\u007f]/.test(decodeURIComponentSafe(url.pathname + url.search))) return json(res, 400, { error: 'Requisição inválida', code: 'INVALID_INPUT' });
   try {
     // V3: checagem central de entitlements (recurso, assinatura ativa, verificação) antes da rota
     const gu = await authUser(req).catch(() => null);
+    const lu = gu ? null : readSession(req);
+    req.auditUser = gu; req.auditLegacy = lu;
+    if (!PUBLIC_ROUTES.has(key) && !(TEST_RL_RESET && key === 'POST /api/test/rate-limit/reset') && !gu && !lu) return json(res, 401, { error: 'Não autenticado', code: 'AUTH_REQUIRED' });
+    if (url.pathname.startsWith('/api/adm/') && !(gu && Array.isArray(gu.roles) && gu.roles.includes('admin'))) return json(res, 403, { error: 'Somente administradores', code: 'PERMISSION_DENIED' });
     if (!(await entitlementGate(key, gu, res, json))) return;
     if (!(await accessGate(key, gu, res, json))) return;   // V4.2: conta não liberada vê tudo, mas ações ficam travadas
     await handler(req, res);
@@ -441,9 +512,13 @@ http.createServer(async (req, res) => {
   catch (e) {
     // limite estourado dentro de uma transação (corrida pelo último lugar): resposta padronizada
     if (e && (e.code === 'LIMIT_REACHED' || e.code === 'SUBSCRIPTION_INACTIVE') && !res.headersSent) return json(res, e.code === 'LIMIT_REACHED' ? 409 : 402, { error: e.message, code: e.code, metric: e.metric, used: e.used, limit: e.limit, plan: e.plan });
-    console.error(key, e);
+    // log sem corpo da requisição nem "detail" do Postgres (pode conter e-mail/valores)
+    console.error(key, e && e.code ? '[' + e.code + ']' : '', e && e.message, e && e.stack ? '\n' + String(e.stack).split('\n').slice(1, 6).join('\n') : '');
     if (!res.headersSent) json(res, 500, { error: 'server error' });
   }
 // HOST: em produção use 127.0.0.1 (só o gateway/túnel acessa). Padrão 0.0.0.0 mantém o docker-compose funcionando.
 }).listen(PORT, process.env.HOST || '0.0.0.0', () => console.log(`gym-api on ${process.env.HOST || '0.0.0.0'}:${PORT} (origin=${ORIGIN})`));
-startMailer();   // V4.2: fila de e-mail (só envia com SMTP configurado)
+startMailer();
+startAuditPurge();   // V5: retencao da auditoria (app_settings auditoria_retencao_dias; padrao AUDIT_RETENTION_DAYS ou 180)
+setBillingPush(sendPush);   // V5: eventos de cobranca tambem saem por push
+startBillingJob();          // V5: renovacao, retentativa, carencia, suspensao e reconciliacao (BILLING_TICK=off desliga)   // V4.2: fila de e-mail (só envia com SMTP configurado)

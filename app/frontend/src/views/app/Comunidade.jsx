@@ -13,8 +13,59 @@ import { useStore } from '../../store/useStore.js'
 import { C, F, REPORT_PT, dt } from '../../lib/care.js'
 import { Av, Empty, Load, Err, useLoad, Sheet, Field, Tabs } from './kit.jsx'
 import Ranking from './Ranking.jsx'
+import { buildThreads, visibleCount, REPLIES_PREVIEW } from '../../lib/commentTree.js'
+import GSelect from '../../components/GSelect.jsx'
+import './comments.css'
 import { ask, notifyError } from '../../lib/dialog.js'
 
+// V5: comentário com curtir, responder, excluir o próprio e denunciar
+function CommentItem({ c, user, canReply, onReply, reload, reply }) {
+  const [lk, setLk] = useState({ n: c.likes || 0, on: !!c.liked })
+  const gone = c.status !== 'visivel'
+  const like = async () => { const on = !lk.on; setLk({ n: lk.n + (on ? 1 : -1), on }); try { const r = await F.likeComment(c.id, on); setLk({ n: r.likes, on: r.liked }) } catch (e) { setLk(lk); notifyError(e) } }
+  const del = async () => { if (await ask('Excluir este comentário?', { ok: 'Excluir', danger: true })) { try { await F.delComment(c.id); reload() } catch (e) { notifyError(e) } } }
+  return <div className={'com-c' + (reply ? ' com-reply' : '')} data-testid={reply ? 'comment-reply' : 'comment'} data-id={c.id}>
+    <Av name={c.author_name} url={c.author_photo} size={reply ? 28 : 34} />
+    <div className="com-c-b">
+      <div className="g-row" style={{ gap: 6, flexWrap: 'wrap' }}><b className="g-sm">{c.author_name}</b>{c.author_pro && <span className="g-pill g-ok">profissional</span>}<span className="g-xs g-dim">{dt(c.created_at)}</span></div>
+      {c.reply_to && <p className="g-xs g-mut">respondendo a {c.reply_to}</p>}
+      <p className="g-sm" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{gone ? (c.body != null ? <i className="g-dim">[{c.status}] {c.body}</i> : <i className="g-dim">Comentário removido.</i>) : c.body}</p>
+      {!gone && <div className="g-row com-c-act">
+        <button className={'g-link g-xs' + (lk.on ? ' g-acc' : '')} aria-pressed={lk.on} aria-label={(lk.on ? 'Descurtir' : 'Curtir') + ' comentário' + (lk.n ? ', ' + lk.n + ' curtida(s)' : '')} onClick={like} data-testid="comment-like"><Icon name="heart" /> <span data-testid="comment-likes">{lk.n || 'Curtir'}</span></button>
+        {canReply && <button className="g-link g-xs" onClick={() => onReply(c)} data-testid="comment-reply-btn">Responder</button>}
+        {(c.mine || user?.admin) && <button className="g-link g-xs" onClick={del} data-testid="comment-delete">Excluir</button>}
+        {!c.mine && <ReportBtn type="comment" id={c.id} />}
+      </div>}
+    </div>
+  </div>
+}
+function CommentThreads({ post, comments, meta, user, reload }) {
+  const [open, setOpen] = useState({}), [to, setTo] = useState(null), [body, setBody] = useState(''), [rbody, setRbody] = useState(''), [hint, setHint] = useState(''), [busy, setBusy] = useState(false)
+  const threads = buildThreads(comments), n = visibleCount(comments), can = !!meta?.can_comment
+  const send = async (text, parent) => {
+    setBusy(true)
+    try { const r = await F.comment(post.id, text, parent?.id ?? null); setHint(r.hint || ''); if (parent) { setRbody(''); setTo(null); setOpen(o => ({ ...o, [parent.root]: true })) } else setBody(''); reload() }
+    catch (e) { notifyError(e) } finally { setBusy(false) }
+  }
+  return <section aria-labelledby="com-c-title" data-testid="comments">
+    <h2 id="com-c-title">Comentários <span className="g-mut" data-testid="comments-count">({n})</span></h2>
+    {can ? <div className="g-card"><Field label="Escreva um comentário"><textarea className="g-in" value={body} onChange={e => setBody(e.target.value)} maxLength={1500} data-testid="comment-body" /></Field>
+      <button className="g-btn" style={{ marginTop: 10 }} disabled={!body.trim() || busy} onClick={() => send(body)} data-testid="comment-send">Comentar</button>
+      {hint && <p className="g-note" style={{ marginTop: 8 }}>{hint}</p>}</div>
+      : <p className="g-mut g-xs" style={{ marginTop: 10 }}>{meta?.comment_block_reason || 'Comentários indisponíveis para a sua conta no momento.'}</p>}
+    <div className="g-card g-list" style={{ marginTop: 10 }}>{threads.length ? threads.map(({ root, replies }) => {
+      const all = !!open[root.id], shown = all ? replies : replies.slice(0, REPLIES_PREVIEW), hidden = replies.length - shown.length
+      return <div key={root.id} className="com-thread" data-testid="comment-thread">
+        <CommentItem c={root} user={user} canReply={can} onReply={c => { setTo({ ...c, root: root.id }); setRbody('') }} reload={reload} />
+        {shown.map(r => <CommentItem key={r.id} c={r} user={user} reply canReply={can} onReply={c => { setTo({ ...c, root: root.id }); setRbody('') }} reload={reload} />)}
+        {hidden > 0 && <button className="g-link g-xs com-more" onClick={() => setOpen(o => ({ ...o, [root.id]: true }))} aria-expanded="false" data-testid="comment-expand">Ver mais {hidden} {hidden === 1 ? 'resposta' : 'respostas'}</button>}
+        {all && replies.length > REPLIES_PREVIEW && <button className="g-link g-xs com-more" onClick={() => setOpen(o => ({ ...o, [root.id]: false }))} aria-expanded="true">Recolher discussão</button>}
+        {to?.root === root.id && <div className="com-reply-box"><Field label={'Responder a ' + to.author_name}><textarea className="g-in" autoFocus value={rbody} onChange={e => setRbody(e.target.value)} maxLength={1500} data-testid="reply-body" /></Field>
+          <div className="g-row" style={{ marginTop: 8 }}><button className="g-btn g-sm" disabled={!rbody.trim() || busy} onClick={() => send(rbody, to)} data-testid="reply-send">Responder</button><button className="g-btn g-ghost g-sm" onClick={() => setTo(null)}>Cancelar</button></div></div>}
+      </div>
+    }) : <Empty icon="chat">Nenhum comentário ainda. Comece a conversa.</Empty>}</div>
+  </section>
+}
 function ReportBtn({ type, id }) {
   const [open, setOpen] = useState(false), [reason, setReason] = useState(''), [det, setDet] = useState(''), [msg, setMsg] = useState('')
   return <>
@@ -54,7 +105,7 @@ function Compose({ cats, post, onClose, onDone }) {
   return <Sheet title={post ? 'Editar publicação' : 'Nova publicação'} onClose={onClose}>
     {prev ? <PostCard p={{ ...f, id: 'preview', author_name: 'Você', verified: [], created_at: new Date(), likes: 0, comments: 0, status: 'publicado' }} full /> : <>
       <Field label="Título"><input className="g-in" value={f.title} maxLength={140} onChange={e => setF({ ...f, title: e.target.value })} data-testid="post-title" /></Field>
-      <Field label="Categoria"><select className="g-in" value={f.category} onChange={e => setF({ ...f, category: e.target.value })}>{cats.map(c => <option key={c.id} value={c.id}>{c.name_pt}</option>)}</select></Field>
+      <Field label="Categoria"><GSelect label="Categoria" value={f.category} onChange={v => setF({ ...f, category: v })} options={cats.map(c => [c.id, c.name_pt])} testid="post-cat" /></Field>
       <Field label="Conteúdo"><textarea className="g-in" style={{ minHeight: 140 }} value={f.body} maxLength={5000} onChange={e => setF({ ...f, body: e.target.value })} data-testid="post-body" /></Field>
       <Field label="Imagem (opcional)"><input type="file" accept="image/png,image/jpeg,image/webp" onChange={pick} /></Field>
       {f.image_url && <img src={f.image_url} alt="" className="g-postimg" />}
@@ -81,14 +132,12 @@ function Feed() {
     </div>
     <div className="com-feed-tools">
       <label className="g-filter-field">Assunto
-        <select className="g-in" value={cat} onChange={e => set('cat', e.target.value)} disabled={!meta}>
-          <option value="">Todos os assuntos</option>
-          {cat && !meta?.categories?.some(c => c.id === cat) && <option value={cat}>Assunto selecionado</option>}
-          {(meta?.categories || []).map(c => <option key={c.id} value={c.id}>{c.name_pt}</option>)}
-        </select>
+        <GSelect label="Assunto" value={cat} onChange={v => set('cat', v)} disabled={!meta} testid="feed-cat"
+          options={[['', 'Todos os assuntos'], ...(cat && !meta?.categories?.some(c => c.id === cat) ? [[cat, 'Assunto selecionado']] : []), ...(meta?.categories || []).map(c => [c.id, c.name_pt])]} />
       </label>
       {meta?.can_publish && <button className="g-btn" onClick={() => setComp(true)} data-testid="new-post"><Icon name="plus" /> Nova publicação</button>}
     </div>
+    {!meta?.can_publish && meta?.publish_block_reason && <div className="g-card" role="status" data-testid="publish-blocked" data-code={meta.publish_block_reason.code} style={{ marginTop: 10 }}><b className="g-sm">{meta.publish_block_reason.title}</b><p className="g-xs g-mut" style={{ margin: '4px 0 0' }}>{meta.publish_block_reason.message}</p></div>}
     <div style={{ marginTop: 10 }}>{err ? <Err msg={err} retry={reload} /> : !d ? <Load /> : d.posts.length ? d.posts.map(p => <PostCard key={p.id} p={p} onChange={reload} />)
       : <Empty icon="users">{mode === 'seguindo' ? 'Siga profissionais para ver as publicações deles aqui.' : 'Ainda não há publicações.'}</Empty>}</div>
     {comp && meta && <Compose cats={meta.categories} onClose={() => setComp(false)} onDone={() => { setComp(false); reload() }} />}
@@ -130,17 +179,7 @@ export function PostPage() {
     <PostCard p={d.post} full onChange={reload} />
     {(mine || user?.admin) && <div className="g-actions">{mine && <button className="g-btn g-ghost g-sm" onClick={() => setEdit(true)}>Editar</button>}
       <button className="g-btn g-danger g-sm" onClick={async () => { if (await ask('Excluir esta publicação?', { ok: 'Excluir', danger: true })) { await F.del(d.post.id); nav('/comunidade') } }}>Excluir</button></div>}
-    <h2>Comentários</h2>
-    <div className="g-card g-list">{d.comments.length ? d.comments.map(c => <div key={c.id} className="g-li" style={{ display: 'block' }}>
-      <div className="g-row"><b className="g-sm">{c.author_name}</b>{c.author_pro && <span className="g-pill g-ok">profissional</span>}<span className="g-sp" /><span className="g-xs g-dim">{dt(c.created_at)}</span></div>
-      <p className="g-sm">{c.status === 'visivel' ? c.body : <i className="g-dim">[{c.status}] {c.body}</i>}</p>
-      <div className="g-row">{(c.mine || user?.admin) && <button className="g-link g-xs" onClick={async () => { await F.delComment(c.id); reload() }}>Excluir</button>}<span className="g-sp" />{!c.mine && <ReportBtn type="comment" id={c.id} />}</div>
-    </div>) : <Empty icon="chat">Nenhum comentário.</Empty>}</div>
-    {meta?.can_comment ? <>
-      <Field label="Escreva um comentário"><textarea className="g-in" value={body} onChange={e => setBody(e.target.value)} maxLength={1500} data-testid="comment-body" /></Field>
-      <button className="g-btn" style={{ marginTop: 10 }} disabled={!body.trim()} onClick={async () => { try { const r = await F.comment(id, body); setBody(''); setHint(r.hint || ''); reload() } catch (e) { notifyError(e) } }} data-testid="comment-send">Enviar</button>
-      {hint && <p className="g-note" style={{ marginTop: 8 }}>{hint}</p>}</>
-      : <p className="g-mut g-xs" style={{ marginTop: 10 }}>Comentários de alunos estão desativados nesta comunidade. Você pode curtir e seguir profissionais. Dúvidas individuais vão em Acompanhamento.</p>}
+    <CommentThreads post={d.post} comments={d.comments} meta={meta} user={user} reload={reload} />
     {edit && meta && <Compose cats={meta.categories} post={d.post} onClose={() => setEdit(false)} onDone={() => { setEdit(false); reload() }} />}
   </div>
 }

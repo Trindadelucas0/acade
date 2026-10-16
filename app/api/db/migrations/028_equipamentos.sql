@@ -3,6 +3,8 @@ alter table equipment add column if not exists parent_id text references equipme
 alter table equipment add column if not exists image_url text;
 alter table equipment add column if not exists description text;
 alter table equipment add column if not exists kind text;
+-- BUG-011: banco novo (migrations antes do seed) precisa do pai.
+insert into equipment(id, name_pt) values ('elastico', 'Elástico') on conflict (id) do nothing;
 insert into equipment(id, name_pt, parent_id, kind, description) values
   ('faixa_elastica', 'Faixa elástica (lisa, sem pegador)', 'elastico', 'elastico', 'Faixa larga e fina, de látex.'),
   ('mini_band', 'Mini band (elástico em anel curto)', 'elastico', 'elastico', 'Anel pequeno, usado nas pernas.'),

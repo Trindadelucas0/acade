@@ -1,7 +1,7 @@
 // V4.2 — contas do personal, cadeado/liberação, admin e LGPD por e-mail. Contas de teste locais; capturas em SHOTS_DIR.
 import { test, expect } from '@playwright/test'
 import fs from 'node:fs'
-const OUT = process.env.SHOTS_DIR || 'e2e-results/v42'
+const OUT = process.env.SHOTS_DIR || 'test-artifacts/v42'
 fs.mkdirSync(OUT, { recursive: true })
 const PASS = 'e2e-Avadesk-2026', M = { width: 390, height: 844 }
 const shot = (page, n) => page.screenshot({ path: `${OUT}/${n}.png`, fullPage: true })

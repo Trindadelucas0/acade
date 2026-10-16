@@ -4,6 +4,7 @@ import crypto from 'node:crypto'
 import { q } from './db/pool.js'
 import { requireAuth, audit } from './auth.js'
 import { notify } from './pro.js'
+import { likeTerm, likeEsc, pageNum } from './sqlsafe.js'
 
 const isUuid = s => /^[0-9a-f-]{36}$/i.test(String(s || ''))
 const txt = (s, n = 2000) => String(s ?? '').trim().slice(0, n)
@@ -39,7 +40,7 @@ export function groupRoutes({ json, readBody }) {
   return {
     'GET /api/groups': async (req, res) => {
       const u = await auth(req, res); if (!u) return
-      const p = qs(req), term = txt(p.get('q'), 60), mine = p.get('mine') === '1', page = Math.max(0, +p.get('page') || 0)
+      const p = qs(req), term = likeEsc(txt(p.get('q'), 60)), mine = p.get('mine') === '1', page = pageNum(p.get('page'))
       const r = await q(`select g.id,g.name,g.description,g.cover_url,g.icon,g.privacy,g.join_policy,g.member_limit,g.status,
           (select count(*)::int from group_members x where x.group_id=g.id and x.status='ativo') members, m.role my_role, m.status my_status
         from groups g left join group_members m on m.group_id=g.id and m.user_id=$2

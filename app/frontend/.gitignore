@@ -4,3 +4,9 @@ dist/
 .env
 .DS_Store
 /e2e-results/
+# V5: artefatos de teste (Playwright outputDir, prints, relatórios)
+/test-artifacts/
+/test-results/
+/playwright-report/
+/blob-report/
+/.cache/

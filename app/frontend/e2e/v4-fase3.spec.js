@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test'
 import fs from 'node:fs'
 import pg from '../../api/node_modules/pg/lib/index.js'
 
-const SHOTS = process.env.SHOTS_DIR || 'e2e-results/shots'
+const SHOTS = process.env.SHOTS_DIR || 'test-artifacts/shots'
 fs.mkdirSync(SHOTS, { recursive: true })
 const PASS = 'e2e-Avadesk-2026'
 const db = () => { const c = new pg.Client({ host: 'localhost', user: 'postgres', password: process.env.DB_PASSWORD || 'postgres', database: 'avagym' }); return c }

@@ -122,7 +122,7 @@ r = await post(s.tok, '/api/guided/sessions/start', { client_id: cid(), pro_plan
 check(r.s === 403 && r.d.code === 'LINK_INACTIVE', 'ficha ativa sem vínculo ativo é recusada (LINK_INACTIVE)')
 await q(`insert into coach_students(tenant_id,coach_id,student_id,status) select tenant_id,$1,$2,'ativo' from users where id=$2`, [pro.id, s.id])
 // V4.1: uma ficha por vez — o aluno desvincula o programa do sistema antes de treinar a ficha
-await post(s.tok, '/api/active-training/detach', {})
+// V4.3 R13: a ficha do personal ja e o treino ativo (programa do sistema pausado); desvincular aqui arquivaria a ficha
 const cf = cid()
 r = await post(s.tok, '/api/guided/sessions/start', { client_id: cf, pro_plan_id: plan, workout_name: 'Ficha' })
 check(r.s === 201 && r.d.origin === 'ficha', 'ficha com plano ativo e vínculo ativo é autorizada')

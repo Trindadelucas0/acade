@@ -37,7 +37,7 @@ function Hero() {
           </video>)
         : <picture>
             <source srcSet="/brand/login-hero.webp" type="image/webp" />
-            <img src="/brand/login-hero.jpg" alt="" width="1200" height="1800" fetchpriority="high" decoding="async" />
+            <img src="/brand/login-hero.jpg" alt="" width="1200" height="1800" fetchPriority="high" decoding="async" />
           </picture>}
       <div className="lg-shade" />
     </div>

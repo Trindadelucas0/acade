@@ -9,7 +9,7 @@ import bcrypt from 'bcryptjs'
 import { q, transaction } from './db/pool.js'
 import { allowPasswordEmail, queuePasswordLink } from './password-email.js'
 import { requireAuth, requireRole, audit } from './auth.js'
-import { notify, notifyAdmins } from './pro.js'
+import { notify, notifyAdmins, getSettings } from './pro.js'
 import { capacitySummary } from './entitlements.js'
 import { enqueueEmail, mailConfigured } from './mailer.js'
 import { buildExport } from './lgpd.js'
@@ -28,7 +28,7 @@ export const PAYMENT = {
 }
 
 // ações permitidas para QUALQUER conta não liberada (conta, termos, LGPD, preferências, questionário)
-const ALLOW_LOCKED = [/^POST \/api\/auth\//, /^POST \/api\/terms/, /^POST \/api\/me\/(theme|context|unlock-request|export-request|delete-request|delete-request\/cancel|capacities|tours|tours\/reset)$/,
+const ALLOW_LOCKED = [ /^(POST|DELETE) \/api\/me\/(social|avatar)$/,/^POST \/api\/auth\//, /^POST \/api\/terms/, /^POST \/api\/legal\/(accept|health-consent)$/, /^POST \/api\/me\/(theme|context|unlock-request|export-request|delete-request|delete-request\/cancel|capacities|tours|tours\/reset)$/,
   /^POST \/api\/notifications\/read$/, /^POST \/api\/notification-prefs$/, /^POST \/api\/guided\/onboarding$/, /^POST \/api\/me\/onboarding\/skip$/, /^PUT \/api\/data$/,
   /^POST \/api\/logout(\/all)?$/, /^POST \/api\/activity$/, /^POST \/api\/push\//, /^POST \/api\/me\/trophies\/show$/, /^POST \/api\/pro\/verification(\/document)?$/]
 // ações do aluno do personal DENTRO do escopo do plano do personal (fichas, atendimento, comunidade, desafios do personal)
@@ -60,8 +60,10 @@ async function setAccess(actor, uid, unlocked, note) {
   return transaction(async () => {
     await q(`update users set access_unlocked_at=${unlocked ? 'coalesce(access_unlocked_at, now())' : 'null'}, access_unlocked_by=$2 where id=$1`, [uid, actor.id])
     await q('insert into access_events(user_id,action,actor_id,note) values($1,$2,$3,$4)', [uid, unlocked ? 'liberada' : 'bloqueada', actor.id, txt(note, 300) || null])
+    // QA AD-27: liberar a conta (botao, lote ou aprovacao) encerra os pedidos pendentes - sai da fila e do filtro 'pendente'
+    if (unlocked) await q(`update unlock_requests set status='aprovada', decided_by=$2, decided_at=now(), decision_note=coalesce(decision_note, $3) where user_id=$1 and status='pendente'`, [uid, actor.id, txt(note, 300) || 'conta liberada'])
     await audit(actor.tenant_id, actor.id, unlocked ? 'acesso.liberado' : 'acesso.bloqueado', 'user', uid, { note: txt(note, 300) || null })
-    await notify(uid, 'liberacao', unlocked ? 'Sua conta foi liberada' : 'Liberação da conta revogada', unlocked ? 'Agora você pode usar todas as ações do app.' : (txt(note, 200) || ''), '/perfil')
+    await notify(uid, 'liberacao', unlocked ? 'Sua conta foi liberada. Você já pode utilizar os recursos disponíveis.' : 'Liberação da conta revogada', unlocked ? null : (txt(note, 200) || ''), '/perfil')
   })
 }
 
@@ -114,7 +116,15 @@ export function accountRoutes({ json, readBody }) {
     // ---------- pedido de liberação (qualquer conta não liberada) ----------
     'GET /api/me/unlock-request': async (req, res) => {
       const u = await requireAuth(req, res, json, { allowPending: true }); if (!u) return
-      json(res, 200, { locked: isLocked(u), scoped_client: isScopedClient(u), requests: (await q('select id,status,reason,decision_note,created_at,decided_at from unlock_requests where user_id=$1 order by created_at desc limit 10', [u.id])).rows })
+      // V4.4 U4 (Modo A): estado da liberação + datas reais + previsão somente se a administração configurou (nunca contagem regressiva)
+      const [rq, acc, ev, st] = await Promise.all([
+        q('select id,status,reason,decision_note,created_at,decided_at from unlock_requests where user_id=$1 order by created_at desc limit 10', [u.id]),
+        q('select created_at, access_unlocked_at from users where id=$1', [u.id]),
+        q('select action from access_events where user_id=$1 order by created_at desc limit 1', [u.id]).catch(() => ({ rows: [] })),
+        getSettings(u.tenant_id)])
+      const requests = rq.rows, locked = isLocked(u), last = requests[0]
+      const state = !locked ? 'liberada' : last?.status === 'pendente' ? 'pendente' : ev.rows[0]?.action === 'bloqueada' ? 'suspensa' : last?.status === 'recusada' ? 'recusada' : 'sem_pedido'
+      json(res, 200, { locked, scoped_client: isScopedClient(u), requests, state, account_created_at: acc.rows[0]?.created_at || null, unlocked_at: acc.rows[0]?.access_unlocked_at || null, sla_text: String(st.liberacao_prazo_texto || '').trim() || null })
     },
     'POST /api/me/unlock-request': async (req, res) => {
       const u = await requireAuth(req, res, json, { allowPending: true }); if (!u) return
@@ -131,7 +141,7 @@ export function accountRoutes({ json, readBody }) {
     'GET /api/adm/access': async (req, res) => {
       const u = await admin(req, res, json); if (!u) return
       const [reqs, locked] = await Promise.all([
-        q(`select r.*, x.name, x.email, x.account_type, c.name coach_name from unlock_requests r join users x on x.id=r.user_id left join users c on c.id=r.coach_id where r.tenant_id=$1 order by (r.status='pendente') desc, r.created_at desc limit 200`, [u.tenant_id]),
+        q(`select r.*, round((extract(epoch from (coalesce(r.decided_at, now()) - r.created_at)) / 3600.0)::numeric, 1)::float wait_hours, x.name, x.email, x.account_type, c.name coach_name from unlock_requests r join users x on x.id=r.user_id left join users c on c.id=r.coach_id where r.tenant_id=$1 order by (r.status='pendente') desc, r.created_at desc limit 200`, [u.tenant_id]),
         q(`select id,name,email,account_type,created_at,(select name from users c where c.id=x.managed_by) coach_name,
             exists(select 1 from access_events e where e.user_id=x.id and e.action='bloqueada') was_blocked
           from users x where tenant_id=$1 and access_unlocked_at is null and disabled_at is null order by created_at desc limit 300`, [u.tenant_id])])
@@ -141,13 +151,14 @@ export function accountRoutes({ json, readBody }) {
     },
     'POST /api/adm/access/decide': async (req, res) => {
       const u = await admin(req, res, json); if (!u) return
-      const b = await readBody(req); if (!['aprovar', 'recusar'].includes(b.action)) return json(res, 400, { error: 'Ação inválida' })
+      const b = await readBody(req); if (!['aprovar', 'recusar'].includes(b.action)) return json(res, 400, { error: 'Ação inválida', code: 'INVALID_INPUT' })
+      if (b.action === 'recusar' && txt(b.note, 300).length < 3) return json(res, 400, { error: 'Informe o motivo da recusa. Ele será mostrado para a pessoa.', code: 'REASON_REQUIRED' })
       const decided = await transaction(async () => {
         const r = (await q(`update unlock_requests set status=$2, decided_by=$3, decided_at=now(), decision_note=$4 where id=$1 and tenant_id=$5 and status='pendente' returning user_id`,
           [+b.id, b.action === 'aprovar' ? 'aprovada' : 'recusada', u.id, txt(b.note, 300) || null, u.tenant_id])).rows[0]
         if (!r) return false
         if (b.action === 'aprovar') await setAccess(u, r.user_id, true, b.note || 'pedido aprovado')
-        else { await audit(u.tenant_id, u.id, 'liberacao.recusada', 'unlock_request', b.id); await notify(r.user_id, 'liberacao', 'Pedido de liberação recusado', txt(b.note, 200), '/perfil') }
+        else { await audit(u.tenant_id, u.id, 'liberacao.recusada', 'unlock_request', b.id); await notify(r.user_id, 'liberacao', 'Sua solicitação foi analisada. Consulte o motivo e saiba como solicitar novamente.', 'Motivo: ' + txt(b.note, 200) + '. Para solicitar novamente, revise as informações em Perfil e envie um novo pedido.', '/perfil') }
         return true
       })
       if (!decided) return json(res, 409, { error: 'Pedido já decidido ou inexistente' })

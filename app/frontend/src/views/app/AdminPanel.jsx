@@ -172,6 +172,7 @@ export function Config() {
     <Field label="Ranking: % mínimo de exercícios concluídos para validar a sessão"><input className="g-in" type="number" min="50" max="100" value={v.ranking_percentual_sessao} onChange={set('ranking_percentual_sessao')} /></Field>
     <Field label="Fuso horário oficial (semanas e meses do ranking)"><input className="g-in" value={v.fuso_horario} onChange={set('fuso_horario')} /></Field>
     <Field label="Limite de publicações por profissional a cada 24 h"><input className="g-in" type="number" min="1" max="50" value={v.limite_publicacoes_dia ?? 5} onChange={set('limite_publicacoes_dia')} data-testid="cfg-postlimit" /></Field>
+    <Field label="Previsão de análise das liberações (exibida ao usuário; deixe vazio se não houver prazo)"><input className="g-in" maxLength={160} value={v.liberacao_prazo_texto ?? ''} onChange={set('liberacao_prazo_texto')} placeholder="Ex.: até 2 dias úteis" data-testid="cfg-sla" /></Field>
     <Field label="Nome da comunidade (tenant)"><input className="g-in" value={v.tenant_name || ''} onChange={set('tenant_name')} data-testid="cfg-tenant" /></Field>
     <button className="g-btn" style={{ marginTop: 12 }} onClick={run(async () => { await C.saveSettings(v); setOk('Configurações salvas') }, reload)} data-testid="cfg-save">Salvar</button>
     {ok && <p className="g-acc g-sm" style={{ marginTop: 8 }}>{ok}</p>}

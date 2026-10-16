@@ -62,6 +62,7 @@ export default function Done() {
       <div><b>{fmtMin(dur)}</b><span>Tempo</span></div><div><b>{exs}</b><span>Exercícios</span></div>
       <div><b>{sets}</b><span>Séries</span></div><div><b>{fmtKg(vol)}</b><span>Volume (carga × repetições)</span></div>
     </div>
+    {(saved || view)?.synced && !corr && <button className="g-btn g-ghost" style={{ marginTop: 12 }} onClick={() => nav('/compartilhar?tipo=treino')} data-testid="done-share"><Icon name="sparkles" /> Compartilhar #TáPago</button>}
     {corr ? <p className="g-note" style={{ marginTop: 12 }} data-testid="done-corrected">Tempo corrigido por você ({fmtMin(corr.manual_sec)}). Este treino fica no histórico, mas não conta para ranking, desafios, prêmios nem para os números do progresso.</p> : <TimingSummary t={timing} />}
 
     {!(saved || view) ? <>

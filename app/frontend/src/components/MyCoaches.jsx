@@ -31,3 +31,18 @@ export function MyCoachesCard() {
       <Icon name="chevronRight" /></button>)}
   </div>
 }
+
+// V4.4 U3: cartão contextual único de vínculo (estados em lib/trainingPriority.js). Mantém data-testid="coach-linked-note".
+export function CoachContext({ state, coaches, testid }) {
+  const nav = useNavigate()
+  if (state !== 'A' && state !== 'B') return null
+  const names = (coaches || []).map(c => c.name).join(' e ')
+  return <div className="g-card" data-testid="coach-linked-note" data-state={state} style={{ marginTop: 10 }}>
+    <p className="g-sm" data-testid={testid || 'coach-context'}>
+      {state === 'A'
+        ? (names ? <>Sua conta é coberta pelo plano de <b>{names}</b>. A ficha aparece aqui assim que for publicada.</> : 'Aguardando a ficha do seu personal. Ela aparece aqui assim que for publicada.')
+        : <>Você está vinculado a <b>{names}</b>. A ficha aparece aqui quando for publicada.</>}
+    </p>
+    {coaches?.length > 0 && <button className="g-link" onClick={() => nav('/profissional/' + coaches[0].id)}>Ver profissional</button>}
+  </div>
+}

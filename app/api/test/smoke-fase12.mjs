@@ -14,7 +14,9 @@ export async function run({ adm, p1, p2, stu, sid, P1, P2, get, post, check }) {
   await mk(P1.user_id, '50 hours'); await mk(P1.user_id, '26 hours'); await mk(P1.user_id, '25 hours'); await mk(p2id, '49 hours'); const sv = await mk(sid, '2 hours', true)
   r = (await get(p1, '/api/challenges/ranking?id=' + c)).d
   check(r.state === 'provisorio' && r.mode === 'podio', 'em andamento: classificação provisória com pódio')
-  check(r.list[0].user_id === P1.user_id && r.list[0].score === 2, 'líder com pontos por dia (2 sessões no mesmo dia valem 1)')
+  // fixture P1 e compartilhada entre execucoes: o esperado sao os DIAS distintos (fuso SP) com sessao valida desde o inicio do desafio
+  const expDays = +(await q(`select count(distinct (started_at at time zone 'America/Sao_Paulo')::date) n from sessions where user_id=$1 and status='done' and voided_at is null and started_at >= now() - interval '3 days'`, [P1.user_id])).rows[0].n
+  check(r.list[0].user_id === P1.user_id && r.list[0].score === Math.max(2, expDays), 'líder com pontos por dia (2 sessões no mesmo dia valem 1)')
   check(r.me.position === 1 && r.me.me && typeof r.me.pending_proofs === 'number', 'minha posição com pontos e comprovantes pendentes')
   check(r.formula && !/100 pontos/.test(r.formula) && r.rules_version >= 1 && r.period.start, 'fórmula real, versão das regras e período')
   check(r.podium.length >= 2 && r.podium.length <= 3 && r.podium.every(x => x.score > 0 && x.position <= 3), 'pódio só com quem pontuou (até 3, empates incluídos)')

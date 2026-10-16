@@ -10,6 +10,8 @@ const hash = await bcrypt.hash(pass, 10)
 for (const [email, name, roles] of [['admin.e2e@avadesk.local', 'Admin E2E', ['admin']], ['pro1.e2e@avadesk.local', 'Profa. Ana E2E', ['profissional']], ['pro2.e2e@avadesk.local', 'Prof. Bruno E2E', ['profissional']]]) {
   const u = (await q(`insert into users(tenant_id,name,email,password_hash,status) values($1,$2,$3,$4,'ativo') on conflict (lower(email)) do update set password_hash=excluded.password_hash, status='ativo' returning id`, [t, name, email, hash])).rows[0]
   for (const r of roles) await q('insert into user_roles values($1,$2,$3) on conflict do nothing', [u.id, t, r])
+  // contas fixas liberadas (banco de teste novo nasce com tudo travado)
+  await q('update users set access_unlocked_at=coalesce(access_unlocked_at, now()) where id=$1', [u.id])
   // contas de teste já aceitaram a versão vigente dos termos
   await q(`insert into term_acceptances(user_id,version) select $1, version from terms_versions on conflict do nothing`, [u.id])
   // zera a janela de 24h do limite diário de publicações (repetições do smoke no mesmo dia); não apaga nada
@@ -19,4 +21,6 @@ for (const [email, name, roles] of [['admin.e2e@avadesk.local', 'Admin E2E', ['a
     await q(`insert into entitlement_grants(tenant_id,user_id,audience,kind,key,value,reason,expires_at) values($1,$2,'profissional','limit','alunos_ativos','1000','fixture e2e (somente local)',now()+interval '365 days')`, [t, u.id]).catch(() => {})
   if (roles.includes('profissional')) await q(`insert into professional_profiles(user_id,tenant_id,display_name,specialties) values($1,$2,$3,$4) on conflict (user_id) do nothing`, [u.id, t, name, ['Musculação']])
 }
+// banco de TESTE novo: mesmo nome de comunidade do ambiente real (smoke confere 'AVAGYM')
+if (/_test$/.test(process.env.DB_NAME || '')) await q(`update tenants set name='AVAGYM' where id=$1`, [t])
 console.log('usuários e2e prontos'); await pool.end()

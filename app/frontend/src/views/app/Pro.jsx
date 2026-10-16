@@ -123,9 +123,9 @@ export function ProProfile({ d, reload }) {
   const [ql, setQl] = useState({ kind: '', number: '', area: '' }), [msg, setMsg] = useState('')
   const set = k => e => setF({ ...f, [k]: e.target.value })
   return <div>
+    <Habilitacao h={p.habilitacao} />
     <h2>Perfil público</h2>
     <div className="g-card">
-      <p className="g-xs g-mut">Situação: <b>{(p.state || 'em_analise').replace('_', ' ')}</b> · Publicar no feed: <b>{p.can_publish ? 'autorizado' : 'não autorizado'}</b></p>
       <Field label="Nome de exibição"><input className="g-in" value={f.display_name} onChange={set('display_name')} /></Field>
       <Field label="Foto (URL)"><input className="g-in" value={f.photo_url} onChange={set('photo_url')} /></Field>
       <Field label="Apresentação"><textarea className="g-in" value={f.bio} onChange={set('bio')} /></Field>
@@ -169,4 +169,17 @@ export default function Pro() {
     {tab === 'atendimentos' && <Atendimentos d={{ ...d, me: d.profile?.id }} reload={reload} />}
     {tab === 'perfil' && <ProProfile d={d} reload={reload} />}
   </div>
+}
+
+// V4.4 U1: "Minha habilitação profissional" - estado de cada autorização, derivado no backend (que continua sendo a autoridade)
+const HAB_LABEL = { nao_iniciado: 'Não iniciado', aguardando: 'Aguardando análise', aprovado: 'Aprovado', reprovado: 'Reprovado', suspenso: 'Suspenso' }
+export function Habilitacao({ h }) {
+  if (!h?.items?.length) return null
+  return <section className="g-card" data-testid="pro-habilitacao" style={{ marginBottom: 12 }} aria-labelledby="hab-ttl">
+    <h2 id="hab-ttl" style={{ marginTop: 0 }}>Minha habilitação profissional</h2>
+    {h.items.map(i => <div key={i.key} className="g-row" style={{ padding: '8px 0', alignItems: 'flex-start', gap: 8 }} data-testid={'hab-' + i.key} data-status={i.status}>
+      <div style={{ minWidth: 0 }}><b className="g-sm">{i.label}</b>{i.detail && <p className="g-xs g-mut" style={{ margin: '2px 0 0' }}>{i.detail}</p>}</div>
+      <span className="g-sp" /><span className={'g-xs ' + (i.status === 'aprovado' ? 'g-acc' : 'g-mut')}><b>{HAB_LABEL[i.status] || i.status}</b></span>
+    </div>)}
+  </section>
 }

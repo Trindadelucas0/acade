@@ -21,6 +21,9 @@ import Workout from './views/Workout.jsx'
 import Stats from './views/Stats.jsx'
 import History from './views/History.jsx'
 import Library from './views/Library.jsx'
+import SocialProfile from './views/guided/SocialProfile.jsx'
+import SocialPublic from './views/guided/SocialPublic.jsx'
+import ShareCard from './views/guided/ShareCard.jsx'
 import Settings from './views/Settings.jsx'
 const MuscleMap = lazy(() => import('./views/MuscleMap.jsx'))
 // treino guiado (AVAGYM)
@@ -44,7 +47,7 @@ import Gate from './views/app/Locked.jsx'
 import Acompanhamento, { Conversa } from './views/app/Acompanhamento.jsx'
 import Avisos from './views/app/Avisos.jsx'
 import AdminApp from './views/admin/AdminApp.jsx'
-import { TermsGate } from './views/app/Terms.jsx'
+import { LegalGate, LegalPage } from './views/app/Legal.jsx'
 import ProPortal from './views/pro/Portal.jsx'
 import MyPrograms from './views/pro/MyPrograms.jsx'
 import { GroupPage } from './views/app/Grupos.jsx'
@@ -90,6 +93,9 @@ function Shell() {
     </div>
   )
 
+  // documentos legais: páginas públicas (com ou sem login), fora dos gates
+  if (loc.pathname.startsWith('/legal')) return <div id="app" className="vfade"><ErrorBoundary><Routes><Route path="/legal" element={<LegalPage authed={authed} />} /><Route path="/legal/:doc" element={<LegalPage authed={authed} />} /></Routes></ErrorBoundary></div>
+
   return (
     <>
       {/* keyed on the route: a view that throws is contained, and switching tabs
@@ -97,7 +103,7 @@ function Shell() {
       <div id="app" className="vfade" key={loc.pathname}>
         {authed && !user?.must_change_password && <LockBanner />}
         <ErrorBoundary>
-          {!authed ? <Login /> : user?.must_change_password ? <MustChangePassword /> : user?.needs_terms ? <TermsGate onAccepted={() => useStore.getState().setUser({ ...user, needs_terms: false })} /> : isAdminAccount(user) ? (
+          {!authed ? <Login /> : user?.must_change_password ? <MustChangePassword /> : user?.needs_terms ? <LegalGate onAccepted={() => useStore.getState().setUser({ ...user, needs_terms: false })} /> : isAdminAccount(user) ? (
             <Routes>
               <Route path="/admin/painel" element={<AdminApp />} />
               <Route path="/pro/treino" element={<Builder />} />
@@ -111,16 +117,17 @@ function Shell() {
               <Route path="/profissional/:id" element={<Gate title="Comunidade"><ProfessionalPage /></Gate>} />
               <Route path="/conversa/:id" element={<Gate title="Conversa"><Conversa /></Gate>} />
               <Route path="/avisos" element={<Avisos />} />
-              <Route path="/perfil" element={<Profile />} />
+              <Route path="/perfil" element={<Profile />} /><Route path="/perfil/social" element={<SocialProfile />} /><Route path="/u/:id" element={<SocialPublic />} />
               <Route path="/planos" element={<Plans />} />
               <Route path="/convite/:code" element={<AcceptInvite />} />
-              <Route path="*" element={<Navigate to="/admin/painel" replace />} />
+              <Route path="/settings" element={<Settings />} />{/* admin: Configuracoes (antes caia no "*" e ia para o painel) */}
+<Route path="*" element={<Navigate to="/admin/painel" replace />} />
             </Routes>
           ) : isProAccount(user) ? (
             <Routes>
-              <Route path="/pro" element={<Gate title="AVADESK PRO"><ProPortal /></Gate>} />
-              <Route path="/pro/programas" element={<Gate title="AVADESK PRO"><MyPrograms /></Gate>} />
-              <Route path="/pro/treino" element={<Gate title="AVADESK PRO"><Builder /></Gate>} />
+              <Route path="/pro" element={<Gate title="AVAGYM"><ProPortal /></Gate>} />
+              <Route path="/pro/programas" element={<Gate title="AVAGYM"><MyPrograms /></Gate>} />
+              <Route path="/pro/treino" element={<Gate title="AVAGYM"><Builder /></Gate>} />
               <Route path="/library" element={<Library />} />
               <Route path="/comunidade" element={<Gate title="Comunidade"><Comunidade /></Gate>} />
               <Route path="/grupo/:id" element={<Gate title="Comunidade"><GroupPage /></Gate>} />
@@ -130,9 +137,11 @@ function Shell() {
               <Route path="/profissional/:id" element={<Gate title="Comunidade"><ProfessionalPage /></Gate>} />
               <Route path="/conversa/:id" element={<Gate title="Conversa"><Conversa /></Gate>} />
               <Route path="/avisos" element={<Avisos />} />
-              <Route path="/perfil" element={<Profile />} />
+              <Route path="/perfil" element={<Profile />} /><Route path="/perfil/social" element={<SocialProfile />} /><Route path="/u/:id" element={<SocialPublic />} />
               <Route path="/planos" element={<Plans />} />
               <Route path="/convite/:code" element={<AcceptInvite />} />
+              <Route path="/settings" element={<Settings />} />{/* personal: Configuracoes (antes caia no "*" e ia para /pro) */}
+<Route path="/admin/*" element={<Navigate to="/pro" replace />} />{/* QA AD-40/43: personal sem admin -> Inicio do PRO */}
               <Route path="*" element={<Navigate to="/pro" replace />} />
             </Routes>
           ) : (
@@ -150,9 +159,9 @@ function Shell() {
               <Route path="/post/:id" element={<Gate title="Comunidade"><PostPage /></Gate>} />
               <Route path="/profissional/:id" element={<Gate title="Comunidade"><ProfessionalPage /></Gate>} />
               <Route path="/ranking" element={<ScopeGate title="Ranking"><Gate title="Ranking"><Ranking /></Gate></ScopeGate>} />
-              <Route path="/pro" element={user?.pro || user?.admin ? <Gate title="AVADESK PRO"><ProPortal /></Gate> : <Navigate to="/hoje" replace />} />
-              <Route path="/pro/programas" element={<Gate title="AVADESK PRO"><MyPrograms /></Gate>} />
-              <Route path="/admin/painel" element={user?.admin ? <AdminApp /> : <Navigate to="/hoje" replace />} />
+              <Route path="/pro" element={user?.pro || user?.admin ? <Gate title="AVAGYM"><ProPortal /></Gate> : <Navigate to="/hoje" replace />} />
+              <Route path="/pro/programas" element={<Gate title="AVAGYM"><MyPrograms /></Gate>} />
+              <Route path="/admin/painel" element={user?.admin ? <AdminApp /> : <Navigate to="/hoje" replace state={{ noOnboarding: true }} />} />{/* QA AD-40/43: sem permissao -> Inicio, sem cair no questionario */}
               <Route path="/onboarding" element={<Gate title="Treinos"><Onboarding /></Gate>} />
               <Route path="/recomendados" element={<ScopeGate title="Recomendados"><Recommendations /></ScopeGate>} />
               <Route path="/programas" element={<ScopeGate title="Programas"><ProgramLibrary /></ScopeGate>} />
@@ -160,15 +169,16 @@ function Shell() {
               <Route path="/meu-programa" element={<ScopeGate title="Meu programa"><MyProgram /></ScopeGate>} />
               <Route path="/treinar" element={<Gate title="Treinos"><Train /></Gate>} />
               <Route path="/concluido" element={<Done />} />
+          <Route path="/compartilhar" element={<ShareCard />} />
               <Route path="/progresso" element={<Gate title="Progresso"><Progress /></Gate>} />
-              <Route path="/perfil" element={<Profile />} />
+              <Route path="/perfil" element={<Profile />} /><Route path="/perfil/social" element={<SocialProfile />} /><Route path="/u/:id" element={<SocialPublic />} />
               <Route path="/perfil/equipamentos" element={<ScopeGate title="Equipamentos"><MyEquipment /></ScopeGate>} />
               <Route path="/planos" element={<Plans />} />
               <Route path="/convite/:code" element={<AcceptInvite />} />
               <Route path="/admin/programas" element={user ? <AdminPrograms /> : <Navigate to="/hoje" replace />} />
               {/* V4: sem montagem de treino nem treino livre. Rotas antigas levam às rotinas antigas (só consulta);
                   /workout só abre para concluir um treino livre que já estava em andamento no aparelho. */}
-              <Route path="/home" element={<Navigate to="/treinos?aba=historico" replace />} />
+              <Route path="/home" element={<Navigate to="/hoje" replace />} />{/* QA: /home abria o historico vazio para aluno novo */}
               <Route path="/plan" element={<Navigate to="/treinos?aba=historico" replace />} />
               <Route path="/plan/r/:id" element={<Navigate to="/treinos?aba=historico" replace />} />
               <Route path="/workout" element={S.active ? <Workout /> : <Navigate to="/treinos" replace />} />
@@ -184,7 +194,7 @@ function Shell() {
         </ErrorBoundary>
       </div>
       {/* barra principal = treino guiado; a antiga só aparece no treino manual em execução */}
-      {authed && !isAdminAccount(user) && !loc.pathname.startsWith('/admin/painel') && !loc.pathname.startsWith('/pro/treino') && <GuidedTabBar />}
+      {authed && !user?.needs_terms && !user?.must_change_password && !isAdminAccount(user) && !loc.pathname.startsWith('/admin/painel') && !loc.pathname.startsWith('/pro/treino') && <GuidedTabBar />}
       {authed && isAdminAccount(user) && !user?.needs_terms && !loc.pathname.startsWith('/admin/painel') && !loc.pathname.startsWith('/pro/treino') && <button className="adm-btn" style={{ position: 'fixed', left: 12, bottom: 12, minHeight: 44, zIndex: 50 }} onClick={() => navigate('/admin/painel')} data-testid="back-admin">← Painel admin</button>}
       <RestTimer />
       <Modals />

@@ -1,4 +1,4 @@
-/* natoGym service worker — runtime caching (works with Vite's hashed asset names).
+/* AVAGYM service worker — runtime caching (works with Vite's hashed asset names).
    Media (img/gif) cache-first; everything else network-first with offline fallback. */
 // V4.1: o nome do cache leva o id do build (trocado no build) → versão nova = SW novo = PWA atualiza sozinho
 const BUILD = '__BUILD_ID__'
@@ -17,7 +17,7 @@ self.addEventListener('push', e => {
     body: data.body || '',
     icon: 'icon-512.png',
     badge: 'icon-180.png',
-    tag: data.tag || 'natogym',
+    tag: data.tag || 'avagym',
     renotify: true
   }))
 })

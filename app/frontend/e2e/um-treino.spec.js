@@ -2,7 +2,7 @@
 // Contas criadas por app/api/test/setup-um-treino.mjs (contas de teste).
 import { test, expect } from '@playwright/test'
 import fs from 'node:fs'
-const OUT = process.env.SHOTS_DIR || 'e2e-results/um-treino'; fs.mkdirSync(OUT, { recursive: true })
+const OUT = process.env.SHOTS_DIR || 'test-artifacts/um-treino'; fs.mkdirSync(OUT, { recursive: true })
 const A = JSON.parse(fs.readFileSync('/tmp/um-treino.json', 'utf8'))
 async function open(browser, acc) {
   const ctx = await browser.newContext({ baseURL: 'http://localhost:4449', viewport: { width: 390, height: 844 }, colorScheme: 'dark' })

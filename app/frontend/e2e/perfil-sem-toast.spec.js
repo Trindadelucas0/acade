@@ -1,7 +1,7 @@
 // Perfil abre sem toasts de erro e sem 404 (dados opcionais não geram aviso).
 import { test, expect } from '@playwright/test'
 import fs from 'node:fs'
-const OUT = process.env.SHOTS_DIR || 'e2e-results/perfil'; fs.mkdirSync(OUT, { recursive: true })
+const OUT = process.env.SHOTS_DIR || 'test-artifacts/perfil'; fs.mkdirSync(OUT, { recursive: true })
 test('perfil do aluno sem toasts e sem 404', async ({ browser, playwright }) => {
   const rq = await playwright.request.newContext({ baseURL: 'http://localhost:4449' })
   const terms = (await (await rq.get('/api/terms')).json()).terms, email = `perfil.${Date.now()}@e2e.local`

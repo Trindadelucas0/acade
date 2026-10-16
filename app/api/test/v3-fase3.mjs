@@ -7,9 +7,10 @@ check((await get(null, '/api/plans')).s === 401, 'cat�logo de planos exige log
 let r = await get(adm, '/api/plans')
 const byId = Object.fromEntries(r.d.plans.map(p => [p.id, p]))
 check(byId.aluno_free?.is_free && byId.profissional_free?.current.limits.alunos_ativos === 2, 'catálogo: Aluno Free e Profissional Free (2 alunos ativos)')
-check(byId.profissional_pro_placeholder?.is_placeholder && byId.profissional_pro_placeholder.price_cents === null && byId.profissional_pro_placeholder.price_label === 'Preço a definir', 'planos pagos são PLACEHOLDER sem preço')
+check(['individual', 'pro_growth', 'pro_business'].every(id => byId[id] && byId[id].price_cents == null && !byId[id].sellable), 'planos pagos V5 sem preço e fora de venda (configurados no admin)')
 const legacy = (await q(`select s.audience, s.plan_id from subscriptions s join users u on u.id=s.user_id where lower(u.email)='teste@gmail.com'`)).rows
-check(legacy.length === 1 && legacy[0].plan_id === 'profissional_free', 'conta existente migrada para o plano gratuito da sua capacidade')
+if (/_test$/.test(process.env.DB_NAME || '')) console.log('  - (pulado no banco de teste: conta real teste@gmail.com nao existe)')
+else check(legacy.length === 1 && legacy[0].plan_id === 'profissional_free', 'conta existente migrada para o plano gratuito da sua capacidade')
 
 const pro = await verifiedPro(adm, 'v3p3pro')
 r = await get(pro.tok, '/api/me/subscriptions')
@@ -45,7 +46,9 @@ r = (await get(pro.tok, '/api/me/subscriptions')).d.subscriptions.profissional
 check(r.over_limit === true && r.usage.alunos_ativos === 3, 'concessão revogada → OVER_LIMIT (3 de 2), nada apagado')
 r = await post(adm, '/api/adm/links', { student_id: st[3].id, coach_id: pro.id, confirm: true })
 check(r.s === 409 && r.d.code === 'LIMIT_REACHED', 'em OVER_LIMIT novas criações bloqueadas')
-r = await post(adm, '/api/adm/subscriptions/plan', { user_id: pro.id, audience: 'profissional', plan_id: 'profissional_pro_placeholder' })
+const upPlan = 'pro_teste_' + String(Date.now()).slice(-8) // plano PRO de teste com limite 10, criado pelo admin (V5: nada de preco/limite no codigo)
+await post(adm, '/api/adm/billing/plans', { id: upPlan, audience: 'profissional', name: 'PRO teste e2e', limits: { alunos_ativos: 10 }, sellable: false })
+r = await post(adm, '/api/adm/subscriptions/plan', { user_id: pro.id, audience: 'profissional', plan_id: upPlan })
 check(r.s === 200 && r.d.entitlements.over_limit === false && r.d.entitlements.limits.alunos_ativos === 10, 'upgrade → sai de OVER_LIMIT')
 r = await post(adm, '/api/adm/subscriptions/plan', { user_id: pro.id, audience: 'profissional', plan_id: 'profissional_free' })
 check(r.s === 200 && r.d.entitlements.over_limit === true, 'downgrade → OVER_LIMIT')
@@ -65,7 +68,7 @@ console.log('Isolamento entre organizações')
 const t2 = (await q(`insert into tenants(slug,name) values('e2e-org-' || floor(random()*1e9)::text,'Org E2E') returning id`)).rows[0].id
 const outsider = (await q(`insert into users(tenant_id,name,email,status) values($1,'Fora','fora${Date.now()}@e2e.local','ativo') returning id`, [t2])).rows[0].id
 await q(`insert into user_roles values($1,$2,'profissional')`, [outsider, t2])
-r = await post(adm, '/api/adm/subscriptions/plan', { user_id: outsider, audience: 'profissional', plan_id: 'profissional_pro_placeholder' })
+r = await post(adm, '/api/adm/subscriptions/plan', { user_id: outsider, audience: 'profissional', plan_id: upPlan })
 check(r.s === 403 && r.d.code === 'PERMISSION_DENIED', 'admin não altera assinatura de outra organização')
 check((await post(adm, '/api/adm/grants', { user_id: outsider, audience: 'profissional', kind: 'limit', key: 'alunos_ativos', value: 5, days: 3, reason: 'invasão' })).s === 404, 'admin não concede a usuário de outra organização')
 check(!(await get(adm, '/api/adm/subscriptions')).d.subscriptions.some(x => x.user_id === outsider), 'lista de assinaturas só da própria organização')

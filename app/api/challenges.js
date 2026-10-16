@@ -8,6 +8,7 @@ import { useInvite, newCode } from './groups.js'
 import { snapshot } from './challenge-score.js'
 import { onConcluded, syncPrizes } from './prizes.js'
 import { canMove, canMoveMember, wizardProblems, timeStatus, rulesOf, RULE_FIELDS, CAT_LIMITS } from './challenge-rules.js'
+import { likeTerm, likeEsc, pageNum } from './sqlsafe.js'
 
 const isUuid = s => /^[0-9a-f-]{36}$/i.test(String(s || ''))
 const txt = (s, n = 2000) => String(s ?? '').trim().slice(0, n)
@@ -77,7 +78,7 @@ export function challengeRoutes({ json, readBody }) {
     },
     'GET /api/challenges': async (req, res) => {
       const u = await auth(req, res); if (!u) return
-      const p = qs(req), view = p.get('view') || 'explorar', page = Math.max(0, +p.get('page') || 0), term = txt(p.get('q'), 60)
+      const p = qs(req), view = p.get('view') || 'explorar', page = pageNum(p.get('page')), term = likeEsc(txt(p.get('q'), 60))
       const where = {
         explorar: `c.status in ${PUBLIC_LIVE} and c.audience <> 'convite' and (c.group_id is null or exists(select 1 from group_members gm join groups g on g.id=gm.group_id where gm.group_id=c.group_id and gm.user_id=$2 and gm.status='ativo') or exists(select 1 from groups g where g.id=c.group_id and g.privacy='aberto' and g.status='ativo'))`,
         participando: `m.status in ('ativo','aprovado') and c.status not in ('concluido','cancelado')`,

@@ -1,3 +1,4 @@
+import GSelect from '../../components/GSelect.jsx'
 // V5 · Grupos permanentes: explorar, meus grupos, criar; página do grupo com membros, pedidos, convites e gestão.
 import { useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
@@ -42,8 +43,8 @@ function GroupForm({ g, onSaved }) {
     <div className="g-row" style={{ gap: 8 }}><Field label="Ícone (emoji)"><input className="g-in" maxLength={4} value={f.icon || ''} onChange={set('icon')} /></Field>
       <Field label="Limite de membros"><input className="g-in" inputMode="numeric" value={f.member_limit || ''} onChange={set('member_limit')} placeholder="sem limite" /></Field></div>
     <Field label="Imagem de capa (link https)"><input className="g-in" value={f.cover_url || ''} onChange={set('cover_url')} placeholder="https://…" /></Field>
-    <Field label="Privacidade"><select className="g-in" value={f.privacy} onChange={set('privacy')} data-testid="gf-priv">{Object.entries(PRIV_PT).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></Field>
-    {f.privacy === 'aberto' && <Field label="Entrada"><select className="g-in" value={f.join_policy} onChange={set('join_policy')}><option value="livre">Livre</option><option value="aprovacao">Com aprovação</option><option value="convite">Só convite</option></select></Field>}
+    <Field label="Privacidade"><GSelect label="Privacidade" value={f.privacy} onChange={v => setF({ ...f, privacy: v })} options={Object.entries(PRIV_PT)} testid="gf-priv" /></Field>
+    {f.privacy === 'aberto' && <Field label="Entrada"><GSelect label="Entrada" value={f.join_policy} onChange={v => setF({ ...f, join_policy: v })} options={[['livre', 'Livre'], ['aprovacao', 'Com aprovação'], ['convite', 'Só convite']]} testid="gf-join" /></Field>}
     <Field label="Regras do grupo"><textarea className="g-in" rows={3} value={f.rules || ''} onChange={set('rules')} /></Field>
     <p className="g-mut g-xs">Entrar em um grupo não cria vínculo com profissional. Não compartilhe dados de saúde no grupo.</p>
     {msg && <p className="g-warn" role="alert">{msg}</p>}

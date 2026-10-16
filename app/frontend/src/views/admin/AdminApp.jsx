@@ -18,7 +18,9 @@ import AdmSubscriptions from '../v3/AdmSubscriptions.jsx'
 import AdmUser360 from '../v3/AdmUser360.jsx'
 import UserPanel, { accountTypePT, mensalidadePT } from './UserPanel.jsx'
 import AdminPrograms from '../guided/AdminPrograms.jsx'
+import AdminLogs from './AdminLogs.jsx'   // V5: logs e auditoria (request_audit + audit_log)
 import ManagementDashboard from './ManagementDashboard.jsx'
+import { AdmEmpresa } from '../app/Legal.jsx'
 
 // ---------- utilitários ----------
 const csvEsc = v => { const s = v == null ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v); return /[",;\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s }
@@ -343,10 +345,10 @@ const NAV = [
  ['Visão geral', [['dashboard','Visão geral','chart']]],
  ['Pessoas', [['usuarios','Contas','person'],['profissionais','Profissionais e verificação','clipboard'],['vinculos','Vínculos e convites','users']]],
  ['Planos e capacidade', [['assinaturas','Assinaturas','sparkles'],['planos','Limites de acompanhamento','shield'],['solicitacoes','Solicitações de vagas','flag']]],
- ['Treinos', [['programas','Programas guiados','clipboard'],['modelos','Modelos de treino','pencil'],['exercicios','Biblioteca e mídia','dumbbell']]],
+ ['Treinos', [['modelos','Modelos de treino','pencil'],['exercicios','Biblioteca e mídia','dumbbell']]],
  ['Comunidade', [['publicacoes','Publicações e moderação','chat'],['grupos','Grupos e desafios','users'],['ranking','Ranking','sparkles']]],
  ['Operação', [['filas','Atendimentos e prazos','bell']]],
- ['Sistema', [['lgpd','Privacidade e termos','lock'],['auditoria','Auditoria','list'],['config','Configurações','gear']]]]
+ ['Sistema', [['empresa','Dados da empresa','list'],['lgpd','Privacidade e termos','lock'],['auditoria','Logs e auditoria','list'],['config','Configurações','gear']]]]
 const TITLE=Object.fromEntries(NAV.flatMap(([,items])=>items.map(([k,l])=>[k,l])))
 const OLD_TABS={alunos:['usuarios','contas'],liberacoes:['usuarios','liberacoes'],verificacoes:['profissionais','verificacoes'],moderacao:['publicacoes','moderacao'],desafios:['grupos','desafios'],termos:['lgpd','termos'],visao:['dashboard','']}
 function SubTabs({items,current,onChange}) { return <div className="mg-subtabs" role="tablist">{items.map(([k,l])=><button key={k} role="tab" aria-selected={current===k} className={'adm-btn '+(current===k?'':'ghost')} onClick={()=>onChange(k)}>{l}</button>)}</div> }
@@ -373,7 +375,7 @@ export default function AdminApp() {
     </aside>
     <main className="adm-main">
       <div className="adm-mtop"><button className="adm-btn ghost" style={{ minWidth: 44, minHeight: 44, fontSize: 18 }} onClick={() => setOpen(!open)} aria-label="Menu" aria-expanded={open} aria-controls="admin-navigation" data-testid="adm-menu">☰</button><b>{TITLE[tab]}</b></div>
-      <h1 data-testid="adm-title">{TITLE[tab]}</h1><p className="adm-sub">AVADESK Fitness · central administrativa · <button className="g-link" data-testid="tour-restart" onClick={() => dispatchEvent(new Event('avagym:tour-restart'))}>Rever orientações</button></p>
+      <h1 data-testid="adm-title">{TITLE[tab]}</h1><p className="adm-sub">AVADESK Fitness · central administrativa · <button className="g-link" style={{ minHeight: 32, padding: '4px 8px' }} data-testid="tour-restart" onClick={() => dispatchEvent(new Event('avagym:tour-restart'))}>Rever orientações</button></p>
       {tab === 'dashboard' && <ManagementDashboard go={go} />}
       {tab === 'usuarios' && <><SubTabs items={[['contas','Contas'],['pendencias','Pendências'],['liberacoes','Liberação das ações']]} current={sub} onChange={setSub}/>{sub==='liberacoes'?<AdmLiberacoes/>:<Usuarios key={sub} pendingOnly={sub==='pendencias'}/>}</>}
 
@@ -392,9 +394,10 @@ export default function AdminApp() {
 
       {tab === 'exercicios' && <Exercicios />}
       {['moderacao', 'ranking'].includes(tab) && (X ? <Wrap><X /></Wrap> : <p className="g-mut">Indisponível.</p>)}
-      {tab === 'auditoria' && <AuditoriaT />}
+      {tab === 'auditoria' && <AdminLogs />}
       {tab === 'lgpd' && <><SubTabs items={[["lgpd","Privacidade e pedidos"],["termos","Termos de uso"]]} current={sub} onChange={setSub}/>{sub==='termos'?<Termos/>:<Lgpd/>}</>}
       {tab === 'config' && <Wrap><Config /></Wrap>}
+          {tab === 'empresa' && <AdmEmpresa />}
     </main>
   </div>
 }

@@ -1,5 +1,10 @@
 // Smoke test fase 8: cronometragem do treino (séries com início/fim, descanso real x previsto, pausas, resumo no servidor)
-export async function run({ adm, p1, stu, sid, get, post, check, origin }) {
+export async function run({ adm, p1, stu, sid, get, post, check, origin: origin0 }) {
+  // V4.3 R13: as fases anteriores enviam fichas, que pausam o programa do sistema; retoma um programa antes de cronometrar
+  let origin = origin0
+  { const pl = (await get(stu, '/api/guided/programs')).d; const list = pl.programs || pl
+    await post(stu, '/api/guided/start', { program_id: list[0].id }); const td = (await get(stu, '/api/guided/today')).d
+    if (td.active && td.workout) origin = { user_program_id: td.active.id, program_workout_id: td.workout.id } }
   console.log('Fase 8 — tempo do treino')
   const lib = (await get(p1, '/api/pro/library?limit=5')).d.exercises
   const T = s => new Date(Date.now() - 3600e3 + s * 1000).toISOString()

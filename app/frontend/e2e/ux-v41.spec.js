@@ -2,7 +2,7 @@
 import { test } from '@playwright/test'
 import fs from 'node:fs'
 test.skip(!process.env.UX, 'só para análise de UX')
-const OUT = process.env.SHOTS_DIR || 'e2e-results/ux'
+const OUT = process.env.SHOTS_DIR || 'test-artifacts/ux'
 fs.mkdirSync(OUT, { recursive: true })
 const PASS = 'e2e-Avadesk-2026', M = { width: 390, height: 844 }
 async function ctxLogin(browser, email, scheme = 'dark') {

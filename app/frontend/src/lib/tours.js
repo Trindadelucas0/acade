@@ -28,7 +28,7 @@ export const TOURS = {
     ...common
   },
   pro: {
-    welcome: [S(null, 'Bem-vindo ao AVADESK PRO', 'Aqui você acompanha seus alunos e envia fichas.'),
+    welcome: [S(null, 'Bem-vindo ao AVAGYM', 'Aqui você acompanha seus alunos e envia fichas.'),
       S('ptab-alunos', 'Alunos', 'Lista dos alunos vinculados, com treinos e evolução.'),
       S('ptab-atendimentos', 'Atendimentos', 'Dúvidas e ocorrências dos alunos, com prazo.'),
       S('ptab-alunos', 'Convidar ou cadastrar aluno', 'Em Alunos, use Adicionar aluno: cadastrar conta ou convidar por código.'),

@@ -46,7 +46,7 @@ export const initials = n => (n || '?').split(' ').filter(Boolean).slice(0, 2).m
 export const F = {
   cats: () => api('/api/feed/categories'), feed: p => api('/api/feed?' + new URLSearchParams(p || {})), post: id => api('/api/post?id=' + id),
   save: b => post('/api/posts', b), del: id => post('/api/posts/delete', { id }), like: (id, on) => post('/api/posts/like', { id, on }),
-  comment: (post_id, body) => post('/api/comments', { post_id, body }), delComment: id => post('/api/comments/delete', { id }),
+  comment: (post_id, body, parent_id) => post('/api/comments', { post_id, body, parent_id }), likeComment: (id, on) => post('/api/comments/like', { id, on }), delComment: id => post('/api/comments/delete', { id }),
   report: b => post('/api/reports', b), follow: (professional_id, on) => post('/api/follows', { professional_id, on }), upload: data => post('/api/uploads', { data }),
   reports: st => api('/api/adm/reports?status=' + st), decide: b => post('/api/adm/reports/decide', b),
   ranking: period => api('/api/ranking?period=' + period), rankHist: () => api('/api/ranking/history'), rankPrefs: b => post('/api/ranking/prefs', b),
@@ -62,7 +62,7 @@ export async function uploadExMedia(exercise_id, file, caption) {
 }
 // V4.1: exportMyData (Exportar dados) removido a pedido do Lucas.
 
-// AVADESK PRO e central administrativa
+// AVAGYM e central administrativa
 export const P = {
   management: period => api('/api/adm/management?period=' + period),
   managementInvites: () => api('/api/adm/management/invites'),

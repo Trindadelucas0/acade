@@ -4,7 +4,7 @@ import { useStore, DEF, hasData } from '../store/useStore.js'
 import { useUI } from '../store/useUI.js'
 import { ACCENTS, todayISO, localTZ } from '../lib/format.js'
 import { effortOf } from '../lib/history.js'
-import { api, IS_ANDROID } from '../lib/api.js'
+import { api } from '../lib/api.js'
 import { pushSupported, enablePush, disablePush, sendTestPush } from '../lib/push.js'
 import { wakeLockSupported } from '../lib/wakelock.js'
 import { t, LANGS, INSTR_LANGS } from '../lib/i18n.js'
@@ -13,7 +13,33 @@ import { MOBILE, shareExport, syncReminder } from '../lib/mobile.js'
 import { loadStarterPlan, confirmSheet, importFromApp } from '../sheets.jsx'
 import Icon from '../components/Icon.jsx'
 import { ask, notify } from '../lib/dialog.js'
-import { Section, Row, SelectRow, Switch, Segmented, Button, TextField } from '../components/ui.jsx'
+import { Section, Row, SelectRow, Switch, Button } from '../components/ui.jsx'
+import SegmentedControl from '../components/SegmentedControl.jsx'
+import { Av } from './app/kit.jsx'
+import './settings.css'
+
+import { installTipKind } from '../lib/installTip.js'
+const TIP = {
+  ios: ['No Safari: toque em Compartilhar e depois em "Adicionar à Tela de Início"', 'for iOS Safari'],
+  'ios-other': ['Abra esta página no Safari, toque em Compartilhar e depois em "Adicionar à Tela de Início"', 'for iOS other browser'],
+  android: ['No Chrome: toque no menu ⋮ e depois em "Instalar app" ou "Adicionar à tela inicial"', 'for Android'],
+  desktop: ['No Chrome ou Edge: clique no ícone de instalar, no fim da barra de endereço', 'for desktop'],
+}
+
+function AccountCard({ user, nav }) {
+  const [soc, setSoc] = useState(null)
+  useEffect(() => { api('/api/me/social').then(setSoc).catch(() => {}) }, [])
+  const name = soc?.profile?.display_name || user.name, handle = soc?.profile?.handle
+  return <div className="st-acc" data-testid="settings-account">
+    <Av name={name} url={soc?.avatar?.url} size={56} />
+    <div className="st-acc-m">
+      <b className="st-acc-n">{name}</b>
+      <span className="st-acc-h" data-testid="settings-handle">{handle ? '@' + handle : t('Sem @identificador')}</span>
+      {user.email && <span className="st-acc-e">{user.email}</span>}
+    </div>
+    <button className="g-btn g-ghost g-sm st-acc-b" onClick={() => nav('/perfil/social')} data-testid="settings-edit-social">{t('Editar perfil')}</button>
+  </div>
+}
 
 // Limpeza segura: só o Cache Storage (arquivos/imagens baixados). Não toca no estado, no histórico nem na fila offline.
 async function clearDeviceCache() {
@@ -59,31 +85,32 @@ export default function Settings() {
     },
   })
 
-  return <div className="narrow">
-    <div className="hdr">
-      <button className="iconbtn" onClick={() => nav('/perfil?secao=preferencias')} aria-label="Voltar às preferências"><Icon name="chevronLeft" /></button>
-      <div style={{ flex: 1, marginLeft: 10 }}><h1>Idioma e treino</h1></div>
-    </div>
+  const tip = installTipKind()
+  return <div className="narrow ag st" data-testid="settings">
+    <button className="g-link org-back" onClick={() => nav('/perfil?secao=preferencias')} aria-label="Voltar às preferências">‹ {t('Preferências')}</button>
+    <span className="g-eyebrow">{t('Perfil')}</span>
+    <h1>{t('Idioma e treino')}</h1>
+    <p className="g-mut g-sm st-lead">{t('Unidades, descanso, som, lembretes e aparência.')}</p>
 
     {/* ---------- account (demo and mobile builds have nothing to sign in to) ---------- */}
     <Section title={MOBILE ? t('Your data') : DEMO ? t('Demo') : t('Account')}>
       {MOBILE ? <>
-        <Row icon="lock" iconTint="var(--acc)" title={t('All data stays on this phone')}  />
-        <Row icon="rocket" iconTint="var(--indigo)" title={t('Self-host avadesk')} subtitle={'Código aberto (AGPL) — veja o repositório.'} accessory="chevron"
+        <Row icon="lock" title={t('All data stays on this phone')}  />
+        <Row icon="rocket" title={t('Self-host avadesk')} subtitle={'Código aberto (AGPL) — veja o repositório.'} accessory="chevron"
           onClick={() => window.open(REPO, '_blank', 'noopener')} />
       </> : DEMO ? <>
-        <Row icon="sparkles" iconTint="var(--acc)" title={t('You’re in the demo')} subtitle={t('Example data, stored only in this browser — change anything you like.')} />
-        <Row icon="reset" iconTint="var(--blue)" title={t('Reset demo data')} accessory="chevron"
+        <Row icon="sparkles" title={t('You’re in the demo')} subtitle={t('Example data, stored only in this browser — change anything you like.')} />
+        <Row icon="reset" title={t('Reset demo data')} accessory="chevron"
           onClick={() => confirmSheet({ title: t('Reset demo data?'), message: t('Puts the example plan, workouts and weigh-ins back the way they started.'), confirmText: t('Reset'), onConfirm: () => { resetDemo(); nav('/perfil'); toast(t('Demo data reset')) } })} />
-        <Row icon="rocket" iconTint="var(--indigo)" title={t('Self-host avadesk')} subtitle={'Código aberto (AGPL) — veja o repositório.'} accessory="chevron"
+        <Row icon="rocket" title={t('Self-host avadesk')} subtitle={'Código aberto (AGPL) — veja o repositório.'} accessory="chevron"
           onClick={() => window.open(REPO, '_blank', 'noopener')} />
       </> : user ? <>
-        <Row icon="personCircle" iconTint="var(--grey)" title={user.name} subtitle={user.email || 'Conta AVADESK'} />
-        {user.admin && <Row icon="wrench" iconTint="var(--indigo)" title={t('Admin dashboard')} accessory="chevron" onClick={() => nav('/admin/painel')} />}
-        <Row icon="signOut" iconTint="var(--red)" title={t('Sign out')} danger onClick={() => confirmSheet({ title: t('Sign out?'), message: t('Your data is synced to your profile first, then cleared from this device.'), confirmText: t('Sign out'), danger: true, onConfirm: () => { signOut(); nav('/perfil') } })} />
-        <Row icon="shield" iconTint="var(--red)" title={t('Sign out everywhere')} subtitle={t('Ends this profile’s sessions on all your devices.')} danger onClick={signOutEverywhere} />
+        <AccountCard user={user} nav={nav} />
+        {user.admin && <Row icon="wrench" title={t('Admin dashboard')} accessory="chevron" onClick={() => nav('/admin/painel')} />}
+        <Row icon="signOut" title={t('Sign out')} danger onClick={() => confirmSheet({ title: t('Sign out?'), message: t('Your data is synced to your profile first, then cleared from this device.'), confirmText: t('Sign out'), danger: true, onConfirm: () => { signOut(); nav('/perfil') } })} />
+        <Row icon="shield" title={t('Sign out everywhere')} subtitle={t('Ends this profile’s sessions on all your devices.')} danger onClick={signOutEverywhere} />
       </> : <>
-        <Row icon="person" iconTint="var(--blue)" title="Modo visitante" subtitle="Para ter conta, saia do modo visitante e entre com e-mail e senha." />
+        <Row icon="person" title="Modo visitante" subtitle="Para ter conta, saia do modo visitante e entre com e-mail e senha." />
       </>}
     </Section>
     {!user && !DEMO && !MOBILE && <p className="sect-f" style={{ marginTop: -18, marginBottom: 22 }}>{t('Guest mode — data lives only in this browser.')}</p>}
@@ -91,15 +118,15 @@ export default function Settings() {
     {/* ---------- general ---------- */}
     <Section title={t('General')} footer={t('Note: switching units only changes the label — logged numbers are not converted.')}>
       <SelectRow
-        icon="globe" iconTint="var(--blue)" title={t('Language')}
+        icon="globe" title={t('Language')}
         value={S.lang || 'en'} onChange={v => update(s => { s.lang = v })}
         options={Object.entries(LANGS).map(([k, name]) => ({
           value: k, label: name,
           subtitle: INSTR_LANGS.includes(k) ? null : t("Exercise instructions aren't available in this language yet — they stay in English."),
         }))}
       />
-      <Row icon="scale" iconTint="var(--teal)" title={t('Weight unit')}>
-        <Segmented className="seg-inline"
+      <Row icon="scale" title={t('Weight unit')}>
+        <SegmentedControl label={t('Weight unit')} testid="seg-unit"
           options={[{ value: 'kg', label: 'kg' }, { value: 'lb', label: 'lb' }]}
           value={S.unit} onChange={v => update(s => { s.unit = v })} />
       </Row>
@@ -107,24 +134,24 @@ export default function Settings() {
 
     {/* ---------- during a workout ---------- */}
     <Section title={t('During a workout')} footer={wakeOK ? t('The screen stays on while a workout is running, so you don’t have to unlock your phone between sets.') : null}>
-      <SelectRow icon="timer" iconTint="var(--orange)" title={t('Rest timer')}
+      <SelectRow icon="timer" title={t('Rest timer')}
         value={S.restSec} onChange={v => update(s => { s.restSec = v })}
         options={[60, 90, 120, 150, 180].map(v => ({ value: v, label: v + 's' }))} />
       {(wakeOK || !MOBILE) && (
-        <Row icon="sun" iconTint="var(--yellow)" title={t('Keep screen awake')}
+        <Row icon="sun" title={t('Keep screen awake')}
           subtitle={wakeOK ? null : t('Not supported in this browser.')}>
-          <Switch checked={wakeOK && S.keepAwake !== false} disabled={!wakeOK}
+          <Switch label={t('Keep screen awake')} checked={wakeOK && S.keepAwake !== false} disabled={!wakeOK}
             onChange={v => update(s => { s.keepAwake = v })} />
         </Row>
       )}
-      <Row icon="bell" iconTint="var(--pink)" title={t('Sounds')}>
-        <Switch checked={!!S.sound} onChange={v => update(s => { s.sound = v })} />
+      <Row icon="bell" title={t('Sounds')}>
+        <Switch label={t('Sounds')} checked={!!S.sound} onChange={v => update(s => { s.sound = v })} />
       </Row>
       {/* Two names for the same judgement, so the column asks in the scale you already think in.
           The (i) sits before the control — you read it on the way to the choice, not after it. */}
-      <Row icon="target" iconTint="var(--purple)" title={t('Effort per set')}>
+      <Row icon="target" title={t('Effort per set')}>
         <button className="helpbtn" aria-label={t('What are RIR and RPE?')} onClick={effortHelpSheet}><Icon name="info" /></button>
-        <Segmented className="seg-inline"
+        <SegmentedControl label={t('Effort per set')} testid="seg-effort"
           options={[{ value: 'none', label: t('Off') }, { value: 'rir', label: t('RIR') }, { value: 'rpe', label: t('RPE') }]}
           value={effortOf(S)} onChange={v => update(s => { s.effort = v; delete s.showRir })} />
       </Row>
@@ -135,9 +162,8 @@ export default function Settings() {
     {/* ---------- appearance ---------- */}
     <Section title={t('Appearance')} footer={DEMO || MOBILE ? undefined : t('synced with your profile')}>
       {/* Purely how the muscle map is drawn — nothing else in the app reads this. */}
-      <Row icon="figureStrength" iconTint="var(--teal)" title={t('Body diagram')}>
-        <Segmented
-          className="seg-inline"
+      <Row icon="figureStrength" title={t('Body diagram')}>
+        <SegmentedControl label={t('Body diagram')} testid="seg-body"
           options={[{ value: 'male', label: t('Male') }, { value: 'female', label: t('Female') }]}
           value={S.body === 'female' ? 'female' : 'male'}
           onChange={v => update(s => { s.body = v })}
@@ -152,7 +178,7 @@ export default function Settings() {
       {/* V4 F3: criação/importação de rotinas saiu (rotinas antigas são só consulta) */}
       {/* V4 F3: criação/importação de rotinas saiu (rotinas antigas são só consulta) */}
       {/* V4 (doc 4.5): "Apagar tudo" saiu — nada do aluno é apagado. Limpa só o cache de arquivos do aparelho; a fila de sincronização e o histórico ficam. */}
-      <Row icon="trash" iconTint="var(--blue)" title="Limpar cache deste aparelho" subtitle="Libera espaço. Seus treinos e o que ainda não sincronizou não são apagados." accessory="chevron" onClick={clearDeviceCache} data-testid="clear-cache" />
+      <Row icon="trash" title="Limpar cache deste aparelho" subtitle="Libera espaço. Seus treinos e o que ainda não sincronizou não são apagados." accessory="chevron" onClick={clearDeviceCache} data-testid="clear-cache" />
     </Section>
     <input ref={fileRef} type="file" accept=".json,application/json" style={{ display: 'none' }} onChange={doImport} />
     {/* Reset after reading so picking the same file twice still fires onChange. */}
@@ -160,10 +186,9 @@ export default function Settings() {
       onChange={ev => { const f = ev.target.files[0]; if (f) importFromApp(f); ev.target.value = '' }} />
 
     {/* "Add to Home screen" makes no sense inside the native app */}
-    {!MOBILE && <Section title={t('Tip')}>
-      <Row icon="lightbulb" iconTint="var(--yellow)"
-        title={IS_ANDROID ? t('In Chrome: ⋮ menu → Add to Home screen') : t('In Safari: Share → Add to Home Screen')}
-        subtitle={t('to install avadesk as a full-screen app.') + ' ' + (user ? t('Your data syncs with your profile — sign in anywhere to see it.') : t('Guest data stays on this device — export a backup now and then!'))} />
+    {!MOBILE && tip && <Section title={t('Tip')}>
+      <Row icon="lightbulb" title={t(TIP[tip][0])} className={'st-tip st-tip-' + tip}
+        subtitle={t('to install avadesk as a full-screen app.') + ' ' + (user ? t('Your data syncs with your profile - sign in anywhere to see it.') : t('Guest data stays on this device - export a backup now and then!'))} />
     </Section>}
 
   </div>
@@ -227,11 +252,11 @@ function MobileReminderCard({ S, update, toast }) {
   return (
     <Section title={t('Notifications')}
       footer={S.reminder?.on ? t('Reminds you at this time on days that have a routine planned.') : null}>
-      <Row icon="calendar" iconTint="var(--orange)" title={t('Workout day reminder')}>
-        <Switch checked={!!S.reminder?.on} onChange={toggle} />
+      <Row icon="calendar" title={t('Workout day reminder')}>
+        <Switch label={t('Workout day reminder')} checked={!!S.reminder?.on} onChange={toggle} />
       </Row>
       {S.reminder?.on && (
-        <Row icon="clock" iconTint="var(--purple)" title={t('Reminder time')}>
+        <Row icon="clock" title={t('Reminder time')}>
           <input type="time" className="timef" value={S.reminder?.time || DEF.reminder.time}
             onChange={e => setReminder({ time: e.target.value })} />
         </Row>
@@ -265,7 +290,7 @@ function PushCard({ S, update, toast }) {
 
   if (!supported) return (
     <Section title={t('Notifications')}>
-      <Row icon="bellSlash" iconTint="var(--grey)" title={t('Not supported in this browser.')} />
+      <Row icon="bellSlash" title={t('Not supported in this browser.')} />
     </Section>
   )
 
@@ -277,16 +302,16 @@ function PushCard({ S, update, toast }) {
           (S.reminder?.tz ? ' ' + t('Timezone: {0} (auto-detected, updates if you travel).', S.reminder.tz) : '')
         : null}
     >
-      <Row icon="bell" iconTint="var(--red)" title={t('Push notifications')} subtitle={t('Rest-timer alerts, even if avadesk is closed.')}>
-        <Switch checked={on} disabled={busy} onChange={toggle} />
+      <Row icon="bell" title={t('Push notifications')} subtitle={t('Rest-timer alerts, even if avadesk is closed.')}>
+        <Switch label={t('Push notifications')} checked={on} disabled={busy} onChange={toggle} />
       </Row>
       {on && (
-        <Row icon="calendar" iconTint="var(--orange)" title={t('Workout day reminder')}>
-          <Switch checked={!!S.reminder?.on} onChange={() => update(s => { s.reminder = { ...(s.reminder || DEF.reminder), on: !s.reminder?.on, tz: localTZ() } })} />
+        <Row icon="calendar" title={t('Workout day reminder')}>
+          <Switch label={t('Workout day reminder')} checked={!!S.reminder?.on} onChange={() => update(s => { s.reminder = { ...(s.reminder || DEF.reminder), on: !s.reminder?.on, tz: localTZ() } })} />
         </Row>
       )}
       {on && S.reminder?.on && (
-        <Row icon="clock" iconTint="var(--purple)" title={t('Reminder time')}>
+        <Row icon="clock" title={t('Reminder time')}>
           <input type="time" className="timef" value={S.reminder?.time || DEF.reminder.time}
             onChange={e => update(s => { s.reminder = { ...(s.reminder || DEF.reminder), time: e.target.value, tz: localTZ() } })} />
         </Row>

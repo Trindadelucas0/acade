@@ -36,3 +36,32 @@ app/api/uploads/
 
 # V3: documentos de verificação profissional (privados)
 app/api/private/
+
+# V5: saídas e prints de testes nunca vão para o git nem para a VPS
+app/frontend/test-artifacts/
+app/frontend/e2e-results/
+app/frontend/.cache/
+test-results/
+playwright-report/
+blob-report/
+# evidências visuais de testes (prints) - geradas localmente, não publicar
+docs/v4/**/*.png
+docs/v4/**/*.jpg
+docs/v4/**/*.webm
+
+# V5: prints de casos de teste (qualquer pasta prints em docs, qualquer PNG em casos-de-teste)
+docs/**/prints/
+docs/**/casos-de-teste/**/*.png
+docs/**/casos-de-teste/**/*.jpg
+docs/**/casos-de-teste/**/*.webm
+
+# V5 deploy: dados de teste, pacotes e prints em qualquer pasta
+data/
+data_test/
+app/api/data/
+deploy/
+**/prints/
+**/test-artifacts/
+*.importado-*
+*.tmp.mjs
+*.dump

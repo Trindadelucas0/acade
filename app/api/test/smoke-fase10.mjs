@@ -40,12 +40,13 @@ export async function run({ adm, p1, p2, stu, sid, P1, get, post, check }) {
   check((await get(p1, '/api/challenges?view=historico')).d.challenges.some(x => x.id === c1), 'aparece no Histórico')
   check((await get(p1, '/api/notifications')).d.notifications.some(n => n.title === 'O desafio começou' && n.link === '/desafio/' + c1), 'notificação de início com link profundo')
   // privado + convites + profissional
-  r = await post(p1, '/api/challenges', { ...base, name: 'Turma fechada ' + t, audience: 'convite' }); const c2 = r.d.id
-  await post(p1, '/api/challenges/publish', { id: c2 })
+  // V4.3 escopo: desafio de profissional fica no escopo dos clientes dele; o privado da comunidade geral e criado pelo admin
+  r = await post(adm, '/api/challenges', { ...base, name: 'Turma fechada ' + t, audience: 'convite' }); const c2 = r.d.id
+  await post(adm, '/api/challenges/publish', { id: c2 })
   check(!(await get(p2, '/api/challenges?view=explorar&q=' + encodeURIComponent('Turma fechada ' + t))).d.challenges.length && (await get(p2, '/api/challenge?id=' + c2)).s === 404, 'desafio privado nunca aparece em Explorar nem abre')
   check((await post(p2, '/api/challenges/join', { id: c2 })).s === 403, 'privado exige convite')
   check((await post(p1, '/api/challenges/invite-students', { id: c2, student_ids: [P1.user_id] })).s === 403, 'profissional só convida alunos vinculados')
-  r = await post(p1, '/api/challenges/invites', { id: c2, max_uses: 1 }); const code = r.d.invite.code
+  r = await post(adm, '/api/challenges/invites', { id: c2, max_uses: 1 }); const code = r.d.invite.code
   check((await post(p2, '/api/challenges/join', { id: c2, code })).d.status === 'aprovado', 'convite por código dá entrada')
   check((await post(stu, '/api/challenges/join', { id: c2, code })).s === 400, 'convite esgotado')
   // aprovação

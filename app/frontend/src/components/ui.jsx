@@ -77,12 +77,13 @@ export function SearchField({ value, onChange, onClear, ...rest }) {
 
 /* ============================ switch ============================ */
 
-export function Switch({ checked, onChange, disabled }) {
+export function Switch({ checked, onChange, disabled, label }) {   // QA: label vira aria-label (leitor de tela)
   return (
     <button
       role="switch"
       aria-checked={!!checked}
       disabled={disabled}
+      aria-label={label}
       className={'sw' + (checked ? ' on' : '')}
       onClick={() => onChange(!checked)}
     >

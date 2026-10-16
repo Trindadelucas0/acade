@@ -2,7 +2,7 @@
 // e uma linha em docs/v4/testes-reais/resultados.json (fluxo, passo, ok/falha, print). Nada é apagado.
 import { test, expect } from '@playwright/test'
 import fs from 'node:fs'
-const DIR = process.env.REAIS_DIR || '../../docs/v4/testes-reais'; fs.mkdirSync(DIR + '/prints', { recursive: true })
+const DIR = process.env.REAIS_DIR || '../../docs/v4/testes-reais', SHOTS = process.env.REAIS_SHOTS_DIR || 'test-artifacts/testes-reais'; fs.mkdirSync(SHOTS + '/prints', { recursive: true })
 const BASE = 'http://localhost:4449', PASS = 'e2e-Avadesk-2026', RES = DIR + '/resultados.json'
 if (!process.env.REAIS_APPEND) fs.writeFileSync(RES, '[]')
 let n = 0
@@ -11,7 +11,7 @@ async function step(page, flow, name, fn) {
   let ok = true, err = ''
   try { await fn(); await page.waitForTimeout(700) } catch (e) { ok = false; err = String(e.message || e).split('\n')[0].slice(0, 220) }
   const shot = `prints/${String(++n).padStart(3, '0')}-${flow}-${name.toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g, '-').slice(0, 40)}.png`
-  await page.screenshot({ path: `${DIR}/${shot}`, mask: [page.getByText(/[\w.+-]+@[\w-]+\.[\w.]+/), page.getByTestId('pc-temp'), page.locator('input[type=password]'), page.locator('input[type=email]')], maskColor: '#9aa0a6' }).catch(() => {})
+  await page.screenshot({ path: `${SHOTS}/${shot}`, mask: [page.getByText(/[\w.+-]+@[\w-]+\.[\w.]+/), page.getByTestId('pc-temp'), page.locator('input[type=password]'), page.locator('input[type=email]')], maskColor: '#9aa0a6' }).catch(() => {})
   rec({ flow, step: name, ok, err, shot, url: page.url().replace(BASE, '') })
   return ok
 }

@@ -1,704 +1,226 @@
 [
  {
-  "flow": "normal",
-  "step": "Tela de cadastro",
-  "ok": true,
-  "err": "",
-  "shot": "prints/001-normal-tela-de-cadastro.png",
-  "url": "/#/"
- },
- {
-  "flow": "normal",
-  "step": "Início com conta travada (aviso)",
-  "ok": true,
-  "err": "",
-  "shot": "prints/002-normal-ini-cio-com-conta-travada-aviso-.png",
-  "url": "/#/onboarding"
- },
- {
-  "flow": "normal",
-  "step": "Pedir liberação",
-  "ok": true,
-  "err": "",
-  "shot": "prints/003-normal-pedir-liberac-a-o.png",
-  "url": "/#/planos"
- },
- {
-  "flow": "normal",
-  "step": "Admin vê o pedido em Liberação de contas",
-  "ok": true,
-  "err": "",
-  "shot": "prints/004-normal-admin-ve-o-pedido-em-liberac-a-o-de-cont.png",
-  "url": "/#/admin/painel?tab=usuarios&secao=liberacoes"
- },
- {
-  "flow": "normal",
-  "step": "Admin libera a conta",
-  "ok": true,
-  "err": "",
-  "shot": "prints/005-normal-admin-libera-a-conta.png",
-  "url": "/#/admin/painel?tab=usuarios&secao=liberacoes"
- },
- {
-  "flow": "normal",
-  "step": "Explorar programas (escolha unificada)",
-  "ok": true,
-  "err": "",
-  "shot": "prints/006-normal-explorar-programas-escolha-unificada-.png",
-  "url": "/#/programas"
- },
- {
-  "flow": "normal",
-  "step": "Abrir um programa e ativar",
-  "ok": true,
-  "err": "",
-  "shot": "prints/007-normal-abrir-um-programa-e-ativar.png",
-  "url": "/#/hoje"
- },
- {
-  "flow": "normal",
-  "step": "Treinos: treino ativo único",
-  "ok": true,
-  "err": "",
-  "shot": "prints/008-normal-treinos-treino-ativo-u-nico.png",
-  "url": "/#/treinos"
- },
- {
-  "flow": "normal",
-  "step": "Treinos: sem Biblioteca nem acordeões",
-  "ok": true,
-  "err": "",
-  "shot": "prints/009-normal-treinos-sem-biblioteca-nem-acordeo-es.png",
-  "url": "/#/treinos"
- },
- {
-  "flow": "normal",
-  "step": "Biblioteca bloqueada para aluno (/library → Treinos)",
-  "ok": true,
-  "err": "",
-  "shot": "prints/010-normal-biblioteca-bloqueada-para-aluno-library-.png",
-  "url": "/#/treinos"
- },
- {
-  "flow": "normal",
-  "step": "Abrir o treino de hoje (preparação dos pesos)",
-  "ok": true,
-  "err": "",
-  "shot": "prints/011-normal-abrir-o-treino-de-hoje-preparac-a-o-dos-.png",
-  "url": "/#/treinar"
- },
- {
-  "flow": "normal",
-  "step": "Informar os pesos e iniciar",
-  "ok": true,
-  "err": "",
-  "shot": "prints/012-normal-informar-os-pesos-e-iniciar.png",
-  "url": "/#/treinar"
- },
- {
-  "flow": "normal",
-  "step": "Iniciar série (cronômetro rodando)",
-  "ok": true,
-  "err": "",
-  "shot": "prints/013-normal-iniciar-se-rie-crono-metro-rodando-.png",
-  "url": "/#/treinar"
- },
- {
-  "flow": "normal",
-  "step": "Concluir série e entrar no descanso",
-  "ok": true,
-  "err": "",
-  "shot": "prints/014-normal-concluir-se-rie-e-entrar-no-descanso.png",
-  "url": "/#/treinar"
- },
- {
-  "flow": "normal",
-  "step": "Pular descanso",
-  "ok": true,
-  "err": "",
-  "shot": "prints/015-normal-pular-descanso.png",
-  "url": "/#/treinar"
- },
- {
-  "flow": "normal",
-  "step": "Relatar dor visível durante o treino",
-  "ok": true,
-  "err": "",
-  "shot": "prints/016-normal-relatar-dor-visi-vel-durante-o-treino.png",
-  "url": "/#/treinar"
- },
- {
-  "flow": "normal",
-  "step": "Ir até o fim e concluir",
-  "ok": true,
-  "err": "",
-  "shot": "prints/017-normal-ir-ate-o-fim-e-concluir.png",
-  "url": "/#/concluido"
- },
- {
-  "flow": "normal",
-  "step": "Conclusão: Resumo → Como se sentiu → Sentiu dor",
-  "ok": true,
-  "err": "",
-  "shot": "prints/018-normal-conclusa-o-resumo-como-se-sentiu-sentiu-.png",
-  "url": "/#/concluido"
- },
- {
-  "flow": "normal",
-  "step": "Concluir treino (salvo no servidor)",
-  "ok": true,
-  "err": "",
-  "shot": "prints/019-normal-concluir-treino-salvo-no-servidor-.png",
-  "url": "/#/concluido"
- },
- {
-  "flow": "normal",
-  "step": "Comunidade: publicações",
-  "ok": true,
-  "err": "",
-  "shot": "prints/020-normal-comunidade-publicac-o-es.png",
-  "url": "/#/comunidade"
- },
- {
-  "flow": "normal",
-  "step": "Aluno não publica no feed (regra: só profissionais)",
-  "ok": true,
-  "err": "",
-  "shot": "prints/021-normal-aluno-na-o-publica-no-feed-regra-so-prof.png",
-  "url": "/#/comunidade"
- },
- {
-  "flow": "normal",
-  "step": "Desafios",
-  "ok": true,
-  "err": "",
-  "shot": "prints/022-normal-desafios.png",
-  "url": "/#/comunidade?tab=desafios"
- },
- {
-  "flow": "normal",
-  "step": "Entrar em um desafio",
-  "ok": true,
-  "err": "",
-  "shot": "prints/023-normal-entrar-em-um-desafio.png",
-  "url": "/#/desafio/a144fb97-c602-48a2-87f7-f08e9acbdf8a"
- },
- {
-  "flow": "normal",
-  "step": "Grupos",
-  "ok": true,
-  "err": "",
-  "shot": "prints/024-normal-grupos.png",
-  "url": "/#/comunidade?tab=grupos"
- },
- {
-  "flow": "normal",
-  "step": "Ranking",
-  "ok": true,
-  "err": "",
-  "shot": "prints/025-normal-ranking.png",
-  "url": "/#/comunidade?tab=ranking"
- },
- {
-  "flow": "normal",
-  "step": "Progresso (histórico, recordes)",
-  "ok": true,
-  "err": "",
-  "shot": "prints/026-normal-progresso-histo-rico-recordes-.png",
-  "url": "/#/progresso"
- },
- {
-  "flow": "normal",
-  "step": "Perfil",
-  "ok": true,
-  "err": "",
-  "shot": "prints/027-normal-perfil.png",
-  "url": "/#/perfil"
- },
- {
-  "flow": "normal",
-  "step": "Tema sol/lua: alterna para escuro",
-  "ok": true,
-  "err": "",
-  "shot": "prints/028-normal-tema-sol-lua-alterna-para-escuro.png",
-  "url": "/#/perfil"
- },
- {
-  "flow": "normal",
-  "step": "Tema volta para claro",
-  "ok": true,
-  "err": "",
-  "shot": "prints/029-normal-tema-volta-para-claro.png",
-  "url": "/#/perfil"
- },
- {
-  "flow": "personal",
-  "step": "Painel do personal",
-  "ok": true,
-  "err": "",
-  "shot": "prints/030-personal-painel-do-personal.png",
-  "url": "/#/pro"
- },
- {
-  "flow": "personal",
-  "step": "Verificação profissional",
-  "ok": true,
-  "err": "",
-  "shot": "prints/031-personal-verificac-a-o-profissional.png",
-  "url": "/#/pro?tab=verificacao"
- },
- {
-  "flow": "personal",
-  "step": "Alunos → Adicionar aluno",
-  "ok": true,
-  "err": "",
-  "shot": "prints/032-personal-alunos-adicionar-aluno.png",
-  "url": "/#/pro?tab=adicionar"
- },
- {
-  "flow": "personal",
-  "step": "Convidar aluno existente (código/convite)",
-  "ok": true,
-  "err": "",
-  "shot": "prints/033-personal-convidar-aluno-existente-co-digo-convite.png",
-  "url": "/#/pro?tab=convites"
- },
- {
-  "flow": "personal",
-  "step": "Cadastrar aluno novo: senha provisória aparece uma vez",
-  "ok": true,
-  "err": "",
-  "shot": "prints/034-personal-cadastrar-aluno-novo-senha-proviso-ria-a.png",
-  "url": "/#/pro?tab=cadastrar"
- },
- {
-  "flow": "personal",
-  "step": "Aluno: primeiro login",
-  "ok": true,
-  "err": "",
-  "shot": "prints/035-personal-aluno-primeiro-login.png",
-  "url": "/#/hoje"
- },
- {
-  "flow": "personal",
-  "step": "Aluno troca a senha provisória",
-  "ok": true,
-  "err": "",
-  "shot": "prints/036-personal-aluno-troca-a-senha-proviso-ria.png",
-  "url": "/#/hoje"
- },
- {
-  "flow": "personal",
-  "step": "Aluno aceita os termos",
-  "ok": true,
-  "err": "",
-  "shot": "prints/037-personal-aluno-aceita-os-termos.png",
-  "url": "/#/hoje"
- },
- {
-  "flow": "personal",
-  "step": "Personal cria e envia a ficha",
-  "ok": true,
-  "err": "",
-  "shot": "prints/038-personal-personal-cria-e-envia-a-ficha.png",
-  "url": "/#/pro?tab=treinos"
- },
- {
-  "flow": "personal",
-  "step": "Aluno vê a ficha como treino ativo",
-  "ok": true,
-  "err": "",
-  "shot": "prints/039-personal-aluno-ve-a-ficha-como-treino-ativo.png",
-  "url": "/#/treinos"
- },
- {
-  "flow": "personal",
-  "step": "Aluno do personal: Progresso (layout clássico)",
-  "ok": true,
-  "err": "",
-  "shot": "prints/040-personal-aluno-do-personal-progresso-layout-cla-s.png",
-  "url": "/#/progresso"
- },
- {
-  "flow": "personal",
-  "step": "Aluno coberto não pode desvincular",
-  "ok": true,
-  "err": "",
-  "shot": "prints/041-personal-aluno-coberto-na-o-pode-desvincular.png",
-  "url": "/#/progresso"
- },
- {
-  "flow": "personal",
-  "step": "Aluno inicia a ficha",
-  "ok": true,
-  "err": "",
-  "shot": "prints/042-personal-aluno-inicia-a-ficha.png",
-  "url": "/#/treinar?plan=3866ab3e-488d-4fbb-90e7-42456bd78f9a"
- },
- {
-  "flow": "personal",
-  "step": "Aluno informa pesos e treina",
-  "ok": true,
-  "err": "",
-  "shot": "prints/043-personal-aluno-informa-pesos-e-treina.png",
-  "url": "/#/treinar?plan=3866ab3e-488d-4fbb-90e7-42456bd78f9a"
- },
- {
-  "flow": "personal",
-  "step": "Aluno abre \"Tenho uma dúvida\"",
-  "ok": true,
-  "err": "",
-  "shot": "prints/044-personal-aluno-abre-tenho-uma-du-vida-.png",
-  "url": "/#/treinar?plan=3866ab3e-488d-4fbb-90e7-42456bd78f9a"
- },
- {
-  "flow": "personal",
-  "step": "Acompanhamento do aluno",
-  "ok": true,
-  "err": "",
-  "shot": "prints/045-personal-acompanhamento-do-aluno.png",
-  "url": "/#/acompanhamento"
- },
- {
-  "flow": "personal",
-  "step": "Atendimentos: Pendentes / Em andamento / Encerrados",
-  "ok": true,
-  "err": "",
-  "shot": "prints/046-personal-atendimentos-pendentes-em-andamento-ence.png",
-  "url": "/#/pro?tab=atendimentos"
- },
- {
-  "flow": "personal",
-  "step": "Personal publica na comunidade",
-  "ok": true,
-  "err": "",
-  "shot": "prints/047-personal-personal-publica-na-comunidade.png",
-  "url": "/#/comunidade"
- },
- {
-  "flow": "personal",
-  "step": "Mais (perfil, verificação, plano)",
-  "ok": true,
-  "err": "",
-  "shot": "prints/048-personal-mais-perfil-verificac-a-o-plano-.png",
-  "url": "/#/pro?tab=mais"
- },
- {
-  "flow": "codigo",
-  "step": "Cadastro pelo código: conta do personal",
-  "ok": true,
-  "err": "",
-  "shot": "prints/049-codigo-cadastro-pelo-co-digo-conta-do-personal.png",
-  "url": "/#/onboarding"
- },
- {
-  "flow": "codigo",
-  "step": "Treinos: \"Você está vinculado a …\" (sem ficha publicada)",
-  "ok": true,
-  "err": "",
-  "shot": "prints/050-codigo-treinos-voce-esta-vinculado-a-sem-ficha-.png",
-  "url": "/#/treinos"
- },
- {
-  "flow": "codigo",
-  "step": "Início mostra o personal vinculado",
-  "ok": true,
-  "err": "",
-  "shot": "prints/051-codigo-ini-cio-mostra-o-personal-vinculado.png",
-  "url": "/#/hoje"
- },
- {
-  "flow": "codigo",
-  "step": "Perfil: card Meus profissionais",
-  "ok": true,
-  "err": "",
-  "shot": "prints/052-codigo-perfil-card-meus-profissionais.png",
-  "url": "/#/perfil"
- },
- {
-  "flow": "codigo",
-  "step": "Abrir o profissional pelo card",
-  "ok": true,
-  "err": "",
-  "shot": "prints/053-codigo-abrir-o-profissional-pelo-card.png",
-  "url": "/#/profissional/21b3edbd-2ae2-419f-a50c-9d1a45c51651"
- },
- {
-  "flow": "codigo",
-  "step": "Acompanhamento mostra o personal",
-  "ok": true,
-  "err": "",
-  "shot": "prints/054-codigo-acompanhamento-mostra-o-personal.png",
-  "url": "/#/acompanhamento"
- },
- {
-  "flow": "pendente",
-  "step": "Admin marca a mensalidade do personal como pendente",
-  "ok": true,
-  "err": "",
-  "shot": "prints/055-pendente-admin-marca-a-mensalidade-do-personal-co.png",
-  "url": "about:blank"
- },
- {
-  "flow": "pendente",
-  "step": "Aluno vê o aviso \"personal pendente: só visualiza\"",
-  "ok": true,
-  "err": "",
-  "shot": "prints/056-pendente-aluno-ve-o-aviso-personal-pendente-so-vi.png",
-  "url": "/#/hoje"
- },
- {
-  "flow": "pendente",
-  "step": "Aluno consegue ver os treinos",
-  "ok": true,
-  "err": "",
-  "shot": "prints/057-pendente-aluno-consegue-ver-os-treinos.png",
-  "url": "/#/treinos"
- },
- {
-  "flow": "pendente",
-  "step": "Admin volta a mensalidade do personal para em dia",
-  "ok": true,
-  "err": "",
-  "shot": "prints/058-pendente-admin-volta-a-mensalidade-do-personal-pa.png",
-  "url": "about:blank"
- },
- {
   "flow": "admin",
   "step": "Visão geral",
-  "ok": true,
-  "err": "",
-  "shot": "prints/059-admin-visa-o-geral.png",
+  "ok": false,
+  "err": "\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed",
+  "shot": "prints/001-admin-visa-o-geral.png",
   "url": "/#/admin/painel?tab=dashboard"
  },
  {
   "flow": "admin",
   "step": "Contas",
-  "ok": true,
-  "err": "",
-  "shot": "prints/060-admin-contas.png",
+  "ok": false,
+  "err": "\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed",
+  "shot": "prints/002-admin-contas.png",
   "url": "/#/admin/painel?tab=usuarios"
  },
  {
   "flow": "admin",
   "step": "Pendências",
-  "ok": true,
-  "err": "",
-  "shot": "prints/061-admin-pende-ncias.png",
+  "ok": false,
+  "err": "\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed",
+  "shot": "prints/003-admin-pende-ncias.png",
   "url": "/#/admin/painel?tab=usuarios&secao=pendencias"
  },
  {
   "flow": "admin",
   "step": "Liberação das ações (lote)",
-  "ok": true,
-  "err": "",
-  "shot": "prints/062-admin-liberac-a-o-das-ac-o-es-lote-.png",
+  "ok": false,
+  "err": "\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed",
+  "shot": "prints/004-admin-liberac-a-o-das-ac-o-es-lote-.png",
   "url": "/#/admin/painel?tab=usuarios&secao=liberacoes"
  },
  {
   "flow": "admin",
   "step": "Profissionais",
-  "ok": true,
-  "err": "",
-  "shot": "prints/063-admin-profissionais.png",
+  "ok": false,
+  "err": "\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed",
+  "shot": "prints/005-admin-profissionais.png",
   "url": "/#/admin/painel?tab=profissionais"
  },
  {
   "flow": "admin",
   "step": "Verificação profissional",
-  "ok": true,
-  "err": "",
-  "shot": "prints/064-admin-verificac-a-o-profissional.png",
+  "ok": false,
+  "err": "\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed",
+  "shot": "prints/006-admin-verificac-a-o-profissional.png",
   "url": "/#/admin/painel?tab=profissionais&secao=verificacoes"
  },
  {
   "flow": "admin",
   "step": "Vínculos",
-  "ok": true,
-  "err": "",
-  "shot": "prints/065-admin-vi-nculos.png",
+  "ok": false,
+  "err": "\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed",
+  "shot": "prints/007-admin-vi-nculos.png",
   "url": "/#/admin/painel?tab=vinculos"
  },
  {
   "flow": "admin",
   "step": "Convites",
-  "ok": true,
-  "err": "",
-  "shot": "prints/066-admin-convites.png",
+  "ok": false,
+  "err": "\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed",
+  "shot": "prints/008-admin-convites.png",
   "url": "/#/admin/painel?tab=vinculos&secao=convites"
  },
  {
   "flow": "admin",
   "step": "Assinaturas dos personais",
-  "ok": true,
-  "err": "",
-  "shot": "prints/067-admin-assinaturas-dos-personais.png",
+  "ok": false,
+  "err": "\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed",
+  "shot": "prints/009-admin-assinaturas-dos-personais.png",
   "url": "/#/admin/painel?tab=assinaturas"
  },
  {
   "flow": "admin",
   "step": "Limites de acompanhamento",
-  "ok": true,
-  "err": "",
-  "shot": "prints/068-admin-limites-de-acompanhamento.png",
+  "ok": false,
+  "err": "\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed",
+  "shot": "prints/010-admin-limites-de-acompanhamento.png",
   "url": "/#/admin/painel?tab=planos"
  },
  {
   "flow": "admin",
   "step": "Solicitações de vagas",
-  "ok": true,
-  "err": "",
-  "shot": "prints/069-admin-solicitac-o-es-de-vagas.png",
+  "ok": false,
+  "err": "\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed",
+  "shot": "prints/011-admin-solicitac-o-es-de-vagas.png",
   "url": "/#/admin/painel?tab=solicitacoes"
  },
  {
   "flow": "admin",
   "step": "Programas guiados",
-  "ok": true,
-  "err": "",
-  "shot": "prints/070-admin-programas-guiados.png",
+  "ok": false,
+  "err": "\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed",
+  "shot": "prints/012-admin-programas-guiados.png",
   "url": "/#/admin/painel?tab=programas"
  },
  {
   "flow": "admin",
   "step": "Modelos de treino",
-  "ok": true,
-  "err": "",
-  "shot": "prints/071-admin-modelos-de-treino.png",
+  "ok": false,
+  "err": "\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed",
+  "shot": "prints/013-admin-modelos-de-treino.png",
   "url": "/#/admin/painel?tab=modelos"
  },
  {
   "flow": "admin",
   "step": "Biblioteca e mídia",
-  "ok": true,
-  "err": "",
-  "shot": "prints/072-admin-biblioteca-e-mi-dia.png",
+  "ok": false,
+  "err": "\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed",
+  "shot": "prints/014-admin-biblioteca-e-mi-dia.png",
   "url": "/#/admin/painel?tab=exercicios"
  },
  {
   "flow": "admin",
   "step": "Publicações",
-  "ok": true,
-  "err": "",
-  "shot": "prints/073-admin-publicac-o-es.png",
+  "ok": false,
+  "err": "\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed",
+  "shot": "prints/015-admin-publicac-o-es.png",
   "url": "/#/admin/painel?tab=publicacoes"
  },
  {
   "flow": "admin",
   "step": "Moderação",
-  "ok": true,
-  "err": "",
-  "shot": "prints/074-admin-moderac-a-o.png",
+  "ok": false,
+  "err": "\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed",
+  "shot": "prints/016-admin-moderac-a-o.png",
   "url": "/#/admin/painel?tab=publicacoes&secao=moderacao"
  },
  {
   "flow": "admin",
   "step": "Grupos",
-  "ok": true,
-  "err": "",
-  "shot": "prints/075-admin-grupos.png",
+  "ok": false,
+  "err": "\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed",
+  "shot": "prints/017-admin-grupos.png",
   "url": "/#/admin/painel?tab=grupos"
  },
  {
   "flow": "admin",
   "step": "Desafios",
-  "ok": true,
-  "err": "",
-  "shot": "prints/076-admin-desafios.png",
+  "ok": false,
+  "err": "\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed",
+  "shot": "prints/018-admin-desafios.png",
   "url": "/#/admin/painel?tab=grupos&secao=desafios"
  },
  {
   "flow": "admin",
   "step": "Ranking",
-  "ok": true,
-  "err": "",
-  "shot": "prints/077-admin-ranking.png",
+  "ok": false,
+  "err": "\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed",
+  "shot": "prints/019-admin-ranking.png",
   "url": "/#/admin/painel?tab=ranking"
  },
  {
   "flow": "admin",
   "step": "Atendimentos e prazos",
-  "ok": true,
-  "err": "",
-  "shot": "prints/078-admin-atendimentos-e-prazos.png",
+  "ok": false,
+  "err": "\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed",
+  "shot": "prints/020-admin-atendimentos-e-prazos.png",
   "url": "/#/admin/painel?tab=filas"
  },
  {
   "flow": "admin",
   "step": "LGPD",
-  "ok": true,
-  "err": "",
-  "shot": "prints/079-admin-lgpd.png",
+  "ok": false,
+  "err": "\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed",
+  "shot": "prints/021-admin-lgpd.png",
   "url": "/#/admin/painel?tab=lgpd"
  },
  {
   "flow": "admin",
   "step": "Termos",
-  "ok": true,
-  "err": "",
-  "shot": "prints/080-admin-termos.png",
+  "ok": false,
+  "err": "\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed",
+  "shot": "prints/022-admin-termos.png",
   "url": "/#/admin/painel?tab=lgpd&secao=termos"
  },
  {
   "flow": "admin",
   "step": "Auditoria",
-  "ok": true,
-  "err": "",
-  "shot": "prints/081-admin-auditoria.png",
+  "ok": false,
+  "err": "\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed",
+  "shot": "prints/023-admin-auditoria.png",
   "url": "/#/admin/painel?tab=auditoria"
  },
  {
   "flow": "admin",
   "step": "Configurações",
-  "ok": true,
-  "err": "",
-  "shot": "prints/082-admin-configurac-o-es.png",
+  "ok": false,
+  "err": "\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed",
+  "shot": "prints/024-admin-configurac-o-es.png",
   "url": "/#/admin/painel?tab=config"
  },
  {
   "flow": "admin",
   "step": "Painel do usuário (mensalidade, assinatura)",
-  "ok": true,
-  "err": "",
-  "shot": "prints/083-admin-painel-do-usua-rio-mensalidade-assinatur.png",
+  "ok": false,
+  "err": "\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed",
+  "shot": "prints/025-admin-painel-do-usua-rio-mensalidade-assinatur.png",
   "url": "/#/admin/painel?tab=usuarios"
  },
  {
   "flow": "admin",
   "step": "Mensalidade em dia / pendente visível",
-  "ok": true,
-  "err": "",
-  "shot": "prints/084-admin-mensalidade-em-dia-pendente-visi-vel.png",
+  "ok": false,
+  "err": "\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed",
+  "shot": "prints/026-admin-mensalidade-em-dia-pendente-visi-vel.png",
   "url": "/#/admin/painel?tab=usuarios"
  },
  {
   "flow": "admin",
   "step": "Assinatura do personal no painel",
-  "ok": true,
-  "err": "",
-  "shot": "prints/085-admin-assinatura-do-personal-no-painel.png",
+  "ok": false,
+  "err": "locator.click: Timeout 6000ms exceeded.",
+  "shot": "prints/027-admin-assinatura-do-personal-no-painel.png",
   "url": "/#/admin/painel?tab=usuarios"
  },
  {
   "flow": "admin",
   "step": "Tour do admin abre por Ajuda",
-  "ok": true,
-  "err": "",
-  "shot": "prints/086-admin-tour-do-admin-abre-por-ajuda.png",
-  "url": "/#/admin/painel"
- },
- {
-  "flow": "codigo-aluno",
-  "step": "Personal digita código de aluno: popup explica",
-  "ok": true,
-  "err": "",
-  "shot": "prints/090-codigo-aluno-popup-personal.png"
- },
- {
-  "flow": "codigo-aluno",
-  "step": "Botão leva a Convites no modo Profissional",
-  "ok": true,
-  "err": "",
-  "shot": "prints/091-codigo-aluno-vai-para-convites.png"
+  "ok": false,
+  "err": "\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed",
+  "shot": "prints/028-admin-tour-do-admin-abre-por-ajuda.png",
+  "url": "/#/admin/painel?tab=dashboard"
  }
 ]

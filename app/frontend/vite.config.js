@@ -40,9 +40,11 @@ export default defineConfig({
   plugins: [react(), devMedia(), buildStamp()],
   define: { __BUILD_ID__: JSON.stringify(BUILD_ID) },
   // V4 · F1: specs do Playwright (e2e/) não rodam no vitest
-  test: { exclude: ['e2e-results/**', '.cache/**', 'e2e/**', 'node_modules/**', 'android/**', 'ios/**'] },
+  test: { exclude: ['test-artifacts/**', 'e2e-results/**', '.cache/**', 'e2e/**', 'node_modules/**', 'android/**', 'ios/**'] },
   server: {
     port: 4449,
+    // artefatos de teste não disparam recarga (no Windows o arquivo em uso derrubava o watcher com EBUSY)
+    watch: { ignored: ['**/test-artifacts/**', '**/e2e-results/**', '**/.cache/**'] },
     proxy: {
       '/api': {
         target: 'http://localhost:8787',

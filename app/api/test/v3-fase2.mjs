@@ -28,11 +28,12 @@ await post(pro.tok, '/api/me/context', { context: 'profissional' })
 r = await post(pro.tok, '/api/pro/plans', { title: 'Ficha teste', student_id: stu.id, exercises: [{ exercise_id: 'x' }] })
 check(r.s === 403 && r.d.code === 'PERMISSION_DENIED', 'não verificado não envia prescrição (PERMISSION_DENIED, backend)')
 
+const REG = String(Date.now()).slice(-6) + '-G' // registro unico por execucao (unicidade da 024)
 console.log('Verificação profissional')
 check((await post(pro.tok, '/api/pro/verification/document', { data: PDF })).s === 409, 'documento exige dados enviados antes')
 r = await post(pro.tok, '/api/pro/verification', { full_name: 'X', council: 'ZZZ', registry_number: '1', specialties: [] })
 check(r.s === 400 && r.d.errors.full_name && r.d.errors.council && r.d.errors.registry_number && r.d.errors.specialties, 'dados inválidos recusados com erros por campo')
-r = await post(pro.tok, '/api/pro/verification', { full_name: 'Profissional V3 Teste', council: 'CREF', registry_number: '123456-G', registry_uf: 'SP', specialties: ['Musculação'] })
+r = await post(pro.tok, '/api/pro/verification', { full_name: 'Profissional V3 Teste', council: 'CREF', registry_number: REG, registry_uf: 'SP', specialties: ['Musculação'] })
 check(r.s === 200 && r.d.status === 'pendente', 'dados do registro enviados (pendente)')
 check((await post(pro.tok, '/api/pro/verification/document', { data: 'data:text/plain;base64,aGVsbG8=' })).s === 415, 'tipo de documento não aceito (415)')
 check((await post(pro.tok, '/api/pro/verification/document', { data: 'data:application/pdf;base64,' + Buffer.from('nao e pdf').toString('base64') })).s === 400, 'assinatura do arquivo conferida')
@@ -48,7 +49,7 @@ check((await post(adm, '/api/adm/verifications/decide', { id: v.id, status: 'cor
 check((await post(adm, '/api/adm/verifications/decide', { id: v.id, status: 'correcao_solicitada', note: 'UF não confere com o registro' })).s === 200, 'admin pede correção')
 r = await get(pro.tok, '/api/pro/verification')
 check(r.d.status === 'correcao_solicitada' && /UF/.test(r.d.note), 'profissional vê "correção solicitada" com o motivo')
-check((await post(pro.tok, '/api/pro/verification', { full_name: 'Profissional V3 Teste', council: 'CREF', registry_number: '123456-G', registry_uf: 'RJ', specialties: ['Musculação'] })).d.status === 'pendente', 'reenvio volta para pendente')
+check((await post(pro.tok, '/api/pro/verification', { full_name: 'Profissional V3 Teste', council: 'CREF', registry_number: REG, registry_uf: 'RJ', specialties: ['Musculação'] })).d.status === 'pendente', 'reenvio volta para pendente')
 check((await post(adm, '/api/adm/verifications/decide', { id: v.id, status: 'verificado' })).s === 200, 'admin verifica (revisão humana)')
 r = await get(pro.tok, '/api/auth/me')
 check(r.d.user.verification === 'verificado', 'conta passa a "verificado"')
@@ -63,7 +64,8 @@ check(r.roles.includes('profissional') && r.roles.includes('aluno') && r.verific
 
 console.log('Migração das contas existentes')
 const kept = (await q(`select u.email, m.status from users u left join tenant_memberships m on m.user_id=u.id and m.is_home where lower(u.email) in ('admin@avagym.com.br','teste@gmail.com')`)).rows
-check(kept.length === 2 && kept.every(k => k.status === 'ativo'), 'contas reais preservadas e com membership ativa')
+if (/_test$/.test(process.env.DB_NAME || '')) console.log('  - (pulado no banco de teste: contas reais nao existem em *_test)')
+else check(kept.length === 2 && kept.every(k => k.status === 'ativo'), 'contas reais preservadas e com membership ativa')
 check((await q(`select count(*)::int n from users u where not exists (select 1 from tenant_memberships m where m.user_id=u.id)`)).rows[0].n === 0, 'todas as contas têm membership')
 check((await q(`select count(*)::int n from tenants where is_default`)).rows[0].n === 1, 'uma organização padrão')
 

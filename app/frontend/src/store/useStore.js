@@ -7,6 +7,7 @@ import { MOBILE, nativeLoad, nativeSave, syncReminder } from '../lib/mobile.js'
 import { importLegacyLocal } from '../lib/localImport.js'
 
 const KEY = 'gym_state_v1'
+const USER_CACHE_KEYS = ['id', 'roles', 'capacities', 'context', 'admin', 'pro', 'status', 'needs_terms', 'needs_legal', 'must_change_password', 'account_type', 'managed_by']
 export const DEF = {
   unit: 'kg', restSec: 90, sound: true, keepAwake: true, lang: 'pt',
   theme: 'dark', accent: 'avadesk', body: 'male', targetW: null,
@@ -98,7 +99,8 @@ export const useStore = create((set, get) => {
     setGuest(v) { if (v && !(DEMO || MOBILE)) return; if (v) localStorage.setItem('gym_guest', '1'); else localStorage.removeItem('gym_guest'); set({}) },
 
     setUser(u) {
-      if (u) { localStorage.setItem('gym_user', JSON.stringify(u)); localStorage.removeItem('gym_guest') }
+      // V5 (regra do Lucas): no aparelho fica so o estritamente tecnico para abrir a tela certa; nome, e-mail etc. vem do servidor (/api/auth/me)
+      if (u) { localStorage.setItem('gym_user', JSON.stringify(Object.fromEntries(Object.entries(u).filter(([k]) => USER_CACHE_KEYS.includes(k))))); localStorage.removeItem('gym_guest') }
       else localStorage.removeItem('gym_user')
       set({ user: u })
     },

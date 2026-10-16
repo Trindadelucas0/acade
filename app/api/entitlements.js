@@ -5,7 +5,8 @@ import { audit } from './auth.js'
 import { fail } from './errors.js'
 
 export const AUDIENCES = ['aluno', 'profissional']
-export const INACTIVE = ['suspensa', 'cancelada', 'inadimplente']
+// V5: inadimplente e carencia mantem o acesso (retentativas/carencia sem atrito); so suspensa/cancelada bloqueiam
+export const INACTIVE = ['suspensa', 'cancelada']
 const FREE_PLAN = { aluno: 'aluno_free', profissional: 'profissional_free' }
 // métrica → como contar o uso real (fonte da verdade; usage_counters é um espelho para leitura rápida)
 export const METRICS = {
@@ -34,6 +35,13 @@ export async function resolve(userId, audience, c, { lock = false } = {}) {
       from subscriptions s join plans p on p.id=s.plan_id join plan_versions v on v.id=s.plan_version_id
       where s.user_id=$1 and s.audience=$2 and s.status<>'cancelada' order by s.started_at desc limit 1${lock ? ' for update of s' : ''}`, [userId, audience])).rows[0]
   if (!s) return null
+  // V5: suspensao FINANCEIRA nao trava a conta: volta aos recursos do plano gratuito (dados preservados).
+  // Suspensao administrativa (suspended_kind null/administrativo) continua bloqueando como antes.
+  let finSusp = false
+  if (s.status === 'suspensa' && s.suspended_kind === 'financeiro') {
+    const fv = (await c.query('select features, limits from plan_versions where plan_id=$1 order by version desc limit 1', [FREE_PLAN[audience]])).rows[0]
+    if (fv) { s.features = fv.features; s.limits = fv.limits; finSusp = true }
+  }
   const g = (await c.query(`select kind, key, value, expires_at from entitlement_grants where user_id=$1 and audience=$2 and revoked_at is null
       and starts_at <= now() and (expires_at is null or expires_at > now())`, [userId, audience])).rows
   const features = { ...(s.features || {}) }, limits = { ...(s.limits || {}) }
@@ -42,7 +50,7 @@ export async function resolve(userId, audience, c, { lock = false } = {}) {
     if (x.kind === 'limit' && limits[x.key] != null) limits[x.key] = +limits[x.key] + (+x.value || 0)   // concessão SOMA ao limite do plano
   }
   return { subscription_id: s.id, plan_id: s.plan_id, plan_name: s.plan_name, plan_version: s.plan_version, is_free: s.is_free, is_placeholder: s.is_placeholder,
-    status: s.status, active: !INACTIVE.includes(s.status), over_limit: s.over_limit, features, limits, grants: g }
+    status: s.status, active: finSusp || !INACTIVE.includes(s.status), financial_suspended: finSusp, over_limit: s.over_limit, features, limits, grants: g }
 }
 
 // checagem de recurso: devolve null (ok) ou { code, error }
@@ -103,12 +111,31 @@ export const ROUTE_RULES = {
   'POST /api/pro/prescriptions': { audience: 'profissional', feature: 'prescrever' },
   'POST /api/pro/plans': { audience: 'profissional', feature: 'prescrever', verified: true },
   'POST /api/pro/invites': { audience: 'profissional', feature: 'convidar_alunos', verified: true },
-  'POST /api/invites/accept': { audience: 'aluno', feature: 'receber_ficha_profissional' }
+  'POST /api/invites/accept': { audience: 'aluno', feature: 'receber_ficha_profissional' },
+  // V5 monetizacao: paywall do catalogo oficial - so vale com monetizacao_ativa=true (painel admin)
+  'POST /api/guided/start': { audience: 'aluno', catalog: true },
+  'POST /api/guided/sessions/start': { audience: 'aluno', catalog: true, systemOnly: true }
+}
+const PAYWALL_MSG = 'Os programas oficiais fazem parte do AVAGYM Individual. Ative seu período experimental com um cupom ou conheça a assinatura. Seu histórico continua salvo.'
+async function catalogGate(rule, user, res, json) {
+  const on = (await q(`select value from app_settings where tenant_id=$1 and key='monetizacao_ativa'`, [user.tenant_id])).rows[0]?.value === true
+  if (!on) return true
+  if (rule.systemOnly) {   // so bloqueia sessao do PROGRAMA DO SISTEMA (treino livre e ficha do personal seguem livres)
+    const { activeTrainingOf } = await import('./active-training.js')
+    const at = await activeTrainingOf(user.id).catch(() => null)
+    if (!at || at.kind !== 'sistema') return true
+  }
+  const e = await resolve(user.id, 'aluno')
+  if (e?.features?.catalogo_completo === true) return true
+  const used = (await q(`select 1 from promotion_redemptions where user_id=$1 and benefit='trial'`, [user.id]).catch(() => ({ rowCount: 1 }))).rowCount > 0
+  fail(json, res, 'PAYWALL', PAYWALL_MSG, { trial_eligible: !used, financial_suspended: !!e?.financial_suspended })
+  return false
 }
 export async function entitlementGate(key, user, res, json) {
   const rule = ROUTE_RULES[key]
   if (!rule || !user || user.roles.includes('admin')) return true
   if (!user.roles.includes(rule.audience)) return true   // o handler responde PERMISSION_DENIED com a mensagem própria
+  if (rule.catalog) return catalogGate(rule, user, res, json)
   if (rule.verified) {
     const v = (await q('select verification_status from professional_profiles where user_id=$1', [user.id])).rows[0]
     if (!v || v.verification_status !== 'verificado') { fail(json, res, 'PERMISSION_DENIED', 'Seu cadastro profissional ainda não foi verificado. Enquanto isso você pode treinar como aluno, mas não enviar treinos nem convidar alunos.', { verification_status: v?.verification_status || 'pendente' }); return false }
@@ -188,7 +215,8 @@ export function entitlementRoutes({ json, readBody, requireAuth, requireRole }) 
       if (!isUuid(b.user_id) || !(await q('select 1 from users where id=$1 and tenant_id=$2', [b.user_id, u.tenant_id])).rowCount) return json(res, 404, { error: 'Usuário não encontrado' })
       const s = await ensureSubscription(b.user_id, b.audience)
       // suspender/cancelar NÃO apaga nada: vínculos, fichas e histórico ficam; só novas ações pagas são bloqueadas
-      await q(`update subscriptions set status=$2, canceled_at=case when $2='cancelada' then now() else null end, updated_at=now() where id=$1`, [s.id, b.status])
+      await q(`update subscriptions set status=$2, canceled_at=case when $2='cancelada' then now() else null end,
+        suspended_kind=case when $2='suspensa' then 'administrativo' else null end, updated_at=now() where id=$1`, [s.id, b.status])
       await q(`insert into subscription_events(subscription_id,action,from_status,to_status,data,actor_id) values($1,'status',$2,$3,$4,$5)`, [s.id, s.status, b.status, JSON.stringify({ reason: txt(b.reason) || null }), u.id])
       await audit(u.tenant_id, u.id, 'assinatura.status', 'subscription', s.id, { from: s.status, to: b.status })
       json(res, 200, { ok: true })

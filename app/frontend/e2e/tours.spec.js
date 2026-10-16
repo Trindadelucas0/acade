@@ -3,7 +3,7 @@
 import { test, expect } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import fs from 'node:fs'
-const OUT = process.env.SHOTS_DIR || 'e2e-results/tours'
+const OUT = process.env.SHOTS_DIR || 'test-artifacts/tours'
 fs.mkdirSync(OUT, { recursive: true })
 const PASS = 'e2e-Avadesk-2026', M = { width: 390, height: 844 }
 async function open(browser, email, password = PASS, o = {}) {

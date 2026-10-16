@@ -26,6 +26,7 @@ const proState = async uid => (await q(`select pp.*, (select count(*) from coach
 
 // ---------- fichas: normalização e validação ----------
 import { normDays as _nd, shapeProblems, flat as _flat } from './workout-schema.js'
+import { likeTerm, likeEsc, pageNum } from './sqlsafe.js'
 export const normDays = _nd
 export async function planProblems(days, { full }) {
   const p = [], ids = [...new Set(days.flatMap(d => d.exercises.map(e => e.exercise_id)))]
@@ -78,7 +79,7 @@ export function portalRoutes({ json, readBody }) {
     // somente alunos com vínculo ativo — nunca busca aberta na base
     'GET /api/pro/students': async (req, res) => {
       const u = await proOnly(req, res, json); if (!u) return
-      const f = qs(req).get('filter') || 'todos', term = '%' + txt(qs(req).get('q'), 60) + '%'
+      const f = qs(req).get('filter') || 'todos', term = likeTerm(txt(qs(req).get('q'), 60))
       const r = await q(`select x.id, x.name, cs.area, cs.since, o.objetivo goal,
           (select json_build_object('id',p.id,'title',p.title) from pro_plans p where p.student_id=x.id and p.owner_id=$1 and p.status='ativo' order by p.updated_at desc limit 1) plan,
           (select count(*)::int from pro_plans p where p.student_id=x.id and p.owner_id=$1 and p.status='rascunho') drafts,
@@ -110,7 +111,7 @@ export function portalRoutes({ json, readBody }) {
     'GET /api/pro/library': async (req, res) => {
       const u = await requireAuth(req, res, json); if (!u) return
       if (!has(u, 'profissional') && !has(u, 'admin')) return json(res, 403, { error: 'Sem permissão' })
-      const p = qs(req), term = '%' + txt(p.get('q'), 60) + '%', g = txt(p.get('group'), 40) || null, eq = txt(p.get('equipment'), 40) || null, lv = ['beginner', 'intermediate', 'advanced'].includes(p.get('level')) ? p.get('level') : null, lim = Math.min(400, Math.max(1, +p.get('limit') || 60))
+      const p = qs(req), term = likeTerm(txt(p.get('q'), 60)), g = txt(p.get('group'), 40) || null, eq = txt(p.get('equipment'), 40) || null, lv = ['beginner', 'intermediate', 'advanced'].includes(p.get('level')) ? p.get('level') : null, lim = Math.min(400, Math.max(1, +p.get('limit') || 60))
       const r = await q(`select e.id, e.name_pt name, e.media_url media, e.level, eq.name_pt equipment,
           (select array_agg(distinct mg.name_pt) from exercise_groups x join muscle_groups mg on mg.id=x.group_id where x.exercise_id=e.id) groups
         from exercises e left join equipment eq on eq.id=e.equipment_id

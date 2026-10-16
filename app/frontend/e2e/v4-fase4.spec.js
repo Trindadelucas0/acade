@@ -1,7 +1,7 @@
 // V4 · Fase 4 — onboarding com etapa de equipamentos e Perfil › Equipamentos.
 import { test, expect } from '@playwright/test'
 import fs from 'node:fs'
-const SHOTS = process.env.SHOTS_DIR || 'e2e-results/shots'
+const SHOTS = process.env.SHOTS_DIR || 'test-artifacts/shots'
 fs.mkdirSync(SHOTS, { recursive: true })
 const PASS = 'e2e-Avadesk-2026'
 test('aluno em casa marca equipamentos e vê só programas possíveis', async ({ browser, playwright }) => {

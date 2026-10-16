@@ -1,6 +1,6 @@
 import { useNavigationAccess } from '../../components/NavigationAccess.jsx'
 import { Li } from '../app/Treinos.jsx'
-// AVADESK PRO — contexto profissional da mesma identidade (a pessoa também pode treinar como aluno). Mobile-first.
+// AVAGYM — contexto profissional da mesma identidade (a pessoa também pode treinar como aluno). Mobile-first.
 // O profissional só vê os próprios alunos vinculados; vínculos e capacidade são decididos pelo admin (aqui ele apenas solicita).
 import { ProClients } from '../v3/V42.jsx'
 import Bell from '../../components/Bell.jsx'
@@ -130,7 +130,7 @@ function MeusTreinos({ go }) {
   const [open, setOpen] = useState(null)
   return <>
     <div className="g-scrollx">{[['ativo', 'Ativas'], ['rascunho', 'Rascunhos'], ['arquivado', 'Arquivadas'], ['', 'Todas']].map(([k, l]) => <button key={k} className={'g-chipbtn' + (st === k ? ' g-on' : '')} onClick={() => setSt(k)}>{l}</button>)}</div>
-    <input className="g-in" style={{ marginTop: 8 }} placeholder="Filtrar por especialidade" value={sp} onChange={e => setSp(e.target.value)} />
+    <label className="g-sm" style={{ display: 'block', marginTop: 8 }}><b>Filtrar por especialidade</b><input className="g-in" placeholder="ex.: hipertrofia" value={sp} onChange={e => setSp(e.target.value)} data-testid="presc-filter" /></label>
     {err ? <Err msg={err} retry={reload} /> : !d ? <Load /> : d.prescriptions.length ? <div className="g-card g-list" style={{ marginTop: 10 }}>{d.prescriptions.map(p => <button key={p.id} className="g-li" onClick={() => setOpen(p.id)} data-testid="presc">
       <span className="g-ico"><Icon name="clipboard" /></span><span style={{ minWidth: 0 }}><b>{p.title}</b><br /><span className="g-mut g-xs">{p.student} · v{p.version} · criado {new Date(p.created_at).toLocaleDateString('pt-BR')} · atualizado {dt(p.updated_at)} · {p.executions} execução(ões)</span></span>
       <span className={'g-pill ' + (p.status === 'ativo' ? 'g-ok' : p.status === 'rascunho' ? 'g-warn2' : '')} style={{ marginLeft: 'auto' }}>{p.status}</span></button>)}</div> : <Empty icon="clipboard">Nenhuma prescrição aqui.</Empty>}
@@ -225,7 +225,7 @@ export default function ProPortal() {
   const [dash, err, reloadDash] = useLoad(() => tab === 'atendimentos' || tab === 'perfil' ? C.dash(tab === 'atendimentos') : Promise.resolve(null), [tab])
   const TITLES = { painel: 'Painel', alunos: 'Meus alunos', treinos: 'Treinos', atendimentos: 'Atendimentos', capacidade: 'Meu plano e vagas', perfil: 'Perfil profissional', verificacao: 'Verificação profissional', convites: 'Convites pendentes', cadastrar: 'Cadastrar conta do aluno', adicionar: 'Adicionar aluno', mais: 'Mais' }
   return <div className="ag" data-testid="pro">
-    <div className="g-row"><div><span className="g-eyebrow">AVADESK PRO</span><h1>{TITLES[tab] || 'Painel'}</h1></div><span className="g-sp" /><Bell /></div>
+    <div className="g-row"><div><span className="g-eyebrow">AVAGYM</span><h1>{TITLES[tab] || 'Painel'}</h1></div><span className="g-sp" /><Bell /></div>
     {['perfil', 'verificacao', 'capacidade'].includes(tab) && <button className="g-link org-back" onClick={() => go('mais')}>← Mais</button>}
     {['adicionar','convites','cadastrar'].includes(tab) && <button className="g-link org-back" onClick={() => go('alunos')}>← Alunos</button>}
     <div className="org-section">

@@ -10,7 +10,8 @@ import { requireAuth, requireRole, audit } from './auth.js'
 import { notify, notifyAdmins } from './pro.js'
 import { fail } from './errors.js'
 
-const PRIV = path.join(path.dirname(fileURLToPath(import.meta.url)), 'private', 'pro-docs')   // fora de /uploads (não público)
+import { PRO_DOCS_DIR as PRIV, proDocFile } from './storage/index.js'   // QA BUG-013: documentos no DATA_DIR (privado)
+const _legacyPrivNote = 'private/pro-docs'   // fora de /uploads (não público)
 const txt = (s, n = 200) => String(s ?? '').trim().slice(0, n)
 const qs = req => new URL(req.url, 'http://x').searchParams
 const COUNCILS = ['CREF', 'CREFITO', 'CRN', 'CRM', 'CRP', 'OUTRO']
@@ -121,7 +122,7 @@ export function identityRoutes({ json, readBody }) {
       const u = await requireAuth(req, res, json, { allowPending: true }); if (!u) return
       const d = (await q('select * from professional_documents where id=$1', [+qs(req).get('id') || 0])).rows[0]
       if (!d || !(d.user_id === u.id || (u.roles.includes('admin') && d.tenant_id === u.tenant_id))) return fail(json, res, 'PERMISSION_DENIED', 'Documento não disponível')
-      let buf; try { buf = fs.readFileSync(path.join(PRIV, path.basename(d.storage_path))) } catch { return json(res, 404, { error: 'Arquivo não encontrado' }) }
+      let buf; try { buf = fs.readFileSync(proDocFile(d.storage_path)) } catch { return json(res, 404, { error: 'Arquivo não encontrado' }) }
       res.writeHead(200, { 'Content-Type': d.mime, 'Content-Length': buf.length, 'Cache-Control': 'no-store', 'Content-Disposition': `inline; filename="doc-${d.id}"`, 'X-Content-Type-Options': 'nosniff' })
       res.end(buf)
     },

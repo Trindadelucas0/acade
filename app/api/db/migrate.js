@@ -43,6 +43,8 @@ async function seed(c) {
   for (const [id, n] of [['admin', 'Administrador'], ['profissional', 'Profissional (personal/fisio)'], ['aluno', 'Aluno']])
     await c.query('insert into roles(id,name_pt) values($1,$2) on conflict (id) do update set name_pt=excluded.name_pt', [id, n])
   const t = await c.query(`insert into tenants(slug,name) values('avadesk','AVADESK Academia') on conflict (slug) do update set name=tenants.name returning id`)
+  // BUG-014: em banco novo a 018 roda antes deste insert e nenhuma organizacao fica padrao
+  await c.query(`update tenants set is_default=true where slug='avadesk' and not exists (select 1 from tenants where is_default)`)
   const tenantId = t.rows[0].id
   // grupos e músculos (a partir do GLB)
   let pos = 0
@@ -74,7 +76,9 @@ async function seed(c) {
   for (const [id, m] of Object.entries(MEDIA)) await c.query(`update exercises set media_url=$2 where id=$1`, [id, m.startsWith('/') ? m : 'exdb:' + m])
   for (const [id, t] of Object.entries(INSTR)) await c.query(`update exercises set instructions_pt=$2 where id=$1`, [id, t])
   // biblioteca de programas: upsert por slug; treinos atualizados por posição (não apaga treinos já referenciados por sessões)
-  for (const row of [...PROGRAMS, ...PROGRAMS2]) {
+  // Decisao do Lucas (QA 2026-10-16): os 21 programas guiados sairam do seed do produto. Nao apaga os que ja existem no banco.
+  // SEED_PROGRAMS=1 so para o banco de teste (as suites ainda exercitam o motor de programas).
+  for (const row of (process.env.SEED_PROGRAMS === '1' ? [...PROGRAMS, ...PROGRAMS2] : [])) {
     const [sl, title0, desc, goal0, level, loc, weeks, days, min, rehab, tags, workouts, meta0] = row
     const ov = OVERRIDES[sl] || {}, meta = meta0 || {}
     const title = ov.title || title0, goal = ov.goal || goal0
@@ -121,6 +125,8 @@ async function seed(c) {
     for (const r of ['admin']) await c.query('insert into user_roles values($1,$2,$3) on conflict do nothing', [u.rows[0].id, tenantId, r])
   }
   await c.query('commit')
+  // BUG-015: em banco novo a 028 roda antes do seed dos programas; refaz o backfill de program_equipment (idempotente)
+  await c.query(`insert into program_equipment(program_id, equipment_id, required) select p.id, e, true from programs p, unnest(p.equipment) e where e is not null and exists (select 1 from equipment q where q.id = e) on conflict do nothing`)
   const counts = (await c.query(`select (select count(*) from muscles) m, (select count(*) from exercises) e, (select count(*) from programs) p`)).rows[0]
   console.log(`seed ok: ${counts.m} músculos, ${counts.e} exercícios, ${counts.p} programas`)
   if (adminPass) console.log(`ADMIN CRIADO: ${email}`)

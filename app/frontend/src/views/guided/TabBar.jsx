@@ -33,7 +33,7 @@ function ProTabBar() {
   const k = professionalTab(loc.pathname, loc.search)
   const Tab = ({ id, icon, label, to }) => <button className={k === id ? 'g-on' : ''} onClick={() => nav(to)} data-testid={'ptab-' + id} aria-current={k === id ? 'page' : undefined}><Icon name={icon} /><span>{label}</span></button>
   return <nav id="agtab" className="org-pro-nav" aria-label="Navegação do profissional">
-    <div className="org-brand">AVADESK PRO</div>
+    <div className="org-brand">AVAGYM</div>
     {PRO_NAV.map(([id, icon, label, to]) => <Tab key={id} id={id} icon={icon} label={label} to={to} />)}
   </nav>
 }

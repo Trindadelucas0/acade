@@ -48,7 +48,7 @@ export async function requireAuth(req, res, json, opts) {
   if (!u) { json(res, 401, { error: 'Não autenticado' }); return null }
   // V4.2: conta criada pelo personal com senha provisória — só troca de senha/termos/sair até trocar
   if (u.must_change_password && !(opts && opts.allowPending)) { json(res, 403, { error: 'Troque a senha provisória para continuar.', code: 'MUST_CHANGE_PASSWORD' }); return null }
-  if (u.status !== 'ativo' && !(opts && opts.allowPending)) { json(res, 403, { pending: true, error: 'Esta conta não está ativa. Fale com o suporte.' }); return null }
+  if (u.status !== 'ativo' && !(opts && opts.allowPending)) { json(res, 403, { pending: true, error: 'Sua conta ainda está em análise pela administração. Acompanhe a situação em Perfil; você será avisado aqui quando houver uma decisão.', code: 'ACCOUNT_NOT_ACTIVE' }); return null }
   req.user = u; req.tenantId = u.tenant_id
   return u
 }
