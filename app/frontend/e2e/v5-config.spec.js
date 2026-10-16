@@ -6,7 +6,7 @@ const PASS = 'e2e-Avadesk-2026'
 const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1'
 async function newUser(page, tag, handle) {
   const terms = (await (await page.request.get('/api/terms')).json()).terms
-  const r = await page.request.post('/api/auth/register', { data: { name: 'Bruno Config ' + tag, email: `v5cfg.${tag}.${Date.now()}@e2e.local`, password: PASS, accept_terms: true, adult: true, terms_version: terms?.version, intent: 'aluno' } })
+  const r = await page.request.post('/api/auth/register', { data: { name: 'Bruno Config ' + tag, email: `v5cfg.${tag}.${Date.now()}@e2e.local`, password: PASS, accept_terms: true, birth_date: '1990-01-01', terms_version: terms?.version, intent: 'aluno' } })
   expect(r.ok()).toBeTruthy(); const u = (await r.json()).user
   const lm = await (await page.request.get('/api/legal/me')).json(), st = lm.me || lm
   if (st.needs_legal) expect((await page.request.post('/api/legal/accept', { data: { version: st.legal_version, documents: st.legal_required } })).ok()).toBeTruthy()

@@ -28,7 +28,7 @@ async function walk(page, pre) {
 async function newAccount(playwright, domain = 'e2e.local') {
   const rq = await playwright.request.newContext({ baseURL: 'http://localhost:4449', extraHTTPHeaders: { Origin: new URL('http://localhost:4449').origin } })
   const terms = (await (await rq.get('/api/terms')).json()).terms, email = `tour.${Date.now()}@${domain}`
-  await rq.post('/api/auth/register', { data: { name: 'Pessoa Tour', email, password: PASS, accept_terms: true, adult: true, terms_version: terms?.version, intent: 'aluno' } })
+  await rq.post('/api/auth/register', { data: { name: 'Pessoa Tour', email, password: PASS, accept_terms: true, birth_date: '1990-01-01', terms_version: terms?.version, intent: 'aluno' } })
   await rq.post('/api/guided/onboarding', { data: { objetivo: 'hypertrophy', nivel: 'beginner', local: 'gym', dias: 3, minutos: 45, restricoes: [] } })
   await rq.dispose(); return email
 }

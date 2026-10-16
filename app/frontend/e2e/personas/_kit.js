@@ -50,7 +50,7 @@ export async function passTermsGate(page) {
 export const go = async (page, url, testid) => { await passTermsGate(page); if (page.url().endsWith(url.replace(/^\/?/, '/'))) await page.reload(); else await page.goto(url); if (testid) await expect(page.getByTestId(testid).first()).toBeVisible({ timeout: 9000 }); else await page.waitForTimeout(1200) }
 export async function registerApi(rq, name, email, extra = {}) {
   const terms = (await (await rq.get('/api/terms')).json()).terms
-  const r = await rq.post('/api/auth/register', { data: { name, email, password: PASS, accept_terms: true, adult: true, terms_version: terms?.version, ...extra } })
+  const r = await rq.post('/api/auth/register', { data: { name, email, password: PASS, accept_terms: true, birth_date: '1990-01-01', terms_version: terms?.version, ...extra } })
   return (await r.json()).user
 }
 export const dismissTour = async page => { const s = page.getByTestId('tour-skip'); if (await s.isVisible({ timeout: 1500 }).catch(() => false)) await s.click() }

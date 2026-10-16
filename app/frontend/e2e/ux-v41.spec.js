@@ -22,7 +22,7 @@ test('aluno', async ({ browser, playwright }) => {
   const rq = await playwright.request.newContext({ baseURL: 'http://localhost:4449', extraHTTPHeaders: { Origin: new URL('http://localhost:4449').origin } })
   const terms = (await (await rq.get('/api/terms')).json()).terms
   const email = `ux41.${Date.now()}@e2e.local`
-  await rq.post('/api/auth/register', { data: { name: 'Aluna UX Teste', email, password: PASS, accept_terms: true, adult: true, terms_version: terms?.version, intent: 'aluno' } })
+  await rq.post('/api/auth/register', { data: { name: 'Aluna UX Teste', email, password: PASS, accept_terms: true, birth_date: '1990-01-01', terms_version: terms?.version, intent: 'aluno' } })
   await rq.post('/api/guided/onboarding', { data: { objetivo: 'hypertrophy', nivel: 'beginner', local: 'gym', dias: 3, minutos: 45, restricoes: [] } })
   const list = (await (await rq.get('/api/guided/programs')).json()).programs
   await rq.post('/api/guided/start', { data: { program_id: list[0].id } }); await rq.dispose()

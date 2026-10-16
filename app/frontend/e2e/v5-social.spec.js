@@ -6,7 +6,7 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR
 async function newUser(page, tag) {
   const terms = (await (await page.request.get('/api/terms')).json()).terms
   const email = `v5ui.${tag}.${Date.now()}@e2e.local`
-  const r = await page.request.post('/api/auth/register', { data: { name: 'Marina Teste ' + tag, email, password: PASS, accept_terms: true, adult: true, terms_version: terms?.version, intent: 'aluno' } })
+  const r = await page.request.post('/api/auth/register', { data: { name: 'Marina Teste ' + tag, email, password: PASS, accept_terms: true, birth_date: '1990-01-01', terms_version: terms?.version, intent: 'aluno' } })
   expect(r.ok()).toBeTruthy()
   const u = (await r.json()).user
   // aceite dos documentos legais (versão atual exigida pela API) antes de abrir o app
@@ -103,7 +103,7 @@ test('@ em uso aparece enquanto digita; desktop e tema escuro', async ({ page, p
   // reserva o @ por uma segunda conta via API (cookie separado)
   const rq = await playwright.request.newContext({ baseURL, extraHTTPHeaders: { Origin: new URL(baseURL).origin } })
   const terms = (await (await rq.get('/api/terms')).json()).terms
-  expect((await rq.post('/api/auth/register', { data: { name: 'Dona do @', email: 'v5ui.dona.' + Date.now() + '@e2e.local', password: PASS, accept_terms: true, adult: true, terms_version: terms?.version, intent: 'aluno' } })).ok()).toBeTruthy()
+  expect((await rq.post('/api/auth/register', { data: { name: 'Dona do @', email: 'v5ui.dona.' + Date.now() + '@e2e.local', password: PASS, accept_terms: true, birth_date: '1990-01-01', terms_version: terms?.version, intent: 'aluno' } })).ok()).toBeTruthy()
   expect((await rq.post('/api/me/social', { data: { handle: taken } })).status()).toBe(200); await rq.dispose()
   await page.goto('/#/perfil/social'); await page.getByTestId('social-edit-open').click()
   await page.getByTestId('social-handle').fill(taken.toUpperCase())

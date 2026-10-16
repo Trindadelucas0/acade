@@ -32,7 +32,7 @@ test('aluno', async ({ browser, playwright }) => {
   const rq = await playwright.request.newContext({ baseURL: 'http://localhost:4449', extraHTTPHeaders: { Origin: new URL('http://localhost:4449').origin } })
   const terms = (await (await rq.get('/api/terms')).json()).terms
   email = `manual${Date.now()}@e2e.local`
-  expect((await rq.post('/api/auth/register', { data: { name: 'Zé Exemplo', email, password: PASS, accept_terms: true, adult: true, terms_version: terms?.version, intent: 'aluno' } })).ok()).toBeTruthy()
+  expect((await rq.post('/api/auth/register', { data: { name: 'Zé Exemplo', email, password: PASS, accept_terms: true, birth_date: '1990-01-01', terms_version: terms?.version, intent: 'aluno' } })).ok()).toBeTruthy()
   const ctx = await ctxFor(browser, email, M), page = await ctx.newPage()
   await page.goto('/#/onboarding'); await shot(page, 'a01-onboarding-objetivo')
   await page.getByRole('button', { name: /Ganhar músculos/ }).first().click()
@@ -75,7 +75,7 @@ test('profissional', async ({ browser, playwright }) => {
   const rq = await playwright.request.newContext({ baseURL: 'http://localhost:4449', extraHTTPHeaders: { Origin: new URL('http://localhost:4449').origin } })
   const terms = (await (await rq.get('/api/terms')).json()).terms
   const pe = `manualpro${Date.now()}@e2e.local`
-  await rq.post('/api/auth/register', { data: { name: 'Prof. Exemplo', email: pe, password: PASS, accept_terms: true, adult: true, terms_version: terms?.version, intent: 'profissional' } })
+  await rq.post('/api/auth/register', { data: { name: 'Prof. Exemplo', email: pe, password: PASS, accept_terms: true, birth_date: '1990-01-01', terms_version: terms?.version, intent: 'profissional' } })
   await rq.post('/api/pro/verification', { data: { full_name: 'Prof. Exemplo', council: 'CREF', registry_number: String(Date.now()).slice(-6) + '-G', registry_uf: 'SP', specialties: ['Musculação'] } })
   await rq.post('/api/pro/verification/document', { data: { data: 'data:application/pdf;base64,' + Buffer.from('%PDF-1.4\n%%EOF').toString('base64'), file_name: 'cref.pdf' } })
   const adm = await playwright.request.newContext({ baseURL: 'http://localhost:4449', extraHTTPHeaders: { Origin: new URL('http://localhost:4449').origin } })

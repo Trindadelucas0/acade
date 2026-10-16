@@ -73,11 +73,12 @@ export default function Login() {
 
 function LoginForm() {
   const terms = useTerms(), [agree, setAgree] = useState(false), [readTerms, setReadTerms] = useState(false)
-  const [adult, setAdult] = useState(false), [health, setHealth] = useState(false)   // aceite no cadastro (pedido do Lucas)
+  const [health, setHealth] = useState(false)   // consentimento de saude opcional (BUG-027: 18+ vem da data de nascimento)
+  const maxBirth = (() => { const d = new Date(); d.setFullYear(d.getFullYear() - 18); return d.toISOString().slice(0, 10) })()
   const { setUser, pullState, setGuest } = useStore()
   const [mode, setMode] = useState('login')       // 'login' | 'register'
   const [intent, setIntent] = useState('aluno')   // V3: 'Quero treinar' | 'Sou profissional'
-  const [f, setF] = useState({ name: '', email: '', password: '', confirm: '', pro_code: '' })
+  const [f, setF] = useState({ name: '', email: '', password: '', confirm: '', pro_code: '', birth_date: '' })
   const [errs, setErrs] = useState({})
   const [showPw, setShowPw] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -95,7 +96,8 @@ function LoginForm() {
     else if (reg && f.password.length < 8) e.password = 'A senha deve ter pelo menos 8 caracteres'
     if (reg && f.confirm !== f.password) e.confirm = 'As senhas não conferem'
     if (reg && !agree) e.terms = 'Aceite os Termos de Uso e a Política de Privacidade para criar a conta'
-    if (reg && !adult) e.adult = 'Confirme que você tem 18 anos ou mais'
+    if (reg && !f.birth_date) e.birth_date = 'Informe sua data de nascimento'
+    else if (reg && f.birth_date > maxBirth) e.birth_date = 'É preciso ter 18 anos ou mais para criar a conta'
     setErrs(e); return !Object.keys(e).length
   }
   const submit = async ev => {
@@ -103,7 +105,7 @@ function LoginForm() {
     if (busy || !validate()) return
     setBusy(true); setMsg('')
     try {
-      const u = reg ? await authRegister(f.name.trim(), f.email.trim(), f.password, terms && agree ? terms.version : undefined, intent, intent === 'aluno' ? f.pro_code.trim() : '', { accept: agree, adult, health }) : await authLogin(f.email.trim(), f.password)
+      const u = reg ? await authRegister(f.name.trim(), f.email.trim(), f.password, terms && agree ? terms.version : undefined, intent, intent === 'aluno' ? f.pro_code.trim() : '', { accept: agree, birth_date: f.birth_date, health }) : await authLogin(f.email.trim(), f.password)
       setUser(u); await pullState()
       useUI.getState().toast(reg ? `Bem-vindo(a), ${u.name}!` : `Bem-vindo(a) de volta, ${u.name}!`)
     } catch (e) {
@@ -163,12 +165,8 @@ function LoginForm() {
         {field('password', 'Senha', showPw ? 'text' : 'password', reg ? 'new-password' : 'current-password')}
         {reg && field('confirm', 'Confirmar senha', showPw ? 'text' : 'password', 'new-password')}
         {reg && intent === 'aluno' && <>{field('pro_code', 'Código do seu personal (opcional)', 'text', 'off', { maxLength: 16, autoCapitalize: 'characters', placeholder: 'Ex.: M6ESAW9W' })}<p className="lg-sub" style={{ marginTop: -4 }} data-testid="pro-code-note">Tem um personal? Com o código dele, sua conta já entra vinculada e coberta pelo plano dele, sem mensalidade.</p></>}
-        {reg && <div className={'lg-terms' + (errs.adult ? ' err' : '')} data-testid="signup-consents">
-              <label><input type="checkbox" checked={adult} onChange={e => { setAdult(e.target.checked); setErrs({ ...errs, adult: undefined }) }} data-testid="accept-adult" />
-                <span>Declaro que tenho 18 anos ou mais</span></label>
-              {errs.adult && <em>{errs.adult}</em>}
-              <label><input type="checkbox" checked={health} onChange={e => setHealth(e.target.checked)} data-testid="accept-health" />
-                <span>(Opcional) Autorizo o uso dos meus dados de saúde (dores, lesões, restrições) para adaptar os treinos. Posso retirar quando quiser.</span></label>
+        {reg && field('birth_date', 'Data de nascimento', 'date', 'bday', { max: maxBirth, min: '1900-01-01', required: true, 'data-testid': 'birth-date' })}
+        {reg && <div className="lg-terms" data-testid="signup-consents">
             </div>}
             {reg && <div className={'lg-terms' + (errs.terms ? ' err' : '')}>
           <label><input type="checkbox" checked={agree} onChange={e => { setAgree(e.target.checked); setErrs({ ...errs, terms: undefined }) }} data-testid="accept-terms" />

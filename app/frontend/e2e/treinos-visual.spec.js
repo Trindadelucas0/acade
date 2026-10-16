@@ -6,7 +6,7 @@ const TAG = process.env.TAG || 'depois', SCREEN = process.env.SCREEN || 'treinos
 const B = 'http://localhost:4449', PASS = 'e2e-Avadesk-2026'
 test.setTimeout(240000)
 async function reg(rq, name) { const t = (await (await rq.get('/api/terms')).json()).terms, email = `tv.${Date.now()}.${Math.random().toString(36).slice(2, 6)}@e2e.local`
-  await rq.post('/api/auth/register', { data: { name, email, password: PASS, accept_terms: true, adult: true, terms_version: t?.version } }); return email }
+  await rq.post('/api/auth/register', { data: { name, email, password: PASS, accept_terms: true, birth_date: '1990-01-01', terms_version: t?.version } }); return email }
 async function shots(browser, who, email, password = PASS) {
   for (const scheme of ['light', 'dark']) for (const w of [360, 390]) {
     const ctx = await browser.newContext({ baseURL: B, extraHTTPHeaders: { Origin: new URL(B).origin }, viewport: { width: w, height: 800 }, colorScheme: scheme })

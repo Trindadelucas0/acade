@@ -4,7 +4,7 @@ import { test, expect } from '@playwright/test'
 const PASS = 'e2e-Avadesk-2026'
 async function newUser(page, tag) {
   const terms = (await (await page.request.get('/api/terms')).json()).terms
-  const r = await page.request.post('/api/auth/register', { data: { name: 'QA Aluno ' + tag, email: `qa.e2e.${tag}.${Date.now()}@e2e.local`, password: PASS, accept_terms: true, adult: true, terms_version: terms?.version, intent: 'aluno' } })
+  const r = await page.request.post('/api/auth/register', { data: { name: 'QA Aluno ' + tag, email: `qa.e2e.${tag}.${Date.now()}@e2e.local`, password: PASS, accept_terms: true, birth_date: '1990-01-01', terms_version: terms?.version, intent: 'aluno' } })
   expect(r.ok()).toBeTruthy(); const u = (await r.json()).user
   await page.context().addInitScript(x => { localStorage.setItem('gym_user', JSON.stringify(x)) }, u); return u
 }

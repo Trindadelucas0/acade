@@ -25,6 +25,6 @@ export async function authLogin(email, password) {
 }
 // aceite no cadastro: Termos+Privacidade (obrigatorio), 18+ (obrigatorio), consentimento de saude (opcional, separado)
 export async function authRegister(name, email, password, terms_version, intent, pro_code, extra = {}) {
-  const r = await api('/api/auth/register', { method: 'POST', body: JSON.stringify({ name, email, password, accept_terms: extra.accept ?? !!terms_version, adult: !!extra.adult, ...(typeof extra.health === 'boolean' ? { health_consent: extra.health } : {}), terms_version, intent: intent || 'aluno', ...(pro_code ? { pro_code } : {}) }) })
+  const r = await api('/api/auth/register', { method: 'POST', body: JSON.stringify({ name, email, password, accept_terms: extra.accept ?? !!terms_version, birth_date: extra.birth_date || undefined, ...(typeof extra.health === 'boolean' ? { health_consent: extra.health } : {}), terms_version, intent: intent || 'aluno', ...(pro_code ? { pro_code } : {}) }) })
   return r.user
 }

@@ -23,8 +23,12 @@ test('raiz abre o Login; cadastro com aceite entra direto, sem gate de termos', 
   const pw = page.locator('input[type=password]'); await pw.nth(0).fill(PASS); if (await pw.count() > 1) await pw.nth(1).fill(PASS)
   await page.getByTestId('accept-terms').check()
   await page.locator('form button[type=submit]').click()
-  await expect(page.getByText('Confirme que você tem 18 anos ou mais')).toBeVisible()   // sem 18+ nao cria
-  await page.getByTestId('accept-adult').check(); await page.getByTestId('accept-health').check()
+  await expect(page.getByText('Informe sua data de nascimento')).toBeVisible()   // sem data nao cria
+  await expect(page.getByTestId('birth-date')).toHaveAttribute('type', 'date')
+  const minor = new Date(); minor.setFullYear(minor.getFullYear() - 17)
+  await page.getByTestId('birth-date').fill(minor.toISOString().slice(0, 10)); await page.locator('form button[type=submit]').click()
+  await expect(page.getByText('É preciso ter 18 anos ou mais para criar a conta')).toBeVisible()
+  await page.getByTestId('birth-date').fill('1990-01-01'); await page.getByTestId('accept-health').check()
   await page.locator('form button[type=submit]').click()
   await expect(page.locator('.lg-field')).toHaveCount(0, { timeout: 15000 })
   await page.waitForTimeout(2000)

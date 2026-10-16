@@ -44,7 +44,7 @@ test('conta nova não liberada: vê tudo, ação travada com cadeado', async ({ 
   const rq = await playwright.request.newContext({ baseURL: 'http://localhost:4449', extraHTTPHeaders: { Origin: new URL('http://localhost:4449').origin } })
   const terms = (await (await rq.get('/api/terms')).json()).terms
   const email = `nova42.${Date.now()}@lock.test`
-  await rq.post('/api/auth/register', { data: { name: 'Conta Nova', email, password: PASS, accept_terms: true, adult: true, terms_version: terms?.version, intent: 'aluno' } }); await rq.dispose()
+  await rq.post('/api/auth/register', { data: { name: 'Conta Nova', email, password: PASS, accept_terms: true, birth_date: '1990-01-01', terms_version: terms?.version, intent: 'aluno' } }); await rq.dispose()
   const ctx = await ctxLogin(browser, email), page = await ctx.newPage()
   await page.goto('/#/comunidade'); await page.waitForTimeout(1200)
   await expect(page.getByTestId('lock-banner')).toBeVisible()

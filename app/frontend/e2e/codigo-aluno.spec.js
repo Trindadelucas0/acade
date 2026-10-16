@@ -10,7 +10,7 @@ async function as(browser, email) { const ctx = await browser.newContext({ baseU
 test('código de aluno no lugar de convite', async ({ browser, playwright }) => {
   const rq = await playwright.request.newContext({ baseURL: 'http://localhost:4449', extraHTTPHeaders: { Origin: new URL('http://localhost:4449').origin } }), terms = (await (await rq.get('/api/terms')).json()).terms
   const email = `codaluno.${Date.now()}@e2e.local`
-  await rq.post('/api/auth/register', { data: { name: 'Aluno Código', email, password: PASS, accept_terms: true, adult: true, terms_version: terms?.version } })
+  await rq.post('/api/auth/register', { data: { name: 'Aluno Código', email, password: PASS, accept_terms: true, birth_date: '1990-01-01', terms_version: terms?.version } })
   const code = (await (await rq.get('/api/me/code')).json()).code; await rq.dispose()
   expect(code).toBeTruthy()
   const P = await as(browser, 'pro1.e2e@avadesk.local')

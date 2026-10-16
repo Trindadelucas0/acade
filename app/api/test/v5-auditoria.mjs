@@ -18,7 +18,7 @@ const login = async email => (await call(null, 'POST', '/api/auth/login', { emai
 async function aluno(tag) {
   const terms = (await call(null, 'GET', '/api/terms')).d.terms
   const email = `aud.${tag}.${Date.now()}${Math.random().toString(36).slice(2, 6)}@e2e.local`
-  const r = await call(null, 'POST', '/api/auth/register', { name: 'Auditoria ' + tag, email, password: PASS, accept_terms: true, adult: true, terms_version: terms?.version, intent: 'aluno' })
+  const r = await call(null, 'POST', '/api/auth/register', { name: 'Auditoria ' + tag, email, password: PASS, accept_terms: true, birth_date: '1990-01-01', terms_version: terms?.version, intent: 'aluno' })
   assert.equal(r.s, 200, JSON.stringify(r.d)); return { tok: r.d.token, id: r.d.user.id, email }
 }
 const wait = ms => new Promise(r => setTimeout(r, ms))

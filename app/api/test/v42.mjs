@@ -6,7 +6,7 @@ const adm = await login('admin.e2e@avadesk.local'), p1 = await login('pro1.e2e@a
 const terms = (await get(null, '/api/terms')).d.terms
 // 1) conta nova (domínio fora do auto-desbloqueio de teste) entra travada
 const em = `lock${Date.now()}@lock.test`
-const reg = await post(null, '/api/auth/register', { name: 'Conta Travada', email: em, password: PASS, accept_terms: true, adult: true, terms_version: terms.version })
+const reg = await post(null, '/api/auth/register', { name: 'Conta Travada', email: em, password: PASS, accept_terms: true, birth_date: '1990-01-01', terms_version: terms.version })
 const t = reg.d.token
 check(reg.s === 200 && reg.d.user.account_type === 'normal', 'cadastro aberto: conta normal criada')
 check((await get(t, '/api/guided/programs')).s === 200, 'conta não liberada VÊ o catálogo')

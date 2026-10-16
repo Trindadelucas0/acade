@@ -100,7 +100,11 @@ export function authRoutes({ json, readBody, bridge, clearCookies }) {
       const terms = await currentTerms()
       // Pedido do Lucas: sem aceite dos Termos/Privacidade e sem a declaracao de 18+ o cadastro e recusado e nada e criado
       if (b.accept_terms !== true) errors.terms = 'É preciso aceitar os Termos de Uso e a Política de Privacidade'
-      if (b.adult !== true) errors.adult = 'É preciso declarar que você tem 18 anos ou mais'
+      // BUG-027: 18+ calculado da data de nascimento (obrigatoria); menor de 18 nao cria conta
+      const bd = /^\d{4}-\d{2}-\d{2}$/.test(String(b.birth_date || '')) ? new Date(b.birth_date + 'T12:00:00Z') : null
+      const okDate = bd && !isNaN(bd) && bd.toISOString().slice(0, 10) === b.birth_date && bd.getUTCFullYear() >= 1900 && bd < new Date()
+      if (!okDate) errors.birth_date = 'Informe uma data de nascimento válida'
+      else { const n = new Date(); let age = n.getFullYear() - bd.getUTCFullYear(); const md = (n.getMonth() + 1) * 100 + n.getDate(), bm = (bd.getUTCMonth() + 1) * 100 + bd.getUTCDate(); if (md < bm) age--; if (age < 18) errors.birth_date = 'É preciso ter 18 anos ou mais para criar a conta' }
       if (terms && b.accept_terms === true && b.terms_version !== terms.version) errors.terms = 'É preciso aceitar os termos de uso (versão ' + terms.version + ')'
       if (Object.keys(errors).length) return json(res, 400, { error: Object.values(errors)[0], errors })
       const t = await q('select id from tenants where slug=$1 and active', [String(b.tenant || process.env.DEFAULT_TENANT || 'avadesk')])
@@ -111,7 +115,7 @@ export function authRoutes({ json, readBody, bridge, clearCookies }) {
       const hash = await bcrypt.hash(password, 12)
       const u = await transaction(async () => {
         let u
-        try { u = await q('insert into users(tenant_id,name,email,password_hash) values($1,$2,$3,$4) returning id', [t.rows[0].id, name.slice(0, 80), email, hash]) }
+        try { u = await q('insert into users(tenant_id,name,email,password_hash,birth_date) values($1,$2,$3,$4,$5) returning id', [t.rows[0].id, name.slice(0, 80), email, hash, b.birth_date]) }
         catch (e) { if (e.code === '23505') return null; throw e }   // corrida: o índice único decide
         await q(`insert into user_roles values($1,$2,'aluno')`, [u.rows[0].id, t.rows[0].id])
         if (intent === 'profissional') {

@@ -25,7 +25,7 @@ async function ctxAs(browser, email, password = PASS) {
 const go = async (page, url, testid) => { await page.goto(url); if (testid) await expect(page.getByTestId(testid).first()).toBeVisible({ timeout: 8000 }); else await page.waitForTimeout(1200) }
 async function register(rq, name, email, extra = {}) {
   const terms = (await (await rq.get('/api/terms')).json()).terms
-  const r = await rq.post('/api/auth/register', { data: { name, email, password: PASS, accept_terms: true, adult: true, terms_version: terms?.version, ...extra } })
+  const r = await rq.post('/api/auth/register', { data: { name, email, password: PASS, accept_terms: true, birth_date: '1990-01-01', terms_version: terms?.version, ...extra } })
   return (await r.json()).user
 }
 async function doWorkout(page, F) {

@@ -14,7 +14,7 @@ async function call(jar, method, p, body) {
 }
 async function account(tag) {
   const jar = {}, terms = (await call(null, 'GET', '/api/terms')).d.terms
-  const r = await call(jar, 'POST', '/api/auth/register', { name: 'H ' + tag, email: `v5h.${tag}.${Date.now()}${Math.random().toString(36).slice(2, 6)}@e2e.local`, password: PASS, accept_terms: true, adult: true, terms_version: terms?.version, intent: 'aluno' })
+  const r = await call(jar, 'POST', '/api/auth/register', { name: 'H ' + tag, email: `v5h.${tag}.${Date.now()}${Math.random().toString(36).slice(2, 6)}@e2e.local`, password: PASS, accept_terms: true, birth_date: '1990-01-01', terms_version: terms?.version, intent: 'aluno' })
   assert.equal(r.s, 200, JSON.stringify(r.d)); return { jar, id: r.d.user.id }
 }
 const H = 'hx' + Date.now().toString(36)

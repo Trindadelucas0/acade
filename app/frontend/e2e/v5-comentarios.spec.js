@@ -5,7 +5,7 @@ import { test, expect } from '@playwright/test'
 const PASS = 'e2e-Avadesk-2026'
 async function newUser(page, tag) {
   const terms = (await (await page.request.get('/api/terms')).json()).terms
-  const r = await page.request.post('/api/auth/register', { data: { name: 'Leo Teste ' + tag, email: `v5com.${tag}.${Date.now()}@e2e.local`, password: PASS, accept_terms: true, adult: true, terms_version: terms?.version, intent: 'aluno' } })
+  const r = await page.request.post('/api/auth/register', { data: { name: 'Leo Teste ' + tag, email: `v5com.${tag}.${Date.now()}@e2e.local`, password: PASS, accept_terms: true, birth_date: '1990-01-01', terms_version: terms?.version, intent: 'aluno' } })
   expect(r.ok()).toBeTruthy(); const u = (await r.json()).user
   // aceite dos documentos legais (versão atual exigida pela API) antes de abrir o app
   const lm = await (await page.request.get('/api/legal/me')).json(), st = lm.me || lm

@@ -4,7 +4,7 @@ import { pool } from '../db/pool.js'
 console.log('Fase 8 - regras de unicidade')
 const adm = await login('admin.e2e@avadesk.local')
 const terms = (await get(null, '/api/terms')).d.terms
-const reg = (email, name = 'Dup') => post(null, '/api/auth/register', { name, email, password: PASS, accept_terms: true, adult: true, terms_version: terms?.version, intent: 'aluno' })
+const reg = (email, name = 'Dup') => post(null, '/api/auth/register', { name, email, password: PASS, accept_terms: true, birth_date: '1990-01-01', terms_version: terms?.version, intent: 'aluno' })
 
 console.log('E-mail')
 const a = await signup(adm, 'unica')

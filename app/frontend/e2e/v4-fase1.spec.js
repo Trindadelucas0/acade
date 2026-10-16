@@ -13,7 +13,7 @@ const SCREENS = ['/hoje', '/treinos', '/comunidade', '/progresso', '/perfil', '/
 async function newStudent(request) {
   const terms = (await (await request.get('/api/terms')).json()).terms
   const email = `v4f1ui${Date.now()}${Math.floor(Math.random() * 1e4)}@e2e.local`
-  const r = await request.post('/api/auth/register', { data: { name: 'Aluna V4 Teste', email, password: PASS, accept_terms: true, adult: true, terms_version: terms?.version, intent: 'aluno' } })
+  const r = await request.post('/api/auth/register', { data: { name: 'Aluna V4 Teste', email, password: PASS, accept_terms: true, birth_date: '1990-01-01', terms_version: terms?.version, intent: 'aluno' } })
   expect(r.ok()).toBeTruthy()
   const d = await r.json()
   // perfil mínimo de onboarding + programa publicado ativo (para a tela Início/Meu programa)

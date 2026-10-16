@@ -10,7 +10,7 @@ const db = () => { const c = new pg.Client({ host: 'localhost', user: 'postgres'
 async function register(request, label, intent) {
   const terms = (await (await request.get('/api/terms')).json()).terms
   const email = `${label}${Date.now()}${Math.floor(Math.random() * 1e4)}@e2e.local`
-  const r = await request.post('/api/auth/register', { data: { name: 'Teste ' + label, email, password: PASS, accept_terms: true, adult: true, terms_version: terms?.version, intent } })
+  const r = await request.post('/api/auth/register', { data: { name: 'Teste ' + label, email, password: PASS, accept_terms: true, birth_date: '1990-01-01', terms_version: terms?.version, intent } })
   expect(r.ok()).toBeTruthy()
   return { ...(await r.json()).user, email }
 }

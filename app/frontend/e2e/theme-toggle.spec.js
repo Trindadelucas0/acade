@@ -16,7 +16,7 @@ test('sem login: alterna e guarda só o cache visual', async ({ browser }) => {
 test('logado (aluno, personal, admin): alterna e salva no servidor', async ({ browser, playwright }) => {
   const rq = await playwright.request.newContext({ baseURL: 'http://localhost:4449', extraHTTPHeaders: { Origin: new URL('http://localhost:4449').origin } })
   const terms = (await (await rq.get('/api/terms')).json()).terms, email = `tema.${Date.now()}@e2e.local`
-  await rq.post('/api/auth/register', { data: { name: 'Pessoa Tema', email, password: PASS, accept_terms: true, adult: true, terms_version: terms?.version } })
+  await rq.post('/api/auth/register', { data: { name: 'Pessoa Tema', email, password: PASS, accept_terms: true, birth_date: '1990-01-01', terms_version: terms?.version } })
   await rq.post('/api/guided/onboarding', { data: { objetivo: 'hypertrophy', nivel: 'beginner', local: 'gym', dias: 3, minutos: 45, restricoes: [] } }); await rq.dispose()
   for (const [who, url] of [[email, '/hoje'], ['pro1.e2e@avadesk.local', '/pro'], ['admin.e2e@avadesk.local', '/admin/painel']]) {
     const ctx = await browser.newContext({ baseURL: 'http://localhost:4449', extraHTTPHeaders: { Origin: new URL('http://localhost:4449').origin }, viewport: M, colorScheme: 'dark' })

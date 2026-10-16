@@ -11,7 +11,7 @@ const KEY = 'avagym_guided_session_v1'
 async function newStudent(request) {
   const terms = (await (await request.get('/api/terms')).json()).terms
   const email = `v4f2ui${Date.now()}${Math.floor(Math.random() * 1e4)}@e2e.local`
-  const r = await request.post('/api/auth/register', { data: { name: 'Aluna Fase Dois', email, password: PASS, accept_terms: true, adult: true, terms_version: terms?.version, intent: 'aluno' } })
+  const r = await request.post('/api/auth/register', { data: { name: 'Aluna Fase Dois', email, password: PASS, accept_terms: true, birth_date: '1990-01-01', terms_version: terms?.version, intent: 'aluno' } })
   expect(r.ok()).toBeTruthy()
   const d = await r.json()
   await request.post('/api/guided/onboarding', { data: { objetivo: 'hypertrophy', nivel: 'beginner', local: 'gym', dias: 3, minutos: 45, restricoes: [] } })
