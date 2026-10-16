@@ -54,6 +54,7 @@ import { GroupPage } from './views/app/Grupos.jsx'
 import { ChallengePage, ChallengeWizard } from './views/app/Desafios.jsx'
 import Builder from './views/builder/WorkoutBuilder.jsx'
 import PlanErrorHost from './views/v3/PlanErrorHost.jsx'
+import { AccessHost } from './views/billing/Access.jsx'   // Monetizacao F8
 import { MustChangePassword, AccessLockHost, LockBanner, ScopeGate } from './views/v3/V42.jsx'
 import './styles/v42.css'
 import './styles/tours.css'
@@ -204,6 +205,7 @@ function Shell() {
       <RestTimer />
       <Modals />
       {authed && <PlanErrorHost />}
+      {authed && <AccessHost />}
       {authed && <AccessLockHost />}
       {authed && <TourHost />}
       {!(authed && ['/hoje', '/pro'].includes(loc.pathname) && !user?.must_change_password && !user?.needs_terms && !isAdminAccount(user)) && !['/treinar', '/concluido', '/pro/treino'].includes(loc.pathname) && <ThemeToggle className="g-bell g-theme-fab" />}

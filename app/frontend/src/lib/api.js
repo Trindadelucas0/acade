@@ -13,6 +13,7 @@ export async function api(path, opts) {
   if (!r.ok) { const e = new Error(data.error || ('HTTP ' + r.status)); e.status = r.status; e.errors = data.errors; e.problems = data.problems; e.code = data.code; e.data = data
     // V3: limite/plano/assinatura → a tela de upgrade aparece em qualquer lugar do app (PlanErrorHost)
     if (['LIMIT_REACHED', 'FEATURE_NOT_INCLUDED', 'SUBSCRIPTION_INACTIVE'].includes(data.code) && typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('avagym:plan-error', { detail: data }))
+    if (data.code === 'ACCESS_REQUIRED' && typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('avagym:access-required', { detail: data }))   // Monetizacao F8
     if (['ACCESS_LOCKED', 'CLIENT_SCOPE'].includes(data.code) && (opts?.method || 'GET') !== 'GET' && typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('avagym:access-locked', { detail: data }))   // V4.2
     throw e }
   return data

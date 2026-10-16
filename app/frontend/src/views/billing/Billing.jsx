@@ -7,6 +7,7 @@ import Icon from '../../components/Icon.jsx'
 import { useStore } from '../../store/useStore.js'
 import './billing.css'
 import ReferralPanel from './Referral.jsx'   // Monetizacao F5
+import { TrialCard } from './Access.jsx'   // Monetizacao F8
 
 export const FEAT = {
   catalogo_completo: 'Programas oficiais completos', receber_ficha_profissional: 'Treinos do seu personal',
@@ -169,6 +170,7 @@ export function Subscription() {
     <span className="g-eyebrow">Conta</span><h1>Planos e pagamento</h1>
     {note && <p className={note.ok ? 'bl-ok' : 'bl-err'} role="status" data-testid="billing-note">{note.t}</p>}
     {me.access?.message && <p className="bl-info" data-testid="access-msg">{me.access.message}</p>}
+    <TrialCard onChange={load} />
     {Object.entries(me.subscriptions).filter(([, s]) => s).map(([aud, s]) => <section key={aud} className="bl-sub" data-testid={'my-sub-' + aud}>
       <div className="bl-row"><div><span className="g-eyebrow">{AUD[aud]}</span><h3>{s.plan_name}</h3></div><span className="bl-sp" /><span className={'bl-st ' + (ST_CLS[s.status] || '')} data-testid={'sub-status-' + aud}>{s.status_label || s.status}</span></div>
       {!s.is_free && <dl className="bl-dl">
