@@ -2,6 +2,7 @@
 // Regras (D2/D5): atribuicao ao PRIMEIRO indicador valido (referral_attributions.user_id unico, nunca sobrescrito;
 // troca so pelo admin, auditada); janela de 30 dias entre o clique e o cadastro (o front guarda o codigo com a data);
 // o indicador ve nome, @, data do cadastro e status (teste/assinante) dos indicados - nunca telefone ou e-mail.
+import { clientIp } from './clientip.js'   // BUG-044
 import crypto from 'node:crypto'
 import { q } from './db/pool.js'
 import { audit } from './auth.js'
@@ -33,7 +34,7 @@ export async function resolveInviteCode(raw, req, tenantSlug) {
   const r = (await q(`select rc.user_id, rc.tenant_id, u.name from referral_codes rc join users u on u.id=rc.user_id and u.status='ativo' and u.disabled_at is null
       where upper(rc.code)=$1 and rc.status='ativo'`, [code])).rows[0]
   if (!r) return null
-  const ip = String(req.headers['cf-connecting-ip'] || req.headers['x-real-ip'] || req.socket?.remoteAddress || '')
+  const ip = clientIp(req)
   const vid = String(req.headers['x-visitor-id'] || '').slice(0, 64)
   const visitor = hm('v:' + (vid || ip + '|' + (req.headers['user-agent'] || '')))
   await q(`insert into referral_clicks(tenant_id,referrer_user_id,visitor_hash,ip_hash,user_agent) values($1,$2,$3,$4,$5) on conflict do nothing`,

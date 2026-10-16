@@ -14,6 +14,19 @@ export const CSP = [
   "connect-src 'self' https://www.gstatic.com https://cdn.jsdelivr.net", "worker-src 'self' blob:", "manifest-src 'self'",
   "object-src 'none'", "base-uri 'self'", "form-action 'self'", "frame-ancestors 'none'",
 ].join('; ')
+// BUG-044: so o cloudflared local (loopback) pode informar cf-connecting-ip (o Cloudflare sobrescreve esse cabecalho na
+// borda). X-Forwarded-For do cliente e descartado; a API recebe x-real-ip/x-forwarded-for limpos, escritos aqui.
+const LOOP = /^(127\.|::1$|::ffff:127\.)/
+export function proxyHeaders(req) {
+  const sock = String(req.socket?.remoteAddress || '')
+  const cf = String(req.headers['cf-connecting-ip'] || '').trim()
+  const trusted = LOOP.test(sock) && /^[0-9a-fA-F:.]{2,45}$/.test(cf) ? cf : ''
+  const ip = trusted || sock.replace(/^::ffff:/, '')
+  const h = { ...req.headers }
+  delete h['x-forwarded-for']; delete h['cf-connecting-ip']; delete h['x-real-ip']
+  if (trusted) h['cf-connecting-ip'] = trusted
+  return { ...h, 'x-real-ip': ip, 'x-forwarded-for': ip, 'x-forwarded-proto': req.headers['x-forwarded-proto'] || 'http' }
+}
 export const SECURITY_HEADERS = {
   'Content-Security-Policy': CSP,
   'X-Content-Type-Options': 'nosniff',
@@ -41,8 +54,7 @@ export function handler(req, res) {
   }
   let u; try { u = decodeURIComponent(new URL(req.url, 'http://x').pathname) } catch { res.writeHead(400); return res.end() }
   if (u.startsWith('/api/') || u === '/api') {
-    const ip = req.socket.remoteAddress
-    const h = { ...req.headers, 'x-real-ip': ip, 'x-forwarded-for': (req.headers['x-forwarded-for'] ? req.headers['x-forwarded-for'] + ', ' : '') + ip, 'x-forwarded-proto': req.headers['x-forwarded-proto'] || 'http' }
+    const h = proxyHeaders(req)
     const p = http.request({ host: '127.0.0.1', port: API, path: req.url, method: req.method, headers: h }, r => { res.writeHead(r.statusCode, r.headers); r.pipe(res) })
     p.setTimeout(60000, () => p.destroy()); p.on('error', () => { if (!res.headersSent) res.writeHead(502); res.end('bad gateway') })
     return req.pipe(p)

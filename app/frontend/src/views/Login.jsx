@@ -93,13 +93,17 @@ function LoginForm() {
   // Monetizacao F5: link /convite/CODIGO de indicacao -> guarda o primeiro indicador (30 dias) e abre o cadastro com o cupom
   const [ref, setRef] = useState(() => readRef())
   const [coupon, setCoupon] = useState(() => readRef()?.coupon || '')
+  // Monetizacao F8b: cadastro em 6 etapas (perfil, dados, assinatura, contratar ou cupom, confirmacao, onboarding)
+  const [step, setStep] = useState(1), [choice, setChoice] = useState(() => readRef()?.coupon ? 'cupom' : ''), [plans, setPlans] = useState(null), [created, setCreated] = useState(null)
+  useEffect(() => { if (mode === 'register' && step === 3 && !plans) api('/api/public/plans').then(setPlans).catch(() => setPlans({ plans: [] })) }, [mode, step])
   useEffect(() => {
     const m = /^#\/convite\/([\w-]+)/.exec(location.hash); if (!m) return
     api('/api/convite?code=' + encodeURIComponent(m[1])).then(d => { if (d?.type === 'indicacao') { saveRef(d); const r = readRef(); setRef(r); setCoupon(r?.coupon || ''); setMode('register') } }).catch(() => {})
   }, [])
   const set = k => e => { setF({ ...f, [k]: e.target.value }); setErrs({ ...errs, [k]: undefined }); setMsg('') }
 
-  const validate = () => {
+  const S1 = ['name', 'email', 'password', 'confirm']
+  const errorsOf = () => {
     const e = {}
     if (reg && f.name.trim().length < 2) e.name = 'Informe seu nome'
     if (!f.email.trim()) e.email = 'Informe seu e-mail'
@@ -111,17 +115,29 @@ function LoginForm() {
     if (reg && !f.birth_date) e.birth_date = 'Informe sua data de nascimento'
     if (reg) Object.assign(e, validateContact(ct))
     if (reg && f.birth_date && f.birth_date > maxBirth) e.birth_date = 'É preciso ter 18 anos ou mais para criar a conta'
-    setErrs(e); return !Object.keys(e).length
+    if (reg && choice === 'cupom' && coupon.trim().length < 3) e.coupon = 'Informe o cupom ou escolha outra opção'
+    return e
   }
+  const stepOf = k => S1.includes(k) ? 1 : k === 'coupon' ? 4 : k === 'terms' ? 5 : 2
+  const validate = () => { const e = errorsOf(); setErrs(e); if (reg && Object.keys(e).length) setStep(Math.min(...Object.keys(e).map(stepOf))); return !Object.keys(e).length }
+  const next = () => {
+    const e = Object.fromEntries(Object.entries(errorsOf()).filter(([k]) => stepOf(k) === step))
+    setErrs(e); setMsg(''); if (Object.keys(e).length) return
+    if (step === 3 && !choice) return setMsg('Escolha uma opção para continuar')
+    setStep(step + 1)
+  }
+  const finish = async () => { setUser(created.u); await pullState(); useUI.getState().toast(`Bem-vindo(a), ${created.u.name}!`); if (created.plan) location.hash = '#/assinatura?plano=' + created.plan }
   const submit = async ev => {
     ev.preventDefault()
+    if (reg && step < 5) return next()   // Enter nas etapas = Continuar
     if (busy || !validate()) return
     setBusy(true); setMsg('')
     try {
       const u = reg ? await authRegister(f.name.trim(), f.email.trim(), f.password, terms && agree ? terms.version : undefined, intent, intent === 'aluno' ? f.pro_code.trim() : '', { accept: agree, birth_date: f.birth_date, health, contact: toApi(ct), ref: ref?.code }) : await authLogin(f.email.trim(), f.password)
       // D2: cupom (de teste ou de indicacao) ativa os 7 dias logo apos o cadastro; falha no cupom nao desfaz a conta
-      if (reg && coupon.trim()) { try { await api('/api/billing/coupon/redeem', { method: 'POST', body: JSON.stringify({ code: coupon.trim(), audience: intent }) }); useUI.getState().toast('Seu teste de 7 dias começou!') } catch (e) { useUI.getState().toast('Conta criada. Cupom: ' + e.message) } }
-      if (reg) { try { localStorage.removeItem('avagym_ref') } catch { /* */ } }
+      let trial = null
+      if (reg && choice === 'cupom' && coupon.trim()) { try { await api('/api/billing/coupon/redeem', { method: 'POST', body: JSON.stringify({ code: coupon.trim(), audience: intent }) }); trial = { ok: true } } catch (e) { trial = { ok: false, t: e.message } } }
+      if (reg) { try { localStorage.removeItem('avagym_ref') } catch { /* */ } setCreated({ u, trial, plan: choice && !['cupom', 'depois'].includes(choice) ? choice : null }); setStep(6); return }
       setUser(u); await pullState()
       useUI.getState().toast(reg ? `Bem-vindo(a), ${u.name}!` : `Bem-vindo(a) de volta, ${u.name}!`)
     } catch (e) {
@@ -165,32 +181,59 @@ function LoginForm() {
     <button className="lg-btn" disabled={busy}>{busy ? 'Enviando…' : 'Enviar link de recuperação'}</button>
     <button type="button" className="lg-btn ghost" onClick={() => {setMode('login');setMsg('');setErrs({})}}>Voltar para entrar</button>
   </form></div>
+  if (reg && step === 6 && created) return <div className="lg-wrap"><Hero /><div className="lg-card" data-testid="signup-onboarding">
+    <div className="lg-brand">AVA<b>GYM</b></div><p className="lg-sub" style={{ marginTop: 0 }}>Etapa 6 de 6 · Pronto</p>
+    <h1>Conta criada, {created.u.name.split(' ')[0]}!</h1>
+    {created.trial?.ok && <p className="lg-sub" data-testid="onb-trial">Seu teste de 7 dias começou. Você tem acesso completo até {new Date(Date.now() + 168 * 36e5).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}.</p>}
+    {created.trial && !created.trial.ok && <p className="lg-msg" role="alert">O cupom não foi aplicado: {created.trial.t} Você pode tentar de novo em Planos e pagamento.</p>}
+    {created.plan && <p className="lg-sub">Agora vamos abrir Planos e pagamento para concluir a assinatura.</p>}
+    <ul className="lg-sub" style={{ textAlign: 'left' }}>{(intent === 'profissional'
+      ? ['Envie seu registro profissional para verificação (Perfil).', 'Monte seus treinos e programas.', 'Convide alunos pelo seu código ou link.']
+      : ['Faça a avaliação inicial para receber um treino sob medida.', 'Siga o treino de hoje na aba Hoje.', 'Entre nos desafios da comunidade.']).map(x => <li key={x}>{x}</li>)}</ul>
+    <button className="lg-btn" onClick={finish} data-testid="onb-start">{created.plan ? 'Ir para o pagamento' : 'Começar'}</button>
+  </div></div>
   return (
     <div className="lg-wrap">
       <Hero />
       <form className="lg-card" onSubmit={submit} noValidate>
         <div className="lg-brand">AVA<b>GYM</b></div>
         <p className="lg-sub">{reg ? 'Crie sua conta e comece a treinar.' : 'Seu treino, seu corpo, sua evolução.'}</p>
-        {reg && <div className="lg-intent" role="radiogroup" aria-label="Como você vai usar">
+        {reg && step < 6 && <p className="lg-sub" data-testid="signup-step" style={{ marginTop: 0 }}>Etapa {step} de 6 · {['Perfil', 'Seus dados', 'Assinatura', choice === 'cupom' ? 'Cupom' : 'Contratar', 'Confirmação'][step - 1]}</p>}
+        {reg && step === 1 && <div className="lg-intent" role="radiogroup" aria-label="Como você vai usar">
           {[['aluno', 'Quero treinar', 'Treinos, programas, progresso e desafios'], ['profissional', 'Sou profissional', 'Prescreva para alunos depois da verificação']].map(([k, t, d]) =>
             <button key={k} type="button" role="radio" aria-checked={intent === k} className={'lg-intent-op' + (intent === k ? ' on' : '')} onClick={() => setIntent(k)} data-testid={'intent-' + k}><b>{t}</b><small>{d}</small></button>)}
         </div>}
-        {reg && intent === 'profissional' && <p className="lg-sub" style={{ marginTop: 0 }} data-testid="intent-pro-note">Você também poderá treinar com a mesma conta. Enviar treinos só depois da verificação do registro profissional.</p>}
+        {reg && step === 1 && intent === 'profissional' && <p className="lg-sub" style={{ marginTop: 0 }} data-testid="intent-pro-note">Você também poderá treinar com a mesma conta. Enviar treinos só depois da verificação do registro profissional.</p>}
+        {(!reg || step === 1) && <>
         {reg && field('name', 'Nome', 'text', 'name', { maxLength: 80 })}
         {field('email', 'E-mail', 'email', 'email', { inputMode: 'email', placeholder: 'voce@email.com' })}
         {field('password', 'Senha', showPw ? 'text' : 'password', reg ? 'new-password' : 'current-password')}
         {reg && field('confirm', 'Confirmar senha', showPw ? 'text' : 'password', 'new-password')}
-        {reg && ref && <p className="lg-sub" data-testid="ref-banner">Você chegou pelo convite de <b>{ref.name || 'um amigo'}</b>.</p>}
-        {reg && <label className="lg-field"><span>Cupom (opcional)</span><div className="lg-input"><input value={coupon} onChange={e => setCoupon(e.target.value.toUpperCase())} maxLength={32} autoComplete="off" placeholder="Ex.: AVAGYM7" data-testid="signup-coupon" /></div><small className="lg-hint">Com cupom você ganha 7 dias de teste completos, sem cobrança automática.</small></label>}
-        {reg && intent === 'aluno' && <>{field('pro_code', 'Código do seu personal (opcional)', 'text', 'off', { maxLength: 16, autoCapitalize: 'characters', placeholder: 'Ex.: M6ESAW9W' })}<p className="lg-sub" style={{ marginTop: -4 }} data-testid="pro-code-note">Tem um personal? Com o código dele, sua conta já entra vinculada e coberta pelo plano dele, sem mensalidade.</p></>}
-        {reg && field('birth_date', 'Data de nascimento', 'date', 'bday', { max: maxBirth, min: '1900-01-01', 'aria-required': true, 'data-testid': 'birth-date' })}
-        {reg && <fieldset className="lg-contact" data-testid="signup-contact"><legend className="lg-sub">Contato e endereço <small>(privados; você escolhe o que mostrar no perfil)</small></legend>
+        </>}
+        {reg && (step === 1 || step === 4) && ref && <p className="lg-sub" data-testid="ref-banner">Você chegou pelo convite de <b>{ref.name || 'um amigo'}</b>.</p>}
+        {reg && step === 1 && ref && <label className="lg-field"><span>Cupom do convite (opcional)</span><div className="lg-input"><input value={coupon} onChange={e => { setCoupon(e.target.value.toUpperCase()); setChoice('cupom') }} maxLength={32} autoComplete="off" data-testid="signup-coupon" /></div><small className="lg-hint">Vale 7 dias de teste completos, sem cobrança automática.</small></label>}
+        {reg && step === 2 && intent === 'aluno' && <>{field('pro_code', 'Código do seu personal (opcional)', 'text', 'off', { maxLength: 16, autoCapitalize: 'characters', placeholder: 'Ex.: M6ESAW9W' })}<p className="lg-sub" style={{ marginTop: -4 }} data-testid="pro-code-note">Tem um personal? Com o código dele, sua conta já entra vinculada e coberta pelo plano dele, sem mensalidade.</p></>}
+        {reg && step === 2 && field('birth_date', 'Data de nascimento', 'date', 'bday', { max: maxBirth, min: '1900-01-01', 'aria-required': true, 'data-testid': 'birth-date' })}
+        {reg && step === 2 && <fieldset className="lg-contact" data-testid="signup-contact"><legend className="lg-sub">Contato e endereço <small>(privados; você escolhe o que mostrar no perfil)</small></legend>
           <ContactFields value={ct} onChange={v => { setCt(v); setErrs({}) }} errors={errs} cls="lg-in" fieldCls="lg-field" /></fieldset>}
-        {reg && <div className="lg-terms" data-testid="signup-consents">
+        {reg && step === 2 && <div className="lg-terms" data-testid="signup-consents">
               <label><input type="checkbox" checked={health} onChange={e => setHealth(e.target.checked)} data-testid="accept-health" />
                 <span>(Opcional) Autorizo o uso dos meus dados de saúde (dores, lesões, restrições) para adaptar os treinos. Posso retirar quando quiser.</span></label>
             </div>}
-            {reg && <div className={'lg-terms' + (errs.terms ? ' err' : '')}>
+        {reg && step === 3 && <div data-testid="signup-plans" className="lg-intent" role="radiogroup" aria-label="Como quer começar" style={{ flexDirection: 'column' }}>
+          {(plans?.plans || []).filter(p => p.purchasable && p.audience === intent).map(p => <button key={p.id} type="button" role="radio" aria-checked={choice === p.id} className={'lg-intent-op' + (choice === p.id ? ' on' : '')} onClick={() => setChoice(p.id)} data-testid={'signup-plan-' + p.id}><b>{p.name}</b><small>{p.price_cents != null ? (p.price_cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) + '/mês' : ''}{p.description ? ' · ' + p.description : ''}</small></button>)}
+          <button type="button" role="radio" aria-checked={choice === 'cupom'} className={'lg-intent-op' + (choice === 'cupom' ? ' on' : '')} onClick={() => setChoice('cupom')} data-testid="signup-choice-cupom"><b>Tenho um cupom</b><small>7 dias de teste completos, sem cartão</small></button>
+          <button type="button" role="radio" aria-checked={choice === 'depois'} className={'lg-intent-op' + (choice === 'depois' ? ' on' : '')} onClick={() => setChoice('depois')} data-testid="signup-choice-depois"><b>Decidir depois</b><small>Crie a conta agora e escolha o plano em Planos e pagamento</small></button>
+          {!plans && <p className="lg-sub">Carregando planos…</p>}
+        </div>}
+        {reg && step === 4 && choice === 'cupom' && <label className={'lg-field' + (errs.coupon ? ' err' : '')}><span>Cupom</span><div className="lg-input"><input value={coupon} onChange={e => { setCoupon(e.target.value.toUpperCase()); setErrs({ ...errs, coupon: undefined }) }} maxLength={32} autoComplete="off" placeholder="Ex.: AVAGYM7" data-testid="signup-coupon" /></div><small className="lg-hint">O teste é único por pessoa e dura 7 dias (168 horas). Não há cobrança automática.</small>{errs.coupon && <em>{errs.coupon}</em>}</label>}
+        {reg && step === 4 && choice === 'depois' && <p className="lg-sub" data-testid="signup-later">Sem problema. Depois de criar a conta, você escolhe o plano ou ativa um cupom em Perfil › Planos e pagamento.</p>}
+        {reg && step === 4 && choice && !['cupom', 'depois'].includes(choice) && <p className="lg-sub" data-testid="signup-pay-note">Depois de criar a conta, abrimos <b>Planos e pagamento</b> com o plano escolhido para você informar o cartão com segurança. Nada é cobrado antes da sua confirmação.</p>}
+        {reg && step === 5 && <div className="lg-sub" data-testid="signup-summary" style={{ textAlign: 'left' }}>
+          <p><b>{f.name}</b> · {f.email}<br />{intent === 'profissional' ? 'Profissional' : 'Aluno'}{intent === 'aluno' && f.pro_code ? ' · código do personal ' + f.pro_code : ''}</p>
+          <p>{choice === 'cupom' ? `Cupom ${coupon}: 7 dias de teste` : choice === 'depois' ? 'Plano: decidir depois' : `Plano: ${plans?.plans?.find(p => p.id === choice)?.name || choice} (pagamento na próxima tela)`}</p>
+        </div>}
+            {reg && step === 5 && <div className={'lg-terms' + (errs.terms ? ' err' : '')}>
           <label><input type="checkbox" checked={agree} onChange={e => { setAgree(e.target.checked); setErrs({ ...errs, terms: undefined }) }} data-testid="accept-terms" />
             <span>Li e aceito os <a href="#/legal/termos" target="_blank" rel="noopener" className="lg-forgot">Termos de Uso</a> e a <a href="#/legal/privacidade" target="_blank" rel="noopener" className="lg-forgot">Política de Privacidade</a>{terms ? <> (versão {terms.version}, <button type="button" className="lg-forgot" onClick={() => setReadTerms(!readTerms)}>ler aqui</button>)</> : null}</span></label>
           {readTerms && terms && <div className="lg-terms-box"><TermsText terms={terms} /></div>}
@@ -202,8 +245,10 @@ function LoginForm() {
           <button type="button" className="lg-link" onClick={() => { setMode('login'); setErrs({}); setMsg(''); setExists(false) }}>Entrar com este e-mail</button>
           <button type="button" className="lg-link" onClick={async () => { try { const r = await api('/api/auth/forgot', { method: 'POST', body: JSON.stringify({ email: f.email.trim() }) }); setMsg(r.message) } catch (e) { setMsg(e.message) } setExists(false) }}>Recuperar a senha</button>
         </div>}
-        <button className="lg-btn" type="submit" disabled={busy}>{busy ? 'Aguarde…' : reg ? 'Criar conta' : 'Entrar'}</button>
-        <button type="button" className="lg-btn ghost" onClick={() => { setMode(reg ? 'login' : 'register'); setErrs({}); setMsg('') }}>
+        {reg && step < 5 && <button className="lg-btn" type="button" onClick={next} data-testid="signup-next">Continuar</button>}
+        {(!reg || step === 5) && <button className="lg-btn" type="submit" disabled={busy}>{busy ? 'Aguarde…' : reg ? 'Criar conta' : 'Entrar'}</button>}
+        {reg && step > 1 && <button type="button" className="lg-btn ghost" onClick={() => { setStep(step - 1); setErrs({}); setMsg('') }} data-testid="signup-back">Voltar</button>}
+        <button type="button" className="lg-btn ghost" onClick={() => { setMode(reg ? 'login' : 'register'); setStep(1); setErrs({}); setMsg('') }}>
           {reg ? 'Já tenho conta — Entrar' : 'Criar conta'}</button>
         <a className="lg-forgot" href="#/precos" data-testid="see-plans" style={{ display: 'block', textAlign: 'center', marginTop: 12 }}>Conhecer os planos e preços</a>
         <InstallButton />

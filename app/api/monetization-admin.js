@@ -1,6 +1,7 @@
 // AVAGYM - Monetizacao F7: Administracao > Monetizacao (painel e submenus). Somente admin (o despachante ja barra
 // /api/adm/* para nao-admin; as rotas conferem de novo). Receita CONFIRMADA = cobrancas pagas fora do simulador;
 // valores do simulador aparecem separados e rotulados. MRR e estimativa (nao e dinheiro recebido).
+import { clientIp } from './clientip.js'   // BUG-044
 import { q } from './db/pool.js'
 import crypto from 'node:crypto'
 import { audit } from './auth.js'
@@ -12,7 +13,7 @@ const SALT = () => process.env.IDENTITY_SALT || process.env.JWT_SECRET || 'avagy
 const hm = v => crypto.createHmac('sha256', SALT()).update(String(v)).digest('hex').slice(0, 40)
 export const IP_LIMIT = () => Math.max(2, +process.env.FRAUD_TRIALS_PER_IP || 3)
 export async function trialIpSignal(user, req) {
-  const ip = String(req.headers['cf-connecting-ip'] || req.headers['x-real-ip'] || req.socket?.remoteAddress || '')
+  const ip = clientIp(req)
   const vid = String(req.headers['x-visitor-id'] || '').slice(0, 64)
   const ipH = ip ? hm('ip:' + ip) : null, vH = vid ? hm('v:' + vid) : null
   await audit(user.tenant_id, user.id, 'monetizacao.teste_origem', 'user', user.id, { ip_hash: ipH, visitor_hash: vH })

@@ -1,5 +1,6 @@
 // AVADESK Fitness · termos de uso versionados e direitos do titular (LGPD): exportação dos dados e pedido de exclusão.
 // Exclusão nunca é automática: entra na fila do admin e só é executada com confirmação explícita (anonimização).
+import { clientIp } from './clientip.js'   // BUG-044
 import { q } from './db/pool.js'
 import { requireAuth, requireRole, audit } from './auth.js'
 import { legalStatus, acceptBaseDocs } from './legal.js'
@@ -18,7 +19,7 @@ export async function termsStatus(userId) {
 export async function acceptTerms(userId, version, req) {
   await acceptBaseDocs(userId, req).catch(e => console.error('[legal] aceite base', e.message))   // QA: evita pedir os termos duas vezes
   await q('insert into term_acceptances(user_id,version,ip,user_agent) values($1,$2,$3,$4) on conflict do nothing',
-    [userId, version, String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').slice(0, 64), String(req.headers['user-agent'] || '').slice(0, 200)])
+    [userId, version, clientIp(req), String(req.headers['user-agent'] || '').slice(0, 200)])
 }
 // colunas de qualquer tabela que referenciam users(id), descobertas pelo catálogo (nada fica de fora da exportação)
 async function userColumns() {

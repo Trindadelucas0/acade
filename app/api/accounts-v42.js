@@ -4,6 +4,7 @@
 // • Aluno do personal: criado pelo personal com link de definição de senha por e-mail;
 //   incluso no plano do personal: só fichas, comunidade e desafios DO personal. O resto pede "Solicitar liberação" ao admin.
 // • Pagamento: ponto de extensão PAYMENT (sem gateway hoje).
+import { clientIp } from './clientip.js'   // BUG-044
 import crypto from 'node:crypto'
 import bcrypt from 'bcryptjs'
 import { q, transaction } from './db/pool.js'
@@ -197,7 +198,7 @@ export function accountRoutes({ json, readBody }) {
           body: `Olá, ${u.name}.\n\nSegue em anexo o arquivo com os seus dados pessoais, conforme pedido feito em ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}.\nSe você não fez este pedido, troque sua senha e fale com o suporte.\n\nAVAGYM`,
           attachment: { name: 'avagym-meus-dados.json', type: 'application/json', content: JSON.stringify(data, null, 2) } })
         const r = (await q(`insert into data_export_requests(tenant_id,user_id,email,copy_email,outbox_id,ip) values($1,$2,$3,$4,$5,$6) returning id`,
-          [u.tenant_id, u.id, email, copy, ob.id, String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').slice(0, 64)])).rows[0]
+          [u.tenant_id, u.id, email, copy, ob.id, clientIp(req)])).rows[0]
         await audit(u.tenant_id, u.id, 'lgpd.exportacao_solicitada', 'data_export_request', r.id, { cópia: !!copy, envio: mailConfigured() ? 'fila' : 'pendente_sem_provedor' })
         return r
       })

@@ -48,4 +48,6 @@ A seção "Reteste QA" de cada bug é preenchida só pelo agente de testes.
 | [BUG-041](bugs/BUG-041.md) | 2026-10-16 | Teste gratuito reutilizável com outra conta do mesmo titular | aluno/profissional | corrigido, aguardando reteste |
 | [BUG-042](bugs/BUG-042.md) | 2026-10-16 | Recursos premium sem verificação central de acesso | todos | corrigido (ativo só com Monetização ligada), aguardando reteste |
 | [BUG-043](bugs/BUG-043.md) | 2026-10-16 | Limite da campanha estourava sob concorrência | admin | corrigido, aguardando reteste |
-| [BUG-044](bugs/BUG-044.md) | 2026-10-16 | Sinal antifraude por IP confiava em cabeçalho do cliente | admin | aberto (baixo; só alerta) |
+| [BUG-044](bugs/BUG-044.md) | 2026-10-16 | Sinal antifraude por IP confiava em cabeçalho do cliente | admin | corrigido, aguardando reteste |
+| [BUG-045](bugs/BUG-045.md) | 2026-10-16 | Aviso LGPD com caracteres U+FFFD (fonte fora de UTF-8) | aluno/profissional | corrigido, aguardando reteste |
+| [BUG-046](bugs/BUG-046.md) | 2026-10-16 | /api/cep sem limite efetivo por IP e sem cabeçalhos RateLimit | público | corrigido, aguardando reteste |

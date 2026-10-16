@@ -1,5 +1,6 @@
 // AVAGYM: dados legais da empresa (tela admin "Dados da empresa") + aceite versionado dos documentos legais.
 // GET público só devolve campos legais; PUT é admin com validação e auditoria. Consulta de CNPJ via BrasilAPI (pelo servidor).
+import { clientIp } from './clientip.js'   // BUG-044
 import { q } from './db/pool.js'
 import { requireAuth, requireRole, audit } from './auth.js'
 import { currentTerms, acceptTerms } from './lgpd.js'
@@ -15,7 +16,7 @@ export function validCNPJ(v) {
 }
 export const fmtCNPJ = v => onlyDigits(v).replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5')
 const validEmail = e => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e)
-const ip = req => String(req.headers['cf-connecting-ip'] || (req.headers['x-forwarded-for'] || '').split(',')[0] || req.socket?.remoteAddress || '').trim().slice(0, 64)
+const ip = req => clientIp(req)
 
 async function defaultTenant() { return (await q('select id from tenants where slug=$1', [process.env.DEFAULT_TENANT || 'avadesk'])).rows[0]?.id || null }
 export async function getCompany(tenantId) {
@@ -47,8 +48,8 @@ export async function legalStatus(userId) {
     return { needs_legal: missing.length > 0, legal_version: version, legal_missing: missing, legal_required: docs, health_consent: hc ? hc.granted : null }
   } catch (e) { console.error('[legal] status', e.message); return { needs_legal: false } }   // migration ainda não aplicada: não trava o app
 }
-// QA: o aceite do cadastro (e o aceite legado /api/terms/accept) tamb�m registra Termos e Privacidade na vers�o legal vigente.
-// Antes s� gravava term_acceptances e o gate (needs_legal) pedia os termos de novo.
+// QA: o aceite do cadastro (e o aceite legado /api/terms/accept) também registra Termos e Privacidade na versão legal vigente.
+// Antes só gravava term_acceptances e o gate (needs_legal) pedia os termos de novo.
 export async function acceptBaseDocs(userId, req) {
   const u = (await q('select id, tenant_id from users where id=$1', [userId])).rows[0]; if (!u) return
   const version = (await getCompany(u.tenant_id)).doc_version

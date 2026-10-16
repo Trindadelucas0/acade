@@ -1,9 +1,11 @@
 // AVAGYM V5 - rotas de monetizacao: planos/checkout/assinatura (aluno e PRO), cupons, painel do parceiro,
 // administracao (planos, precos, teste, cupons, parceiros, politica de cobranca, reconciliacao) e webhooks.
+import { clientIp } from '../clientip.js'   // BUG-044
 import crypto from 'node:crypto'
 import { q } from '../db/pool.js'
 import { requireAuth, requireRole, audit } from '../auth.js'
-import { resolve, refreshUsage } from '../entitlements.js'
+import { resolve, refreshUsage, capacitySummary } from '../entitlements.js'
+import { accessOf } from '../access.js'
 import { getProvider, providerName } from './providers/index.js'
 import { SIM_CARDS } from './providers/simulado.js'
 import * as core from './core.js'
@@ -14,7 +16,7 @@ import { trialIpSignal } from '../monetization-admin.js'   // Monetizacao F9
 
 const qs = req => new URL(req.url, 'http://x').searchParams
 const isUuid = s => /^[0-9a-f-]{36}$/i.test(String(s || ''))
-const ipOf = req => String((process.env.TRUST_PROXY === 'off' ? null : (req.headers['cf-connecting-ip'] || req.headers['x-real-ip'])) || req.socket?.remoteAddress || '').replace(/^::ffff:/, '').slice(0, 64)
+const ipOf = req => clientIp(req)
 const safeEq = (a, b) => { const x = Buffer.from(String(a || '')), y = Buffer.from(String(b || '')); return x.length === y.length && x.length > 0 && crypto.timingSafeEqual(x, y) }
 const send = (json, res, r) => { const { status = 200, ...body } = r; json(res, status, body) }
 
@@ -88,6 +90,19 @@ export function billingRoutes({ json, readBody }) {
       const r = await q(PLANS_SQL + ` where p.active and p.id in (${CATALOG_SQL}) order by p.audience, p.sort`)
       const info = providerInfo()
       json(res, 200, { plans: r.rows.map(p => ({ ...pubPlan(p), purchasable: !p.is_free && !!p.sellable && p.price_cents != null })).map(p => ({ ...p, price_label: p.is_free ? 'Gratuito' : p.price_cents == null ? 'Preço a definir' : null })), test_mode: !!info.test }, { 'Cache-Control': 'public, max-age=60' })
+    },
+    // Monetizacao F8b: tela dedicada do personal (plano, alunos permitidos, vagas usadas, proximo vencimento).
+    // Fica em /api/billing/* (sempre liberado) para o personal gerir a assinatura mesmo com o teste vencido.
+    'GET /api/billing/pro-summary': async (req, res) => {
+      const u = await auth(req, res); if (!u) return
+      if (!u.roles.includes('profissional')) return json(res, 403, { error: 'Somente para contas de profissional.', code: 'PERMISSION_DENIED' })
+      const sub = await subView(u, 'profissional')
+      const cap = await capacitySummary(u.id)
+      const acc = (await accessOf(u)).audiences.profissional || { has: false, sources: [] }
+      const trial = acc.sources.find(s => s.kind === 'teste') || null
+      const next = sub && !sub.is_free ? (sub.status === 'trial' ? sub.trial_ends_at : sub.cancel_at_period_end ? null : sub.current_period_end) : null
+      json(res, 200, { subscription: sub, capacity: cap, commercial_status: acc.commercial_status, has_access: acc.has,
+        trial: trial ? { plan_name: trial.plan_name, until: trial.until } : null, next_due: next, ends_at: sub?.cancel_at_period_end ? sub.current_period_end : null })
     },
     'GET /api/billing/config': async (req, res) => {
       if (!await auth(req, res)) return

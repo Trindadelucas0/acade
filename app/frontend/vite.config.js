@@ -36,8 +36,17 @@ const buildStamp = () => ({
   }
 })
 
+// BUG-045: falha o build se o bundle tiver U+FFFD (arquivo salvo fora de UTF-8 vira "endere\uFFFDo" na tela)
+const noReplacementChar = () => ({
+  name: 'no-replacement-char', apply: 'build',
+  generateBundle(_, bundle) {
+    const bad = Object.values(bundle).filter(o => (o.type === 'chunk' || /\.(css|html|json|svg|txt|webmanifest)$/.test(o.fileName)) && typeof (o.code ?? o.source) === 'string' && (o.code ?? o.source).includes('\uFFFD')).map(o => o.fileName)
+    if (bad.length) this.error('U+FFFD (caractere de substituicao) no bundle: ' + bad.join(', ') + '. Re-salve os fontes em UTF-8 (node scripts/check-utf8.mjs).')
+  }
+})
+
 export default defineConfig({
-  plugins: [react(), devMedia(), buildStamp()],
+  plugins: [react(), devMedia(), buildStamp(), noReplacementChar()],
   define: { __BUILD_ID__: JSON.stringify(BUILD_ID) },
   // V4 · F1: specs do Playwright (e2e/) não rodam no vitest
   test: { exclude: ['test-artifacts/**', 'e2e-results/**', '.cache/**', 'e2e/**', 'node_modules/**', 'android/**', 'ios/**'] },

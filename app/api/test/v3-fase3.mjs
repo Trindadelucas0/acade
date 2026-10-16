@@ -3,7 +3,7 @@ import { check, summary, get, post, login, signup, verifiedPro, student, cleanup
 import { pool } from '../db/pool.js'
 console.log('Fase 3 — catálogo e assinaturas')
 const adm = await login('admin.e2e@avadesk.local')
-check((await get(null, '/api/plans')).s === 401, 'cat�logo de planos exige login (sem modo visitante)')
+check((await get(null, '/api/plans')).s === 401, 'catálogo de planos exige login (sem modo visitante)')
 let r = await get(adm, '/api/plans')
 const byId = Object.fromEntries(r.d.plans.map(p => [p.id, p]))
 check(byId.aluno_free?.is_free && byId.profissional_free?.current.limits.alunos_ativos === 2, 'catálogo: Aluno Free e Profissional Free (2 alunos ativos)')

@@ -1,5 +1,6 @@
 /* opengym-api — passkey (WebAuthn) auth + per-user state storage for openGym
    No framework, JSON-file storage, signed session cookies.               */
+import { clientIp } from './clientip.js'   // BUG-044
 import './env.js';
 import http from 'node:http';
 import { authRoutes, clearTokenCookie, authUser, pub, requireRole, revokeRequestToken } from './auth.js';
@@ -434,17 +435,11 @@ const SEC_HEADERS = {
   'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=()',
   ...(SECURE ? { 'Strict-Transport-Security': 'max-age=31536000; includeSubDomains' } : {})
 };
-// IP real (segurança): o PRIMEIRO item de x-forwarded-for é escrito pelo cliente e permitia burlar o rate limit.
-// Ordem confiável: cf-connecting-ip (túnel Cloudflare) -> x-real-ip (nginx sobrescreve com $remote_addr) -> socket.
-// TRUST_PROXY=off ignora cabeçalhos (API exposta direto, sem proxy).
-const clientIp = req => {
-  const h = process.env.TRUST_PROXY === 'off' ? {} : req.headers;
-  return String(h['cf-connecting-ip'] || h['x-real-ip'] || req.socket?.remoteAddress || '').trim().slice(0, 64);
-};
+// IP real: ver clientip.js (BUG-044: cf-connecting-ip so vale vindo do gateway local; X-Forwarded-For ignorado).
 // Janela fixa em memória. Rotas sensíveis (login, cadastro, recuperação) por IP; RATE_LIMIT=off desliga (testes locais).
 const RL_RULES = {
   'POST /api/auth/login': [20, 15 * 60e3],
-  'POST /api/auth/register': [10, 60 * 60e3], 'GET /api/cep': [40, 10 * 60e3], 'GET /api/convite': [60, 10 * 60e3],
+  'POST /api/auth/register': [10, 60 * 60e3], 'GET /api/cep': [+process.env.CEP_IP_LIMIT || 10, 60e3], 'GET /api/convite': [60, 10 * 60e3],
   'POST /api/auth/forgot': [5, 15 * 60e3],
   'POST /api/auth/reset': [10, 15 * 60e3],
   'POST /api/auth/password': [10, 15 * 60e3],
@@ -487,7 +482,10 @@ function rateLimited(key, req) {
   const g = RL_GLOBAL[key]; if (g) { const now = Date.now(); let e = rlHits.get('global|' + key); if (!e || e.reset < now) { e = { n: 0, reset: now + g[1] }; rlHits.set('global|' + key, e); } if (++e.n > g[0]) return Math.ceil((e.reset - now) / 1000); }
   const k = key + '|' + rlSubject(key, req), now = Date.now();
   let e = rlHits.get(k); if (!e || e.reset < now) { e = { n: 0, reset: now + rule[1] }; rlHits.set(k, e); }
-  return ++e.n > rule[0] ? Math.ceil((e.reset - now) / 1000) : 0;
+  e.n++
+  // BUG-046: cabecalhos padrao (draft IETF RateLimit) em toda resposta de rota limitada
+  req.rl = { limit: rule[0], remaining: Math.max(0, rule[0] - e.n), reset: Math.ceil((e.reset - now) / 1000) }
+  return e.n > rule[0] ? Math.ceil((e.reset - now) / 1000) : 0;
 }
 setInterval(() => { const now = Date.now(); for (const [k, e] of rlHits) if (e.reset < now) rlHits.delete(k); }, 60e3).unref();
 
@@ -510,6 +508,7 @@ http.createServer(async (req, res) => {
   // em POST cross-site; chamadas servidor-a-servidor (sem Origin/Referer) seguem normalmente.
   if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && !originAllowed(req, key)) return json(res, 403, { error: 'Origem não permitida', code: 'CSRF_ORIGIN' });
   const retry = rateLimited(key, req);
+  if (req.rl) { res.setHeader('RateLimit-Limit', String(req.rl.limit)); res.setHeader('RateLimit-Remaining', String(req.rl.remaining)); res.setHeader('RateLimit-Reset', String(req.rl.reset)); }
   if (retry) return json(res, 429, { error: 'Muitas tentativas. Aguarde alguns minutos e tente de novo.' }, { 'Retry-After': String(retry) });
   const handler = routes[key];
   if (!handler) return json(res, 404, { error: 'not found' });

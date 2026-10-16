@@ -50,3 +50,8 @@ Decisões do Lucas D1–D9 (16/10/2026). Tudo fica **desligado** até a virada: 
 - **F8:** cartão "Teste PRO ativo" com o tempo restante, uma faixa global e um 402 `ACCESS_REQUIRED` que leva à assinatura. Também há o campo de cupom na tela de assinatura.
 - **F9:** sinais de 3+ testes do mesmo IP/dispositivo em 24h (`FRAUD_TRIALS_PER_IP`) e uma fila de revisão (descartar/confirmar com nota, auditado). Os sinais só geram alerta.
 - **F10:** `app/api/scripts/virada-monetizacao.mjs` (dry-run por padrão). Ver `22-virada-monetizacao.md`. **Não executado.**
+
+## Antes da virada (16/10/2026, 20:10 BRT)
+- Cadastro em 6 etapas: perfil, dados, assinatura (planos do perfil / "Tenho um cupom" / "Decidir depois"), contratar ou cupom, confirmação com aceite e onboarding. Quem escolhe um plano é levado a Planos e pagamento.
+- Tela do personal `#/pro/assinatura` (`GET /api/billing/pro-summary`, sempre liberada) mostra plano, status, alunos permitidos, vagas usadas, próximo vencimento e acesso à gestão da assinatura, além do painel de indicações.
+- BUG-044: IP real (`clientip.js`); BUG-045: check de UTF-8; BUG-046: `/api/cep` limitado a 10 por minuto por IP, com cabeçalhos RateLimit.

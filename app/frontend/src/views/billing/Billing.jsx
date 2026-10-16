@@ -171,6 +171,7 @@ export function Subscription() {
     {note && <p className={note.ok ? 'bl-ok' : 'bl-err'} role="status" data-testid="billing-note">{note.t}</p>}
     {me.access?.message && <p className="bl-info" data-testid="access-msg">{me.access.message}</p>}
     <TrialCard onChange={load} />
+    {me.subscriptions.profissional !== undefined && <p><a href="#/pro/assinatura" className="adm-btn ghost" data-testid="link-pro-subscription">Minha assinatura PRO: alunos e vagas</a></p>}
     {Object.entries(me.subscriptions).filter(([, s]) => s).map(([aud, s]) => <section key={aud} className="bl-sub" data-testid={'my-sub-' + aud}>
       <div className="bl-row"><div><span className="g-eyebrow">{AUD[aud]}</span><h3>{s.plan_name}</h3></div><span className="bl-sp" /><span className={'bl-st ' + (ST_CLS[s.status] || '')} data-testid={'sub-status-' + aud}>{s.status_label || s.status}</span></div>
       {!s.is_free && <dl className="bl-dl">
