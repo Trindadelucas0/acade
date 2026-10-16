@@ -29,7 +29,7 @@ function Live() {
   const live = d?.live || []
   return <div className="g-card"><b>Treinando agora</b>{live.length ? live.map(p => <p key={p.user_id} className="g-mut g-xs">{p.name} · exercício {p.exIdx + 1}/{p.exTotal} · séries {p.setsDone}/{p.setsTotal}</p>) : <p className="g-mut g-xs">Ninguém treinando neste momento.</p>}</div>
 }
-function UserWorkouts({ id }) {
+export function UserWorkouts({ id }) {
   const [d, err] = useLoad(() => C.userWorkouts(id), [id])
   if (err) return <p className="g-mut g-xs">{err}</p>
   if (!d) return <Load />
@@ -48,8 +48,8 @@ export function Alunos() {
       <div className="g-actions">
         {u.status !== 'ativo' && <button className="g-btn g-sm" onClick={run(() => C.setStatus(u.id, 'ativo'), reload)} data-testid="approve">Liberar acesso</button>}
         {u.status === 'ativo' && <button className="g-btn g-danger g-sm" onClick={run(async () => { const r = await askIt('Motivo do bloqueio'); return r != null && C.setStatus(u.id, 'bloqueado', r) }, reload)}>Bloquear</button>}
-        <select className="g-in" style={{ flex: 1, minWidth: 120 }} value={u.plan_id || ''} onChange={run(async e => { const r = await C.setPlan(u.id, e.target.value); if (r?.over_limit) notify(`Atenção: o aluno tem ${r.links} vínculo(s) e o plano permite ${r.max}. Nada foi encerrado; revise os vínculos.`) }, reload)} aria-label="Plano de acesso">
-          <option value="" disabled>Plano de acesso…</option>{(pl?.plans || []).filter(p => p.active).map(p => <option key={p.id} value={p.id}>{p.name_pt} (até {p.max_professionals})</option>)}</select>
+        <select className="g-in" style={{ flex: 1, minWidth: 120 }} value={u.plan_id || ''} onChange={run(async e => { const r = await C.setPlan(u.id, e.target.value); if (r?.over_limit) notify(`Atenção: o aluno tem ${r.links} vínculo(s) e o plano permite ${r.max}. Nada foi encerrado; revise os vínculos.`) }, reload)} aria-label="Limite de acompanhamento">
+          <option value="" disabled>Limite de acompanhamento…</option>{(pl?.plans || []).filter(p => p.active).map(p => <option key={p.id} value={p.id}>{p.name_pt} (até {p.max_professionals})</option>)}</select>
         <button className="g-btn g-ghost g-sm" onClick={run(async () => { const r = await C.resetLink(u.id); await showValue('Link de redefinição (uso único, 24 h)', r.link, { text: 'Envie ao usuário.' }) })}>Link de nova senha</button>
         <button className="g-btn g-ghost g-sm" onClick={run(() => C.setRole(u.id, 'profissional', !u.roles.includes('profissional')), reload)}>{u.roles.includes('profissional') ? 'Remover profissional' : 'Tornar profissional'}</button>
         <button className="g-btn g-ghost g-sm" onClick={() => setOpen(open === u.id ? null : u.id)}>Histórico de treinos</button>
@@ -68,11 +68,11 @@ export function Profissionais() {
       {q.status !== 'verificada' && <button className="g-link" onClick={run(() => C.verify(q.id, 'verificada', ''), reload)} data-testid="verify">Verificar</button>}
       {q.status === 'pendente' && <button className="g-link" style={{ color: 'var(--ag-bad)' }} onClick={run(async () => { const n = await askIt('Motivo da rejeição'); return n != null && C.verify(q.id, 'rejeitada', n) }, reload)}>Rejeitar</button>}</div>)}
     <div className="g-actions">
-      <select className="g-in" style={{ flex: 1 }} value={p.state} aria-label="Situação" onChange={run(async e => { const reason = await askIt('Motivo da mudança de situação') ?? ''; const r = await C.updPro({ user_id: p.user_id, state: e.target.value, reason }); if (r?.pending) notify(`Suspenso. Pendências que continuam com ele (nada foi transferido): ${r.pending.links} vínculo(s), ${r.pending.occurrences} ocorrência(s), ${r.pending.threads} mensagem(ns). Redistribua pela aba Filas.`) }, reload)}>
+      <select className="g-in" style={{ flex: 1 }} value={p.state} aria-label="Situação" onChange={run(async e => { const state = e.target.value; const reason = await askIt('Motivo da mudança de situação') ?? ''; const r = await C.updPro({ user_id: p.user_id, state, reason }); if (r?.pending) notify(`Suspenso. Pendências que continuam com ele (nada foi transferido): ${r.pending.links} vínculo(s), ${r.pending.occurrences} ocorrência(s), ${r.pending.threads} mensagem(ns). Redistribua pela aba Filas.`) }, reload)}>
         {['em_analise', 'ativo', 'suspenso', 'encerrado'].map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}</select>
       <button className="g-btn g-ghost g-sm" data-testid="grant-seats" onClick={run(async () => { const n = await askIt('Quantas vagas extras?', 1); if (n == null) return; const days = await askIt('Validade (dias, de 1 a 365)', ''); if (!days) return; const why = await askIt('Motivo da concessão', ''); if (!why) return; return C.grantSeats({ user_id: p.user_id, value: +n, days: +days, reason: why }) }, reload)}>Conceder vagas</button>
       <button className="g-btn g-ghost g-sm" onClick={run(() => C.updPro({ user_id: p.user_id, can_publish: !p.can_publish }), reload)} data-testid="toggle-publish">{p.can_publish ? 'Revogar publicação' : 'Autorizar publicação'}</button>
-    </div></div>) : <Empty>Nenhum profissional. Torne um usuário profissional na aba Alunos.</Empty>}</div>
+    </div></div>) : <Empty>Nenhum profissional. Torne um usuário profissional em Usuários e liberações.</Empty>}</div>
 }
 export function Planos() {
   const [d, err, reload] = useLoad(() => C.plans())
@@ -80,7 +80,7 @@ export function Planos() {
   if (err) return <Err msg={err} retry={reload} />
   if (!d) return <Load />
   return <div>
-    <button className="g-btn g-sm" onClick={() => setEd({ id: '', name_pt: '', description: '', benefits: '', max_professionals: 1, active: true })}>+ Novo plano de acesso</button>
+    <button className="g-btn g-sm" onClick={() => setEd({ id: '', name_pt: '', description: '', benefits: '', max_professionals: 1, active: true })}>+ Novo limite de acompanhamento</button>
     <div className="g-card g-list" style={{ marginTop: 10 }}>{d.plans.map(p => <div key={p.id} className="g-li" style={{ display: 'block' }}>
       <div className="g-row"><b>{p.name_pt}</b><span className="g-sp" /><span className={'g-pill ' + (p.active ? 'g-ok' : '')}>{p.active ? 'ativo' : 'inativo'}</span></div>
       <p className="g-mut g-xs">até {p.max_professionals} profissional(is) · {p.students} aluno(s){p.over_limit ? ` · ⚠ ${p.over_limit} acima do limite (pendência)` : ''}</p>
@@ -89,7 +89,7 @@ export function Planos() {
     <p className="g-xs g-mut" style={{ marginTop: 8 }}>Sem pagamentos nesta versão. Inativar um plano não apaga histórico. Reduzir o limite abaixo dos vínculos existentes só gera pendência — nenhum vínculo é encerrado automaticamente.</p>
     <h3 style={{ marginTop: 14 }}>Histórico</h3>
     <div className="g-card g-list">{d.history.slice(0, 15).map(h => <div key={h.id} className="g-li g-xs">{dt(h.created_at)} · {h.plan_id} · {h.action} · {h.actor || ''}</div>)}</div>
-    {ed && <Sheet title="Plano de acesso" onClose={() => setEd(null)}>
+    {ed && <Sheet title="Limite de acompanhamento" onClose={() => setEd(null)}>
       <Field label="Identificador"><input className="g-in" value={ed.id} disabled={!!d.plans.find(p => p.id === ed.id)} onChange={e => setEd({ ...ed, id: e.target.value })} /></Field>
       <Field label="Nome"><input className="g-in" value={ed.name_pt} onChange={e => setEd({ ...ed, name_pt: e.target.value })} /></Field>
       <Field label="Descrição"><textarea className="g-in" value={ed.description || ''} onChange={e => setEd({ ...ed, description: e.target.value })} /></Field>

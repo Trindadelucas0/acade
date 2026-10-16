@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { V } from '../../lib/v3.js'
 import { useStore } from '../../store/useStore.js'
-import { Av, Load, Err, useLoad } from '../app/kit.jsx'
+import { Av, Load, Err, useLoad, Sheet } from '../app/kit.jsx'
 import '../guided/guided.css'
 
 export default function AcceptInvite() {
@@ -16,6 +16,15 @@ export default function AcceptInvite() {
     try { kind === 'ok' ? await V.acceptInvite(code) : await V.declineInvite(code); setDone(kind) }
     catch (e) { setMsg(e.message) } finally { setBusy(false) }
   }
+  // código de aluno digitado no lugar de um convite → explica e leva ao lugar certo
+  const studentCode = typeof err === 'string' && err.startsWith('Esse é um código de aluno')
+  const isPro = (user?.roles || []).includes('profissional')
+  const toInvites = async () => { try { if (user?.context !== 'profissional') { await V.setContext('profissional'); const me = await V.me(); useStore.getState().setUser(me.user) } nav('/pro?tab=convites') } catch (e) { setMsg(e.message) } }
+  if (studentCode) return <div className="ag" data-testid="accept-invite"><Sheet title="Código de aluno" onClose={() => nav(-1)}>
+    <div data-testid="student-code-modal"><p>{err}</p>
+      <div className="g-actions" style={{ marginTop: 12 }}>
+        {isPro && <button className="g-btn" onClick={toInvites} data-testid="student-code-go-invites">Ir para Convites (modo Profissional)</button>}
+        <button className="g-btn g-ghost" onClick={() => nav(-1)}>Entendi</button></div>{msg && <p className="g-warn g-sm">{msg}</p>}</div></Sheet></div>
   return <div className="ag" data-testid="accept-invite">
     <span className="g-eyebrow">Convite</span><h1>Acompanhamento profissional</h1>
     {err ? <Err msg={err} retry={reload} /> : !d ? <Load /> : done ? <div className="g-card" data-testid="invite-done">

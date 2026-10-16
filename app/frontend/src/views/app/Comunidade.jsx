@@ -2,6 +2,10 @@
 // seguir profissionais, denúncias. Alunos não publicam. Publicações não criam vínculo nem substituem orientação individual.
 import { Grupos } from './Grupos.jsx'
 import { Desafios } from './Desafios.jsx'
+import { useNavigationAccess } from '../../components/NavigationAccess.jsx'
+import { isNonTrainee } from '../../lib/accounts.js'
+import { ScopeGate } from '../v3/V42.jsx'
+import { Navigate } from 'react-router-dom'
 import { useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import Icon from '../../components/Icon.jsx'
@@ -68,27 +72,29 @@ function Feed() {
   const [d, err, reload] = useLoad(() => F.feed({ ...(cat ? { cat } : {}), ...(mode === 'seguindo' ? { following: '1' } : mode === 'minhas' ? { mine: '1' } : {}) }), [cat, mode])
   const [comp, setComp] = useState(false)
   const set = (k, v) => { const n = new URLSearchParams(sp); v ? n.set(k, v) : n.delete(k); setSp(n) }
-  const go = t => { const n = new URLSearchParams(); n.set('tab', t); setSp(n) }
-  return <div>
-    {/* V4 F6: atalhos — o feed abre direto, sem escolher aba */}
-    <div className="g-scrollx" data-testid="com-shortcuts">
-      <button className="g-chipbtn" onClick={() => go('desafios')}>Desafios</button>
-      <button className="g-chipbtn" onClick={() => go('grupos')}>Grupos</button>
-      <button className="g-chipbtn" onClick={() => go('ranking')}>Ranking</button>
+  return <div className="com-feed">
+    <h2 className="com-feed-title">Publicações</h2>
+    <div className="g-filters" role="group" aria-label="Filtrar publicações">
+      <button className={'g-chipbtn' + (!cat && !mode ? ' g-on' : '')} aria-pressed={!cat && !mode} onClick={() => setSp({})}>Todos</button>
+      <button className={'g-chipbtn' + (mode === 'seguindo' ? ' g-on' : '')} aria-pressed={mode === 'seguindo'} onClick={() => set('modo', mode === 'seguindo' ? '' : 'seguindo')}>Seguindo</button>
+      {meta?.can_publish && <button className={'g-chipbtn' + (mode === 'minhas' ? ' g-on' : '')} aria-pressed={mode === 'minhas'} onClick={() => set('modo', mode === 'minhas' ? '' : 'minhas')}>Minhas publicações</button>}
     </div>
-    {meta?.can_publish && <button className="g-btn" style={{ marginTop: 10 }} onClick={() => setComp(true)} data-testid="new-post"><Icon name="plus" /> Nova publicação</button>}
-    <div className="g-scrollx" style={{ marginTop: 10 }}>
-      <button className={'g-chipbtn' + (!cat && !mode ? ' g-on' : '')} onClick={() => setSp({})}>Todos</button>
-      <button className={'g-chipbtn' + (mode === 'seguindo' ? ' g-on' : '')} onClick={() => set('modo', mode === 'seguindo' ? '' : 'seguindo')}>Seguindo</button>
-      {meta?.can_publish && <button className={'g-chipbtn' + (mode === 'minhas' ? ' g-on' : '')} onClick={() => set('modo', mode === 'minhas' ? '' : 'minhas')}>Minhas publicações</button>}
-      {(meta?.categories || []).map(c => <button key={c.id} className={'g-chipbtn' + (cat === c.id ? ' g-on' : '')} onClick={() => set('cat', cat === c.id ? '' : c.id)}>{c.name_pt}</button>)}
+    <div className="com-feed-tools">
+      <label className="g-filter-field">Assunto
+        <select className="g-in" value={cat} onChange={e => set('cat', e.target.value)} disabled={!meta}>
+          <option value="">Todos os assuntos</option>
+          {cat && !meta?.categories?.some(c => c.id === cat) && <option value={cat}>Assunto selecionado</option>}
+          {(meta?.categories || []).map(c => <option key={c.id} value={c.id}>{c.name_pt}</option>)}
+        </select>
+      </label>
+      {meta?.can_publish && <button className="g-btn" onClick={() => setComp(true)} data-testid="new-post"><Icon name="plus" /> Nova publicação</button>}
     </div>
     <div style={{ marginTop: 10 }}>{err ? <Err msg={err} retry={reload} /> : !d ? <Load /> : d.posts.length ? d.posts.map(p => <PostCard key={p.id} p={p} onChange={reload} />)
       : <Empty icon="users">{mode === 'seguindo' ? 'Siga profissionais para ver as publicações deles aqui.' : 'Ainda não há publicações.'}</Empty>}</div>
     {comp && meta && <Compose cats={meta.categories} onClose={() => setComp(false)} onDone={() => { setComp(false); reload() }} />}
   </div>
 }
-function Profissionais() {
+export function Profissionais() {
   const nav = useNavigate()
   const [d, err, reload] = useLoad(() => C.pros())
   if (err) return <Err msg={err} retry={reload} />
@@ -98,14 +104,16 @@ function Profissionais() {
     {p.following && <span className="g-pill g-ok" style={{ marginLeft: 'auto' }}>seguindo</span>}</button>) : <Empty icon="users">Nenhum profissional ativo ainda.</Empty>}</div>
 }
 export default function Comunidade() {
+  const can = useNavigationAccess()
   const [sp, setSp] = useSearchParams()
   const user = useStore(s => s.user)
   const tab = sp.get('tab') || 'feed'
   const isStudent = user?.roles?.includes('aluno')
+  if (tab === 'profissionais' && !isNonTrainee(user)) return <Navigate to="/acompanhamento?aba=profissionais" replace />
   return <div className="ag" data-testid="comunidade">
     <span className="g-eyebrow">Comunidade</span><h1>Comunidade</h1>
-    <Tabs cur={tab} set={t => setSp({ tab: t })} tabs={[['feed', 'Feed'], ['desafios', 'Desafios'], ['grupos', 'Grupos'], ['profissionais', 'Profissionais'], ...(isStudent || user?.admin ? [['ranking', 'Ranking']] : [])]} />
-    {tab === 'feed' && <Feed />}{tab === 'profissionais' && <Profissionais />}{tab === 'ranking' && <Ranking embedded />}{tab === 'grupos' && <Grupos />}{tab === 'desafios' && <Desafios />}
+    <div data-testid="com-tabs"><Tabs cur={tab} set={t => setSp({ tab: t })} tabs={[['feed', 'Publicações'], ['desafios', 'Desafios'], ...(can('grupos') ? [['grupos', 'Grupos']] : []), ...((isStudent || user?.admin) && can('ranking') ? [['ranking', 'Ranking']] : [])]} /></div>
+    {tab === 'feed' && <Feed />}{tab === 'profissionais' && <Profissionais />}{tab === 'ranking' && <ScopeGate title="Ranking"><Ranking embedded /></ScopeGate>}{tab === 'grupos' && <ScopeGate title="Grupos"><Grupos /></ScopeGate>}{tab === 'desafios' && <Desafios />}
   </div>
 }
 export function PostPage() {

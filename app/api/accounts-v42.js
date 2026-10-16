@@ -1,12 +1,13 @@
 // AVAGYM V4.2 — tipos de conta e liberação de acesso.
 // • Usuário normal / profissional: cadastro aberto; conta NOVA entra "não liberada" — vê todas as telas, mas ações ficam travadas
 //   (bloqueio central no backend: accessGate) até o admin liberar. Contas que já existiam foram liberadas pela migration 032.
-// • Aluno do personal (account_type='personal_client'): criado pelo personal com senha provisória (troca obrigatória no 1º login);
+// • Aluno do personal: criado pelo personal com link de definição de senha por e-mail;
 //   incluso no plano do personal: só fichas, comunidade e desafios DO personal. O resto pede "Solicitar liberação" ao admin.
 // • Pagamento: ponto de extensão PAYMENT (sem gateway hoje).
 import crypto from 'node:crypto'
 import bcrypt from 'bcryptjs'
-import { q } from './db/pool.js'
+import { q, transaction } from './db/pool.js'
+import { allowPasswordEmail, queuePasswordLink } from './password-email.js'
 import { requireAuth, requireRole, audit } from './auth.js'
 import { notify, notifyAdmins } from './pro.js'
 import { capacitySummary } from './entitlements.js'
@@ -56,10 +57,12 @@ export async function autoUnlockForTests(uid, email) {
 const tempPassword = () => { const A = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'; const b = crypto.randomBytes(12); return Array.from(b, x => A[x % A.length]).join('') }
 
 async function setAccess(actor, uid, unlocked, note) {
-  await q(`update users set access_unlocked_at=${unlocked ? 'coalesce(access_unlocked_at, now())' : 'null'}, access_unlocked_by=$2 where id=$1`, [uid, actor.id])
-  await q('insert into access_events(user_id,action,actor_id,note) values($1,$2,$3,$4)', [uid, unlocked ? 'liberada' : 'bloqueada', actor.id, txt(note, 300) || null])
-  await audit(actor.tenant_id, actor.id, unlocked ? 'acesso.liberado' : 'acesso.bloqueado', 'user', uid, { note: txt(note, 300) || null })
-  await notify(uid, 'liberacao', unlocked ? 'Sua conta foi liberada' : 'Liberação da conta revogada', unlocked ? 'Agora você pode usar todas as ações do app.' : (txt(note, 200) || ''), '/perfil')
+  return transaction(async () => {
+    await q(`update users set access_unlocked_at=${unlocked ? 'coalesce(access_unlocked_at, now())' : 'null'}, access_unlocked_by=$2 where id=$1`, [uid, actor.id])
+    await q('insert into access_events(user_id,action,actor_id,note) values($1,$2,$3,$4)', [uid, unlocked ? 'liberada' : 'bloqueada', actor.id, txt(note, 300) || null])
+    await audit(actor.tenant_id, actor.id, unlocked ? 'acesso.liberado' : 'acesso.bloqueado', 'user', uid, { note: txt(note, 300) || null })
+    await notify(uid, 'liberacao', unlocked ? 'Sua conta foi liberada' : 'Liberação da conta revogada', unlocked ? 'Agora você pode usar todas as ações do app.' : (txt(note, 200) || ''), '/perfil')
+  })
 }
 
 export function accountRoutes({ json, readBody }) {
@@ -80,13 +83,17 @@ export function accountRoutes({ json, readBody }) {
       const cap = await capacitySummary(u.id)
       if (cap.available != null && cap.available <= 0) return json(res, 409, { error: 'Você atingiu o limite de alunos do seu plano.', code: 'LIMIT_REACHED', metric: 'alunos_ativos', used: cap.used, limit: cap.effective_limit })
       const pw = tempPassword()
-      const nu = (await q(`insert into users(tenant_id,name,email,password_hash,status,account_type,must_change_password,managed_by) values($1,$2,$3,$4,'ativo','personal_client',true,$5) returning id`,
-        [u.tenant_id, name, email, await bcrypt.hash(pw, 12), u.id])).rows[0]
-      await q(`insert into user_roles values($1,$2,'aluno') on conflict do nothing`, [nu.id, u.tenant_id])
-      await q(`insert into coach_students(tenant_id,coach_id,student_id,status,origin,created_by) values($1,$2,$3,'ativo','personal',$2)`, [u.tenant_id, u.id, nu.id])
-      await audit(u.tenant_id, u.id, 'aluno_personal.criado', 'user', nu.id, { email })
-      // a senha provisória é mostrada UMA vez ao personal (não é gravada em texto em lugar nenhum)
-      json(res, 201, { id: nu.id, email, temp_password: pw, message: 'Envie o e-mail e a senha provisória ao aluno. No primeiro acesso ele cria uma senha nova.' })
+      const nu = await transaction(async () => {
+        const nu = (await q(`insert into users(tenant_id,name,email,password_hash,status,account_type,must_change_password,managed_by) values($1,$2,$3,$4,'ativo','personal_client',true,$5) returning id`,
+          [u.tenant_id, name, email, await bcrypt.hash(pw, 12), u.id])).rows[0]
+        await q(`insert into user_roles values($1,$2,'aluno') on conflict do nothing`, [nu.id, u.tenant_id])
+        await q(`insert into coach_students(tenant_id,coach_id,student_id,status,origin,created_by) values($1,$2,$3,'ativo','personal',$2)`, [u.tenant_id, u.id, nu.id])
+        await audit(u.tenant_id, u.id, 'aluno_personal.criado', 'user', nu.id, { email })
+        if (mailConfigured()) await queuePasswordLink(nu.id, u.id, true)   // com Resend: também manda o link por e-mail
+        return nu
+      })
+      // senha provisória mostrada UMA vez ao personal (decisão Lucas: não expira; troca obrigatória no 1º login). Sem Resend é o único caminho.
+      json(res, 201, { id: nu.id, email, temp_password: pw, email_queued: mailConfigured(), message: mailConfigured() ? 'Envie a senha provisória ao aluno; ele também recebe um link por e-mail.' : 'Envie o e-mail e a senha provisória ao aluno. No primeiro acesso ele cria uma senha nova.' })
     },
     'GET /api/pro/clients': async (req, res) => {
       const u = await requireRole('profissional')(req, res, json); if (!u) return
@@ -96,12 +103,13 @@ export function accountRoutes({ json, readBody }) {
     'POST /api/pro/clients/reset-password': async (req, res) => {
       const u = await requireRole('profissional')(req, res, json); if (!u) return
       const b = await readBody(req); if (!isUuid(b.id)) return json(res, 400, { error: 'id inválido' })
-      const c = (await q(`select id from users where id=$1 and managed_by=$2 and account_type='personal_client'`, [b.id, u.id])).rows[0]
+      const c = (await q("select u.id,u.email from users u join coach_students cs on cs.student_id=u.id and cs.coach_id=$2 and cs.status='ativo' where u.id=$1 and u.managed_by=$2 and u.account_type='personal_client' and u.tenant_id=$3", [b.id,u.id,u.tenant_id])).rows[0]
       if (!c) return json(res, 404, { error: 'Aluno não encontrado' })
       const pw = tempPassword()
       await q('update users set password_hash=$2, must_change_password=true, token_version=token_version+1 where id=$1', [c.id, await bcrypt.hash(pw, 12)])
       await audit(u.tenant_id, u.id, 'aluno_personal.senha_provisoria', 'user', c.id)
-      json(res, 200, { temp_password: pw })
+      if (mailConfigured() && await allowPasswordEmail(req, c.email)) await queuePasswordLink(c.id, u.id)
+      json(res, 200, { temp_password: pw, email_queued: mailConfigured() })
     },
     // ---------- pedido de liberação (qualquer conta não liberada) ----------
     'GET /api/me/unlock-request': async (req, res) => {
@@ -134,11 +142,15 @@ export function accountRoutes({ json, readBody }) {
     'POST /api/adm/access/decide': async (req, res) => {
       const u = await admin(req, res, json); if (!u) return
       const b = await readBody(req); if (!['aprovar', 'recusar'].includes(b.action)) return json(res, 400, { error: 'Ação inválida' })
-      const r = (await q(`update unlock_requests set status=$2, decided_by=$3, decided_at=now(), decision_note=$4 where id=$1 and tenant_id=$5 and status='pendente' returning user_id`,
-        [+b.id, b.action === 'aprovar' ? 'aprovada' : 'recusada', u.id, txt(b.note, 300) || null, u.tenant_id])).rows[0]
-      if (!r) return json(res, 409, { error: 'Pedido já decidido ou inexistente' })
-      if (b.action === 'aprovar') await setAccess(u, r.user_id, true, b.note || 'pedido aprovado')
-      else { await audit(u.tenant_id, u.id, 'liberacao.recusada', 'unlock_request', b.id); await notify(r.user_id, 'liberacao', 'Pedido de liberação recusado', txt(b.note, 200), '/perfil') }
+      const decided = await transaction(async () => {
+        const r = (await q(`update unlock_requests set status=$2, decided_by=$3, decided_at=now(), decision_note=$4 where id=$1 and tenant_id=$5 and status='pendente' returning user_id`,
+          [+b.id, b.action === 'aprovar' ? 'aprovada' : 'recusada', u.id, txt(b.note, 300) || null, u.tenant_id])).rows[0]
+        if (!r) return false
+        if (b.action === 'aprovar') await setAccess(u, r.user_id, true, b.note || 'pedido aprovado')
+        else { await audit(u.tenant_id, u.id, 'liberacao.recusada', 'unlock_request', b.id); await notify(r.user_id, 'liberacao', 'Pedido de liberação recusado', txt(b.note, 200), '/perfil') }
+        return true
+      })
+      if (!decided) return json(res, 409, { error: 'Pedido já decidido ou inexistente' })
       json(res, 200, { ok: true })
     },
     'POST /api/adm/access/set': async (req, res) => {
@@ -166,14 +178,20 @@ export function accountRoutes({ json, readBody }) {
       if (last) return json(res, 429, { error: 'Você já pediu uma exportação nas últimas 24 horas. Tente novamente depois.', code: 'RATE_LIMIT', next_at: new Date(new Date(last.created_at).getTime() + 864e5).toISOString() })
       const data = await buildExport(u)
       const copy = process.env.LGPD_COPY_EMAIL || null
-      const ob = await enqueueEmail({ tenantId: u.tenant_id, to: u.email, cc: copy, kind: 'lgpd_export', ref: u.id,
-        subject: 'AVADESK — exportação dos seus dados (LGPD)',
-        body: `Olá, ${u.name}.\n\nSegue em anexo o arquivo com os seus dados pessoais, conforme pedido feito em ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}.\nSe você não fez este pedido, troque sua senha e fale com o suporte.\n\nAVADESK`,
-        attachment: { name: 'avadesk-meus-dados.json', type: 'application/json', content: JSON.stringify(data, null, 2) } })
-      const r = (await q(`insert into data_export_requests(tenant_id,user_id,email,copy_email,outbox_id,ip) values($1,$2,$3,$4,$5,$6) returning id`,
-        [u.tenant_id, u.id, email, copy, ob.id, String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').slice(0, 64)])).rows[0]
-      await audit(u.tenant_id, u.id, 'lgpd.exportacao_solicitada', 'data_export_request', r.id, { cópia: !!copy, envio: mailConfigured() ? 'fila' : 'pendente_sem_provedor' })
-      json(res, 202, { id: r.id, status: 'na_fila', mail_configured: mailConfigured(), message: mailConfigured() ? 'Pedido recebido. O arquivo será enviado para o seu e-mail.' : 'Pedido recebido. O envio por e-mail está temporariamente pendente; você receberá assim que for liberado.' })
+      const result = await transaction(async () => {
+        await q('select id from users where id=$1 for update', [u.id])
+        if ((await q("select 1 from data_export_requests where user_id=$1 and created_at>now()-interval '24 hours'", [u.id])).rowCount) return null
+        const ob = await enqueueEmail({ tenantId: u.tenant_id, to: u.email, cc: copy, kind: 'lgpd_export', ref: u.id,
+          subject: 'AVAGYM — exportação dos seus dados (LGPD)',
+          body: `Olá, ${u.name}.\n\nSegue em anexo o arquivo com os seus dados pessoais, conforme pedido feito em ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}.\nSe você não fez este pedido, troque sua senha e fale com o suporte.\n\nAVAGYM`,
+          attachment: { name: 'avagym-meus-dados.json', type: 'application/json', content: JSON.stringify(data, null, 2) } })
+        const r = (await q(`insert into data_export_requests(tenant_id,user_id,email,copy_email,outbox_id,ip) values($1,$2,$3,$4,$5,$6) returning id`,
+          [u.tenant_id, u.id, email, copy, ob.id, String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').slice(0, 64)])).rows[0]
+        await audit(u.tenant_id, u.id, 'lgpd.exportacao_solicitada', 'data_export_request', r.id, { cópia: !!copy, envio: mailConfigured() ? 'fila' : 'pendente_sem_provedor' })
+        return r
+      })
+      if (!result) return json(res, 429, { error: 'Você já pediu uma exportação nas últimas 24 horas.' })
+      json(res, 202, { id: result.id, status: 'na_fila', mail_configured: mailConfigured(), message: mailConfigured() ? 'Pedido recebido. O arquivo será enviado para o seu e-mail.' : 'Pedido recebido. O envio por e-mail está temporariamente pendente; você receberá assim que for liberado.' })
     }
   }
 }

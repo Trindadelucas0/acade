@@ -1,6 +1,8 @@
 // Acompanhamento do aluno: profissionais vinculados, planos, dúvidas e ocorrências (relato ≠ orientação ≠ alteração).
+import { useNavigationAccess } from '../../components/NavigationAccess.jsx'
+import { Profissionais } from './Comunidade.jsx'
 import { useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import Icon from '../../components/Icon.jsx'
 import { C, CAT_PT, OCC_ST, dt } from '../../lib/care.js'
 import { Av, Empty, Load, Err, useLoad, Sheet, Field, useAutoRefresh } from './kit.jsx'
@@ -35,7 +37,7 @@ export function AskSheet({ ctx, onClose, onDone }) {
 const pillOf = o => o.status === 'encerrada' ? '' : o.status === 'orientada' ? 'g-ok' : 'g-warn2'
 
 export default function Acompanhamento() {
-  const nav = useNavigate()
+  const nav = useNavigate(), [sp] = useSearchParams(), can = useNavigationAccess()
   const [d, err, reload] = useLoad(() => C.care())
   useAutoRefresh(reload)
   const [sheet, setSheet] = useState(null)
@@ -44,6 +46,7 @@ export default function Acompanhamento() {
   const blocked = new Set(d.blocks.map(b => b.exercise_id))
   return <div className="ag" data-testid="acompanhamento">
     <span className="g-eyebrow">Acompanhamento</span><h1>Seu acompanhamento</h1>
+    {can('profissionais') && <details className="org-details" open={sp.get('aba') === 'profissionais' ? true : undefined}><summary>Encontrar profissional</summary><Profissionais /></details>}
     <h2>Profissionais responsáveis</h2>
     <div className="g-card g-list">{d.professionals.length ? d.professionals.map(p => <button key={p.link_id} className="g-li" onClick={() => nav('/profissional/' + p.id)}>
       <Av name={p.name} url={p.photo_url} /><span><b>{p.name}</b><br /><span className="g-mut g-xs">{[p.area, ...(p.specialties || [])].filter(Boolean).join(' · ') || 'Profissional'}</span></span></button>)
@@ -51,7 +54,12 @@ export default function Acompanhamento() {
     <div className="g-actions"><button className="g-btn g-ghost g-sm" onClick={() => setSheet('ask')} data-testid="new-ask"><Icon name="chat" /> Enviar dúvida</button>
       <button className="g-btn g-ghost g-sm" onClick={() => setSheet('report')}><Icon name="flag" /> Relatar problema</button></div>
     {blocked.size > 0 && <div className="g-blocked"><b>Exercícios pausados</b><p className="g-mut g-sm">Aguardando orientação profissional para retomar: {d.occurrences.filter(o => blocked.has(o.exercise_id)).map(o => o.exercise_name || o.exercise_id).filter((v, i, a) => a.indexOf(v) === i).join(', ')}</p></div>}
-    <h2>Ocorrências</h2>
+    <h2>Conversas</h2>
+    <div className="g-card g-list">{d.threads.length ? d.threads.map(t => <button key={t.id} className="g-li" onClick={() => nav('/conversa/' + t.id)}>
+      <span className="g-ico"><Icon name="chat" /></span><span style={{ minWidth: 0 }}><b>{t.exercise_name || 'Dúvida geral'}</b><br /><span className="g-mut g-xs">{t.last_body?.slice(0, 60)}</span></span>
+      <span className={'g-pill ' + (t.status === 'respondida' ? 'g-ok' : t.status === 'aguardando' ? 'g-warn2' : '')} style={{ marginLeft: 'auto' }}>{t.status}</span></button>)
+      : <Empty icon="chat">Suas dúvidas aparecem aqui, com o histórico das respostas.</Empty>}</div>
+    <details className="org-details"><summary>Ocorrências ({d.occurrences.length})</summary>    <h2>Ocorrências</h2>
     <div className="g-card g-list">{d.occurrences.length ? d.occurrences.map(o => <div key={o.id} className="g-li" style={{ display: 'block' }} data-testid="occ">
       <div className="g-row"><b>{CAT_PT[o.category]}</b><span className="g-sp" /><span className={'g-pill ' + pillOf(o)}>{OCC_ST[o.status]}</span></div>
       <p className="g-mut g-xs">{o.exercise_name ? o.exercise_name + ' · ' : ''}{dt(o.created_at)}</p>
@@ -60,11 +68,7 @@ export default function Acompanhamento() {
         <span className={'g-pill ' + (a.resume_allowed ? 'g-ok' : 'g-warn2')}>{a.resume_allowed ? 'Retomada autorizada — você decide se continua' : a.needs_info ? 'Precisa de mais informações' : 'Retomada não autorizada'}</span></div>)}
       {o.status === 'encerrada' && <button className="g-link" onClick={() => setSheet({ parent: o })}>Tenho nova informação sobre isso</button>}
     </div>) : <Empty icon="check">Nenhuma ocorrência registrada.</Empty>}</div>
-    <h2>Conversas</h2>
-    <div className="g-card g-list">{d.threads.length ? d.threads.map(t => <button key={t.id} className="g-li" onClick={() => nav('/conversa/' + t.id)}>
-      <span className="g-ico"><Icon name="chat" /></span><span style={{ minWidth: 0 }}><b>{t.exercise_name || 'Dúvida geral'}</b><br /><span className="g-mut g-xs">{t.last_body?.slice(0, 60)}</span></span>
-      <span className={'g-pill ' + (t.status === 'respondida' ? 'g-ok' : t.status === 'aguardando' ? 'g-warn2' : '')} style={{ marginLeft: 'auto' }}>{t.status}</span></button>)
-      : <Empty icon="chat">Suas dúvidas aparecem aqui, com o histórico das respostas.</Empty>}</div>
+</details>
     {sheet === 'ask' && <AskSheet onClose={() => setSheet(null)} onDone={() => { setSheet(null); reload() }} />}
     {sheet === 'report' && <ReportSheet onClose={() => setSheet(null)} onDone={() => { setSheet(null); reload() }} />}
     {sheet?.parent && <ReportSheet ctx={{ parent_id: sheet.parent.id, exercise_id: sheet.parent.exercise_id, exercise_name: sheet.parent.exercise_name }} onClose={() => setSheet(null)} onDone={() => { setSheet(null); reload() }} />}

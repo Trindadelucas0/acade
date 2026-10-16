@@ -6,7 +6,7 @@ import { Load, Err, Empty, useLoad, Sheet, Field } from '../app/kit.jsx'
 import { useUI } from '../../store/useUI.js'
 
 const copy = async (t, what) => { try { await navigator.clipboard.writeText(t); useUI.getState().toast(what + ' copiado') } catch { useUI.getState().toast('Não foi possível copiar') } }
-export default function Invites() {
+export default function Invites({ compact = false }) {
   const [d, err, reload] = useLoad(() => V.proInvites())
   const [form, setForm] = useState(null), [cancel, setCancel] = useState(null), [busy, setBusy] = useState(false), [msg, setMsg] = useState(''), [created, setCreated] = useState(null)
   if (err) return <Err msg={err} retry={reload} />
@@ -20,9 +20,10 @@ export default function Invites() {
   const doCancel = async () => { setBusy(true); try { await V.cancelInvite(cancel.id); setCancel(null); reload() } catch (e) { setMsg(e.message) } finally { setBusy(false) } }
   return <div data-testid="invites">
     <div className="g-card">
-      <span className="g-eyebrow">{d.plan || 'Plano'}</span>
+      {!compact && <><span className="g-eyebrow">{d.plan || 'Plano'}</span>
       <div className="g-row"><b style={{ fontSize: 28 }} data-testid="inv-usage">{d.active}{d.limit != null ? '/' + d.limit : ''}</b><span className="g-mut g-sm" style={{ marginLeft: 8 }}>alunos ativos</span></div>
       {d.limit != null && <div style={{ height: 8, borderRadius: 8, background: '#ffffff14', marginTop: 6 }}><i style={{ display: 'block', height: 8, borderRadius: 8, width: Math.min(100, d.active / Math.max(1, d.limit) * 100) + '%', background: 'var(--ag-acc)' }} /></div>}
+      </>}
       {d.over_limit && <p className="g-warn g-sm">Acima do limite do plano: seus alunos continuam, mas novos vínculos ficam bloqueados.</p>}
       {!verified && <p className="g-note g-sm">Cadastro profissional: <b>{VER_PT[d.verification]}</b>. Convites só depois da verificação.</p>}
       <button className="g-btn" style={{ marginTop: 12 }} disabled={!verified} onClick={() => full ? window.dispatchEvent(new CustomEvent('avagym:plan-error', { detail: { code: 'LIMIT_REACHED', error: `Seu plano permite ${d.limit} alunos ativos e você já tem ${d.active}.`, metric: 'alunos_ativos', used: d.active, limit: d.limit } })) : setForm({ student_code: '', message: '' })} data-testid="inv-new">

@@ -10,7 +10,7 @@ export default function AdmSubscriptions() {
   const act = async fn => { setBusy(true); setMsg(''); try { const r = await fn(); setMsg(r?.entitlements?.over_limit ? 'Plano trocado. Usuário ficou ACIMA DO LIMITE: dados preservados, novas criações bloqueadas.' : 'Salvo.'); reload() } catch (e) { setMsg(e.message) } finally { setBusy(false) } }
   const rows = (d?.subscriptions || []).filter(s => !qq || (s.name + s.email).toLowerCase().includes(qq.toLowerCase()))
   return <div className="ag" style={{ padding: 0 }} data-testid="adm-subs">
-    <p className="g-xs g-mut">Sem cobrança nesta fase: preços dos planos pagos ainda não definidos (placeholders).</p>
+    <p className="g-xs g-mut">Gestão sem cobrança automática. Os preços dos planos pagos ainda não foram definidos.</p>
     <input className="g-in" placeholder="Buscar usuário" value={qq} onChange={e => setQq(e.target.value)} />
     {err ? <Err msg={err} retry={reload} /> : !d ? <Load /> : !rows.length ? <Empty icon="info">Nenhuma assinatura.</Empty> :
       <div className="g-card g-list" style={{ marginTop: 10 }}>{rows.map(s => <button key={s.id} className="g-li" onClick={() => { setSel(s); setF({ plan_id: s.plan_id, status: s.status, value: 1, days: 30, reason: '' }); setMsg('') }} data-testid={'sub-row-' + s.id}>

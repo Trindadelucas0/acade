@@ -20,7 +20,7 @@ export function Tabs({ tabs, cur, set }) {
 // carregamento com estado de erro claro
 export function useLoad(fn, deps = []) {
   const [d, setD] = useState(null), [err, setErr] = useState(''), [n, setN] = useState(0)
-  useEffect(() => { let on = true; setErr(''); fn().then(x => on && setD(x)).catch(e => on && setErr(e.status === 403 ? (e.message || 'Sem permissão') : e.status ? e.message : 'Sem conexão. Tente de novo.')); return () => { on = false } }, [...deps, n]) // eslint-disable-line
+  useEffect(() => { let on = true; setErr(''); fn().then(x => on && setD(x)).catch(e => on && (e.status === 404 && console.warn('[opcional] recurso ausente:', e.message), setErr(e.status === 403 ? (e.message || 'Sem permissão') : e.status ? e.message : 'Sem conexão. Tente novamente.'))); return () => { on = false } }, [...deps, n]) // eslint-disable-line
   return [d, err, () => setN(x => x + 1)]
 }
 // V4 F7: atualiza sozinho enquanto a tela está visível e ao voltar para o app (sem recarregar a página)
@@ -31,7 +31,9 @@ export function useAutoRefresh(reload, ms = 30000) {
     return () => { clearInterval(t); document.removeEventListener('visibilitychange', tick) }
   }, [ms]) // eslint-disable-line
 }
-export const Err = ({ msg, retry }) => <div className="g-card"><p className="g-warn">{msg}</p>{retry && <button className="g-btn g-ghost g-sm" style={{ marginTop: 10 }} onClick={retry}>Tentar de novo</button>}</div>
+// 404 de rota (API sem o recurso: dado opcional) não vira aviso vermelho — some em silêncio (registrado no console)
+export const isMissing = m => m === 'not found' || m?.status === 404
+export const Err = ({ msg, retry }) => isMissing(msg) ? null : <div className="g-card"><p className="g-warn">{msg}</p>{retry && <button className="g-btn g-ghost g-sm" style={{ marginTop: 10 }} onClick={retry}>Tentar novamente</button>}</div>
 export function Field({ label, children }) { return <label className="g-field"><span className="g-mut g-xs">{label}</span>{children}</label> }
 
 // V4 · F1 — botão padrão do app (§12.1). Variantes sobre as classes existentes (sem visual novo):

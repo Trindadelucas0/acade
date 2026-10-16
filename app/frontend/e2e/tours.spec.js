@@ -49,7 +49,7 @@ test('usuário normal: boas-vindas, teclado, servidor, telas, rever, claro', asy
   await page.goto('/#/comunidade'); await walk(page, 'normal-comunidade')
   await page.goto('/#/progresso'); await walk(page, 'normal-progresso')
   await page.goto('/#/perfil'); await walk(page, 'normal-perfil')
-  await page.getByTestId('tour-restart').click()
+  await page.goto('/#/perfil?secao=ajuda'); await page.getByTestId('tour-restart').click()   // reorganização: Ajuda é uma seção do Perfil
   await expect(page.getByTestId('tour-card')).toBeVisible({ timeout: 8000 }); await page.keyboard.press('Escape')
   await expect(page.getByTestId('tour')).toHaveCount(0); await ctx.close()
   const l = await open(browser, email, PASS, { scheme: 'light', theme: 'light', rm: 'reduce' })
@@ -87,7 +87,7 @@ test('aluno do personal: boas-vindas aponta o cadeado', async ({ browser }) => {
 test('personal: boas-vindas e convites', async ({ browser }) => {
   const { ctx, page } = await open(browser, 'pro1.e2e@avadesk.local')
   await page.goto('/#/pro'); await walk(page, 'personal-boasvindas')
-  await page.goto('/#/pro?tab=convites'); await walk(page, 'personal-convites')
+  await page.goto('/#/pro?tab=cadastrar'); await walk(page, 'personal-cadastrar')   // reorganização: Adicionar aluno → Cadastrar
   await ctx.close()
 })
 

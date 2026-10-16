@@ -21,6 +21,10 @@ const proInfo = async uid => (await q(`select pp.state, pp.capacity, pp.verifica
 // convites vencidos deixam de valer (sem job: marcados na leitura)
 const expire = () => q(`update pro_invites set status='expirado' where status='pendente' and expires_at < now()`)
 
+// Código digitado não é convite mas é o código de um aluno (share_code): avisa sem expor dados da pessoa
+const STUDENT_CODE_MSG = 'Esse é um código de aluno, não um convite. Para convidar um aluno, troque para o modo Profissional e vá em Convites → Novo convite, colocando esse código em Código do aluno.'
+const notFound = async (code, tenantId) => (await q(`select 1 from users where upper(share_code)=upper($1) and tenant_id=$2 and not exists (select 1 from user_roles r where r.user_id=users.id and r.role_id='profissional')`, [code, tenantId])).rowCount
+  ? { error: STUDENT_CODE_MSG, code: 'is_student_code' } : { error: 'Convite não encontrado' }
 export function inviteRoutes({ json, readBody }) {
   const proOnly = async (req, res) => {
     const u = await requireAuth(req, res, json); if (!u) return null
@@ -88,7 +92,8 @@ export function inviteRoutes({ json, readBody }) {
       const u = await requireAuth(req, res, json, { allowPending: true }); if (!u) return
       await expire()
       const i = (await q(`select * from pro_invites where code=$1`, [normCode(qs(req).get('code'))])).rows[0]
-      if (!i || i.tenant_id !== u.tenant_id || (i.student_id && i.student_id !== u.id)) return json(res, 404, { error: 'Convite não encontrado' })
+      if (!i) return json(res, 404, await notFound(normCode(qs(req).get('code')), u.tenant_id))
+      if (i.tenant_id !== u.tenant_id || (i.student_id && i.student_id !== u.id)) return json(res, 404, { error: 'Convite não encontrado' })
       const p = await proInfo(i.professional_id)
       json(res, 200, { code: i.code, status: i.status, expires_at: i.expires_at, message: i.message, mine: i.professional_id === u.id,
         professional: { id: i.professional_id, name: p?.name, specialties: p?.specialties || [], photo_url: p?.photo_url || null, verified: p?.verification_status === 'verificado' },
@@ -104,7 +109,8 @@ export function inviteRoutes({ json, readBody }) {
         await c.query('begin')
         const i = (await c.query(`select * from pro_invites where code=$1 for update`, [code])).rows[0]
         const bad = (status, body) => { out = [status, body] }
-        if (!i || i.tenant_id !== u.tenant_id || (i.student_id && i.student_id !== u.id)) bad(404, { error: 'Convite não encontrado' })
+        if (!i) bad(404, await notFound(code, u.tenant_id))
+        else if (i.tenant_id !== u.tenant_id || (i.student_id && i.student_id !== u.id)) bad(404, { error: 'Convite não encontrado' })
         else if (i.professional_id === u.id) bad(400, { error: 'Você não pode aceitar o próprio convite' })
         else if (i.status !== 'pendente' || i.expires_at < new Date()) bad(410, { error: i.status === 'aceito' ? 'Este convite já foi usado' : 'Convite expirado ou cancelado', status: i.status })
         if (!out) {

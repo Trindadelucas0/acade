@@ -1,4 +1,6 @@
 // Notificações internas (respostas, ocorrências, propostas, vínculos, liberação de conta).
+import { useState } from 'react'
+import { Tabs } from './kit.jsx'
 import { useNavigate } from 'react-router-dom'
 import Icon from '../../components/Icon.jsx'
 import { C, dt } from '../../lib/care.js'
@@ -16,14 +18,16 @@ export function AvisosCard() {
   </div>
 }
 export default function Avisos() {
+  const [filter, setFilter] = useState('unread')
   const nav = useNavigate()
   const [d, err, reload] = useLoad(() => C.notifications())
   if (err) return <div className="ag"><h1>Notificações</h1><Err msg={err} retry={reload} /></div>
   if (!d) return <div className="ag"><Load /></div>
   return <div className="ag" data-testid="avisos">
     <span className="g-eyebrow">Notificações</span><div className="g-row"><h1>Notificações</h1><span className="g-sp" />{d.unread > 0 && <button className="g-link" onClick={async () => { await C.readAll(); reload() }}>Marcar todos como lidos</button>}</div>
-    <div className="g-card g-list">{d.notifications.length ? d.notifications.map(n => <button key={n.id} className="g-li" onClick={() => nav(n.link || '/hoje')} style={{ opacity: n.read_at ? .6 : 1 }}>
+    <Tabs tabs={[['unread', 'Não lidas'], ['all', 'Todas']]} cur={filter} set={setFilter} />
+    <div className="g-card g-list">{d.notifications.filter(n => filter === 'all' || !n.read_at).length ? d.notifications.filter(n => filter === 'all' || !n.read_at).map(n => <button key={n.id} className="g-li" onClick={() => nav(n.link || '/hoje')} style={{ opacity: n.read_at ? .6 : 1 }}>
       <span className="g-ico"><Icon name="bell" /></span><span style={{ minWidth: 0 }}><b className="g-sm">{n.title}</b><br /><span className="g-mut g-xs">{n.body} · {dt(n.created_at)}</span></span></button>)
-      : <Empty icon="bell">Nenhum aviso por enquanto.</Empty>}</div>
+      : <Empty icon="bell">{filter === 'unread' ? 'Nenhuma notificação não lida.' : 'Nenhum aviso por enquanto.'}</Empty>}</div>
   </div>
 }

@@ -1,0 +1,218 @@
+[
+ {
+  "flow": "normal",
+  "step": "Tela de cadastro",
+  "ok": true,
+  "err": "",
+  "shot": "prints/001-normal-tela-de-cadastro.png",
+  "url": "/#/"
+ },
+ {
+  "flow": "normal",
+  "step": "Início com conta travada (aviso)",
+  "ok": true,
+  "err": "",
+  "shot": "prints/002-normal-ini-cio-com-conta-travada-aviso-.png",
+  "url": "/#/onboarding"
+ },
+ {
+  "flow": "normal",
+  "step": "Pedir liberação",
+  "ok": true,
+  "err": "",
+  "shot": "prints/003-normal-pedir-liberac-a-o.png",
+  "url": "/#/planos"
+ },
+ {
+  "flow": "normal",
+  "step": "Admin vê o pedido em Liberação de contas",
+  "ok": true,
+  "err": "",
+  "shot": "prints/004-normal-admin-ve-o-pedido-em-liberac-a-o-de-cont.png",
+  "url": "/#/admin/painel?tab=usuarios&secao=liberacoes"
+ },
+ {
+  "flow": "normal",
+  "step": "Admin libera a conta",
+  "ok": true,
+  "err": "",
+  "shot": "prints/005-normal-admin-libera-a-conta.png",
+  "url": "/#/admin/painel?tab=usuarios&secao=liberacoes"
+ },
+ {
+  "flow": "normal",
+  "step": "Explorar programas (escolha unificada)",
+  "ok": true,
+  "err": "",
+  "shot": "prints/006-normal-explorar-programas-escolha-unificada-.png",
+  "url": "/#/programas"
+ },
+ {
+  "flow": "normal",
+  "step": "Abrir um programa e ativar",
+  "ok": true,
+  "err": "",
+  "shot": "prints/007-normal-abrir-um-programa-e-ativar.png",
+  "url": "/#/hoje"
+ },
+ {
+  "flow": "normal",
+  "step": "Treinos: treino ativo único",
+  "ok": true,
+  "err": "",
+  "shot": "prints/008-normal-treinos-treino-ativo-u-nico.png",
+  "url": "/#/treinos"
+ },
+ {
+  "flow": "normal",
+  "step": "Abrir o treino de hoje (preparação dos pesos)",
+  "ok": true,
+  "err": "",
+  "shot": "prints/009-normal-abrir-o-treino-de-hoje-preparac-a-o-dos-.png",
+  "url": "/#/treinar"
+ },
+ {
+  "flow": "normal",
+  "step": "Informar os pesos e iniciar",
+  "ok": true,
+  "err": "",
+  "shot": "prints/010-normal-informar-os-pesos-e-iniciar.png",
+  "url": "/#/treinar"
+ },
+ {
+  "flow": "normal",
+  "step": "Iniciar série (cronômetro rodando)",
+  "ok": true,
+  "err": "",
+  "shot": "prints/011-normal-iniciar-se-rie-crono-metro-rodando-.png",
+  "url": "/#/treinar"
+ },
+ {
+  "flow": "normal",
+  "step": "Concluir série e entrar no descanso",
+  "ok": true,
+  "err": "",
+  "shot": "prints/012-normal-concluir-se-rie-e-entrar-no-descanso.png",
+  "url": "/#/treinar"
+ },
+ {
+  "flow": "normal",
+  "step": "Pular descanso",
+  "ok": true,
+  "err": "",
+  "shot": "prints/013-normal-pular-descanso.png",
+  "url": "/#/treinar"
+ },
+ {
+  "flow": "normal",
+  "step": "Relatar dor visível durante o treino",
+  "ok": true,
+  "err": "",
+  "shot": "prints/014-normal-relatar-dor-visi-vel-durante-o-treino.png",
+  "url": "/#/treinar"
+ },
+ {
+  "flow": "normal",
+  "step": "Ir até o fim e concluir",
+  "ok": true,
+  "err": "",
+  "shot": "prints/015-normal-ir-ate-o-fim-e-concluir.png",
+  "url": "/#/concluido"
+ },
+ {
+  "flow": "normal",
+  "step": "Conclusão: Resumo → Como se sentiu → Sentiu dor",
+  "ok": true,
+  "err": "",
+  "shot": "prints/016-normal-conclusa-o-resumo-como-se-sentiu-sentiu-.png",
+  "url": "/#/concluido"
+ },
+ {
+  "flow": "normal",
+  "step": "Concluir treino (salvo no servidor)",
+  "ok": false,
+  "err": "page.waitForTimeout: Target page, context or browser has been closed",
+  "shot": "prints/017-normal-concluir-treino-salvo-no-servidor-.png",
+  "url": "/#/concluido"
+ },
+ {
+  "flow": "normal",
+  "step": "Comunidade: publicações",
+  "ok": false,
+  "err": "page.goto: Target page, context or browser has been closed",
+  "shot": "prints/018-normal-comunidade-publicac-o-es.png",
+  "url": "/#/concluido"
+ },
+ {
+  "flow": "normal",
+  "step": "Aluno não publica no feed (regra: só profissionais)",
+  "ok": false,
+  "err": "\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed",
+  "shot": "prints/019-normal-aluno-na-o-publica-no-feed-regra-so-prof.png",
+  "url": "/#/concluido"
+ },
+ {
+  "flow": "normal",
+  "step": "Desafios",
+  "ok": false,
+  "err": "page.goto: Target page, context or browser has been closed",
+  "shot": "prints/020-normal-desafios.png",
+  "url": "/#/concluido"
+ },
+ {
+  "flow": "normal",
+  "step": "Entrar em um desafio",
+  "ok": false,
+  "err": "locator.click: Target page, context or browser has been closed",
+  "shot": "prints/021-normal-entrar-em-um-desafio.png",
+  "url": "/#/concluido"
+ },
+ {
+  "flow": "normal",
+  "step": "Grupos",
+  "ok": false,
+  "err": "page.goto: Target page, context or browser has been closed",
+  "shot": "prints/022-normal-grupos.png",
+  "url": "/#/concluido"
+ },
+ {
+  "flow": "normal",
+  "step": "Ranking",
+  "ok": false,
+  "err": "page.goto: Target page, context or browser has been closed",
+  "shot": "prints/023-normal-ranking.png",
+  "url": "/#/concluido"
+ },
+ {
+  "flow": "normal",
+  "step": "Progresso (histórico, recordes)",
+  "ok": false,
+  "err": "page.goto: Target page, context or browser has been closed",
+  "shot": "prints/024-normal-progresso-histo-rico-recordes-.png",
+  "url": "/#/concluido"
+ },
+ {
+  "flow": "normal",
+  "step": "Perfil",
+  "ok": false,
+  "err": "page.goto: Target page, context or browser has been closed",
+  "shot": "prints/025-normal-perfil.png",
+  "url": "/#/concluido"
+ },
+ {
+  "flow": "normal",
+  "step": "Tema sol/lua: alterna para escuro",
+  "ok": false,
+  "err": "locator.click: Target page, context or browser has been closed",
+  "shot": "prints/026-normal-tema-sol-lua-alterna-para-escuro.png",
+  "url": "/#/concluido"
+ },
+ {
+  "flow": "normal",
+  "step": "Tema volta para claro",
+  "ok": false,
+  "err": "locator.click: Target page, context or browser has been closed",
+  "shot": "prints/027-normal-tema-volta-para-claro.png",
+  "url": "/#/concluido"
+ }
+]

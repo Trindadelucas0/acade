@@ -15,7 +15,7 @@ test.describe.configure({ mode: 'serial' })
 let client = null
 test('personal cadastra aluno e vê a senha provisória uma vez', async ({ browser }) => {
   const ctx = await ctxLogin(browser, 'pro1.e2e@avadesk.local'), page = await ctx.newPage()
-  await page.goto('/#/pro?tab=convites')
+  await page.goto('/#/pro?tab=cadastrar')   // reorganização: Alunos → Adicionar aluno → Cadastrar
   const email = `aluno42.${Date.now()}@lock.test`
   await page.getByTestId('pc-name').fill('Aluna do Personal'); await page.getByTestId('pc-email').fill(email)
   await page.getByTestId('pc-create').click()
@@ -62,7 +62,7 @@ test('admin: liberação de contas', async ({ browser }) => {
 })
 test('LGPD: pedido de cópia por e-mail', async ({ browser }) => {
   const ctx = await ctxLogin(browser, client.email, 'Minha-Senha-42'), page = await ctx.newPage()
-  await page.goto('/#/perfil'); await page.getByTestId('export-open').click()
+  await page.goto('/#/perfil?secao=privacidade'); await page.getByTestId('export-open').click()   // reorganização: Privacidade e segurança
   await page.getByTestId('export-pw').fill('Minha-Senha-42'); await page.getByTestId('export-email').fill(client.email)
   await shot(page, '07-lgpd-form')
   await page.getByTestId('export-send').click(); await expect(page.getByTestId('export-msg')).toBeVisible()

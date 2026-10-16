@@ -57,6 +57,7 @@ import './styles/tours.css'
 import { TourHost } from './components/Tour.jsx'
 import ThemeToggle from './components/ThemeToggle.jsx'
 import Plans from './views/v3/Plans.jsx'
+import { NavigationAccess } from './components/NavigationAccess.jsx'
 import AcceptInvite from './views/v3/AcceptInvite.jsx'
 
 bindUI(useUI)   // lets the shared controls open sheets without importing the store at module scope
@@ -100,7 +101,7 @@ function Shell() {
             <Routes>
               <Route path="/admin/painel" element={<AdminApp />} />
               <Route path="/pro/treino" element={<Builder />} />
-              <Route path="/admin/programas" element={<AdminPrograms />} />
+              <Route path="/admin/programas" element={<Navigate to="/admin/painel?tab=programas" replace />} />
               <Route path="/comunidade" element={<Gate title="Comunidade"><Comunidade /></Gate>} />
               <Route path="/grupo/:id" element={<Gate title="Comunidade"><GroupPage /></Gate>} />
               <Route path="/desafio/:id" element={<Gate title="Comunidade"><ChallengePage /></Gate>} />
@@ -198,5 +199,5 @@ function Shell() {
 export default function App() {
   const boot = useStore(s => s.boot)
   useEffect(() => { boot() }, [boot])
-  return <HashRouter><Shell /></HashRouter>
+  return <HashRouter><NavigationAccess><Shell /></NavigationAccess></HashRouter>
 }

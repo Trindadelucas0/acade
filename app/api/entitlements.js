@@ -39,7 +39,7 @@ export async function resolve(userId, audience, c, { lock = false } = {}) {
   const features = { ...(s.features || {}) }, limits = { ...(s.limits || {}) }
   for (const x of g) {
     if (x.kind === 'feature') features[x.key] = x.value === true || x.value === 'true'
-    if (x.kind === 'limit') limits[x.key] = (limits[x.key] == null ? 0 : +limits[x.key]) + (+x.value || 0)   // concessão SOMA ao limite do plano
+    if (x.kind === 'limit' && limits[x.key] != null) limits[x.key] = +limits[x.key] + (+x.value || 0)   // concessão SOMA ao limite do plano
   }
   return { subscription_id: s.id, plan_id: s.plan_id, plan_name: s.plan_name, plan_version: s.plan_version, is_free: s.is_free, is_placeholder: s.is_placeholder,
     status: s.status, active: !INACTIVE.includes(s.status), over_limit: s.over_limit, features, limits, grants: g }

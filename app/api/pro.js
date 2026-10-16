@@ -103,6 +103,11 @@ export async function createLink(admin, studentId, coachId, area, origin = 'admi
   await notify(coachId, 'vinculo', 'Novo aluno vinculado', '', '/pro?tab=alunos')
   return r.rows[0].id
 }
+// Responsável padrão de ocorrência/conversa: o personal da ficha ativa (regra de um treino ativo) ou, sem ficha, o vínculo ativo MAIS RECENTE
+async function defaultResponsible(studentId) {
+  return (await q(`select cs.coach_id from coach_students cs where cs.student_id=$1 and cs.status='ativo'
+    order by exists (select 1 from pro_plans p where p.owner_id=cs.coach_id and p.student_id=$1 and p.status='ativo') desc, cs.since desc nulls last limit 1`, [studentId])).rows[0]?.coach_id || null
+}
 export function proRoutes({ json, readBody }) {
   return {
     // ================= aluno =================
@@ -151,7 +156,7 @@ export function proRoutes({ json, readBody }) {
       const desc = txt(b.description, 1500)
       let responsible = null, planId = isUuid(b.plan_id) ? b.plan_id : null
       if (planId) { const p = await q(`select owner_id from pro_plans where id=$1 and student_id=$2`, [planId, u.id]); responsible = p.rows[0]?.owner_id || null; if (!p.rowCount) planId = null }
-      if (!responsible) responsible = (await q(`select coach_id from coach_students where student_id=$1 and status='ativo' order by since limit 1`, [u.id])).rows[0]?.coach_id || null
+      if (!responsible) responsible = await defaultResponsible(u.id)
       let parent = null
       if (isUuid(b.parent_id)) { const p = await q('select id from occurrences where id=$1 and student_id=$2', [b.parent_id, u.id]); parent = p.rows[0]?.id || null }
       const st = await getSettings(u.tenant_id)
@@ -172,7 +177,7 @@ export function proRoutes({ json, readBody }) {
       const b = await readBody(req), body = txt(b.body, 2000); if (body.length < 2) return json(res, 400, { error: 'Escreva sua dúvida' })
       let responsible = null, planId = isUuid(b.plan_id) ? b.plan_id : null
       if (planId) responsible = (await q(`select owner_id from pro_plans where id=$1 and student_id=$2`, [planId, u.id])).rows[0]?.owner_id || null
-      if (!responsible) responsible = (await q(`select coach_id from coach_students where student_id=$1 and status='ativo' order by since limit 1`, [u.id])).rows[0]?.coach_id || null
+      if (!responsible) responsible = await defaultResponsible(u.id)
       const st = await getSettings(u.tenant_id)
       const ctx = ['exercicio', 'sessao', 'plano', 'geral'].includes(b.context_type) ? b.context_type : (b.exercise_id ? 'exercicio' : 'geral')
       const t = (await q(`insert into threads(tenant_id,student_id,responsible_id,context_type,exercise_id,exercise_name,plan_id,due_at) values($1,$2,$3,$4,$5,$6,$7, now() + make_interval(hours => $8)) returning *`,
@@ -247,6 +252,7 @@ export function proRoutes({ json, readBody }) {
     // ================= profissional =================
     'GET /api/pro/dashboard': async (req, res) => {
       const u = await guard('profissional')(req, res, json); if (!u) return
+      const history = qs(req).get('include_history') === '1'
       await sweepOverdue(u.tenant_id)
       const prof = (await q(PRO_SQL + ` from professional_profiles pp join users u on u.id=pp.user_id where pp.user_id=$1`, [u.id])).rows[0]
       const quals = (await q('select id,kind,number,area,status,note from professional_qualifications where user_id=$1 order by id', [u.id])).rows
@@ -254,11 +260,11 @@ export function proRoutes({ json, readBody }) {
           (select count(*) from sessions x where x.user_id=s.id and ${countsInMetrics('x')} and x.started_at > now() - interval '7 days') week_sessions
         from coach_students cs join users s on s.id=cs.student_id where cs.coach_id=$1 and cs.status='ativo' order by s.name`, [u.id])).rows
       const [occ, th, pr] = await Promise.all([
-        q(`select o.*, s.name student_name from occurrences o join users s on s.id=o.student_id where (o.responsible_id=$1 or o.assigned_to=$1) and o.status<>'encerrada' order by o.created_at`, [u.id]),
+        q(`select o.*, s.name student_name from occurrences o join users s on s.id=o.student_id where (o.responsible_id=$1 or o.assigned_to=$1) and o.tenant_id=$2 ${history ? '' : "and o.status<>'encerrada'"} order by o.created_at desc ${history ? 'limit 200' : ''}`, [u.id, u.tenant_id]),
         q(`select t.*, s.name student_name, (select body from messages m where m.thread_id=t.id order by id desc limit 1) last_body from threads t join users s on s.id=t.student_id
-           where (t.responsible_id=$1 or t.assigned_to=$1) and t.status<>'encerrada' order by t.updated_at desc`, [u.id]),
+           where (t.responsible_id=$1 or t.assigned_to=$1) and t.tenant_id=$2 ${history ? '' : "and t.status<>'encerrada'"} order by t.updated_at desc ${history ? 'limit 200' : ''}`, [u.id, u.tenant_id]),
         q(`select cp.*, a.name author_name, p.title plan_title from change_proposals cp join users a on a.id=cp.author_id left join pro_plans p on p.id=cp.plan_id
-           where cp.status='pendente' and (cp.decider_id=$1 or cp.author_id=$1) order by cp.created_at`, [u.id])])
+           where (cp.decider_id=$1 or cp.author_id=$1) and cp.tenant_id=$2 ${history ? '' : "and cp.status='pendente'"} order by cp.created_at desc ${history ? 'limit 200' : ''}`, [u.id, u.tenant_id])])
       const lim = await capacitySummary(u.id)
       json(res, 200, { profile: prof ? { ...proView(prof), capacity: lim.effective_limit, can_publish: prof.can_publish } : null, qualifications: quals, students,
         occurrences: occ.rows, threads: th.rows, proposals: pr.rows, capacity: { max: lim.effective_limit, active: lim.used, available: lim.available }, limit: lim })
@@ -433,7 +439,7 @@ export function proRoutes({ json, readBody }) {
       const st = qs(req).get('status'), s = '%' + (qs(req).get('q') || '') + '%'
       const r = await q(`select u.id,u.name,u.email,u.status,u.created_at,u.share_code,u.account_type,u.access_unlocked_at,u.last_seen_at,(select m.name from users m where m.id=u.managed_by) managed_by_name,(select pp.verification_status from professional_profiles pp where pp.user_id=u.id) verification,
           coalesce((select json_agg(json_build_object('audience',s.audience,'plan',p.name,'status',s.status,'over_limit',s.over_limit) order by s.audience) from subscriptions s join plans p on p.id=s.plan_id where s.user_id=u.id and s.status<>'cancelada'),'[]') subs, coalesce(array_agg(distinct ur.role_id) filter (where ur.role_id is not null),'{}') roles,
-          uap.plan_id, ap.max_professionals, (select count(*) from coach_students cs where cs.student_id=u.id and cs.status='ativo')::int links
+          u.access_unlocked_at, u.account_type, uap.plan_id, ap.max_professionals, (select count(*) from coach_students cs where cs.student_id=u.id and cs.status='ativo')::int links
         from users u left join user_roles ur on ur.user_id=u.id left join user_access_plans uap on uap.user_id=u.id left join access_plans ap on ap.id=uap.plan_id
         where u.tenant_id=$1 and ($2::text is null or u.status=$2) and (u.name ilike $3 or u.email ilike $3 or u.share_code ilike $3) group by u.id,uap.plan_id,ap.max_professionals order by u.created_at desc limit 200`, [u.tenant_id, st || null, s])
       json(res, 200, { users: r.rows.map(x => ({ ...x, over_limit: x.plan_id ? x.links > x.max_professionals : false })) })
@@ -446,7 +452,7 @@ export function proRoutes({ json, readBody }) {
       const r = await q(`update users set status=$2, approved_by=case when $2='ativo' then $3::uuid else approved_by end, approved_at=case when $2='ativo' then now() else approved_at end where id=$1 and tenant_id=$4 returning id`, [b.id, b.status, u.id, u.tenant_id])
       if (!r.rowCount) return json(res, 404, { error: 'Usuário não encontrado' })
       await audit(u.tenant_id, u.id, 'conta.' + b.status, 'user', b.id, { reason: txt(b.reason, 300) || null })
-      if (b.status === 'ativo') await notify(b.id, 'conta', 'Seu acesso foi liberado!', 'Agora você pode usar treinos, comunidade e acompanhamento.', '/hoje')
+      if (b.status === 'ativo') await notify(b.id, 'conta', 'Seu cadastro foi ativado', 'O cadastro está ativo. A liberação das ações do aplicativo é administrada separadamente.', '/hoje')
       json(res, 200, { ok: true })
     },
     'POST /api/adm/users/role': async (req, res) => {
@@ -565,6 +571,14 @@ export function proRoutes({ json, readBody }) {
       const over = (await q(`select x.user_id from user_access_plans x where x.plan_id=$1 and (select count(*) from coach_students cs where cs.student_id=x.user_id and cs.status='ativo') > $2`, [id, max])).rows
       if (over.length) await notifyAdmins(u.tenant_id, 'plano', 'Alunos acima do limite do plano', `${over.length} aluno(s) do plano ${name} têm mais vínculos que o novo limite. Revise os vínculos (nada foi encerrado).`, '/admin/painel?tab=planos')
       json(res, 200, { ok: true, over_limit: over.length })
+    },
+    // V4.3 · Meus profissionais (lado do aluno): só campos públicos dos vínculos ativos
+    'GET /api/me/coaches': async (req, res) => {
+      const u = await requireAuth(req, res, json); if (!u) return
+      json(res, 200, { coaches: (await q(`select cs.coach_id id, coalesce(pp.display_name, o.name) name, pp.photo_url, coalesce(pp.specialties, '{}') specialties, cs.since,
+          exists (select 1 from pro_plans p where p.owner_id=cs.coach_id and p.student_id=$1 and p.status='ativo') has_active_plan
+        from coach_students cs join users o on o.id=cs.coach_id left join professional_profiles pp on pp.user_id=cs.coach_id
+        where cs.student_id=$1 and cs.status='ativo' and cs.tenant_id=$2 order by cs.since desc nulls last`, [u.id, u.tenant_id])).rows })
     },
     'GET /api/adm/professionals': async (req, res) => {
       const u = await guard('admin')(req, res, json); if (!u) return

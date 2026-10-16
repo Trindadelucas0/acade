@@ -25,7 +25,7 @@ export function notify(msg, tone = 'ok', ms = 3800) {
   useDialog.setState(add)
   setTimeout(() => useDialog.setState(s => ({ notes: s.notes.filter(n => n.id !== id) })), tone === 'error' ? ms + 2200 : ms)
 }
-export const notifyError = e => notify(e?.reasons ? e.reasons.join(' · ') : (e?.message || String(e || 'Algo deu errado.')), 'error')
+export const notifyError = e => { if (e?.status === 404 && e?.message === 'not found') { console.warn('[opcional] recurso ausente', e); return }; notify(e?.reasons ? e.reasons.join(' · ') : (e?.message || String(e || 'Algo deu errado.')), 'error') }
 
 // V4 · F1 — guarda de alterações não salvas (§12.3): "Sair sem salvar?" com CONTINUAR EDITANDO / DESCARTAR ALTERAÇÕES.
 // Cancelar nunca salva automaticamente. Também avisa o navegador ao fechar/recarregar a aba.

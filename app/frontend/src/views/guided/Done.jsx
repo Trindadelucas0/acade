@@ -57,16 +57,17 @@ export default function Done() {
       <h1>{src.workout_name}</h1>
       <p className="g-mut g-sm">{src.program_title}</p>
     </div>
-    <div className="g-stat" style={{ marginTop: 16, gridTemplateColumns: 'repeat(2,1fr)' }}>
+    <h2 data-testid="done-step-resumo">{!(saved || view) && <span className="g-eyebrow">1 · </span>}Resumo</h2>
+    <div className="g-stat" style={{ marginTop: 8, gridTemplateColumns: 'repeat(2,1fr)' }}>
       <div><b>{fmtMin(dur)}</b><span>Tempo</span></div><div><b>{exs}</b><span>Exercícios</span></div>
       <div><b>{sets}</b><span>Séries</span></div><div><b>{fmtKg(vol)}</b><span>Volume (carga × repetições)</span></div>
     </div>
     {corr ? <p className="g-note" style={{ marginTop: 12 }} data-testid="done-corrected">Tempo corrigido por você ({fmtMin(corr.manual_sec)}). Este treino fica no histórico, mas não conta para ranking, desafios, prêmios nem para os números do progresso.</p> : <TimingSummary t={timing} />}
 
     {!(saved || view) ? <>
-      <h2>Como você se sentiu?</h2>
+      <h2 data-testid="done-step-feel"><span className="g-eyebrow">2 · </span>Como se sentiu?</h2>
       <div className="g-feel">{FEEL.map(([v, l]) => <button key={v} className={feel === v ? 'g-on' : ''} onClick={() => setFeel(v)}><b>{v}</b>{l}</button>)}</div>
-      <h2>Sentiu dor?</h2>
+      <h2 data-testid="done-step-pain"><span className="g-eyebrow">3 · </span>Sentiu dor?</h2>
       <div className="g-grid2" style={{ marginTop: 0 }}>
         <button className={'g-opt' + (!pain ? ' g-on' : '')} style={{ fontSize: 17, minHeight: 56 }} onClick={() => setPain(null)} data-testid="pain-no">Não</button>
         <button className={'g-opt' + (pain ? ' g-on' : '')} style={{ fontSize: 17, minHeight: 56 }} onClick={() => setPain(true)} data-testid="pain-yes">Sim</button>
@@ -79,7 +80,7 @@ export default function Done() {
         <textarea placeholder="Quer contar mais? (opcional)" value={notes} onChange={e => setNotes(e.target.value)} maxLength={500} />
         <p className="g-note" style={{ marginTop: 10 }}>O AVADESK Fitness não faz diagnóstico. Registramos sua dor para você e seu profissional acompanharem. Se a dor for forte, persistir ou piorar, pare os exercícios que doem e procure um médico ou fisioterapeuta.</p>
       </div>}
-      <div className="g-bottom"><button className="g-btn g-xl" disabled={busy} onClick={save} data-testid="save-session">{busy ? 'Salvando…' : 'SALVAR TREINO'}</button></div>
+      <div className="g-bottom"><button className="g-btn g-xl" disabled={busy} onClick={save} data-testid="save-session">{busy ? 'Salvando…' : 'Concluir treino'}</button></div>
     </> : <>
       {!(saved || view).synced && <p className="g-note" style={{ marginTop: 14 }} data-testid="done-pending">{(saved || view).rejected ? `O servidor não aceitou este treino (${(saved || view).rejected}). Ele continua guardado no aparelho — nada foi apagado.` : 'Sem conexão agora: o treino ficou salvo no aparelho e será enviado automaticamente.'}</p>}
       {(saved || view).pain && <p className="g-note" style={{ marginTop: 14 }}>Registramos sua dor. Se ela continuar, procure um profissional de saúde antes do próximo treino.</p>}

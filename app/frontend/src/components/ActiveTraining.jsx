@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom'
 import Icon from './Icon.jsx'
 import { AT, activeLabel } from '../lib/active.js'
 import { ask, notify, notifyError } from '../lib/dialog.js'
+import { useStore } from '../store/useStore.js'
 
 export async function detachSystem(at, then) {
   if (!await ask('Desvincular este programa?', { text: `"${at?.program?.title || 'Programa'}" sai do seu treino ativo e fica no histórico (nada é apagado). Depois você escolhe outro programa ou aceita a ficha do seu profissional.`, ok: 'Desvincular', cancel: 'Manter', danger: true })) return null
@@ -36,7 +37,7 @@ export default function ActiveTrainingBanner({ at, compact, onChange }) {
     {name ? <b style={{ display: 'block', marginTop: 6 }}>{name}</b> : <p className="g-mut g-sm" style={{ marginTop: 6 }}>Você ainda não tem treino ativo.</p>}
     {at.kind === 'sistema' && <>
       {at.pending_pro_plans?.length > 0 && <p className="g-note" style={{ marginTop: 8 }} data-testid="pending-pro">Seu profissional enviou a ficha <b>{at.pending_pro_plans[0].title}</b>. Você só pode ter uma ficha por vez: desvincule o programa atual para aceitá-la.</p>}
-      <button className="g-link" onClick={() => detachSystem(at, onChange)} data-testid="active-detach">Desvincular programa</button>
+      {!compact && <details className="org-details"><summary>Gerenciar programa</summary><button className="g-link" onClick={() => detachSystem(at, onChange)} data-testid="active-detach">Desvincular programa</button></details>}
     </>}
     {at.kind === 'profissional' && <>
       <p className="g-mut g-xs" style={{ marginTop: 6 }} data-testid="pro-locked">{at.can_detach
@@ -45,6 +46,8 @@ export default function ActiveTrainingBanner({ at, compact, onChange }) {
       {at.paused_program && <p className="g-xs g-mut" data-testid="paused-program">Programa pausado: {at.paused_program.title} (a ficha do personal tem prioridade).</p>}
       {at.can_detach && <button className="g-link" onClick={() => detachPro(at, onChange)} data-testid="active-detach-pro">Desvincular ficha do personal</button>}
     </>}
-    {!at.kind && <button className="g-link" onClick={() => nav('/recomendados')}>Escolher um programa</button>}
+    {!at.kind && (useStore.getState().user?.client_locked
+      ? <p className="g-xs g-mut" data-testid="client-wait-pro">Aguardando a ficha do seu personal. Quando ele enviar, ela aparece aqui.</p>
+      : <button className="g-link" onClick={() => nav('/programas')}>Explorar programas</button>)}
   </div>
 }

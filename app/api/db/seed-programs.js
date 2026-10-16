@@ -96,17 +96,17 @@ export const PROGRAMS2 = [
     ['C — Pernas','Pernas',[E('agachamento_livre',4,6,10,120),E('leg_press',3,10,12,90),E('cadeira_extensora',3,12,15),E('stiff',3,8,12,90),E('mesa_flexora',3,10,12),E('panturrilha_em_pe',4,12,15,45)]],
     ['D — Ombros e abdômen','Ombros + core',[E('desenvolvimento_halter',4,8,12,90),E('elevacao_lateral',4,12,15),E('crucifixo_inverso',3,12,15),E('encolhimento',3,12,15),E('abdominal_crunch',3,15,20,45),E('prancha',3,null,null,45,40)]]],
    { minutes_max: 60, author: T }],
-  ['massa-iniciante-4x','Massa muscular para iniciantes 4x','Quatro treinos curtos por semana alternando parte de cima e pernas. Ideal para começar a ganhar massa com segurança.','hypertrophy','beginner','gym',8,4,45,false,['massa','iniciante','academia'],[
-    ['Parte de cima 1','Peito, costas e braços',[E('supino_inclinado_halter',3,10,12,75),E('puxada_frente',3,10,12,75),E('remada_baixa',3,10,12),E('elevacao_lateral',2,12,15),E('rosca_direta',2,10,12),E('triceps_polia',2,10,12)]],
-    ['Pernas 1','Pernas e core',[E('leg_press',3,10,12,90),E('cadeira_extensora',3,12,15),E('mesa_flexora',3,12,15),E('ponte_gluteo',3,12,15),E('prancha',3,null,null,45,30)]],
-    ['Parte de cima 2','Ombros, costas e peito',[E('desenvolvimento_halter',3,10,12,75),E('remada_unilateral',3,10,12),E('flexao_joelhos',3,8,12),E('crucifixo_inverso',2,12,15),E('rosca_martelo',2,10,12)]],
-    ['Pernas 2','Pernas e glúteos',[E('agachamento_goblet',3,10,12,90),E('afundo',3,10,12),E('mesa_flexora',3,12,15),E('panturrilha_em_pe',3,15,20,45),E('dead_bug',3,8,10,45)]]],
+  ['massa-iniciante-4x','Massa muscular para iniciantes 4x','Quatro treinos curtos por semana alternando membros superiores e inferiores. Ideal para começar a ganhar massa com segurança.','hypertrophy','beginner','gym',8,4,45,false,['massa','iniciante','academia'],[
+    ['Membros superiores 1','Peito, costas e braços',[E('supino_inclinado_halter',3,10,12,75),E('puxada_frente',3,10,12,75),E('remada_baixa',3,10,12),E('elevacao_lateral',2,12,15),E('rosca_direta',2,10,12),E('triceps_polia',2,10,12)]],
+    ['Membros inferiores 1','Pernas e core',[E('leg_press',3,10,12,90),E('cadeira_extensora',3,12,15),E('mesa_flexora',3,12,15),E('ponte_gluteo',3,12,15),E('prancha',3,null,null,45,30)]],
+    ['Membros superiores 2','Ombros, costas e peito',[E('desenvolvimento_halter',3,10,12,75),E('remada_unilateral',3,10,12),E('flexao_joelhos',3,8,12),E('crucifixo_inverso',2,12,15),E('rosca_martelo',2,10,12)]],
+    ['Membros inferiores 2','Pernas e glúteos',[E('agachamento_goblet',3,10,12,90),E('afundo',3,10,12),E('mesa_flexora',3,12,15),E('panturrilha_em_pe',3,15,20,45),E('dead_bug',3,8,10,45)]]],
    { minutes_max: 50, author: T }],
   ['massa-intermediario-5x','Massa muscular 5x por semana','Cinco treinos por semana para quem já treina há alguns meses e quer acelerar o ganho de massa.','hypertrophy','intermediate','gym',10,5,60,false,['massa','academia'],[
     ['Peito e ombros','Empurrar',[E('supino_reto_barra',4,6,10,120),E('supino_inclinado_halter',3,8,12,90),E('desenvolvimento_halter',3,8,12,90),E('elevacao_lateral',4,12,15),E('triceps_polia',3,10,12)]],
     ['Costas e bíceps','Puxar',[E('puxada_frente',4,8,12,90),E('remada_curvada',3,8,10,90),E('remada_baixa',3,10,12),E('crucifixo_inverso',3,12,15),E('rosca_direta',3,8,12)]],
     ['Pernas','Pernas',[E('agachamento_livre',4,6,10,120),E('leg_press',3,10,12,90),E('stiff',3,8,12,90),E('mesa_flexora',3,10,12),E('panturrilha_sentado',4,12,15,45)]],
-    ['Parte de cima','Corpo de cima',[E('supino_inclinado_halter',3,8,12,90),E('remada_unilateral',3,8,12),E('desenvolvimento_halter',3,10,12),E('rosca_martelo',3,10,12),E('triceps_frances',3,10,12)]],
+    ['Membros superiores','Membros superiores',[E('supino_inclinado_halter',3,8,12,90),E('remada_unilateral',3,8,12),E('desenvolvimento_halter',3,10,12),E('rosca_martelo',3,10,12),E('triceps_frances',3,10,12)]],
     ['Pernas e glúteos','Pernas',[E('elevacao_pelvica',4,8,12,90),E('afundo',3,10,12),E('cadeira_extensora',3,12,15),E('mesa_flexora',3,12,15),E('abdominal_crunch',3,15,20,45)]]],
    { minutes_max: 75, author: T }],
   ['emagrecimento-casa','Emagrecimento em casa','Circuitos com halteres leves e elástico para queimar calorias em casa, 3 vezes por semana.','weight_loss','beginner','home',6,3,30,false,['emagrecimento','em casa'],[
@@ -115,9 +115,9 @@ export const PROGRAMS2 = [
    { minutes_max: 35, author: T }],
   ['emagrecimento-sem-equipamento','Emagrecimento sem equipamento','Treinos com o peso do corpo, sem nenhum aparelho. Basta um espaço no chão, 4 vezes por semana.','weight_loss','beginner','home_noequip',6,4,30,false,['emagrecimento','sem equipamento'],[
     ['Pernas e cardio','Pernas',[E('agachamento_peso_corporal',3,15,20,30),E('afundo',3,10,12,30),E('polichinelo',3,null,null,30,40),E('ponte_gluteo',3,15,20,30),E('prancha',3,null,null,30,30)]],
-    ['Parte de cima e cardio','Corpo de cima',[E('flexao_joelhos',3,8,12,30),E('mountain_climber',3,null,null,30,30),E('bicicleta_abdominal',3,20,30,30),E('dead_bug',3,10,12,30),E('polichinelo',3,null,null,30,40)]]],
+    ['Membros superiores e cardio','Membros superiores',[E('flexao_joelhos',3,8,12,30),E('mountain_climber',3,null,null,30,30),E('bicicleta_abdominal',3,20,30,30),E('dead_bug',3,10,12,30),E('polichinelo',3,null,null,30,40)]]],
    { minutes_max: 35, author: T }],
-  ['emagrecimento-hiit','Emagrecimento rápido (intervalado)','Sessões curtas e intensas: esforço forte por alguns segundos e pausa curta. 20 minutos, 3 vezes por semana.','weight_loss','intermediate','home_noequip',4,3,20,false,['emagrecimento','intervalado','rápido'],[
+  ['emagrecimento-hiit','Condicionamento intervalado (HIIT)','Sessões curtas e intensas: esforço forte por alguns segundos e pausa curta. 20 minutos, 3 vezes por semana.','weight_loss','intermediate','home_noequip',4,3,20,false,['emagrecimento','intervalado','rápido'],[
     ['Intervalado 1','Corpo inteiro',[E('polichinelo',4,null,null,20,30),E('agachamento_peso_corporal',4,15,20,20),E('mountain_climber',4,null,null,20,30),E('burpee',4,8,10,30)]],
     ['Intervalado 2','Corpo inteiro',[E('afundo',4,10,12,20),E('flexao_bracos',4,8,12,20),E('bicicleta_abdominal',4,20,30,20),E('polichinelo',4,null,null,20,30)]]],
    { minutes_max: 25, author: T }],
@@ -139,12 +139,12 @@ export const PROGRAMS2 = [
     ['Circuito potência','Corpo inteiro',[E('swing_kettlebell',4,15,20,45),E('agachamento_goblet',4,12,15,45),E('burpee',3,8,10,45),E('remada_baixa',3,12,15,45)]],
     ['Circuito resistência','Corpo inteiro',[E('leg_press',3,15,20,45),E('puxada_frente',3,12,15,45),E('mountain_climber',3,null,null,30,40),E('step_up',3,10,12,45)]]],
    { minutes_max: 50, author: T }],
-  ['mobilidade-completa','Mobilidade — Corpo solto','Sessões de 30 minutos para soltar quadril, coluna e ombros e melhorar a postura. 3 vezes por semana.','mobility','beginner','home_noequip',6,3,30,false,['mobilidade','postura'],[
+  ['mobilidade-completa','Mobilidade articular','Sessões de 30 minutos para trabalhar a mobilidade de quadril, coluna e ombros e melhorar a postura. 3 vezes por semana.','mobility','beginner','home_noequip',6,3,30,false,['mobilidade','postura'],[
     ['Coluna e quadril','Mobilidade',[E('gato_camelo',3,10,10,15),E('rotacao_toracica',3,8,10,15),E('alongamento_flexor_quadril',3,null,null,15,40),E('agachamento_profundo_mobilidade',3,null,null,15,40),E('joelhos_ao_peito',2,null,null,15,40)]],
     ['Ombros e pernas','Mobilidade',[E('circulos_ombro',3,10,10,15),E('ytw_solo',3,8,10,30),E('alongamento_posteriores',3,null,null,15,40),E('ponte_gluteo',3,12,12,30)]]],
    { minutes_max: 30, author: T }],
   ['casa-halteres','Treino em casa com halteres','Com um par de halteres e um elástico você treina o corpo todo em casa. 4 vezes por semana.','home','intermediate','home',8,4,45,false,['em casa','halteres'],[
-    ['Parte de cima','Peito, costas, ombros',[E('flexao_bracos',3,8,15,60),E('remada_unilateral',4,10,12,60),E('desenvolvimento_halter',3,10,12,60),E('elevacao_lateral',3,12,15),E('rosca_martelo',3,10,12)]],
+    ['Membros superiores','Peito, costas, ombros',[E('flexao_bracos',3,8,15,60),E('remada_unilateral',4,10,12,60),E('desenvolvimento_halter',3,10,12,60),E('elevacao_lateral',3,12,15),E('rosca_martelo',3,10,12)]],
     ['Pernas','Pernas e glúteos',[E('agachamento_goblet',4,10,15,75),E('afundo',3,10,12,60),E('stiff',3,10,12,60),E('ponte_gluteo',3,15,20,45),E('panturrilha_em_pe',3,15,20,30)]]],
    { minutes_max: 50, author: T }],
   ['fisio-mobilidade','Fisioterapia — Mobilidade e postura','Exercícios suaves para recuperar movimento com segurança. Não substitui a avaliação de um fisioterapeuta.','rehab','beginner','home_noequip',6,3,20,true,['fisioterapia','mobilidade'],[

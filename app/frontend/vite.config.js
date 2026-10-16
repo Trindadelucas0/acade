@@ -40,7 +40,7 @@ export default defineConfig({
   plugins: [react(), devMedia(), buildStamp()],
   define: { __BUILD_ID__: JSON.stringify(BUILD_ID) },
   // V4 · F1: specs do Playwright (e2e/) não rodam no vitest
-  test: { exclude: ['e2e/**', 'node_modules/**', 'android/**', 'ios/**'] },
+  test: { exclude: ['e2e-results/**', '.cache/**', 'e2e/**', 'node_modules/**', 'android/**', 'ios/**'] },
   server: {
     port: 4449,
     proxy: {

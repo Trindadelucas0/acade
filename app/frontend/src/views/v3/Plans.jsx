@@ -1,4 +1,5 @@
 // V3 · Meu plano: assinatura por área (aluno/profissional), uso × limites, OVER_LIMIT e catálogo (sem preços definidos).
+import { UnlockRequest } from './V42.jsx'
 import Icon from '../../components/Icon.jsx'
 import { V, SUB_PT, AUD_PT, METRIC_PT, FEAT_PT } from '../../lib/v3.js'
 import { Load, Err, Empty, useLoad } from '../app/kit.jsx'
@@ -20,12 +21,13 @@ export default function Plans() {
         {s.grants?.length > 0 && <p className="g-xs g-mut" style={{ marginTop: 8 }}>Concessão temporária ativa até {new Date(s.grants[0].expires_at).toLocaleDateString('pt-BR')}.</p>}
         <div className="g-chips" style={{ marginTop: 10 }}>{Object.entries(s.features).filter(([, v]) => v).map(([k]) => <span key={k} className="g-chip">{FEAT_PT[k] || k}</span>)}</div>
       </div>)}
-    <h2>Planos disponíveis</h2>
+    <div className="org-section"><UnlockRequest /></div>
+    <details className="org-details" data-testid="plans-catalog"><summary>Outros planos (consulta)</summary><p className="g-note g-sm" data-testid="plans-no-payment">Contratação e pagamento pelo aplicativo ainda não estão disponíveis. Os planos abaixo são só para consulta; para mudar, fale com a administração.</p>
     {err2 ? <Err msg={err2} /> : !cat ? <Load /> : cat.plans.map(p => <div key={p.id} className="g-card" style={{ marginTop: 10, opacity: p.is_placeholder ? .8 : 1 }} data-testid={'plan-' + p.id}>
-      <div className="g-row"><b>{p.name}</b><span className="g-sp" /><span className="g-chip">{p.price_label}</span></div>
+      <div className="g-row"><b>{p.name}</b><span className="g-sp" /><span className="g-chip">Só consulta</span></div>
       <p className="g-xs g-mut" style={{ margin: '4px 0' }}>{AUD_PT[p.audience]} · {p.description}</p>
       {Object.entries(p.current?.limits || {}).map(([m, v]) => <span key={m} className="g-xs"><Icon name="check" /> {METRIC_PT[m] || m}: {v} </span>)}
     </div>)}
-    <p className="g-xs g-mut" style={{ marginTop: 12 }}>Contratação online ainda não disponível. Para mudar de plano, fale com a administração.</p>
+    </details>
   </div>
 }
