@@ -73,6 +73,9 @@ Você pode consultar seus dados, pedir correção, exportação ou exclusão e r
 
 5.3. Encerrado o vínculo, o profissional perde o acesso aos novos dados do aluno; o histórico técnico já produzido é preservado conforme a seção 11.
 
+### 5.1. Indicações (link e cupom de indicação)
+Quando você se cadastra pelo link ou cupom de indicação de outra pessoa (por exemplo, o seu personal), essa pessoa passa a ver **seu nome, seu @, a data do seu cadastro e se você está em teste ou é assinante**. **Seu telefone e seu e-mail nunca são mostrados ao indicador.** A finalidade é a apuração das indicações e de eventuais benefícios do programa de indicação (base legal: execução de contrato e legítimo interesse). Também registramos, de forma pseudonimizada, os acessos ao link de indicação para contagem de cliques e prevenção a fraudes.
+
 ## 6. Comunidade e conteúdo público
 
 6.1. Publicações, comentários, desafios e ranking podem ser vistos por outros usuários conforme as configurações de privacidade escolhidas.

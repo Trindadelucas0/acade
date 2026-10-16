@@ -1,5 +1,6 @@
 // V3 · Aluno: aceitar convite de um profissional (link /convite/:code ou código digitado). Aluno Free recebe a ficha sem pagar.
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { api } from '../../lib/api.js'
 import { useNavigate, useParams } from 'react-router-dom'
 import { V } from '../../lib/v3.js'
 import { useStore } from '../../store/useStore.js'
@@ -18,6 +19,12 @@ export default function AcceptInvite() {
   }
   // código de aluno digitado no lugar de um convite → explica e leva ao lugar certo
   const studentCode = typeof err === 'string' && err.startsWith('Esse é um código de aluno')
+  // Monetizacao F5: o mesmo /convite/CODIGO pode ser um link de indicacao (resolvido no servidor)
+  const [refInfo, setRefInfo] = useState(null)
+  useEffect(() => { if (err) api('/api/convite?code=' + encodeURIComponent(code)).then(d => d?.type === 'indicacao' && setRefInfo(d)).catch(() => {}) }, [err, code])
+  if (refInfo) return <div className="ag" data-testid="accept-invite"><span className="g-eyebrow">Indicação</span><h1>Convite de {refInfo.referrer.first_name}</h1>
+    <div className="g-card" data-testid="referral-existing"><p className="g-sm">Você já tem uma conta. Indicações valem para novos cadastros.</p>{refInfo.coupon && <p className="g-sm">Se ainda não usou seu teste, o cupom <b>{refInfo.coupon}</b> pode ser usado em Assinatura.</p>}
+      <button className="g-btn" onClick={() => nav('/assinatura')}>Ir para Assinatura</button></div></div>
   const isPro = (user?.roles || []).includes('profissional')
   const toInvites = async () => { try { if (user?.context !== 'profissional') { await V.setContext('profissional'); const me = await V.me(); useStore.getState().setUser(me.user) } nav('/pro?tab=convites') } catch (e) { setMsg(e.message) } }
   if (studentCode) return <div className="ag" data-testid="accept-invite"><Sheet title="Código de aluno" onClose={() => nav(-1)}>

@@ -9,6 +9,9 @@ import './index.css'
 import './styles/avadesk.css'
 import './styles/v41.css'
 
+// Monetizacao F5: link publico /convite/CODIGO (fora do hash) -> rota do app
+if (/^\/convite\/[\w-]{4,32}\/?$/.test(location.pathname)) location.replace('/#' + location.pathname.replace(/\/$/, ''))
+
 createRoot(document.getElementById('root')).render(
   <StrictMode><App /></StrictMode>
 )

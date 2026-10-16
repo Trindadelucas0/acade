@@ -8,6 +8,7 @@ import { t } from '../lib/i18n.js'
 import { DEMO, REPO } from '../lib/demo.js'
 import { useState, useEffect } from 'react'
 import { useTerms, TermsText } from './app/Terms.jsx'
+import { readRef, saveRef } from './billing/Referral.jsx'   // Monetizacao F5
 import InstallButton from '../components/InstallButton.jsx'
 import './login.css'
 
@@ -89,6 +90,13 @@ function LoginForm() {
   const [msg, setMsg] = useState('')
   const [exists, setExists] = useState(false)   // cadastro com e-mail que já tem conta
   const reg = mode === 'register'
+  // Monetizacao F5: link /convite/CODIGO de indicacao -> guarda o primeiro indicador (30 dias) e abre o cadastro com o cupom
+  const [ref, setRef] = useState(() => readRef())
+  const [coupon, setCoupon] = useState(() => readRef()?.coupon || '')
+  useEffect(() => {
+    const m = /^#\/convite\/([\w-]+)/.exec(location.hash); if (!m) return
+    api('/api/convite?code=' + encodeURIComponent(m[1])).then(d => { if (d?.type === 'indicacao') { saveRef(d); const r = readRef(); setRef(r); setCoupon(r?.coupon || ''); setMode('register') } }).catch(() => {})
+  }, [])
   const set = k => e => { setF({ ...f, [k]: e.target.value }); setErrs({ ...errs, [k]: undefined }); setMsg('') }
 
   const validate = () => {
@@ -110,7 +118,10 @@ function LoginForm() {
     if (busy || !validate()) return
     setBusy(true); setMsg('')
     try {
-      const u = reg ? await authRegister(f.name.trim(), f.email.trim(), f.password, terms && agree ? terms.version : undefined, intent, intent === 'aluno' ? f.pro_code.trim() : '', { accept: agree, birth_date: f.birth_date, health, contact: toApi(ct) }) : await authLogin(f.email.trim(), f.password)
+      const u = reg ? await authRegister(f.name.trim(), f.email.trim(), f.password, terms && agree ? terms.version : undefined, intent, intent === 'aluno' ? f.pro_code.trim() : '', { accept: agree, birth_date: f.birth_date, health, contact: toApi(ct), ref: ref?.code }) : await authLogin(f.email.trim(), f.password)
+      // D2: cupom (de teste ou de indicacao) ativa os 7 dias logo apos o cadastro; falha no cupom nao desfaz a conta
+      if (reg && coupon.trim()) { try { await api('/api/billing/coupon/redeem', { method: 'POST', body: JSON.stringify({ code: coupon.trim(), audience: intent }) }); useUI.getState().toast('Seu teste de 7 dias começou!') } catch (e) { useUI.getState().toast('Conta criada. Cupom: ' + e.message) } }
+      if (reg) { try { localStorage.removeItem('avagym_ref') } catch { /* */ } }
       setUser(u); await pullState()
       useUI.getState().toast(reg ? `Bem-vindo(a), ${u.name}!` : `Bem-vindo(a) de volta, ${u.name}!`)
     } catch (e) {
@@ -169,6 +180,8 @@ function LoginForm() {
         {field('email', 'E-mail', 'email', 'email', { inputMode: 'email', placeholder: 'voce@email.com' })}
         {field('password', 'Senha', showPw ? 'text' : 'password', reg ? 'new-password' : 'current-password')}
         {reg && field('confirm', 'Confirmar senha', showPw ? 'text' : 'password', 'new-password')}
+        {reg && ref && <p className="lg-sub" data-testid="ref-banner">Você chegou pelo convite de <b>{ref.name || 'um amigo'}</b>.</p>}
+        {reg && <label className="lg-field"><span>Cupom (opcional)</span><div className="lg-input"><input value={coupon} onChange={e => setCoupon(e.target.value.toUpperCase())} maxLength={32} autoComplete="off" placeholder="Ex.: AVAGYM7" data-testid="signup-coupon" /></div><small className="lg-hint">Com cupom você ganha 7 dias de teste completos, sem cobrança automática.</small></label>}
         {reg && intent === 'aluno' && <>{field('pro_code', 'Código do seu personal (opcional)', 'text', 'off', { maxLength: 16, autoCapitalize: 'characters', placeholder: 'Ex.: M6ESAW9W' })}<p className="lg-sub" style={{ marginTop: -4 }} data-testid="pro-code-note">Tem um personal? Com o código dele, sua conta já entra vinculada e coberta pelo plano dele, sem mensalidade.</p></>}
         {reg && field('birth_date', 'Data de nascimento', 'date', 'bday', { max: maxBirth, min: '1900-01-01', 'aria-required': true, 'data-testid': 'birth-date' })}
         {reg && <fieldset className="lg-contact" data-testid="signup-contact"><legend className="lg-sub">Contato e endereço <small>(privados; você escolhe o que mostrar no perfil)</small></legend>

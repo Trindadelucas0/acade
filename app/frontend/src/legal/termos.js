@@ -34,6 +34,8 @@ O AVAGYM é uma plataforma digital de treinos, acompanhamento físico e interaç
 
 3.3. Cada pessoa deve manter uma única conta pessoal, sem compartilhá-la com terceiros.
 
+3.4. O período de teste de 7 dias é concedido somente por cupom (de teste ou de indicação), uma única vez por pessoa, ainda que com outra conta, e-mail ou telefone. Quem se cadastra por indicação tem nome, @, data do cadastro e status (teste ou assinante) visíveis para quem indicou; telefone e e-mail não são exibidos (ver Política de Privacidade, item 5.1).
+
 ## 4. Tipos de conta
 
 4.1. O aluno pode usar o app de forma independente ou vinculado a um profissional por convite.

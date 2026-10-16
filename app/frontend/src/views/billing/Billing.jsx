@@ -6,6 +6,7 @@ import { ask, askText } from '../../lib/dialog.js'
 import Icon from '../../components/Icon.jsx'
 import { useStore } from '../../store/useStore.js'
 import './billing.css'
+import ReferralPanel from './Referral.jsx'   // Monetizacao F5
 
 export const FEAT = {
   catalogo_completo: 'Programas oficiais completos', receber_ficha_profissional: 'Treinos do seu personal',
@@ -208,6 +209,7 @@ export function Subscription() {
     {me.cards.length > 0 && <section className="bl-sub" data-testid="cards"><h3>Cartões salvos</h3>{me.cards.map(c => <div key={c.id} className="bl-row bl-cardrow"><span>{(c.brand || 'Cartão') + ' final ' + c.last4} · {String(c.exp_month).padStart(2, '0')}/{c.exp_year}</span><span className="bl-sp" />
       <button className="g-btn" disabled={busy} onClick={async () => (await ask('Remover este cartão?', { ok: 'Remover', cancel: 'Voltar', danger: true })) && act('/api/billing/cards/remove', { id: c.id }, 'Cartão removido.')}>Remover</button></div>)}</section>}
     <p className="bl-fine"><a href="#/precos">Ver página pública de planos</a> · <a href="#/legal/assinatura">Termos de assinatura</a></p>
+    <ReferralPanel />
     {buy && <Checkout plan={buy} cfg={cfg} cards={me.cards} onClose={() => setBuy(null)} onDone={t => { setBuy(null); setNote({ ok: true, t }); load() }} />}
   </div>
 }

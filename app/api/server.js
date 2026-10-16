@@ -26,6 +26,7 @@ import { prizeRoutes } from './prizes.js';
 import { identityRoutes } from './identity.js';
 import { entitlementRoutes, entitlementGate } from './entitlements.js';
 import { monetizationGate, accessRoutes } from './access.js';
+import { referralRoutes } from './referral.js';
 import { inviteRoutes } from './invites.js';
 import { managementRoutes } from './management.js';
 import { saasRoutes } from './saas.js';
@@ -410,7 +411,8 @@ Object.assign(routes, challengeFeedRoutes({ json, readBody }));  // V5-C: feed d
 Object.assign(routes, prizeRoutes({ json, readBody }));  // V5-E: troféus e premiações
 Object.assign(routes, identityRoutes({ json, readBody }));  // V3 F2: identidade global, contexto, verificação profissional
 Object.assign(routes, entitlementRoutes({ json, readBody, requireAuth, requireRole }));
-Object.assign(routes, accessRoutes({ json, requireAuth }));  // Monetizacao F3: GET /api/access/me  // V3 F3: motor de planos
+Object.assign(routes, accessRoutes({ json, requireAuth }));
+Object.assign(routes, referralRoutes({ json, requireAuth }));  // Monetizacao F5: /convite/CODIGO e painel de indicacoes  // Monetizacao F3: GET /api/access/me  // V3 F3: motor de planos
 Object.assign(routes, inviteRoutes({ json, readBody }));  // V3 F4: convites do profissional (Profissional Free)
 Object.assign(routes, saasRoutes({ json }));
 Object.assign(routes, managementRoutes({ json }));
@@ -440,7 +442,7 @@ const clientIp = req => {
 // Janela fixa em memória. Rotas sensíveis (login, cadastro, recuperação) por IP; RATE_LIMIT=off desliga (testes locais).
 const RL_RULES = {
   'POST /api/auth/login': [20, 15 * 60e3],
-  'POST /api/auth/register': [10, 60 * 60e3], 'GET /api/cep': [40, 10 * 60e3],
+  'POST /api/auth/register': [10, 60 * 60e3], 'GET /api/cep': [40, 10 * 60e3], 'GET /api/convite': [60, 10 * 60e3],
   'POST /api/auth/forgot': [5, 15 * 60e3],
   'POST /api/auth/reset': [10, 15 * 60e3],
   'POST /api/auth/password': [10, 15 * 60e3],
@@ -491,7 +493,7 @@ setInterval(() => { const now = Date.now(); for (const [k, e] of rlHits) if (e.r
 // QA: reset do rate limit so para suites de teste. Existe apenas fora de producao, com DB_NAME *_test e TEST_RL_RESET=1; senao a rota nem e registrada (404).
 const TEST_RL_RESET = process.env.NODE_ENV !== 'production' && /_test$/.test(process.env.DB_NAME || '') && process.env.TEST_RL_RESET === '1';
 if (TEST_RL_RESET) routes['POST /api/test/rate-limit/reset'] = async (req, res) => { const n = rlHits.size; rlHits.clear(); json(res, 200, { ok: true, cleared: n }) };
-const PUBLIC_ROUTES = new Set(['GET /api/public/plans', 'GET /api/cep', 'GET /api/config', 'GET /api/health', 'HEAD /api/health', 'GET /api/media', 'GET /api/media/pub', 'GET /api/media/private', 'GET /api/push/public-key', 'GET /api/terms',
+const PUBLIC_ROUTES = new Set(['GET /api/public/plans', 'GET /api/cep', 'GET /api/convite', 'GET /api/config', 'GET /api/health', 'HEAD /api/health', 'GET /api/media', 'GET /api/media/pub', 'GET /api/media/private', 'GET /api/push/public-key', 'GET /api/terms',
   'GET /api/legal/company', 'POST /api/auth/forgot', 'POST /api/auth/login', 'POST /api/auth/logout', 'POST /api/auth/register', 'POST /api/auth/reset', 'POST /api/logout',
   'POST /api/billing/webhook/asaas', 'POST /api/billing/webhook/simulado']);
 const decodeURIComponentSafe = v => { try { return decodeURIComponent(v) } catch { return '\u0000' } };

@@ -148,6 +148,8 @@ export function authRoutes({ json, readBody, bridge, clearCookies }) {
         return u
       })
       if (!u) return json(res, 409, { error: 'Este e-mail já tem conta. Quer entrar ou recuperar a senha?', code: 'EMAIL_EXISTS', errors: { email: 'Este e-mail já tem conta' } })
+      // Monetizacao F5: link de indicacao (primeiro indicador; nunca sobrescreve). Falha aqui nunca impede o cadastro.
+      if (b.ref) await (await import('./referral.js')).attributeSignup(u.rows[0].id, t.rows[0].id, b.ref).catch(e => console.error('indicacao', e.message))
       await login(res, u.rows[0].id)
     },
     'POST /api/auth/login': async (req, res) => {
