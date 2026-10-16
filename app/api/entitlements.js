@@ -45,12 +45,20 @@ export async function resolve(userId, audience, c, { lock = false } = {}) {
   const g = (await c.query(`select kind, key, value, expires_at from entitlement_grants where user_id=$1 and audience=$2 and revoked_at is null
       and starts_at <= now() and (expires_at is null or expires_at > now())`, [userId, audience])).rows
   const features = { ...(s.features || {}) }, limits = { ...(s.limits || {}) }
+  // Monetizacao (D3): teste de 168h ativo = recursos COMPLETOS do plano pago do perfil (Individual ou PRO)
+  const tr = (await c.query(`select t.plan_id, t.ends_at, v.features, v.limits from trial_grants t
+      join lateral (select features, limits from plan_versions where plan_id=t.plan_id order by version desc limit 1) v on true
+      where t.user_id=$1 and t.audience=$2 and t.revoked_at is null and t.starts_at<=now() and t.ends_at>now() limit 1`, [userId, audience]).catch(() => ({ rows: [] }))).rows[0]
+  if (tr) {
+    for (const [k, v] of Object.entries(tr.features || {})) if (v === true) features[k] = true
+    for (const [k, v] of Object.entries(tr.limits || {})) if (limits[k] == null || v == null || +v > +limits[k]) limits[k] = v
+  }
   for (const x of g) {
     if (x.kind === 'feature') features[x.key] = x.value === true || x.value === 'true'
     if (x.kind === 'limit' && limits[x.key] != null) limits[x.key] = +limits[x.key] + (+x.value || 0)   // concessão SOMA ao limite do plano
   }
   return { subscription_id: s.id, plan_id: s.plan_id, plan_name: s.plan_name, plan_version: s.plan_version, is_free: s.is_free, is_placeholder: s.is_placeholder,
-    status: s.status, active: finSusp || !INACTIVE.includes(s.status), financial_suspended: finSusp, over_limit: s.over_limit, features, limits, grants: g }
+    status: s.status, active: finSusp || !INACTIVE.includes(s.status), trial: tr ? { plan_id: tr.plan_id, ends_at: tr.ends_at } : null, financial_suspended: finSusp, over_limit: s.over_limit, features, limits, grants: g }
 }
 
 // checagem de recurso: devolve null (ok) ou { code, error }

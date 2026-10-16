@@ -25,6 +25,7 @@ import { challengeFeedRoutes } from './challenge-feed.js';
 import { prizeRoutes } from './prizes.js';
 import { identityRoutes } from './identity.js';
 import { entitlementRoutes, entitlementGate } from './entitlements.js';
+import { monetizationGate, accessRoutes } from './access.js';
 import { inviteRoutes } from './invites.js';
 import { managementRoutes } from './management.js';
 import { saasRoutes } from './saas.js';
@@ -408,7 +409,8 @@ Object.assign(routes, challengeRoutes({ json, readBody }));  // V5: desafios
 Object.assign(routes, challengeFeedRoutes({ json, readBody }));  // V5-C: feed do desafio, comprovantes
 Object.assign(routes, prizeRoutes({ json, readBody }));  // V5-E: troféus e premiações
 Object.assign(routes, identityRoutes({ json, readBody }));  // V3 F2: identidade global, contexto, verificação profissional
-Object.assign(routes, entitlementRoutes({ json, readBody, requireAuth, requireRole }));  // V3 F3: motor de planos
+Object.assign(routes, entitlementRoutes({ json, readBody, requireAuth, requireRole }));
+Object.assign(routes, accessRoutes({ json, requireAuth }));  // Monetizacao F3: GET /api/access/me  // V3 F3: motor de planos
 Object.assign(routes, inviteRoutes({ json, readBody }));  // V3 F4: convites do profissional (Profissional Free)
 Object.assign(routes, saasRoutes({ json }));
 Object.assign(routes, managementRoutes({ json }));
@@ -474,8 +476,11 @@ function originAllowed(req, key = '') {
   return ALLOWED_ORIGINS.has(String(o).replace(/\/+$/, ''));
 }
 const rlHits = new Map();
+const RL_GLOBAL = { 'GET /api/cep': [+process.env.CEP_GLOBAL_LIMIT || 600, 10 * 60e3] };
 function rateLimited(key, req) {
   const rule = RL_RULES[key]; if (!rule || process.env.RATE_LIMIT === 'off') return 0;
+  // QA: teto GLOBAL alem do por IP (rota publica que chama servico externo: IPs rotativos nao burlam o limite)
+  const g = RL_GLOBAL[key]; if (g) { const now = Date.now(); let e = rlHits.get('global|' + key); if (!e || e.reset < now) { e = { n: 0, reset: now + g[1] }; rlHits.set('global|' + key, e); } if (++e.n > g[0]) return Math.ceil((e.reset - now) / 1000); }
   const k = key + '|' + rlSubject(key, req), now = Date.now();
   let e = rlHits.get(k); if (!e || e.reset < now) { e = { n: 0, reset: now + rule[1] }; rlHits.set(k, e); }
   return ++e.n > rule[0] ? Math.ceil((e.reset - now) / 1000) : 0;
@@ -515,7 +520,8 @@ http.createServer(async (req, res) => {
     if (!PUBLIC_ROUTES.has(key) && !(TEST_RL_RESET && key === 'POST /api/test/rate-limit/reset') && !gu && !lu) return json(res, 401, { error: 'Não autenticado', code: 'AUTH_REQUIRED' });
     if (url.pathname.startsWith('/api/adm/') && !(gu && Array.isArray(gu.roles) && gu.roles.includes('admin'))) return json(res, 403, { error: 'Somente administradores', code: 'PERMISSION_DENIED' });
     if (!(await entitlementGate(key, gu, res, json))) return;
-    if (!(await accessGate(key, gu, res, json))) return;   // V4.2: conta não liberada vê tudo, mas ações ficam travadas
+    if (!(await accessGate(key, gu, res, json))) return;
+    if (!(await monetizationGate(key, gu, res, json))) return;   // Monetizacao F3: sem assinatura/teste/personal -> 402 (so com monetizacao_ativa)   // V4.2: conta não liberada vê tudo, mas ações ficam travadas
     await handler(req, res);
   }
   catch (e) {
