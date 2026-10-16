@@ -1,13 +1,15 @@
-// V3 · Meu plano: assinatura por área (aluno/profissional), uso × limites, OVER_LIMIT e catálogo (sem preços definidos).
+// V3 · Meu plano: assinatura por área (aluno/profissional), uso × limites, OVER_LIMIT e cards de planos com preço do admin.
 import { UnlockRequest } from './V42.jsx'
 import Icon from '../../components/Icon.jsx'
 import { V, SUB_PT, AUD_PT, METRIC_PT, FEAT_PT } from '../../lib/v3.js'
 import { Load, Err, Empty, useLoad } from '../app/kit.jsx'
 import '../guided/guided.css'
+import { api } from '../../lib/api.js'
+import { PlanGrid } from '../billing/PlansShowcase.jsx'
 
 export default function Plans() {
   const [mine, err, reload] = useLoad(() => V.mySubs())
-  const [cat, err2] = useLoad(() => V.plans())
+  const [cat, err2] = useLoad(() => api('/api/public/plans'))
   return <div className="ag" data-testid="plans">
     <span className="g-eyebrow">Conta</span><h1>Meu plano</h1>
     <a className="g-btn" href="#/assinatura" data-testid="go-subscription" style={{ display: 'inline-flex', marginTop: 8 }}>Planos, assinatura e pagamento</a>
@@ -23,12 +25,10 @@ export default function Plans() {
         <div className="g-chips" style={{ marginTop: 10 }}>{Object.entries(s.features).filter(([, v]) => v).map(([k]) => <span key={k} className="g-chip">{FEAT_PT[k] || k}</span>)}</div>
       </div>)}
     <div className="org-section"><UnlockRequest /></div>
-    <details className="org-details" data-testid="plans-catalog"><summary>Outros planos (consulta)</summary><p className="g-note g-sm" data-testid="plans-no-payment">Contratação e pagamento pelo aplicativo ainda não estão disponíveis. Os planos abaixo são só para consulta; para mudar, fale com a administração.</p>
-    {err2 ? <Err msg={err2} /> : !cat ? <Load /> : cat.plans.map(p => <div key={p.id} className="g-card" style={{ marginTop: 10, opacity: p.is_placeholder ? .8 : 1 }} data-testid={'plan-' + p.id}>
-      <div className="g-row"><b>{p.name}</b><span className="g-sp" /><span className="g-chip">Só consulta</span></div>
-      <p className="g-xs g-mut" style={{ margin: '4px 0' }}>{AUD_PT[p.audience]} · {p.description}</p>
-      {Object.entries(p.current?.limits || {}).map(([m, v]) => <span key={m} className="g-xs"><Icon name="check" /> {METRIC_PT[m] || m}: {v} </span>)}
-    </div>)}
-    </details>
+    <section className="org-section" data-testid="plans-catalog"><h2 className="g-h2" style={{ marginBottom: 14 }}>Planos</h2>
+      {err2 ? <Err msg={err2} /> : !cat ? <Load /> : <PlanGrid plans={cat.plans} initialAud={mine?.subscriptions?.profissional ? 'profissional' : 'aluno'}
+        current={Object.fromEntries(Object.entries(mine?.subscriptions || {}).map(([a, s]) => [a, s.plan_id]))}
+        cta={p => <a className="pl-btn" href={'#/assinatura?plano=' + p.id} data-testid={'plan-go-' + p.id}>{p.purchasable ? 'Assinar o ' + p.name : 'Ver detalhes'}</a>} />}
+    </section>
   </div>
 }

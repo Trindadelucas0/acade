@@ -42,6 +42,11 @@ export async function validateCode(user, raw, c, opts = {}) {
   }
   const referrer = row.kind === 'indicacao' ? row.owner_user_id : (cp.kind === 'parceiro' ? cp.partner_user_id : null)
   if (referrer && referrer === user.id) return { error: 'Você não pode usar o seu próprio cupom de indicação.', code: 'SELF_REFERRAL' }
+  if (referrer && row.kind === 'indicacao') {   // indicacao por codigo (16/10): mesmo telefone do indicador = autoindicacao
+    const ph = (await c.query('select user_id, phone from user_contact where user_id = any($1)', [[user.id, referrer]])).rows
+    const p1 = normPhone(ph.find(x => x.user_id === user.id)?.phone), p2 = normPhone(ph.find(x => x.user_id === referrer)?.phone)
+    if (p1 && p1 === p2) { if (!opts.dryRun) await fraudSignal(user.tenant_id, user.id, 'autoindicacao_mesmo_telefone', 80, { referrer }).catch(() => {}); return { error: 'Você não pode usar o seu próprio cupom de indicação.', code: 'SELF_REFERRAL' } }
+  }
   const isTrial = cp.benefit === 'trial' || row.kind === 'indicacao'   // D2: indicacao tambem concede o teste
   if (isTrial) {
     const audience = opts.audience || (user.roles?.includes('aluno') ? 'aluno' : 'profissional')

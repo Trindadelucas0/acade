@@ -10,14 +10,14 @@ async function signup(page, intent = 'aluno') {
 }
 test.beforeEach(({ baseURL }) => { test.skip(/:4449\b/.test(baseURL), 'nao roda contra o ambiente do Lucas') })
 
-test('pagina publica: Gratis, Individual e PRO com comparativo e CTA de teste', async ({ page }) => {
+test('pagina publica: cards Individual e PRO (redesenho) com CTA', async ({ page }) => {
   await page.goto('/#/precos')
   await expect(page.getByTestId('public-plans')).toBeVisible({ timeout: 15000 })
-  await expect(page.locator('[data-testid^="plan-card-"]')).toHaveCount(3)
-  for (const id of ['aluno_free', 'individual', 'pro']) await expect(page.getByTestId('plan-card-' + id)).toBeVisible()
-  await expect(page.getByTestId('plans-table')).toBeVisible()
+  await expect(page.locator('[data-testid^="plan-card-"]')).toHaveCount(2)
+  for (const id of ['individual', 'pro']) await expect(page.getByTestId('plan-card-' + id)).toBeVisible()
+  await expect(page.getByTestId('plan-grid')).toBeVisible()
   await expect(page.getByTestId('billing-test-banner')).toBeVisible()
-  await expect(page.getByTestId('cta-pro')).toContainText('dias grátis')
+  await expect(page.getByTestId('cta-pro')).toContainText('PRO')
   await expect(page.getByText('AVADESK')).toHaveCount(0)
 })
 test('login tem link para os planos e a marca AVAGYM', async ({ page }) => {

@@ -11,6 +11,7 @@ import ThemePicker from '../../components/ThemePicker.jsx'
 import ContextSwitch from '../v3/ContextSwitch.jsx'
 import { MyCoachesCard } from '../../components/MyCoaches.jsx'
 import { MyInvites } from '../v3/AcceptInvite.jsx'
+import ReferralPanel from '../billing/Referral.jsx'
 import './guided.css'
 import { askText, ask, notify, notifyError } from '../../lib/dialog.js'
 import { api } from '../../lib/api.js'
@@ -24,7 +25,7 @@ export default function Profile() {
   useEffect(() => { if (!proAcc && section === 'preferencias' && can('perguntas')) G.state().then(setSt).catch(() => {}) }, [proAcc, section])
   const p = st?.profile
   const Li = ({ icon, t, s, to, onClick, testid }) => <button className="g-li" onClick={onClick || (() => nav(to))} data-testid={testid}><span className="g-ico"><Icon name={icon} /></span><span><b>{t}</b>{s && <><br /><span className="g-mut g-xs">{s}</span></>}</span><span className="g-chev"><Icon name="play" /></span></button>
-  const titles = { preferencias: 'Preferências', privacidade: 'Privacidade e segurança', ajuda: 'Ajuda', dados: 'Conta' }
+  const titles = { preferencias: 'Preferências', privacidade: 'Privacidade e segurança', ajuda: 'Ajuda', dados: 'Conta', indicacoes: 'Indicações' }
   return <div className="ag" data-testid="profile">
     {section !== 'conta' && <button className="g-link org-back" onClick={() => nav('/perfil')}>← Perfil</button>}
     <span className="g-eyebrow">Perfil</span><h1>{titles[section] || user?.name || 'Visitante'}</h1>
@@ -41,10 +42,12 @@ export default function Profile() {
         <Li icon="bell" t="Notificações" to="/avisos" />
         <Li icon="list" t="Ajuda" s="Rever as dicas de uso" to="/perfil?secao=ajuda" />
       </div>
+      {user && user.status === 'ativo' && <ReferralPanel compact />}
       {user?.admin && <div className="org-list"><Li icon="shield" t="Painel administrativo" to="/admin/painel" testid="admin-area" /></div>}
       {user?.pro && !proAcc && <Li icon="clipboard" t="Área profissional" to="/pro" testid="pro-area" />}
       {user && <button className="g-btn g-ghost org-list" onClick={signOut}>Sair da conta</button>}
     </>}
+    {section === 'indicacoes' && user && <ReferralPanel />}
     {section === 'dados' && <><p className="g-mut">{user?.name} · {user?.email}</p>{user && !proAcc && user.status === 'ativo' && <><MyCodePanel /><MyInvites /></>}</>}
     {section === 'preferencias' && <>
       {user && <ThemePicker />}

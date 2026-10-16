@@ -9,6 +9,7 @@ import { DEMO, REPO } from '../lib/demo.js'
 import { useState, useEffect } from 'react'
 import { useTerms, TermsText } from './app/Terms.jsx'
 import { readRef, saveRef } from './billing/Referral.jsx'   // Monetizacao F5
+import { PlanCard, SELLABLE } from './billing/PlansShowcase.jsx'
 import InstallButton from '../components/InstallButton.jsx'
 import './login.css'
 
@@ -220,13 +221,13 @@ function LoginForm() {
               <label><input type="checkbox" checked={health} onChange={e => setHealth(e.target.checked)} data-testid="accept-health" />
                 <span>(Opcional) Autorizo o uso dos meus dados de saúde (dores, lesões, restrições) para adaptar os treinos. Posso retirar quando quiser.</span></label>
             </div>}
-        {reg && step === 3 && <div data-testid="signup-plans" className="lg-intent" role="radiogroup" aria-label="Como quer começar" style={{ flexDirection: 'column' }}>
-          {(plans?.plans || []).filter(p => p.purchasable && p.audience === intent).map(p => <button key={p.id} type="button" role="radio" aria-checked={choice === p.id} className={'lg-intent-op' + (choice === p.id ? ' on' : '')} onClick={() => setChoice(p.id)} data-testid={'signup-plan-' + p.id}><b>{p.name}</b><small>{p.price_cents != null ? (p.price_cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) + '/mês' : ''}{p.description ? ' · ' + p.description : ''}</small></button>)}
-          <button type="button" role="radio" aria-checked={choice === 'cupom'} className={'lg-intent-op' + (choice === 'cupom' ? ' on' : '')} onClick={() => setChoice('cupom')} data-testid="signup-choice-cupom"><b>Tenho um cupom</b><small>7 dias de teste completos, sem cartão</small></button>
+        {reg && step === 3 && <div data-testid="signup-plans" className="lg-intent pl-signup" role="radiogroup" aria-label="Como quer começar">
+          {(plans?.plans || []).filter(p => SELLABLE.includes(p.id) && p.audience === intent).map(p => <PlanCard key={p.id} p={p} compact selected={choice === p.id} onSelect={p.purchasable ? () => setChoice(p.id) : undefined} />)}
+          <button type="button" role="radio" aria-checked={choice === 'cupom'} className={'lg-intent-op' + (choice === 'cupom' ? ' on' : '')} onClick={() => setChoice('cupom')} data-testid="signup-choice-cupom"><b>Tenho um cupom ou código de indicação</b><small>7 dias de teste completos, sem cartão</small></button>
           <button type="button" role="radio" aria-checked={choice === 'depois'} className={'lg-intent-op' + (choice === 'depois' ? ' on' : '')} onClick={() => setChoice('depois')} data-testid="signup-choice-depois"><b>Decidir depois</b><small>Crie a conta agora e escolha o plano em Planos e pagamento</small></button>
           {!plans && <p className="lg-sub">Carregando planos…</p>}
         </div>}
-        {reg && step === 4 && choice === 'cupom' && <label className={'lg-field' + (errs.coupon ? ' err' : '')}><span>Cupom</span><div className="lg-input"><input value={coupon} onChange={e => { setCoupon(e.target.value.toUpperCase()); setErrs({ ...errs, coupon: undefined }) }} maxLength={32} autoComplete="off" placeholder="Ex.: AVAGYM7" data-testid="signup-coupon" /></div><small className="lg-hint">O teste é único por pessoa e dura 7 dias (168 horas). Não há cobrança automática.</small>{errs.coupon && <em>{errs.coupon}</em>}</label>}
+        {reg && step === 4 && choice === 'cupom' && <label className={'lg-field' + (errs.coupon ? ' err' : '')}><span>Cupom</span><div className="lg-input"><input value={coupon} onChange={e => { setCoupon(e.target.value.toUpperCase()); setErrs({ ...errs, coupon: undefined }) }} maxLength={32} autoComplete="off" placeholder="Cupom ou código de um amigo" data-testid="signup-coupon" /></div><small className="lg-hint">O teste é único por pessoa e dura 7 dias (168 horas). Não há cobrança automática.</small>{errs.coupon && <em>{errs.coupon}</em>}</label>}
         {reg && step === 4 && choice === 'depois' && <p className="lg-sub" data-testid="signup-later">Sem problema. Depois de criar a conta, você escolhe o plano ou ativa um cupom em Perfil › Planos e pagamento.</p>}
         {reg && step === 4 && choice && !['cupom', 'depois'].includes(choice) && <p className="lg-sub" data-testid="signup-pay-note">Depois de criar a conta, abrimos <b>Planos e pagamento</b> com o plano escolhido para você informar o cartão com segurança. Nada é cobrado antes da sua confirmação.</p>}
         {reg && step === 5 && <div className="lg-sub" data-testid="signup-summary" style={{ textAlign: 'left' }}>

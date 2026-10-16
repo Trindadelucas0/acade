@@ -26,6 +26,8 @@ for (const width of [390, 1280]) test(`personal: cadastro em 6 etapas com cupom 
   await page.getByTestId('signup-next').click()
   await page.getByTestId('birth-date').fill('1990-01-01'); await fillContact(page, { phone: '1191' + String(Date.now() % 1e7).padStart(7, '0') })   // telefone unico: o teste e unico por telefone (D6)
   await page.getByTestId('signup-next').click()
+  await expect(page.getByTestId('signup-plans').locator('.pl-card').first()).toBeVisible()
+  if (process.env.PRINTS) { const vs = page.viewportSize(); await page.setViewportSize({ width: 390, height: 844 }); await page.screenshot({ path: process.env.PRINTS + '/cadastro-etapa3-celular.png', fullPage: true }); await page.setViewportSize({ width: 1280, height: 860 }); await page.screenshot({ path: process.env.PRINTS + '/cadastro-etapa3-desktop.png', fullPage: true }); await page.setViewportSize(vs) }
   await page.getByTestId('signup-choice-cupom').click(); await page.getByTestId('signup-next').click()
   await page.getByTestId('signup-coupon').fill(code); await page.getByTestId('signup-next').click()
   await expect(page.getByTestId('signup-summary')).toContainText(code)

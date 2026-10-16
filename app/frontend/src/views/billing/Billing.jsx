@@ -8,9 +8,10 @@ import { useStore } from '../../store/useStore.js'
 import './billing.css'
 import ReferralPanel from './Referral.jsx'   // Monetizacao F5
 import { TrialCard } from './Access.jsx'   // Monetizacao F8
+import { PlanGrid, TrialSeal, Faq } from './PlansShowcase.jsx'   // redesenho dos planos
 
 export const FEAT = {
-  catalogo_completo: 'Programas oficiais completos', receber_ficha_profissional: 'Treinos do seu personal',
+  receber_ficha_profissional: 'Treinos do seu personal',
   prescrever: 'Prescrever treinos para alunos', convidar_alunos: 'Convidar alunos', construtor_treino: 'Construtor de treinos',
   fichas_publicas: 'Publicar fichas na biblioteca pública',
   treino_pessoal: 'Treino pessoal e treino livre', programas_guiados: 'Programas guiados', execucao: 'Execução guiada com cronômetro', progresso: 'Progresso e histórico', ranking: 'Ranking', desafios_oficiais: 'Desafios oficiais'
@@ -27,43 +28,12 @@ export const brl = c => (c / 100).toLocaleString('pt-BR', { style: 'currency', c
 const dBR = d => d ? new Date(d).toLocaleDateString('pt-BR') : '—'
 const post = (p, b) => api(p, { method: 'POST', body: JSON.stringify(b || {}) })
 
-function PriceTag({ p }) {
-  if (p.is_free) return <div className="bl-price"><b>Grátis</b></div>
-  if (p.price_cents == null) return <div className="bl-price"><b className="bl-tbd">Preço a definir</b></div>
-  return <div className="bl-price"><b>{brl(p.price_cents)}</b><span>/mês</span></div>
-}
-
-// cards + tabela comparativa; cta(plan) devolve o botao de cada plano
-export function PlansCompare({ plans, cta, current = {}, testMode }) {
-  const list = plans, aud = list.some(p => p.audience === 'profissional') ? 'profissional' : 'aluno'
-  const feats = [...new Set(list.flatMap(p => Object.keys(p.features || {})))].filter(k => FEAT[k])
-  const best = 'pro'
+// cards dos planos (redesenho): sem tabela comparativa; cta(plan) devolve o botao de cada plano
+export function PlansCompare({ plans, cta, current = {}, testMode, initialAud }) {
   return <div className="bl-wrap" data-testid="plans-compare">
     {testMode && <p className="bl-test" data-testid="billing-test-banner"><Icon name="info" /> Ambiente de teste: nenhum valor real é cobrado.</p>}
-    {false && <div className="bl-seg" role="tablist">{auds.map(a => <button key={a} role="tab" aria-selected={aud === a} className={aud === a ? 'on' : ''} onClick={() => setAud(a)} data-testid={'aud-' + a}>{a}</button>)}</div>}
-    <div className="bl-cards">
-      {list.map(p => <article key={p.id} className={'bl-card' + (p.id === best ? ' bl-best' : '') + (current[p.audience] === p.id ? ' bl-cur' : '')} data-testid={'plan-card-' + p.id}>
-        {p.id === best && <span className="bl-ribbon">Mais escolhido</span>}
-        <span className="bl-for">{p.is_free ? 'Para começar' : FOR[p.audience]}</span><h3>{p.name}</h3><p className="bl-desc">{p.description}</p>
-        <PriceTag p={p} />
-        {!p.is_free && p.trial_days > 0 && <p className="bl-trial">{p.trial_days} dias grátis para testar</p>}
-        <ul className="bl-feats">
-          {p.limits?.alunos_ativos != null && <li><Icon name="check" /> Até <b>{p.limits.alunos_ativos}</b> alunos ativos</li>}
-          {Object.entries(p.features || {}).filter(([k, v]) => v && FEAT[k]).map(([k]) => <li key={k}><Icon name="check" /> {FEAT[k]}</li>)}
-          {(p.benefits || []).map((b, i) => <li key={i} className={b.state === 'disponivel' ? '' : 'bl-soon'}><Icon name={b.state === 'disponivel' ? 'check' : 'sparkles'} /> {b.label}{b.state !== 'disponivel' && <em> em breve</em>}</li>)}
-        </ul>
-        <div className="bl-cta">{cta(p)}</div>
-      </article>)}
-    </div>
-    {list.length > 1 && feats.length > 0 && <div className="bl-tbl-wrap"><table className="bl-tbl" data-testid="plans-table"><caption>Compare os planos</caption>
-      <thead><tr><th scope="col">Recurso</th>{list.map(p => <th key={p.id} scope="col">{p.name}</th>)}</tr></thead>
-      <tbody>
-        <tr><th scope="row">Preço</th>{list.map(p => <td key={p.id}>{p.is_free ? 'Grátis' : p.price_cents == null ? 'A definir' : brl(p.price_cents) + '/mês'}</td>)}</tr>
-        {aud === 'profissional' && <tr><th scope="row">Alunos ativos</th>{list.map(p => <td key={p.id}>{p.limits?.alunos_ativos ?? '—'}</td>)}</tr>}
-        {feats.map(k => <tr key={k}><th scope="row">{FEAT[k]}</th>{list.map(p => <td key={p.id}>{p.features?.[k] ? <span className="bl-yes" aria-label="incluído">✓</span> : <span className="bl-no" aria-label="não incluído">—</span>}</td>)}</tr>)}
-        <tr><th scope="row">Teste grátis</th>{list.map(p => <td key={p.id}>{!p.is_free && p.trial_days ? p.trial_days + ' dias' : '—'}</td>)}</tr>
-      </tbody></table></div>}
-    <p className="bl-fine">Cobrança mensal no cartão de crédito, renovação automática. Cancele quando quiser: o acesso continua até o fim do período pago e seus dados ficam salvos.</p>
+    <PlanGrid plans={plans} cta={cta} current={current} initialAud={initialAud} />
+    <p className="pl-note">Cobrança mensal no cartão de crédito. Cancele quando quiser: o acesso continua até o fim do período pago e seus dados ficam salvos.</p>
   </div>
 }
 
@@ -72,13 +42,18 @@ export function PublicPlans() {
   const [d, setD] = useState(null), [err, setErr] = useState(null)
   useEffect(() => { api('/api/public/plans').then(setD).catch(e => setErr(e.message)) }, [])
   const authed = !!useStore(s => s.user)
+  const cta = p => !p.purchasable ? <span className="pl-btn" aria-disabled="true" data-testid={'cta-' + p.id}>Em breve</span>
+    : <a className="pl-btn" data-testid={'cta-' + p.id} href={authed ? '#/assinatura?plano=' + p.id : '#/?cadastro=1&plano=' + p.id}>{authed ? 'Assinar o ' + p.name : 'Começar com o ' + p.name}<Icon name="bolt" /></a>
   return <div className="bl-page" data-testid="public-plans">
-    <header className="bl-hero"><a href="#/" className="bl-logo">AVA<b>GYM</b></a>
-      <h1>Treine com método. Escolha seu plano.</h1>
-      <p>Comece grátis. Teste os planos pagos sem compromisso e cancele quando quiser.</p></header>
-    {err ? <p className="bl-err">{err}</p> : !d ? <p className="bl-load">Carregando planos…</p> :
-      <PlansCompare plans={catalog(d.plans)} testMode={d.test_mode} cta={p => <a className="bl-btn" data-testid={'cta-' + p.id} href={authed ? '#/assinatura?plano=' + p.id : '#/?cadastro=1&plano=' + p.id}>
-        {p.is_free ? 'Criar conta grátis' : p.trial_days ? `Começar ${p.trial_days} dias grátis` : authed ? 'Assinar' : 'Criar conta e assinar'}</a>} />}
+    <header className="pl-hero"><a href="#/" className="bl-logo">AVA<b>GYM</b></a>
+      <h1>Treine com método.<br /><em>Evolua de verdade.</em></h1>
+      <p>Um plano para quem treina, outro para quem prescreve. Experimente 7 dias com cupom, sem cartão.</p>
+      <TrialSeal /></header>
+    {err ? <p className="bl-err">{err}</p> : !d ? <p className="bl-load">Carregando planos…</p> : <>
+      <PlansCompare plans={d.plans} testMode={d.test_mode} cta={cta} />
+      <div className="pl-trust"><span><Icon name="shield" /> Pagamento seguro</span><span><Icon name="xmark" /> Cancele quando quiser</span><span><Icon name="lock" /> Seus dados ficam salvos</span></div>
+      <p className="pl-note"><a href={authed ? '#/assinatura' : '#/?cadastro=1'} data-testid="have-coupon">Tenho um cupom ou código de indicação</a></p>
+      <Faq /></>}
     <footer className="bl-foot"><a href="#/legal/termos">Termos de Uso</a> · <a href="#/legal/privacidade">Privacidade</a> · <a href="#/legal/assinatura">Termos de assinatura</a></footer>
   </div>
 }
@@ -165,7 +140,6 @@ export function Subscription() {
   if (err) return <div className="ag bl-app"><p className="bl-err">{err}</p></div>
   if (!me || !plans || !cfg) return <div className="ag bl-app"><p className="bl-load">Carregando…</p></div>
   const current = Object.fromEntries(Object.entries(me.subscriptions).filter(([, s]) => s).map(([a, s]) => [a, s.plan_id]))
-  const mine = catalog(plans.plans, Object.keys(me.subscriptions))
   return <div className="ag bl-app" data-testid="subscription">
     <span className="g-eyebrow">Conta</span><h1>Planos e pagamento</h1>
     {note && <p className={note.ok ? 'bl-ok' : 'bl-err'} role="status" data-testid="billing-note">{note.t}</p>}
@@ -201,13 +175,12 @@ export function Subscription() {
       <div className="bl-row bl-coupon"><input className="g-in" placeholder="Código do cupom" value={code} onChange={e => setCode(e.target.value)} /><button className="g-btn" disabled={busy || !code.trim()} onClick={() => act('/api/billing/coupon/redeem', { code: code.trim() }, 'Acesso experimental ativado.')}>Ativar</button></div></section>}
 
     <h2 className="bl-h2">Planos disponíveis</h2>
-    <PlansCompare plans={mine} current={current} testMode={plans.test_mode} cta={p => current[p.audience] === p.id ? <span className="bl-btn bl-ghost" data-testid={'current-' + p.id}>Seu plano atual</span>
-      : p.is_free ? <span className="bl-mut">Plano gratuito</span>
-      : !p.purchasable ? <span className="bl-btn bl-ghost" aria-disabled="true">Em breve</span>
-      : <button className="bl-btn" onClick={() => setBuy(p)} data-testid={'buy-' + p.id}>{me.subscriptions[p.audience] && !me.subscriptions[p.audience].is_free ? 'Mudar para este' : p.trial_days ? `Testar ${p.trial_days} dias grátis` : 'Assinar'}</button>} />
+    <PlansCompare plans={plans.plans} current={current} testMode={plans.test_mode} initialAud={me.subscriptions.profissional !== undefined ? 'profissional' : 'aluno'} cta={p => current[p.audience] === p.id ? <span className="pl-btn pl-sec" data-testid={'current-' + p.id}>Seu plano atual</span>
+      : !p.purchasable ? <span className="pl-btn" aria-disabled="true">Em breve</span>
+      : <button className="pl-btn" onClick={() => setBuy(p)} data-testid={'buy-' + p.id}>{me.subscriptions[p.audience] && !me.subscriptions[p.audience].is_free ? 'Mudar para o ' + p.name : 'Assinar o ' + p.name}</button>} />
+    <Faq />
 
-    {me.charges.length > 0 && <section className="bl-sub" data-testid="charges"><h3>Histórico de cobranças</h3><div className="bl-tbl-wrap"><table className="bl-tbl"><thead><tr><th>Data</th><th>Descrição</th><th>Valor</th><th>Situação</th></tr></thead>
-      <tbody>{me.charges.map(c => <tr key={c.id}><td>{dBR(c.created_at)}</td><td>{c.description || c.kind}</td><td>{brl(c.amount_cents)}</td><td>{{ paga: 'Paga', recusada: 'Recusada', pendente: 'Pendente', estornada: 'Estornada' }[c.status] || c.status}{c.failure_message ? ' — ' + c.failure_message : ''}</td></tr>)}</tbody></table></div></section>}
+    {me.charges.length > 0 && <section className="bl-sub" data-testid="charges"><h3>Histórico de cobranças</h3><ul className="rf-people" data-testid="charges-list">{me.charges.map(c => <li key={c.id}><span><b>{brl(c.amount_cents)}</b> · {c.description || c.kind}<br /><small className="bl-fine">{dBR(c.created_at)}{c.failure_message ? ' · ' + c.failure_message : ''}</small></span><span className={'rf-st' + (c.status === 'paga' ? ' assinante' : '')}>{{ paga: 'Paga', recusada: 'Recusada', pendente: 'Pendente', estornada: 'Estornada' }[c.status] || c.status}</span></li>)}</ul></section>}
 
     {me.cards.length > 0 && <section className="bl-sub" data-testid="cards"><h3>Cartões salvos</h3>{me.cards.map(c => <div key={c.id} className="bl-row bl-cardrow"><span>{(c.brand || 'Cartão') + ' final ' + c.last4} · {String(c.exp_month).padStart(2, '0')}/{c.exp_year}</span><span className="bl-sp" />
       <button className="g-btn" disabled={busy} onClick={async () => (await ask('Remover este cartão?', { ok: 'Remover', cancel: 'Voltar', danger: true })) && act('/api/billing/cards/remove', { id: c.id }, 'Cartão removido.')}>Remover</button></div>)}</section>}

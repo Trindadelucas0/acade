@@ -25,12 +25,41 @@ export async function ensureReferralCode(user) {
   throw new Error('nao foi possivel gerar o codigo de indicacao')
 }
 
+// Lucas (16/10, 20:38): indicacao SO por CODIGO de cupom (sem link). Cada usuario tem um cupom proprio kind='indicacao'
+// (dono = ele) numa campanha de sistema "Indicacoes de usuarios" (beneficio: teste de 7 dias, D2). Quem recebe digita o
+// codigo no cadastro (etapa 4) ou em Planos; o resgate concede o teste e registra o indicador (primeiro valido, nunca sobrescrito).
+export const SYS_CAMPAIGN = 'Indicações de usuários'
+async function systemCampaign(tenantId) {
+  const cur = (await q(`select id from campaigns where tenant_id=$1 and name=$2 order by created_at limit 1`, [tenantId, SYS_CAMPAIGN])).rows[0]
+  if (cur) return cur.id
+  const r = await q(`insert into campaigns(name,kind,benefit,trial_days,status,notes,tenant_id) values($1,'oficial','trial',7,'ativa',$2,$3) returning id`,
+    [SYS_CAMPAIGN, 'Campanha de sistema: cupons de indicação de cada usuário (criada automaticamente).', tenantId])
+  await audit(tenantId, null, 'campanha.criada', 'campaign', r.rows[0].id, { sistema: true, name: SYS_CAMPAIGN })
+  return r.rows[0].id
+}
+export async function ensureReferralCoupon(user) {
+  const own = (await q(`select pc.code from promotion_codes pc where pc.owner_user_id=$1 and pc.kind='indicacao' and pc.status='ativo' order by pc.created_at limit 1`, [user.id])).rows[0]
+  if (own) return own.code
+  const camp = await systemCampaign(user.tenant_id)
+  const base = (await ensureReferralCode(user)).code
+  for (let i = 0; i < 6; i++) {
+    const code = i === 0 ? base : randCode()
+    try {
+      const r = await q(`insert into promotion_codes(tenant_id,campaign_id,code,code_norm,kind,owner_user_id,channel,notes) values($1,$2,$3,$3,'indicacao',$4,'indicacao_usuario','cupom pessoal de indicação') returning id, code`, [user.tenant_id, camp, code, user.id])
+      await q(`insert into coupon_changes(tenant_id,code_id,actor_id,action,after) values($1,$2,$3,'criado',$4)`, [user.tenant_id, r.rows[0].id, user.id, JSON.stringify({ code, kind: 'indicacao', automatico: true })])
+      return r.rows[0].code
+    } catch (e) { if (e.code !== '23505') throw e }
+  }
+  throw new Error('nao foi possivel gerar o cupom de indicacao')
+}
+
 // resolve /convite/CODIGO: convite do personal (pro_invites) ou indicacao (referral_codes). Resposta generica se nao existir.
 export async function resolveInviteCode(raw, req, tenantSlug) {
   const code = String(raw || '').trim().toUpperCase()
   if (!/^[A-Z0-9_-]{4,32}$/.test(code)) return null
   const inv = (await q(`select status from pro_invites where upper(code)=$1`, [code])).rows[0]
   if (inv) return { type: 'convite_personal', status: inv.status }
+  if (process.env.REFERRAL_LINKS !== 'on') return null   // Lucas 16/10: indicacao so por codigo; /convite fica so para convite de personal
   const r = (await q(`select rc.user_id, rc.tenant_id, u.name from referral_codes rc join users u on u.id=rc.user_id and u.status='ativo' and u.disabled_at is null
       where upper(rc.code)=$1 and rc.status='ativo'`, [code])).rows[0]
   if (!r) return null
@@ -82,9 +111,9 @@ export function referralRoutes({ json, requireAuth }) {
     },
     'GET /api/referral/me': async (req, res) => {
       const u = await requireAuth(req, res, json); if (!u) return
-      const c = await ensureReferralCode(u)
-      const coupons = (await q(`select pc.code, pc.status, pc.redemptions_count from promotion_codes pc where pc.owner_user_id=$1 and pc.kind='indicacao' order by pc.created_at desc`, [u.id])).rows
-      json(res, 200, { code: c.code, status: c.status, link: LINK_BASE() + '/convite/' + c.code, coupons, ...(await referralStats(u.id)) })
+      const code = await ensureReferralCoupon(u)   // sem link (Lucas 16/10): so o codigo do cupom
+      const { cliques, ...stats } = await referralStats(u.id)
+      json(res, 200, { code, ...stats })
     }
   }
 }
