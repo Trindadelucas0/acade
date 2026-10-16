@@ -65,10 +65,9 @@ for (const role of ['aluno','profissional','admin']) for (const width of [320,39
       await expect(page.getByRole('combobox',{name:'Objetivo',exact:true})).toHaveValue('rehab')
       await fit(page)
       await page.goto('/#/progresso')
-      await expect(page.getByRole('tab',{name:'Troféus',exact:true})).toBeVisible()
+      await expect(page.getByTestId('progress-trophies')).toBeVisible()   // V4.3: layout de d8c2591, sem abas
       await fit(page)
-      await page.getByRole('tab',{name:'Histórico',exact:true}).click()
-      await expect(page).toHaveURL(/aba=historico/)
+      await expect(page.getByRole('heading',{name:'Histórico',exact:true})).toBeVisible()
     }
     if (role === 'profissional') {
       await page.goto('/#/pro?tab=treinos')
@@ -94,16 +93,10 @@ for (const role of ['aluno','profissional','admin']) for (const width of [320,39
     }
   })
 }
-for (const width of [320,1280]) test(`biblioteca ${width}px: seletores de exercícios`, async ({page}) => {
+for (const width of [320,1280]) test(`biblioteca ${width}px: aluno não acessa (só personal/admin)`, async ({page}) => {
   await page.setViewportSize({width,height:900})
   await setup(page,'aluno','light')
   await page.goto('/#/library')
-  const body = page.getByRole('combobox',{name:'Grupo muscular',exact:true})
-  await expect(body).toBeVisible()
-  const value = await body.locator('option').nth(1).getAttribute('value')
-  await body.selectOption(value)
-  await expect(body).toHaveValue(value)
-  expect(await page.locator('.library-filters').evaluate(n => n.scrollWidth <= n.clientWidth + 1)).toBe(true)
-  await body.selectOption('')
-  await expect(body).toHaveValue('')
+  await expect(page).toHaveURL(/#\/treinos/)
+  await expect(page.getByText(/Biblioteca/)).toHaveCount(0)
 })

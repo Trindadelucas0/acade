@@ -44,10 +44,10 @@ export default function MyProgram() {
       </button>)}
     </div>
     <p className="g-dim g-xs" style={{ marginTop: 8 }}>Os treinos seguem em ordem. Faça o próximo no seu dia de treino; se faltar um dia, é só continuar de onde parou.</p>
-    <details className="org-details"><summary>Gerenciar programa</summary><div style={{ display: 'grid', gap: 10, marginTop: 20 }}>
+    <div style={{ display: 'grid', gap: 10, marginTop: 20 }}>
       <button className="g-btn g-ghost" onClick={() => nav('/programa/' + a.program_id)}>Ver detalhes do programa</button>
       <button className="g-btn g-ghost" onClick={async () => { if (await detachSystem(at || { program: { title: a.title } })) nav('/recomendados') }} data-testid="switch-program"><Icon name="shuffle" /> Trocar programa (desvincula o atual)</button>
       <button className="g-btn g-danger" onClick={async () => { if (await detachSystem(at || { program: { title: a.title } })) nav('/hoje') }} data-testid="detach-program">Desvincular programa</button>
-    </div></details>
+    </div>
   </div>
 }

@@ -14,7 +14,7 @@ import { glyphOf } from '../../lib/glyphs.js'
 import { Empty, Err } from './kit.jsx'
 import { ResumeBar, useLive } from '../v3/StartHub.jsx'
 import '../guided/guided.css'
-import ActiveTrainingBanner, { detachSystem, CoachLockNote } from '../../components/ActiveTraining.jsx'
+import { detachSystem, detachPro } from '../../components/ActiveTraining.jsx'
 import { AT } from '../../lib/active.js'
 import { ask, notifyError } from '../../lib/dialog.js'
 const NO_ROUTINES = []
@@ -47,52 +47,76 @@ export default function Treinos() {
   const tab0 = validTab(sp.get('aba')) ? normTab(sp.get('aba')) : ready ? 'ativo' : null
   const tab = isClient && tab0 === 'programas' ? 'profissionais' : tab0
 
-  return <div className="ag" data-testid="treinos">
+  const activePlan = at?.kind === 'profissional' ? (plans.find(p => p.id === at.pro_plan?.id) || plans[0] || (at.pro_plan && { exercises: [], days: [], ...at.pro_plan })) : null
+  const otherPlans = plans.filter(p => p.id !== activePlan?.id)
+  const reload = () => setN(x => x + 1)
+  const startLabel = live ? 'Continuar treino' : 'Começar treino'
+
+  return <div className="ag tr-page" data-testid="treinos">
     <span className="g-eyebrow">Treinos</span><h1 style={{ marginTop: 2 }}>Seus treinos</h1>
     <ResumeBar />
-    <ActiveTrainingBanner at={at} compact onChange={() => setN(x => x + 1)} />
-    {tab !== 'ativo' && tab && <button className="g-link org-back" onClick={() => setSp({})}>← Treino ativo</button>}
-    {ready && (st === false || care === false) && <Err msg="Não foi possível carregar tudo. Verifique a conexão." retry={() => setN(x => x + 1)} />}
+    {ready && (st === false || care === false) && <Err msg="Não foi possível carregar tudo. Verifique a conexão." retry={reload} />}
+    {!ready ? <p className="g-mut g-sm" role="status">Carregando…</p> : <>
+      {/* 1 · TREINO ATIVO (um só) — card de destaque com o botão grande */}
+      <section className="g-hero tr-hero" data-testid="active-training" aria-label="Treino ativo">
+        {(activePlan || a) && <span className="g-activebadge"><Icon name="check" /> Treino ativo</span>}
+        {activePlan ? <>
+          <h2 className="tr-title">{activePlan.title}</h2>
+          <p className="g-mut g-sm">Ficha de {activePlan.owner_name} · {activePlan.exercises.length} exercícios{activePlan.days?.length > 1 ? ` · ${activePlan.days.length} dias` : ''}</p>
+          {activePlan.description && <p className="g-sm" data-testid="plan-description">{activePlan.description}</p>}
+          <section data-testid="tab-profissionais"><div data-testid="pro-plan">
+          {activePlan.days?.length > 1
+            ? <div className="tr-days">{activePlan.days.map((d, i) => <button key={i} className="g-btn" disabled={!!live} onClick={() => startPlan(activePlan, `/treinar?plan=${activePlan.id}&day=${i}`)} data-testid="plan-day"><Icon name="play" /> {d.name} · {d.exercises.length}</button>)}</div>
+            : <button className="g-btn g-xl tr-start" onClick={() => live ? nav(live.to) : startPlan(activePlan, '/treinar?plan=' + activePlan.id)} data-testid="plan-start"><Icon name="play" /> {startLabel}</button>}
+          </div></section>
+          <p className="g-xs g-mut" data-testid="pro-locked">{at.can_detach ? 'É o seu único treino ativo. Para usar um programa do sistema, desvincule a ficha (ela fica no histórico).' : 'É o seu único treino ativo. Sua conta é coberta pelo personal; os programas do sistema ficam travados.'}</p>
+          {at.paused_program && <p className="g-xs g-mut" data-testid="paused-program">Programa pausado: {at.paused_program.title} (a ficha do personal tem prioridade).</p>}
+          {at.can_detach && <button className="g-link" onClick={() => detachPro(at, reload)} data-testid="active-detach-pro">Desvincular ficha do personal</button>}
+        </> : a ? <>
+          <h2 className="tr-title">{a.title}</h2>
+          <p className="g-mut g-sm">Programa do sistema · semana {a.week_index} de {a.weeks} · {minutesLabel(a)}</p>
+          <section data-testid="tab-programas">
+            <button className="g-btn g-xl tr-start" disabled={!!live && live.to !== '/treinar'} onClick={() => nav('/treinar')} data-testid="treinos-start"><Icon name="play" /> {live?.to === '/treinar' ? 'Continuar treino' : 'Começar treino de hoje'}</button>
+          </section>
+          <div className="tr-links"><button className="g-link" onClick={() => nav('/meu-programa')}>Ver ficha do programa</button>
+            <button className="g-link" onClick={() => detachSystem(at, reload)} data-testid="active-detach">Desvincular programa</button></div>
+        </> : <>
+          <h2 className="tr-title">Nenhum treino ativo</h2>
+          {isClient ? <p className="g-sm g-mut" data-testid="client-wait-pro">Aguardando a ficha do seu personal. Quando ele publicar, ela aparece aqui.</p>
+            : coaches?.length ? <p className="g-sm g-mut">Você está vinculado a <b>{coaches.map(c => c.name).join(' e ')}</b>. A ficha aparece aqui quando for publicada.</p>
+            : <p className="g-sm g-mut">Escolha um programa pronto ou receba a ficha de um profissional.</p>}
+          {!isClient && can('programas') && <section data-testid="tab-programas"><button className="g-btn g-xl tr-start" onClick={() => nav(st?.profile ? '/recomendados' : '/onboarding')} data-testid="treinos-start"><Icon name="sparkles" /> Escolher meu treino</button></section>}
+        </>}
+      </section>
+      {coaches?.length > 0 && !activePlan && <CoachLinkedNote coaches={coaches} />}
 
-    {!tab ? <p className="g-mut g-sm" role="status">Carregando…</p> : <>
-      {(tab === 'ativo' || tab === 'programas') && !isClient && <section data-testid="tab-programas">
-        <CoachLockNote />
-        {!at?.locked_to_pro && (a || can('programas')) && <div className="g-card">
-          {a ? <><span className="g-mut g-xs">Programa ativo</span><h3 style={{ marginTop: 4 }}>{a.title}</h3>
-            <p className="g-mut g-sm">Semana {a.week_index} de {a.weeks} · {minutesLabel(a)}</p>
-            <button className="g-btn" style={{ marginTop: 12 }} disabled={!!live && live.to !== '/treinar'} onClick={() => nav('/treinar')} data-testid="treinos-start"><Icon name={live?.to === '/treinar' ? 'play' : 'dumbbell'} /> {live?.to === '/treinar' ? 'Continuar treino' : 'Começar treino de hoje'}</button></>
-            : <><h3>Nenhum programa ativo</h3><p className="g-mut g-sm">Escolha um programa publicado. Se responder às perguntas, mostramos os que combinam com você.</p>
-              <button className="g-btn" style={{ marginTop: 12 }} onClick={() => nav(st?.profile ? '/recomendados' : '/onboarding')} data-testid="treinos-start">Escolher meu treino</button></>}
-        </div>}
-        {a && <div className="g-card g-list org-list"><Li icon="calendar" t="Ver ficha do programa" s="Dias de treino e exercícios" to="/meu-programa" /></div>}
+      {/* 2 · EXPLORAR PROGRAMAS — só se permitido */}
+      {!isClient && can('programas') && <section className="tr-sec">
+        <h2>Explorar programas</h2>
+        <div className="g-card g-list">
+          <Li icon="sparkles" t="Recomendados para você" s="Pelo seu objetivo, nível e tempo" to="/recomendados" testid="explore-programs-link" />
+          <Li icon="clipboard" t="Todos os programas" s={activePlan ? 'Só consulta enquanto a ficha do personal estiver ativa' : 'Programas prontos para seguir'} to="/programas" />
+          {st?.profile && <Li icon="pencil" t="Refazer perguntas" s="Atualize objetivo e rotina" to="/onboarding" />}
+        </div>
       </section>}
 
-      {(tab === 'ativo' || tab === 'profissionais') && <section data-testid="tab-profissionais">
-        {plans.length ? <div className="g-card g-list">{plans.map(p => <div key={p.id} className="g-li" style={{ display: 'block' }} data-testid="pro-plan">
-          <div className="g-row" style={{ gap: 8 }}><b>{p.title}</b>{at?.kind === 'profissional' && at.pro_plan?.id === p.id && <span className="g-activebadge">Ativo</span>}</div><span className="g-mut g-xs">Responsável: {p.owner_name}{p.specialty ? ' · ' + p.specialty : ''} · {p.exercises.length} exercícios</span>
-          {p.notes && <p className="g-sm g-mut" style={{ marginTop: 4 }}>{p.notes}</p>}
-          {p.description && <p className="g-sm" style={{ marginTop: 4 }} data-testid="plan-description">{p.description}</p>}
-          {p.days?.length > 1 ? <div className="g-row" style={{ gap: 8, flexWrap: 'wrap', marginTop: 8 }}>{p.days.map((d, i) => <button key={i} className="g-btn g-ghost g-sm" style={{ width: 'auto', padding: '0 14px' }} disabled={!!live} onClick={() => startPlan(p, `/treinar?plan=${p.id}&day=${i}`)} data-testid="plan-day">{d.name} · {d.exercises.length}</button>)}</div>
-            : <button className="g-btn g-sm" style={{ marginTop: 8 }} disabled={!!live || (at?.kind === 'profissional' && at.pro_plan?.id !== p.id)} onClick={() => startPlan(p, '/treinar?plan=' + p.id)} data-testid="plan-start">{at?.kind === 'profissional' && at.pro_plan?.id === p.id ? 'Começar este treino' : at?.kind === 'sistema' ? 'Desvincular programa e aceitar' : 'Aceitar e começar'}</button>}</div>)}</div>
-          : coaches?.length ? <CoachLinkedNote coaches={coaches} /> : !isClient && !a ? <NoPro /> : null}
+      {/* 3 · PROFISSIONAL */}
+      {!isClient && !plans.length && !coaches?.length && <section className="tr-sec"><h2>Profissional</h2><NoPro /></section>}
+      {otherPlans.length > 0 && <section className="tr-sec"><h2>Outras fichas</h2><div className="g-card g-list">{otherPlans.map(p => <div key={p.id} className="g-li" data-testid="pro-plan"><span className="g-ico"><Icon name="clipboard" /></span><span><b>{p.title}</b><br /><span className="g-mut g-xs">{p.owner_name} · {p.exercises.length} exercícios</span></span></div>)}</div></section>}
 
-      </section>}
-
-      <details className="org-details"><summary>Fichas anteriores</summary>{care?.plan_history?.length ? <PlanHistory plans={care.plan_history} /> : <p className="g-mut g-sm">Nenhuma ficha anterior.</p>}</details>
-      <details className="org-details" open={tab === 'historico' ? true : undefined} key={tab === 'historico' ? 'legacy' : 'closed'}><summary>Rotinas antigas — consulta</summary>
-      {<section data-testid="tab-historico">
-        <p className="g-mut g-sm">Rotinas que você montou em versões anteriores. Ficam guardadas para consulta; para treinar, escolha um programa ou uma ficha do seu profissional.</p>
-        {routines.length ? <div className="g-card g-list">{routines.map(r => <div key={r.id} className="g-li" data-testid="legacy-routine">
-          <span className="g-ico"><Icon name={glyphOf(r.emoji)} /></span>
-          <span style={{ minWidth: 0 }}><b>{r.name}</b><br /><span className="g-mut g-xs">{r.ex.length} exercício{r.ex.length === 1 ? '' : 's'} · somente consulta</span></span>
-        </div>)}</div>
-          : <Empty icon="folder">Nenhuma rotina antiga.</Empty>}
-        <div className="g-card g-list" style={{ marginTop: 10 }}><Li icon="chart" t="Histórico de treinos antigos" s="Sessões de versões anteriores · somente consulta" to="/history" /></div>
-      </section>}
-
-      </details>
-      {can('programas') && <details className="org-details"><summary>Explorar programas</summary><div className="g-card g-list"><Li icon="clipboard" t="Explorar programas" s="Recomendados para você e todos os programas" to="/programas" testid="explore-programs-link" /></div></details>}
-      {can('biblioteca') && <div className="g-card g-list org-list"><Li icon="list" t="Biblioteca de exercícios" s="Fotos, animações e instruções" to="/library" /></div>}
+      {/* 4 · CONSULTA — fichas anteriores e rotinas antigas, visíveis (sem acordeão) */}
+      <section className="tr-sec" data-testid="tab-historico">
+        <h2>Para consulta</h2>
+        <PlanHistory plans={care?.plan_history} />
+        <div className="g-card g-list" style={{ marginTop: 10 }}>
+          {routines.length > 0 && <>
+          <p className="g-xs g-mut" style={{ padding: '4px 2px 6px' }}>Rotinas antigas — consulta. Para treinar, use o treino ativo.</p>
+          {routines.map(r => <div key={r.id} className="g-li" data-testid="legacy-routine">
+            <span className="g-ico"><Icon name={glyphOf(r.emoji)} /></span>
+            <span style={{ minWidth: 0 }}><b>{r.name}</b><br /><span className="g-mut g-xs">{r.ex.length} exercício{r.ex.length === 1 ? '' : 's'} · somente consulta</span></span>
+          </div>)}</>}
+          <Li icon="chart" t="Histórico de treinos" s="Sessões feitas e versões anteriores" to="/history" /></div>
+      </section>
     </>}
   </div>
 }
@@ -108,6 +132,6 @@ function NoPro() {
     {mine && <p className="g-sm" style={{ marginTop: 10 }}>Seu código de aluno: <b style={{ letterSpacing: '.12em' }} data-testid="no-pro-code">{mine}</b> <span className="g-mut g-xs">· envie ao seu profissional</span></p>}
     <div className="g-row" style={{ gap: 8, marginTop: 10 }}>
       <input className="g-in" style={{ flex: 1 }} placeholder="Tenho um código de convite" value={code} maxLength={12} onChange={e => setCode(e.target.value.toUpperCase())} aria-label="Código de convite" data-testid="no-pro-invite" />
-      <button className="g-btn g-sm" style={{ width: 'auto', padding: '0 16px' }} disabled={c.length < 6} onClick={() => nav('/convite/' + c)}>Abrir</button></div>
+      <button className="g-btn g-ghost g-sm" style={{ width: 'auto', padding: '0 16px' }} disabled={c.length < 6} onClick={() => nav('/convite/' + c)}>Abrir</button></div>
   </div>
 }

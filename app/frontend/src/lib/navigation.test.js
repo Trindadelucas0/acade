@@ -21,3 +21,9 @@ describe('navigation context and existing access restrictions', () => {
     expect(visibleResource({}, subs, 'prescrever')).toBe(false)
   })
 })
+
+it('V4.3: biblioteca só para personal e admin', () => {
+  expect(visibleResource({ roles: ['aluno'] }, {}, 'biblioteca')).toBe(false)
+  expect(visibleResource({ roles: ['profissional'], pro: true }, {}, 'biblioteca')).toBe(true)
+  expect(visibleResource({ admin: true }, {}, 'biblioteca')).toBe(true)
+})

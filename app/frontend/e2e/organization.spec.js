@@ -66,7 +66,7 @@ test('aluno do personal: recursos ocultos e link antigo com explicação', async
   await expect(page.getByTestId('plan-start')).toBeVisible()
   await expect(page.getByText('Explorar programas',{exact:true})).toHaveCount(0)
   await page.goto('/#/library')
-  await expect(page.getByTestId('scope-gate')).toBeVisible()
+  await expect(page).toHaveURL(/#\/treinos/)
   await page.goto('/#/comunidade?tab=grupos')
   await expect(page.getByTestId('scope-gate')).toBeVisible()
   expect(errors).toEqual([])

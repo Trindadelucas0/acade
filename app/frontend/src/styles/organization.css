@@ -71,3 +71,15 @@
 
 .org-mobile-more{display:none}
 @media(max-width:600px){.adm-tbl tr:not(.org-expanded) td:nth-child(n+4):not(.org-mobile-more){display:none}.adm-tbl td.org-mobile-more{display:flex;justify-content:flex-end}.adm-tbl td.org-mobile-more::before{display:none}.adm-tbl-wrap{min-width:0;overflow-x:hidden}}
+
+/* V4.3 · Treinos (redesenho): hero do treino ativo + seções claras, mobile first */
+.ag.tr-page .tr-hero{margin-top:12px;padding:20px 18px;display:grid;gap:8px}
+.ag.tr-page .tr-hero .g-activebadge{justify-self:start}
+.ag.tr-page .tr-title{margin:2px 0 0;font-size:24px;line-height:1.15}
+.ag.tr-page .tr-start{width:100%;margin-top:6px}
+.ag.tr-page .tr-days{display:grid;gap:8px;margin-top:6px}
+.ag.tr-page .tr-days .g-btn{min-height:56px}
+.ag.tr-page .tr-links{display:flex;flex-wrap:wrap;gap:16px;margin-top:2px}
+.ag.tr-page .tr-links .g-link,.ag.tr-page .tr-hero>.g-link{min-height:44px}
+.ag.tr-page .tr-sec{margin-top:22px}
+.ag.tr-page .tr-sec>h2{font-size:18px;margin:0 0 10px}

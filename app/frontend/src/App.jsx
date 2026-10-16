@@ -172,7 +172,7 @@ function Shell() {
               <Route path="/workout" element={S.active ? <Workout /> : <Navigate to="/treinos" replace />} />
               <Route path="/stats" element={<Stats />} />
               <Route path="/history" element={<History />} />
-              <Route path="/library" element={<ScopeGate title="Biblioteca"><Library /></ScopeGate>} />
+              <Route path="/library" element={(isProAccount(user) || isAdminAccount(user)) ? <ScopeGate title="Biblioteca"><Library /></ScopeGate> : <Navigate to="/treinos" replace />} />
               <Route path="/muscles" element={<ScopeGate title="Músculos"><Suspense fallback={null}><MuscleMap /></Suspense></ScopeGate>} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/admin" element={<Navigate to={user?.admin ? '/admin/painel' : '/hoje'} replace />} />

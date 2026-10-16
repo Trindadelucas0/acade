@@ -1,3 +1,4 @@
+import { isProAccount } from './accounts.js'
 // Presentation only. API authorization remains authoritative.
 export const STUDENT_NAV = [
   ['inicio', 'house', 'Início', '/hoje'], ['treinos', 'dumbbell', 'Treinos', '/treinos'],
@@ -26,6 +27,8 @@ export function professionalTab(path, search = '') {
 }
 export function visibleResource(user, subscriptions, resource) {
   if (user?.admin) return true
+  // V4.3: Biblioteca de exercícios é ferramenta do personal (montar ficha) e do admin
+  if (resource === 'biblioteca') return isProAccount(user)
   if (user?.client_locked && ['programas', 'biblioteca', 'musculos', 'grupos', 'ranking', 'profissionais', 'perguntas'].includes(resource)) return false
   const feature = { programas: 'programas_guiados', ranking: 'ranking', progresso: 'progresso', prescrever: 'prescrever', convidar: 'convidar_alunos', construtor: 'construtor_treino' }[resource]
   if (!feature) return true

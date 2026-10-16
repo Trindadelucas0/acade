@@ -65,7 +65,7 @@ export default function MuscleStatus({ compact }) {
   return <div className="g-card ag-muscles" data-testid={compact ? 'muscles-compact' : 'muscles'}>
     <div className="g-row"><b>{compact ? 'Seu corpo esta semana' : 'Músculos trabalhados'}</b><span className="g-sp" />
       <button className="g-link" onClick={() => nav('/muscles')}><Icon name="person" /> 3D</button></div>
-    {!compact && <div className="g-scrollx" style={{ marginTop: 12 }}>
+    {!compact && <div className="g-scrollx" style={{ margin: '8px -16px 0', padding: '2px 16px 6px' }}>
       {[[7, 'Semana'], [30, '30 dias'], [90, '90 dias'], [0, 'Tudo']].map(([v, l]) => <button key={v} className={'g-chipbtn' + (win === v ? ' g-on' : '')} onClick={() => { setWin(v); setSel(null) }}>{l}</button>)}
     </div>}
     <BodyMap load={load} body={S.body} selected={sel} onMuscle={m => setSel(s => s === m ? null : m)} className="tappable" />

@@ -24,7 +24,7 @@ export function MyTrophies() {
   const [d, err, reload] = useLoad(() => TR.mine())
   if (err) return <Err msg={err} />
   if (!d) return <Load />
-  if (!d.trophies.length) return <Empty>Sem troféus ainda. Eles vêm com resultados reais nos desafios.</Empty>
+  if (!d.trophies?.length) return <Empty>Sem troféus ainda. Eles vêm com resultados reais nos desafios.</Empty>
   return <div className="g-list" data-testid="my-trophies">{d.trophies.map(t => <div key={t.id} className="g-li" style={{ gap: 10 }}><span style={{ fontSize: 26 }} aria-hidden="true">{t.icon}</span>
     <div style={{ flex: 1, minWidth: 0 }}><b className="g-sm">{t.name}</b><p className="g-mut g-xs" style={{ margin: 0 }}>{t.challenge}</p></div>
     <label className="g-chk g-xs"><input type="checkbox" checked={t.show_on_profile} onChange={async e => { await TR.show(t.id, e.target.checked); reload() }} /> No perfil</label></div>)}</div>
