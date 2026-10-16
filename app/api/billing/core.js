@@ -20,7 +20,7 @@ const addDays = (d, n) => new Date(new Date(d).getTime() + n * 864e5)
 // ---------- politica por tenant (painel admin) ----------
 export async function policy(tid, c) {
   const r = await (c || { query: q }).query(`select key, value from app_settings where tenant_id=$1 and key = any($2)`, [tid,
-    ['monetizacao_ativa', 'cobranca_carencia_dias', 'cobranca_retentativas_dias', 'experimental_dias', 'parceiros_comissao_pct', 'aviso_fim_teste_dias']])
+    ['monetizacao_ativa', 'cobranca_carencia_dias', 'cobranca_retentativas_dias', 'experimental_dias', 'parceiros_comissao_pct', 'aviso_fim_teste_dias', 'teste_so_cupom', 'transicao_conta_como_teste', 'transicao_dias']])
   const s = Object.fromEntries(r.rows.map(x => [x.key, x.value]))
   const num = (v, min, max) => { const n = Number(v); return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : null }
   return {
@@ -30,6 +30,11 @@ export async function policy(tid, c) {
     experimental_dias: num(s.experimental_dias, 1, 90),
     parceiros_comissao_pct: num(s.parceiros_comissao_pct, 0, 100) ?? 0,
     aviso_fim_teste_dias: num(s.aviso_fim_teste_dias, 0, 30) ?? 0,
+    // Monetizacao F6: teste SO por cupom (PROMPT MASTER); o "teste do plano" no checkout fica desligado por padrao
+    teste_so_cupom: s.teste_so_cupom !== false,
+    // D1 (pendente de decisao do Lucas): a transicao conta ou nao como o teste da pessoa; padrao = NAO conta (separada)
+    transicao_conta_como_teste: s.transicao_conta_como_teste === true,
+    transicao_dias: num(s.transicao_dias, 1, 30) ?? 7,
     configured: { carencia: s.cobranca_carencia_dias != null, retentativas: s.cobranca_retentativas_dias != null, experimental: s.experimental_dias != null }
   }
 }
@@ -168,6 +173,13 @@ export async function chargeNow({ sub, kind, amountCents, discountCents = 0, per
 }
 
 // aplica o resultado de uma cobranca (sincrono, webhook ou reconciliacao). Idempotente.
+// Monetizacao F6: conversao de indicacao a partir de cobranca CONFIRMADA. live=false para o simulador (nunca e receita real).
+const first0 = ch => !!ch.meta?.activate_plan || ch.kind === 'primeira'
+async function referralConversion(c, charge, userId, kinds) {
+  const a = (await c.query('select id from referral_attributions where user_id=$1', [userId])).rows[0]; if (!a) return
+  for (const k of kinds) await c.query(`insert into referral_conversions(tenant_id,attribution_id,charge_id,kind,amount_cents,live) values($1,$2,$3,$4,$5,$6) on conflict do nothing`,
+    [charge.tenant_id, a.id, charge.id, k, charge.amount_cents, charge.provider !== 'simulado'])
+}
 export async function applyChargeResult(chargeId, result, source) {
   const c = await pool.connect(), after = []
   let charge
@@ -205,6 +217,7 @@ export async function applyChargeResult(chargeId, result, source) {
         await c.query(`insert into partner_commissions(tenant_id,partner_user_id,charge_id,base_cents,pct,amount_cents,via_split) values($1,$2,$3,$4,$5,$6,$7) on conflict (charge_id) do nothing`,
           [charge.tenant_id, s.partner_user_id, charge.id, charge.amount_cents, charge.split.pct, Math.floor(charge.amount_cents * charge.split.pct / 100), !!charge.split.via_split])
       }
+      await referralConversion(c, charge, s.user_id, first0(charge) ? ['assinatura', 'pagamento'] : ['pagamento'])
       if (s.partner_user_id) await c.query(`insert into attribution_events(tenant_id,partner_user_id,user_id,event,charge_id) values($1,$2,$3,$4,$5)`, [charge.tenant_id, s.partner_user_id, s.user_id, charge.kind === 'primeira' ? 'assinatura' : 'renovacao', charge.id])
       const first = !!charge.meta?.activate_plan || charge.kind === 'primeira'
       after.push(() => notifyBilling(s.user_id, first ? 'assinatura_ativa' : 'pagamento_confirmado', { plan: s.plan_name || sub.plan_name, amount: brl(charge.amount_cents), next: dBR(s.current_period_end) }, charge.id))
@@ -233,6 +246,7 @@ export async function applyChargeResult(chargeId, result, source) {
       if (sub.partner_user_id) await c.query(`insert into attribution_events(tenant_id,partner_user_id,user_id,event,charge_id) values($1,$2,$3,'falha_pagamento',$4)`, [charge.tenant_id, sub.partner_user_id, sub.user_id, charge.id])
     } else if (result.status === 'estornada') {
       await c.query(`update partner_commissions set status='cancelada' where charge_id=$1`, [charge.id])
+      await referralConversion(c, charge, sub.user_id, ['reembolso'])
       await ev('estorno', { extra: { amount_cents: charge.amount_cents } })
       after.push(() => notifyBilling(sub.user_id, 'estornada', { amount: brl(charge.amount_cents) }, charge.id))
     }
@@ -303,7 +317,8 @@ export async function subscribe(user, b, ip) {
   }
   // teste do plano (configuravel): sem cobranca agora; a primeira cobranca acontece no fim do teste
   const hadTrial = (await q(`select 1 from subscription_events e join subscriptions s on s.id=e.subscription_id where s.user_id=$1 and e.action='trial_plano' limit 1`, [user.id])).rowCount
-  if (plan.trial_days > 0 && !hadTrial) {
+  const pol = await policy(user.tenant_id)
+  if (plan.trial_days > 0 && !hadTrial && !pol.teste_so_cupom) {
     const end = addDays(new Date(), plan.trial_days)
     await q(`update subscriptions set plan_id=$2, plan_version_id=$3, provider=$4, price_cents=$5, payment_method_id=$6, promotion_code_id=$7, discount_pct=$8, discount_cycles_left=$9,
       partner_user_id=$10, status='trial', trial_ends_at=$11, current_period_start=now(), current_period_end=$11, cancel_at_period_end=false, retry_count=0, started_at=now(), updated_at=now() where id=$1`,
@@ -362,6 +377,7 @@ export async function payNow(user, b, ip) {
 export async function cancel(user, b) {
   const s = await paidSub(user, b.audience); if (!s) return { status: 404, error: 'Nenhuma assinatura paga nesta área.', code: 'NO_SUBSCRIPTION' }
   const reason = String(b.reason || '').trim().slice(0, 300) || null
+  await q(`insert into referral_conversions(tenant_id,attribution_id,kind) select tenant_id, id, 'cancelamento' from referral_attributions where user_id=$1`, [s.user_id]).catch(() => {})
   // em teste do plano, carencia ou suspensa: encerra ja (nada a cobrar); ativa/inadimplente: ate o fim do periodo pago
   const now = s.status === 'trial' || s.status === 'carencia' || s.status === 'suspensa' || s.status === 'inadimplente'
   if (now) { await endSubscription(s, 'cancelamento_usuario', reason); return { status: 200, result: 'cancelada' } }

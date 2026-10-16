@@ -23,11 +23,11 @@ async function conta(tag, intent = 'aluno') {
 const card = async (u, number) => { const r = await call(u.tok, 'POST', '/api/billing/cards', { number, holder_name: 'TESTE E2E', exp_month: 12, exp_year: 2030, cvv: '123' }); assert.equal(r.s, 201, JSON.stringify(r.d)); return r.d.card.id }
 const subOf = async (u, aud = 'aluno') => (await call(u.tok, 'GET', '/api/billing/me')).d.subscriptions[aud]
 let adm
-after(() => pool.end())
+after(async () => { if (adm) await call(adm, 'POST', '/api/adm/billing/settings', { teste_so_cupom: true }); await pool.end() })   // F6: legado do 'teste do plano' coberto aqui; padrao volta a 'so cupom'
 
 test('preparacao: precos de teste (Individual R$ 29,90 sem teste; PRO R$ 79,90 com 7 dias)', async () => {
   adm = await login('admin.e2e@avadesk.local'); assert.ok(adm)
-  assert.equal((await call(adm, 'POST', '/api/adm/billing/settings', { carencia_dias: 7, retentativas_dias: [1, 3], monetizacao_ativa: false })).s, 200)
+  assert.equal((await call(adm, 'POST', '/api/adm/billing/settings', { carencia_dias: 7, retentativas_dias: [1, 3], monetizacao_ativa: false, teste_so_cupom: false })).s, 200)
   assert.equal((await call(adm, 'POST', '/api/adm/billing/plans', { id: 'individual', price_cents: 2990, trial_days: null, sellable: true })).s, 200)
   assert.equal((await call(adm, 'POST', '/api/adm/billing/plans', { id: 'pro', price_cents: 7990, trial_days: 7, sellable: true })).s, 200)
 })

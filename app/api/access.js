@@ -61,10 +61,29 @@ export async function accessOf(user, c) {
         if (cs.length) { sources.push({ kind: 'personal', coach_id: k.coach_id, coach_name: k.name }); break }
       }
     }
-    out.audiences[a] = { has: sources.length > 0, sources }
+    out.audiences[a] = { has: sources.length > 0, sources, commercial_status: await commercialStatus(c, user.id, a, sources) }
   }
   out.has_any = Object.values(out.audiences).some(x => x.has)
   return out
+}
+
+// Monetizacao F6: status COMERCIAL (separado do status da conta). Deriva dos dados; nao altera a regua de cobranca.
+// pendente (1a cobranca em analise) | em_teste | ativa | tolerancia (inadimplente/carencia) | vencida (teste ou assinatura acabou sem pagamento)
+// | cancelada | suspensa (administrativa) | patrocinada (pelo personal) | sem_assinatura
+export async function commercialStatus(c, userId, audience, sources) {
+  const s = (await c.query(`select s.status, s.suspended_kind, p.is_free from subscriptions s join plans p on p.id=s.plan_id where s.user_id=$1 and s.audience=$2 order by (s.status<>'cancelada') desc, s.started_at desc limit 1`, [userId, audience])).rows[0]
+  if (s && s.status === 'suspensa' && s.suspended_kind !== 'financeiro') return 'suspensa'
+  const pend = (await c.query(`select 1 from billing_charges ch join subscriptions s on s.id=ch.subscription_id where s.user_id=$1 and s.audience=$2 and ch.status='pendente' and ch.meta ? 'activate_plan' limit 1`, [userId, audience])).rowCount
+  if (pend) return 'pendente'
+  if (s && !s.is_free && s.status === 'ativa') return 'ativa'
+  if (s && !s.is_free && ['inadimplente', 'carencia'].includes(s.status)) return 'tolerancia'
+  if (sources.some(x => x.kind === 'teste') || (s && !s.is_free && s.status === 'trial')) return 'em_teste'
+  if (sources.some(x => x.kind === 'personal')) return 'patrocinada'
+  if (sources.some(x => x.kind === 'concessao')) return 'cortesia'
+  if (s && !s.is_free && s.status === 'suspensa') return 'vencida'
+  if (s && !s.is_free && s.status === 'cancelada') return 'cancelada'
+  if ((await c.query('select 1 from trial_grants where user_id=$1 and audience=$2', [userId, audience])).rowCount) return 'vencida'
+  return 'sem_assinatura'
 }
 
 const NO_ACCESS_MSG = 'Seu acesso aos recursos do AVAGYM terminou. Seus dados continuam salvos e voltam assim que você assinar. Você ainda pode acessar sua conta, perfil, configurações, privacidade e a tela de assinatura.'

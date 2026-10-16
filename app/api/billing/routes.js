@@ -190,6 +190,9 @@ export function billingRoutes({ json, readBody }) {
       res.on('finish', clearMonetizationCache)   // Monetizacao F3: o interruptor vale na hora
       const b = await readBody(req), set = []
       if (b.monetizacao_ativa != null) set.push(['monetizacao_ativa', b.monetizacao_ativa === true])
+      if (b.teste_so_cupom != null) set.push(['teste_so_cupom', b.teste_so_cupom === true])
+      if (b.transicao_conta_como_teste != null) set.push(['transicao_conta_como_teste', b.transicao_conta_como_teste === true])
+      if (b.transicao_dias != null) { if (!Number.isInteger(+b.transicao_dias) || +b.transicao_dias < 1 || +b.transicao_dias > 30) return json(res, 400, { error: 'Transição entre 1 e 30 dias.' }); set.push(['transicao_dias', +b.transicao_dias]) }
       const int = (v, min, max) => Number.isInteger(+v) && +v >= min && +v <= max
       if (b.carencia_dias != null) { if (!int(b.carencia_dias, 0, 60)) return json(res, 400, { error: 'Carência entre 0 e 60 dias.' }); set.push(['cobranca_carencia_dias', +b.carencia_dias]) }
       if (b.retentativas_dias != null) {
