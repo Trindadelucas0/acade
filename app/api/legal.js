@@ -55,6 +55,16 @@ export async function acceptBaseDocs(userId, req) {
   const done = new Set((await q('select document from legal_acceptances where user_id=$1 and version=$2 and granted', [userId, version])).rows.map(r => r.document))
   for (const d of ['termos_uso', 'privacidade']) if (!done.has(d)) await record(u, d, version, req)
 }
+// Pedido do Lucas: aceite NO CADASTRO, na mesma transacao da criacao da conta (sem .catch: erro aqui desfaz a conta).
+// Grava Termos, Privacidade, declaracao de 18+ ('maioridade'), Termo do Profissional (se for profissional) e o
+// consentimento de saude (opcional, separado; so quando a pessoa respondeu) com versao, data, IP e user-agent.
+export async function acceptAtSignup(userId, { professional = false, health = null } = {}, req) {
+  const u = (await q('select id, tenant_id from users where id=$1', [userId])).rows[0]; if (!u) throw new Error('conta nao encontrada')
+  const version = (await getCompany(u.tenant_id)).doc_version
+  for (const d of ['termos_uso', 'privacidade', 'maioridade', ...(professional ? ['profissional'] : [])]) await record(u, d, version, req)
+  if (typeof health === 'boolean') await record(u, 'consentimento_saude', version, req, health)
+  return version
+}
 async function record(u, document, version, req, granted = true) {
   await q('insert into legal_acceptances(tenant_id,user_id,document,version,granted,ip,user_agent) values($1,$2,$3,$4,$5,$6,$7)',
     [u.tenant_id, u.id, document, version, granted, ip(req), String(req.headers['user-agent'] || '').slice(0, 200)])

@@ -23,3 +23,11 @@ A seção "Reteste QA" de cada bug é preenchida só pelo agente de testes.
 | [BUG-016](bugs/BUG-016.md) | 2026-10-16 | qualifications/verify: 500 com id inválido | admin | corrigido, aguardando reteste |
 | [BUG-017](bugs/BUG-017.md) | 2026-10-16 | Configuração "comentários de alunos" ignorada | aluno, admin | aberto: aguardando decisão do Lucas |
 | [BUG-018](bugs/BUG-018.md) | 2026-10-16 | API caiu na subida com a 043 (tabelas da 001 com o mesmo nome) (ALTA) | todos | corrigido, aguardando reteste |
+| [BUG-019](bugs/BUG-019.md) | 2026-10-16 | Aceite de Termos/Privacidade/18+ só depois do login (gate) em vez de no cadastro | visitante, aluno, profissional | corrigido, aguardando reteste |
+| [BUG-020](bugs/BUG-020.md) | 2026-10-16 | Gateway de produção sem cabeçalhos de segurança (clickjacking) | todos (produção) | corrigido, aguardando reteste |
+| [BUG-021](bugs/BUG-021.md) | 2026-10-16 | Service worker com título padrão "AVADESK" | todos (notificações push) | corrigido, aguardando reteste |
+| [BUG-022](bugs/BUG-022.md) | 2026-10-16 | HTTP não redireciona para HTTPS | todos (produção) | corrigido, aguardando reteste |
+| [BUG-023](bugs/BUG-023.md) | 2026-10-16 | CSRF só era checado depois da validação do corpo / sem Origin passava | todos | corrigido, aguardando reteste |
+| [BUG-024](bugs/BUG-024.md) | 2026-10-16 | /api/health público expunha contagens/detalhes | público | corrigido, aguardando reteste |
+| [BUG-025](bugs/BUG-025.md) | 2026-10-16 | HEAD /api/health não respondia 200 | monitoração | corrigido, aguardando reteste |
+| [BUG-026](bugs/BUG-026.md) | 2026-10-16 | Sem envio de teste de e-mail no admin | admin | corrigido, aguardando reteste |

@@ -5,7 +5,7 @@ const OUT = process.env.SHOTS_DIR || 'test-artifacts/tema'; fs.mkdirSync(OUT, { 
 const PASS = 'e2e-Avadesk-2026', M = { width: 390, height: 844 }
 const theme = page => page.evaluate(() => document.documentElement.dataset.theme)
 test('sem login: alterna e guarda só o cache visual', async ({ browser }) => {
-  const ctx = await browser.newContext({ baseURL: 'http://localhost:4449', viewport: M, colorScheme: 'dark' }), page = await ctx.newPage()
+  const ctx = await browser.newContext({ baseURL: 'http://localhost:4449', extraHTTPHeaders: { Origin: new URL('http://localhost:4449').origin }, viewport: M, colorScheme: 'dark' }), page = await ctx.newPage()
   await page.goto('/'); const b = page.getByTestId('theme-toggle')
   await expect(b).toHaveAttribute('aria-label', 'Mudar para tema claro')
   const box = await b.boundingBox(); expect(box.width).toBeGreaterThanOrEqual(44); expect(box.height).toBeGreaterThanOrEqual(44)
@@ -14,12 +14,12 @@ test('sem login: alterna e guarda só o cache visual', async ({ browser }) => {
   await ctx.close()
 })
 test('logado (aluno, personal, admin): alterna e salva no servidor', async ({ browser, playwright }) => {
-  const rq = await playwright.request.newContext({ baseURL: 'http://localhost:4449' })
+  const rq = await playwright.request.newContext({ baseURL: 'http://localhost:4449', extraHTTPHeaders: { Origin: new URL('http://localhost:4449').origin } })
   const terms = (await (await rq.get('/api/terms')).json()).terms, email = `tema.${Date.now()}@e2e.local`
-  await rq.post('/api/auth/register', { data: { name: 'Pessoa Tema', email, password: PASS, accept_terms: true, terms_version: terms?.version } })
+  await rq.post('/api/auth/register', { data: { name: 'Pessoa Tema', email, password: PASS, accept_terms: true, adult: true, terms_version: terms?.version } })
   await rq.post('/api/guided/onboarding', { data: { objetivo: 'hypertrophy', nivel: 'beginner', local: 'gym', dias: 3, minutos: 45, restricoes: [] } }); await rq.dispose()
   for (const [who, url] of [[email, '/hoje'], ['pro1.e2e@avadesk.local', '/pro'], ['admin.e2e@avadesk.local', '/admin/painel']]) {
-    const ctx = await browser.newContext({ baseURL: 'http://localhost:4449', viewport: M, colorScheme: 'dark' })
+    const ctx = await browser.newContext({ baseURL: 'http://localhost:4449', extraHTTPHeaders: { Origin: new URL('http://localhost:4449').origin }, viewport: M, colorScheme: 'dark' })
     const u = (await (await ctx.request.post('/api/auth/login', { data: { email: who, password: PASS } })).json()).user
     await ctx.request.post('/api/me/theme', { data: { theme: 'dark' } })
     await ctx.addInitScript(x => { if (!localStorage.getItem('gym_user')) localStorage.setItem('gym_user', JSON.stringify(x)) }, u)
@@ -33,10 +33,10 @@ test('logado (aluno, personal, admin): alterna e salva no servidor', async ({ br
   }
 })
 test('aluno do personal não vê "Todos os programas" no Início', async ({ browser }) => {
-  const p = await browser.newContext({ baseURL: 'http://localhost:4449' })
+  const p = await browser.newContext({ baseURL: 'http://localhost:4449', extraHTTPHeaders: { Origin: new URL('http://localhost:4449').origin } })
   await p.request.post('/api/auth/login', { data: { email: 'pro1.e2e@avadesk.local', password: PASS } })
   const email = `temacli.${Date.now()}@lock.test`, r = await (await p.request.post('/api/pro/clients', { data: { name: 'Aluno Tema', email } })).json(); await p.close()
-  const ctx = await browser.newContext({ baseURL: 'http://localhost:4449', viewport: M })
+  const ctx = await browser.newContext({ baseURL: 'http://localhost:4449', extraHTTPHeaders: { Origin: new URL('http://localhost:4449').origin }, viewport: M })
   await ctx.request.post('/api/auth/login', { data: { email, password: r.temp_password } })
   const u = (await (await ctx.request.post('/api/auth/password', { data: { current_password: r.temp_password, new_password: 'Tema-Senha-42' } })).json()).user
   const terms = (await (await ctx.request.get('/api/terms')).json()).terms; await ctx.request.post('/api/terms/accept', { data: { version: terms.version } })

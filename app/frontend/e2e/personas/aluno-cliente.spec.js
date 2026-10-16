@@ -5,13 +5,13 @@ test.use({ actionTimeout: 7000, navigationTimeout: 15000 }); test.setTimeout(600
 const step = persona('aluno-cliente', 'AL')
 test('Marina (aluna cliente) — jornada completa', async ({ browser }) => {
   const email = `marina.persona.${Date.now()}@lock.test`
-  const c0 = await browser.newContext({ baseURL: BASE, viewport: MOBILE, colorScheme: 'light', locale: 'pt-BR' }), p0 = await c0.newPage()
+  const c0 = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { Origin: new URL(BASE).origin }, viewport: MOBILE, colorScheme: 'light', locale: 'pt-BR' }), p0 = await c0.newPage()
   await step(p0, 'Abrir o app e ir para "Criar conta"', async () => { await p0.goto('/#/'); await p0.getByRole('button', { name: 'Criar conta' }).first().click(); await expect(p0.getByTestId('intent-aluno')).toBeVisible() })
   await step(p0, 'Validação: tentar criar conta sem aceitar os termos', async () => {
     await p0.getByLabel('Nome', { exact: false }).first().fill('Marina Souza'); await p0.getByLabel('E-mail').fill(email)
     const pw = p0.locator('input[type=password]'); await pw.nth(0).fill(PASS); if (await pw.count() > 1) await pw.nth(1).fill(PASS)
     await p0.getByRole('button', { name: 'Criar conta', exact: true }).first().click(); await p0.waitForTimeout(800); await expect(p0).not.toHaveURL(/#\/hoje/) })
-  await step(p0, 'Cadastro com termos aceitos (Quero treinar)', async () => { await p0.getByTestId('accept-terms').check(); await p0.locator('form button[type=submit]').click(); await expect(p0.locator('.lg-field')).toHaveCount(0, { timeout: 10000 }) })
+  await step(p0, 'Cadastro com termos aceitos (Quero treinar)', async () => { await p0.getByTestId('accept-terms').check(); await p0.getByTestId('accept-adult').check(); await p0.locator('form button[type=submit]').click(); await expect(p0.locator('.lg-field')).toHaveCount(0, { timeout: 10000 }) })
   await c0.close()
   let { ctx, page } = await login(browser, email)
   await step(page, 'Conta nova aparece travada, com aviso claro', () => go(page, '/#/hoje', 'lock-banner'))

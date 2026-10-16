@@ -16,7 +16,7 @@ async function step(page, flow, name, fn) {
   return ok
 }
 async function ctxAs(browser, email, password = PASS) {
-  const ctx = await browser.newContext({ baseURL: BASE, viewport: email.startsWith('admin') ? { width: 1280, height: 860 } : { width: 390, height: 844 }, colorScheme: 'light', locale: 'pt-BR' })
+  const ctx = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { Origin: new URL(BASE).origin }, viewport: email.startsWith('admin') ? { width: 1280, height: 860 } : { width: 390, height: 844 }, colorScheme: 'light', locale: 'pt-BR' })
   const r = await ctx.request.post('/api/auth/login', { data: { email, password } }), u = (await r.json()).user
   await ctx.request.post('/api/me/theme', { data: { theme: 'light' } }).catch(() => {})
   await ctx.addInitScript(x => { localStorage.setItem('gym_user', JSON.stringify(x)) }, u)
@@ -25,7 +25,7 @@ async function ctxAs(browser, email, password = PASS) {
 const go = async (page, url, testid) => { await page.goto(url); if (testid) await expect(page.getByTestId(testid).first()).toBeVisible({ timeout: 8000 }); else await page.waitForTimeout(1200) }
 async function register(rq, name, email, extra = {}) {
   const terms = (await (await rq.get('/api/terms')).json()).terms
-  const r = await rq.post('/api/auth/register', { data: { name, email, password: PASS, accept_terms: true, terms_version: terms?.version, ...extra } })
+  const r = await rq.post('/api/auth/register', { data: { name, email, password: PASS, accept_terms: true, adult: true, terms_version: terms?.version, ...extra } })
   return (await r.json()).user
 }
 async function doWorkout(page, F) {
@@ -44,8 +44,8 @@ async function doWorkout(page, F) {
 test.use({ actionTimeout: 6000, navigationTimeout: 15000 }); test.setTimeout(400000)
 const S = {}
 test('1) usuário normal: cadastro → liberação → programa → treino → comunidade → progresso → tema', async ({ browser, playwright }) => {
-  const F = 'normal', rq = await playwright.request.newContext({ baseURL: BASE }); S.normal = `cliente.real.${Date.now()}@lock.test`
-  const pg0 = await (await browser.newContext({ baseURL: BASE, viewport: { width: 390, height: 844 }, colorScheme: 'light' })).newPage()
+  const F = 'normal', rq = await playwright.request.newContext({ baseURL: BASE, extraHTTPHeaders: { Origin: new URL(BASE).origin } }); S.normal = `cliente.real.${Date.now()}@lock.test`
+  const pg0 = await (await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { Origin: new URL(BASE).origin }, viewport: { width: 390, height: 844 }, colorScheme: 'light' })).newPage()
   await step(pg0, F, 'Tela de cadastro', () => go(pg0, '/#/'))
   await register(rq, 'Marina Cliente', S.normal); await rq.dispose()
   let { ctx, page } = await ctxAs(browser, S.normal)
@@ -82,7 +82,7 @@ test('2) personal: cadastra aluno com senha provisória → aluno troca senha �
   await step(P.page, F, 'Convidar aluno existente (código/convite)', () => go(P.page, '/#/pro?tab=convites'))
   let temp = ''
   await step(P.page, F, 'Cadastrar aluno novo: senha provisória aparece uma vez', async () => { await go(P.page, '/#/pro?tab=cadastrar', 'pc-name'); await P.page.getByTestId('pc-name').fill('Rafael Aluno'); await P.page.getByTestId('pc-email').fill(email); await P.page.getByTestId('pc-create').click(); temp = (await P.page.getByTestId('pc-temp').textContent()).trim(); expect(temp.length).toBeGreaterThan(8) })
-  const C = await browser.newContext({ baseURL: BASE, viewport: { width: 390, height: 844 }, colorScheme: 'light' })
+  const C = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { Origin: new URL(BASE).origin }, viewport: { width: 390, height: 844 }, colorScheme: 'light' })
   const cp = await C.newPage()
   await step(cp, F, 'Aluno: primeiro login', async () => { const r = await C.request.post('/api/auth/login', { data: { email, password: temp } }); const u = (await r.json()).user; await cp.addInitScript(x => localStorage.setItem('gym_user', JSON.stringify(x)), u); await go(cp, '/#/hoje', 'must-change-gate') })
   await step(cp, F, 'Aluno troca a senha provisória', async () => { await cp.getByTestId('mc-current').fill(temp); await cp.getByTestId('mc-new').fill('Rafael-Senha-42'); await cp.getByTestId('mc-rep').fill('Rafael-Senha-42'); await cp.getByTestId('mc-save').click(); await expect(cp.getByTestId('must-change-gate')).toHaveCount(0, { timeout: 8000 }) })
@@ -105,7 +105,7 @@ test('2) personal: cadastra aluno com senha provisória → aluno troca senha �
 test('3) aluno se cadastra com o código do personal', async ({ browser, playwright }) => {
   const F = 'codigo', P = await ctxAs(browser, 'pro1.e2e@avadesk.local')
   const code = (await (await P.ctx.request.get('/api/me/code')).json()).code; await P.ctx.close()
-  const rq = await playwright.request.newContext({ baseURL: BASE }), email = `codigo.real.${Date.now()}@e2e.local`
+  const rq = await playwright.request.newContext({ baseURL: BASE, extraHTTPHeaders: { Origin: new URL(BASE).origin } }), email = `codigo.real.${Date.now()}@e2e.local`
   const u = await register(rq, 'Beatriz Código', email, { pro_code: code }); await rq.dispose()
   const { ctx, page } = await ctxAs(browser, email)
   await step(page, F, 'Cadastro pelo código: conta do personal', async () => { expect(u?.id).toBeTruthy(); await go(page, '/#/hoje') })

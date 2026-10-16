@@ -3,7 +3,7 @@ export async function run({ stu, adm, p1, p2, sid, P1, get, post, check, origin 
   console.log('Recuperação de senha')
   // V4 F7: redefinir a senha desconecta os aparelhos da conta — por isso o fluxo usa uma conta descartável, não o aluno do smoke
   const terms = (await get(null, '/api/terms')).d.terms
-  const reg = await post(null, '/api/auth/register', { name: 'Reset Smoke', email: `reset${Date.now()}@e2e.local`, password: 'e2e-Avadesk-2026', accept_terms: true, terms_version: terms?.version })
+  const reg = await post(null, '/api/auth/register', { name: 'Reset Smoke', email: `reset${Date.now()}@e2e.local`, password: 'e2e-Avadesk-2026', accept_terms: true, adult: true, terms_version: terms?.version })
   const me = reg.d.user, rid = me.id
   await post(adm, '/api/adm/users/status', { id: rid, status: 'ativo' })
   check((await post(null, '/api/auth/forgot', { email: me.email })).s === 200, 'pedido de recuperação (resposta genérica)')

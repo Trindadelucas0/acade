@@ -7,7 +7,7 @@ const OUT = process.env.SHOTS_DIR || 'test-artifacts/tours'
 fs.mkdirSync(OUT, { recursive: true })
 const PASS = 'e2e-Avadesk-2026', M = { width: 390, height: 844 }
 async function open(browser, email, password = PASS, o = {}) {
-  const ctx = await browser.newContext({ baseURL: 'http://localhost:4449', locale: 'pt-BR', viewport: o.vp || M, colorScheme: o.scheme || 'dark', reducedMotion: o.rm || 'no-preference' })
+  const ctx = await browser.newContext({ baseURL: 'http://localhost:4449', extraHTTPHeaders: { Origin: new URL('http://localhost:4449').origin }, locale: 'pt-BR', viewport: o.vp || M, colorScheme: o.scheme || 'dark', reducedMotion: o.rm || 'no-preference' })
   const r = await ctx.request.post('/api/auth/login', { data: { email, password } }), u = (await r.json()).user
   await ctx.request.post('/api/me/tours/reset')
   await ctx.addInitScript(x => { localStorage.setItem('tours_e2e', '1'); if (!localStorage.getItem('gym_user')) localStorage.setItem('gym_user', JSON.stringify(x)) }, u)
@@ -26,9 +26,9 @@ async function walk(page, pre) {
   return n
 }
 async function newAccount(playwright, domain = 'e2e.local') {
-  const rq = await playwright.request.newContext({ baseURL: 'http://localhost:4449' })
+  const rq = await playwright.request.newContext({ baseURL: 'http://localhost:4449', extraHTTPHeaders: { Origin: new URL('http://localhost:4449').origin } })
   const terms = (await (await rq.get('/api/terms')).json()).terms, email = `tour.${Date.now()}@${domain}`
-  await rq.post('/api/auth/register', { data: { name: 'Pessoa Tour', email, password: PASS, accept_terms: true, terms_version: terms?.version, intent: 'aluno' } })
+  await rq.post('/api/auth/register', { data: { name: 'Pessoa Tour', email, password: PASS, accept_terms: true, adult: true, terms_version: terms?.version, intent: 'aluno' } })
   await rq.post('/api/guided/onboarding', { data: { objetivo: 'hypertrophy', nivel: 'beginner', local: 'gym', dias: 3, minutos: 45, restricoes: [] } })
   await rq.dispose(); return email
 }
@@ -73,7 +73,7 @@ test('aluno do personal: boas-vindas aponta o cadeado', async ({ browser }) => {
   const p = await open(browser, 'pro1.e2e@avadesk.local')
   const email = `tourcli.${Date.now()}@lock.test`
   const r = await (await p.ctx.request.post('/api/pro/clients', { data: { name: 'Aluno Tour', email } })).json(); await p.ctx.close()
-  const rq = await browser.newContext({ baseURL: 'http://localhost:4449' })
+  const rq = await browser.newContext({ baseURL: 'http://localhost:4449', extraHTTPHeaders: { Origin: new URL('http://localhost:4449').origin } })
   await rq.request.post('/api/auth/login', { data: { email, password: r.temp_password } })
   await rq.request.post('/api/auth/password', { data: { current_password: r.temp_password, new_password: 'Tour-Senha-42' } })
   const terms = (await (await rq.request.get('/api/terms')).json()).terms

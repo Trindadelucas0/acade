@@ -2,10 +2,10 @@
 import { test, expect } from '@playwright/test'
 const PASS = 'e2e-Avadesk-2026'
 test('admin ativa profissional pelo select de Situação', async ({ browser, playwright }) => {
-  const rq = await playwright.request.newContext({ baseURL: 'http://localhost:4449' })
+  const rq = await playwright.request.newContext({ baseURL: 'http://localhost:4449', extraHTTPHeaders: { Origin: new URL('http://localhost:4449').origin } })
   const terms = (await (await rq.get('/api/terms')).json()).terms, email = `proativa.${Date.now()}@e2e.local`, name = 'Pro Ativa ' + Date.now()
-  const reg = await (await rq.post('/api/auth/register', { data: { name, email, password: PASS, accept_terms: true, terms_version: terms?.version, intent: 'profissional' } })).json(); await rq.dispose()
-  const ctx = await browser.newContext({ baseURL: 'http://localhost:4449', viewport: { width: 1280, height: 900 } })
+  const reg = await (await rq.post('/api/auth/register', { data: { name, email, password: PASS, accept_terms: true, adult: true, terms_version: terms?.version, intent: 'profissional' } })).json(); await rq.dispose()
+  const ctx = await browser.newContext({ baseURL: 'http://localhost:4449', extraHTTPHeaders: { Origin: new URL('http://localhost:4449').origin }, viewport: { width: 1280, height: 900 } })
   const u = (await (await ctx.request.post('/api/auth/login', { data: { email: 'admin.e2e@avadesk.local', password: PASS } })).json()).user
   await ctx.addInitScript(x => localStorage.setItem('gym_user', JSON.stringify(x)), u)
   const st = async () => (await (await ctx.request.get('/api/adm/professionals')).json()).professionals.find(p => p.user_id === reg.user.id)?.state

@@ -3,10 +3,10 @@ import { test, expect } from '@playwright/test'
 import fs from 'node:fs'
 const OUT = process.env.SHOTS_DIR || 'test-artifacts/perfil'; fs.mkdirSync(OUT, { recursive: true })
 test('perfil do aluno sem toasts e sem 404', async ({ browser, playwright }) => {
-  const rq = await playwright.request.newContext({ baseURL: 'http://localhost:4449' })
+  const rq = await playwright.request.newContext({ baseURL: 'http://localhost:4449', extraHTTPHeaders: { Origin: new URL('http://localhost:4449').origin } })
   const terms = (await (await rq.get('/api/terms')).json()).terms, email = `perfil.${Date.now()}@e2e.local`
-  await rq.post('/api/auth/register', { data: { name: 'Perfil Teste', email, password: 'e2e-Avadesk-2026', accept_terms: true, terms_version: terms?.version } }); await rq.dispose()
-  const ctx = await browser.newContext({ baseURL: 'http://localhost:4449', viewport: { width: 390, height: 844 } })
+  await rq.post('/api/auth/register', { data: { name: 'Perfil Teste', email, password: 'e2e-Avadesk-2026', accept_terms: true, adult: true, terms_version: terms?.version } }); await rq.dispose()
+  const ctx = await browser.newContext({ baseURL: 'http://localhost:4449', extraHTTPHeaders: { Origin: new URL('http://localhost:4449').origin }, viewport: { width: 390, height: 844 } })
   const u = (await (await ctx.request.post('/api/auth/login', { data: { email, password: 'e2e-Avadesk-2026' } })).json()).user
   await ctx.addInitScript(x => localStorage.setItem('gym_user', JSON.stringify(x)), u)
   const page = await ctx.newPage(), bad = []
@@ -19,10 +19,10 @@ test('perfil do aluno sem toasts e sem 404', async ({ browser, playwright }) => 
   await ctx.close()
 })
 test('perfil: API sem recursos opcionais (404) não mostra aviso vermelho', async ({ browser, playwright }) => {
-  const rq = await playwright.request.newContext({ baseURL: 'http://localhost:4449' })
+  const rq = await playwright.request.newContext({ baseURL: 'http://localhost:4449', extraHTTPHeaders: { Origin: new URL('http://localhost:4449').origin } })
   const terms = (await (await rq.get('/api/terms')).json()).terms, email = `perfil404.${Date.now()}@e2e.local`
-  await rq.post('/api/auth/register', { data: { name: 'Perfil 404', email, password: 'e2e-Avadesk-2026', accept_terms: true, terms_version: terms?.version } }); await rq.dispose()
-  const ctx = await browser.newContext({ baseURL: 'http://localhost:4449', viewport: { width: 390, height: 844 } })
+  await rq.post('/api/auth/register', { data: { name: 'Perfil 404', email, password: 'e2e-Avadesk-2026', accept_terms: true, adult: true, terms_version: terms?.version } }); await rq.dispose()
+  const ctx = await browser.newContext({ baseURL: 'http://localhost:4449', extraHTTPHeaders: { Origin: new URL('http://localhost:4449').origin }, viewport: { width: 390, height: 844 } })
   const u = (await (await ctx.request.post('/api/auth/login', { data: { email, password: 'e2e-Avadesk-2026' } })).json()).user
   await ctx.addInitScript(x => localStorage.setItem('gym_user', JSON.stringify(x)), u)
   for (const p of ['**/api/me/trophies*', '**/api/me/unlock-request*', '**/api/me/export-request*', '**/api/me/theme*', '**/api/me/tours*'])

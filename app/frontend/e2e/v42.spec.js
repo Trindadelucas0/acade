@@ -6,7 +6,7 @@ fs.mkdirSync(OUT, { recursive: true })
 const PASS = 'e2e-Avadesk-2026', M = { width: 390, height: 844 }
 const shot = (page, n) => page.screenshot({ path: `${OUT}/${n}.png`, fullPage: true })
 async function ctxLogin(browser, email, password = PASS, vp = M) {
-  const ctx = await browser.newContext({ baseURL: 'http://localhost:4449', locale: 'pt-BR', viewport: vp, colorScheme: 'dark' })
+  const ctx = await browser.newContext({ baseURL: 'http://localhost:4449', extraHTTPHeaders: { Origin: new URL('http://localhost:4449').origin }, locale: 'pt-BR', viewport: vp, colorScheme: 'dark' })
   const u = (await (await ctx.request.post('/api/auth/login', { data: { email, password } })).json()).user
   await ctx.addInitScript(x => { if (!localStorage.getItem('gym_user')) localStorage.setItem('gym_user', JSON.stringify(x)) }, u)
   return ctx
@@ -41,10 +41,10 @@ test('aluno troca a senha no 1º acesso e vê áreas travadas', async ({ browser
   await ctx.close()
 })
 test('conta nova não liberada: vê tudo, ação travada com cadeado', async ({ browser, playwright }) => {
-  const rq = await playwright.request.newContext({ baseURL: 'http://localhost:4449' })
+  const rq = await playwright.request.newContext({ baseURL: 'http://localhost:4449', extraHTTPHeaders: { Origin: new URL('http://localhost:4449').origin } })
   const terms = (await (await rq.get('/api/terms')).json()).terms
   const email = `nova42.${Date.now()}@lock.test`
-  await rq.post('/api/auth/register', { data: { name: 'Conta Nova', email, password: PASS, accept_terms: true, terms_version: terms?.version, intent: 'aluno' } }); await rq.dispose()
+  await rq.post('/api/auth/register', { data: { name: 'Conta Nova', email, password: PASS, accept_terms: true, adult: true, terms_version: terms?.version, intent: 'aluno' } }); await rq.dispose()
   const ctx = await ctxLogin(browser, email), page = await ctx.newPage()
   await page.goto('/#/comunidade'); await page.waitForTimeout(1200)
   await expect(page.getByTestId('lock-banner')).toBeVisible()

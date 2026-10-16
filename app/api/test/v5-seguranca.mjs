@@ -1,4 +1,4 @@
-﻿// V5 - hardening de segurança: testes NEGATIVOS de API (cabeçalhos, CSRF, IDOR/perfil privado, injeção, upload
+// V5 - hardening de segurança: testes NEGATIVOS de API (cabeçalhos, CSRF, IDOR/perfil privado, injeção, upload
 // malicioso, path traversal, rate limit, exclusão LGPD das tabelas/mídias novas).
 // SOMENTE LOCAL: API de teste com e-mail desligado e RATE LIMIT LIGADO, reiniciada antes (os limites são em memória).
 // Uso: API=http://localhost:8797 WEB_ORIGIN=http://localhost:4459 node --test test/v5-seguranca.mjs
@@ -21,7 +21,7 @@ async function call(jar, method, p, body, extra = {}) {
 }
 async function account(tag) {
   const jar = {}, terms = (await call(null, 'GET', '/api/terms')).d.terms
-  const r = await call(jar, 'POST', '/api/auth/register', { name: 'Seg ' + tag, email: `v5s.${tag}.${Date.now()}${Math.random().toString(36).slice(2, 6)}@e2e.local`, password: PASS, accept_terms: true, terms_version: terms?.version, intent: 'aluno' })
+  const r = await call(jar, 'POST', '/api/auth/register', { name: 'Seg ' + tag, email: `v5s.${tag}.${Date.now()}${Math.random().toString(36).slice(2, 6)}@e2e.local`, password: PASS, accept_terms: true, adult: true, terms_version: terms?.version, intent: 'aluno' })
   assert.equal(r.s, 200, JSON.stringify(r.d)); return { jar, id: r.d.user.id }
 }
 const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
@@ -50,7 +50,8 @@ test('CSRF: escrita com cookie vinda de outra origem é recusada; mesma origem e
   assert.equal((await call(Bu.jar, 'POST', '/api/auth/logout', {}, { Origin: 'null' })).s, 403, 'Origin null (iframe sandbox) recusado')
   const same = await call(Bu.jar, 'POST', '/api/comments', { post_id: post, body: 'ok mesma origem' }, { Origin: ORIGIN })
   assert.equal(same.s, 201, JSON.stringify(same.d))
-  assert.equal((await call(Bu.jar, 'POST', '/api/comments', { post_id: post, body: 'sem origin' })).s, 201)
+  // BUG-023: escrita com cookie SEM Origin/Referer agora e recusada (CSRF antes da validacao)
+  { const r = await fetch(B + '/api/comments', { method: 'POST', noOrigin: true, headers: { 'Content-Type': 'application/json', Cookie: Bu.jar.c }, body: JSON.stringify({ post_id: post, body: 'sem origin' }) }); assert.equal(r.status, 403) }
   assert.equal((await call(Bu.jar, 'GET', '/api/post?id=' + post, null, { Origin: 'https://evil.example' })).s, 200, 'leitura não é afetada')
 })
 

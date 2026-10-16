@@ -7,6 +7,7 @@ import jwt from 'jsonwebtoken'
 import { q, transaction } from './db/pool.js'
 import { allowPasswordEmail, queuePasswordLink, tokenHash, invalidatePasswordLinks } from './password-email.js'
 import { currentTerms, acceptTerms, termsStatus } from './lgpd.js'
+import { acceptAtSignup } from './legal.js'   // aceite no cadastro (mesma transacao)
 
 const SECRET = process.env.JWT_SECRET
 if (!SECRET || SECRET.length < 32) console.warn('[auth] JWT_SECRET ausente ou curto — defina em app/api/.env')
@@ -97,7 +98,10 @@ export function authRoutes({ json, readBody, bridge, clearCookies }) {
       if (!EMAIL_RE.test(email)) errors.email = 'E-mail inválido'
       if (password.length < 8) errors.password = 'A senha deve ter pelo menos 8 caracteres'
       const terms = await currentTerms()
-      if (terms && (b.accept_terms !== true || b.terms_version !== terms.version)) errors.terms = 'É preciso aceitar os termos de uso (versão ' + terms.version + ')'
+      // Pedido do Lucas: sem aceite dos Termos/Privacidade e sem a declaracao de 18+ o cadastro e recusado e nada e criado
+      if (b.accept_terms !== true) errors.terms = 'É preciso aceitar os Termos de Uso e a Política de Privacidade'
+      if (b.adult !== true) errors.adult = 'É preciso declarar que você tem 18 anos ou mais'
+      if (terms && b.accept_terms === true && b.terms_version !== terms.version) errors.terms = 'É preciso aceitar os termos de uso (versão ' + terms.version + ')'
       if (Object.keys(errors).length) return json(res, 400, { error: Object.values(errors)[0], errors })
       const t = await q('select id from tenants where slug=$1 and active', [String(b.tenant || process.env.DEFAULT_TENANT || 'avadesk')])
       if (!t.rowCount) return json(res, 400, { error: 'Academia não encontrada' })
@@ -116,6 +120,7 @@ export function authRoutes({ json, readBody, bridge, clearCookies }) {
           await q(`update users set active_context='profissional' where id=$1`, [u.rows[0].id])
         }
         // V3 (decisão Lucas 15/10): SaaS aberto — conta nasce ativa, sem aprovação do admin (admin ainda pode bloquear)
+        await acceptAtSignup(u.rows[0].id, { professional: intent === 'profissional', health: typeof b.health_consent === 'boolean' ? b.health_consent : null }, req)
         if (terms) await acceptTerms(u.rows[0].id, terms.version, req)
         if (byCode) { const a = await attachByProCode(u.rows[0].id, t.rows[0].id, b.pro_code); if (a?.apply) await a.apply() }
         await autoUnlockForTests(u.rows[0].id, email)   // só em teste local (E2E_AUTO_UNLOCK_DOMAIN)
@@ -208,7 +213,7 @@ export function authRoutes({ json, readBody, bridge, clearCookies }) {
 
     // ===== catálogo =====
     'GET /api/muscles': async (req, res) => {
-      if (!await requireAuth(req, res, json)) return   // cat�logo s� para logados (sem modo visitante)
+      if (!await requireAuth(req, res, json)) return   // catálogo só para logados (sem modo visitante)
       const [g, m] = await Promise.all([
         q('select id,name_pt,is_training from muscle_groups order by position'),
         q('select id,name_pt,name_en,group_id,mesh_ids from muscles order by name_pt')])

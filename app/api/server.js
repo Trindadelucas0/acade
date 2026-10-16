@@ -38,6 +38,7 @@ import path from 'node:path';
 import webpush from 'web-push';
 import { loadLegacy, persistLegacy, serverKey, importStateFiles } from './legacy-store.js';   // V5-PG-STORE
 import { watchResponse, recordRequest, auditRoutes, startAuditPurge } from './audit-log.js';
+import { admEmailTestRoutes } from './adm-email-test.js';
 import { writeStatePg } from './appstate.js';
 
 const PORT = +(process.env.PORT || 3000);
@@ -258,7 +259,9 @@ setInterval(() => { for (const [k, v] of presence) if (Date.now() - v.updatedAt 
 
 /* ---------- routes ---------- */
 const routes = {
-  'GET /api/health': async (req, res) => json(res, 200, { ok: true, users: db.users.length }),
+  // QA prod: health publico nao expoe contagem de usuarios; HEAD tambem responde 200 (monitores)
+  'GET /api/health': async (req, res) => json(res, 200, { ok: true }),
+  'HEAD /api/health': async (req, res) => { res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); res.end() },
 
   // Public config the login screen needs before anyone is signed in.
   'GET /api/config': async (req, res) => json(res, 200, { auth: 'email' }),
@@ -376,7 +379,8 @@ function pgBridge(u) {
   saveDb();
   return [sessionCookie(x)];
 }
-Object.assign(routes, auditRoutes({ json, readBody, requireRole }));   // V5: tela de logs e auditoria do admin
+Object.assign(routes, auditRoutes({ json, readBody, requireRole }));
+Object.assign(routes, admEmailTestRoutes({ json, readBody, requireRole }));   // BUG-026: envio de teste de e-mail (admin)   // V5: tela de logs e auditoria do admin
 Object.assign(routes, authRoutes({ json, readBody, bridge: pgBridge, clearCookies: [clearCookie] }));
 Object.assign(routes, guidedRoutes({ json, readBody }));
 Object.assign(routes, activeTrainingRoutes({ json, readBody }));
@@ -458,10 +462,12 @@ function rlSubject(key, req) {
   return 'ip:' + clientIp(req);
 }
 const ALLOWED_ORIGINS = new Set([ORIGIN, ...String(process.env.CSRF_ALLOWED_ORIGINS || '').split(',')].map(o => o.trim().replace(/\/+$/, '')).filter(Boolean));
-function originAllowed(req) {
+// QA prod (CSRF): escrita sem Origin/Referer so passa para cliente com token Bearer (nao e navegador, imune a CSRF)
+// ou webhook de pagamento (servidor-a-servidor). Navegadores sempre mandam Origin em POST. Roda ANTES da validacao do corpo.
+function originAllowed(req, key = '') {
   let o = req.headers.origin;
   if (!o && req.headers.referer) { try { o = new URL(req.headers.referer).origin } catch { return false } }
-  if (!o) return true;
+  if (!o) return /^POST \/api\/billing\/webhook\//.test(key) || /^Bearer\s/i.test(String(req.headers.authorization || ''));
   return ALLOWED_ORIGINS.has(String(o).replace(/\/+$/, ''));
 }
 const rlHits = new Map();
@@ -477,7 +483,7 @@ setInterval(() => { const now = Date.now(); for (const [k, e] of rlHits) if (e.r
 // QA: reset do rate limit so para suites de teste. Existe apenas fora de producao, com DB_NAME *_test e TEST_RL_RESET=1; senao a rota nem e registrada (404).
 const TEST_RL_RESET = process.env.NODE_ENV !== 'production' && /_test$/.test(process.env.DB_NAME || '') && process.env.TEST_RL_RESET === '1';
 if (TEST_RL_RESET) routes['POST /api/test/rate-limit/reset'] = async (req, res) => { const n = rlHits.size; rlHits.clear(); json(res, 200, { ok: true, cleared: n }) };
-const PUBLIC_ROUTES = new Set(['GET /api/config', 'GET /api/health', 'GET /api/media', 'GET /api/media/pub', 'GET /api/media/private', 'GET /api/push/public-key', 'GET /api/terms',
+const PUBLIC_ROUTES = new Set(['GET /api/config', 'GET /api/health', 'HEAD /api/health', 'GET /api/media', 'GET /api/media/pub', 'GET /api/media/private', 'GET /api/push/public-key', 'GET /api/terms',
   'GET /api/legal/company', 'POST /api/auth/forgot', 'POST /api/auth/login', 'POST /api/auth/logout', 'POST /api/auth/register', 'POST /api/auth/reset', 'POST /api/logout',
   'POST /api/billing/webhook/asaas', 'POST /api/billing/webhook/simulado']);
 const decodeURIComponentSafe = v => { try { return decodeURIComponent(v) } catch { return '\u0000' } };
@@ -490,7 +496,7 @@ http.createServer(async (req, res) => {
   const key = req.method + ' ' + url.pathname;
   // CSRF (sessão por cookie, SameSite=Lax): escrita vinda de outra origem é recusada. Navegadores sempre mandam Origin
   // em POST cross-site; chamadas servidor-a-servidor (sem Origin/Referer) seguem normalmente.
-  if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && !originAllowed(req)) return json(res, 403, { error: 'Origem não permitida', code: 'CSRF_ORIGIN' });
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && !originAllowed(req, key)) return json(res, 403, { error: 'Origem não permitida', code: 'CSRF_ORIGIN' });
   const retry = rateLimited(key, req);
   if (retry) return json(res, 429, { error: 'Muitas tentativas. Aguarde alguns minutos e tente de novo.' }, { 'Retry-After': String(retry) });
   const handler = routes[key];

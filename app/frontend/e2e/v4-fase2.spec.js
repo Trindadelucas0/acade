@@ -11,7 +11,7 @@ const KEY = 'avagym_guided_session_v1'
 async function newStudent(request) {
   const terms = (await (await request.get('/api/terms')).json()).terms
   const email = `v4f2ui${Date.now()}${Math.floor(Math.random() * 1e4)}@e2e.local`
-  const r = await request.post('/api/auth/register', { data: { name: 'Aluna Fase Dois', email, password: PASS, accept_terms: true, terms_version: terms?.version, intent: 'aluno' } })
+  const r = await request.post('/api/auth/register', { data: { name: 'Aluna Fase Dois', email, password: PASS, accept_terms: true, adult: true, terms_version: terms?.version, intent: 'aluno' } })
   expect(r.ok()).toBeTruthy()
   const d = await r.json()
   await request.post('/api/guided/onboarding', { data: { objetivo: 'hypertrophy', nivel: 'beginner', local: 'gym', dias: 3, minutos: 45, restricoes: [] } })
@@ -22,7 +22,7 @@ async function newStudent(request) {
 test.describe.configure({ mode: 'serial' })
 let user
 test.beforeAll(async ({ playwright }) => {
-  const ctx = await playwright.request.newContext({ baseURL: 'http://localhost:4449' })
+  const ctx = await playwright.request.newContext({ baseURL: 'http://localhost:4449', extraHTTPHeaders: { Origin: new URL('http://localhost:4449').origin } })
   user = await newStudent(ctx)
   user.cookies = (await ctx.storageState()).cookies
   await ctx.dispose()

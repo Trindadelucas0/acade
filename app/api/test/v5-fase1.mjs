@@ -14,7 +14,7 @@ async function call(jar, method, path, body) {
 async function account(tag) {
   const jar = {}, terms = (await call(null, 'GET', '/api/terms')).d.terms
   const email = `v5.${tag}.${Date.now()}${Math.random().toString(36).slice(2, 6)}@e2e.local`
-  const r = await call(jar, 'POST', '/api/auth/register', { name: 'V5 ' + tag, email, password: PASS, accept_terms: true, terms_version: terms?.version, intent: 'aluno' })
+  const r = await call(jar, 'POST', '/api/auth/register', { name: 'V5 ' + tag, email, password: PASS, accept_terms: true, adult: true, terms_version: terms?.version, intent: 'aluno' })
   assert.equal(r.s, 200, JSON.stringify(r.d)); return { jar, id: r.d.user.id }
 }
 const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='

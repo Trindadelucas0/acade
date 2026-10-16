@@ -73,6 +73,7 @@ export default function Login() {
 
 function LoginForm() {
   const terms = useTerms(), [agree, setAgree] = useState(false), [readTerms, setReadTerms] = useState(false)
+  const [adult, setAdult] = useState(false), [health, setHealth] = useState(false)   // aceite no cadastro (pedido do Lucas)
   const { setUser, pullState, setGuest } = useStore()
   const [mode, setMode] = useState('login')       // 'login' | 'register'
   const [intent, setIntent] = useState('aluno')   // V3: 'Quero treinar' | 'Sou profissional'
@@ -93,7 +94,8 @@ function LoginForm() {
     if (!f.password) e.password = 'Informe sua senha'
     else if (reg && f.password.length < 8) e.password = 'A senha deve ter pelo menos 8 caracteres'
     if (reg && f.confirm !== f.password) e.confirm = 'As senhas não conferem'
-    if (reg && terms && !agree) e.terms = 'Aceite os termos de uso para criar a conta'
+    if (reg && !agree) e.terms = 'Aceite os Termos de Uso e a Política de Privacidade para criar a conta'
+    if (reg && !adult) e.adult = 'Confirme que você tem 18 anos ou mais'
     setErrs(e); return !Object.keys(e).length
   }
   const submit = async ev => {
@@ -101,7 +103,7 @@ function LoginForm() {
     if (busy || !validate()) return
     setBusy(true); setMsg('')
     try {
-      const u = reg ? await authRegister(f.name.trim(), f.email.trim(), f.password, terms && agree ? terms.version : undefined, intent, intent === 'aluno' ? f.pro_code.trim() : '') : await authLogin(f.email.trim(), f.password)
+      const u = reg ? await authRegister(f.name.trim(), f.email.trim(), f.password, terms && agree ? terms.version : undefined, intent, intent === 'aluno' ? f.pro_code.trim() : '', { accept: agree, adult, health }) : await authLogin(f.email.trim(), f.password)
       setUser(u); await pullState()
       useUI.getState().toast(reg ? `Bem-vindo(a), ${u.name}!` : `Bem-vindo(a) de volta, ${u.name}!`)
     } catch (e) {
@@ -161,10 +163,17 @@ function LoginForm() {
         {field('password', 'Senha', showPw ? 'text' : 'password', reg ? 'new-password' : 'current-password')}
         {reg && field('confirm', 'Confirmar senha', showPw ? 'text' : 'password', 'new-password')}
         {reg && intent === 'aluno' && <>{field('pro_code', 'Código do seu personal (opcional)', 'text', 'off', { maxLength: 16, autoCapitalize: 'characters', placeholder: 'Ex.: M6ESAW9W' })}<p className="lg-sub" style={{ marginTop: -4 }} data-testid="pro-code-note">Tem um personal? Com o código dele, sua conta já entra vinculada e coberta pelo plano dele, sem mensalidade.</p></>}
-        {reg && terms && <div className={'lg-terms' + (errs.terms ? ' err' : '')}>
+        {reg && <div className={'lg-terms' + (errs.adult ? ' err' : '')} data-testid="signup-consents">
+              <label><input type="checkbox" checked={adult} onChange={e => { setAdult(e.target.checked); setErrs({ ...errs, adult: undefined }) }} data-testid="accept-adult" />
+                <span>Declaro que tenho 18 anos ou mais</span></label>
+              {errs.adult && <em>{errs.adult}</em>}
+              <label><input type="checkbox" checked={health} onChange={e => setHealth(e.target.checked)} data-testid="accept-health" />
+                <span>(Opcional) Autorizo o uso dos meus dados de saúde (dores, lesões, restrições) para adaptar os treinos. Posso retirar quando quiser.</span></label>
+            </div>}
+            {reg && <div className={'lg-terms' + (errs.terms ? ' err' : '')}>
           <label><input type="checkbox" checked={agree} onChange={e => { setAgree(e.target.checked); setErrs({ ...errs, terms: undefined }) }} data-testid="accept-terms" />
-            <span>Li e aceito os <button type="button" className="lg-forgot" onClick={() => setReadTerms(!readTerms)}>termos de uso e a política de privacidade</button> (versão {terms.version})</span></label>
-          {readTerms && <div className="lg-terms-box"><TermsText terms={terms} /></div>}
+            <span>Li e aceito os <a href="#/legal/termos" target="_blank" rel="noopener" className="lg-forgot">Termos de Uso</a> e a <a href="#/legal/privacidade" target="_blank" rel="noopener" className="lg-forgot">Política de Privacidade</a>{terms ? <> (versão {terms.version}, <button type="button" className="lg-forgot" onClick={() => setReadTerms(!readTerms)}>ler aqui</button>)</> : null}</span></label>
+          {readTerms && terms && <div className="lg-terms-box"><TermsText terms={terms} /></div>}
           {errs.terms && <em>{errs.terms}</em>}
         </div>}
         {!reg && <button type="button" className="lg-forgot" onClick={() => { setMode('forgot'); setMsg(''); setErrs({}) }}>Esqueci a senha</button>}

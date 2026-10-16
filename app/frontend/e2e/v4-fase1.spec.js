@@ -13,7 +13,7 @@ const SCREENS = ['/hoje', '/treinos', '/comunidade', '/progresso', '/perfil', '/
 async function newStudent(request) {
   const terms = (await (await request.get('/api/terms')).json()).terms
   const email = `v4f1ui${Date.now()}${Math.floor(Math.random() * 1e4)}@e2e.local`
-  const r = await request.post('/api/auth/register', { data: { name: 'Aluna V4 Teste', email, password: PASS, accept_terms: true, terms_version: terms?.version, intent: 'aluno' } })
+  const r = await request.post('/api/auth/register', { data: { name: 'Aluna V4 Teste', email, password: PASS, accept_terms: true, adult: true, terms_version: terms?.version, intent: 'aluno' } })
   expect(r.ok()).toBeTruthy()
   const d = await r.json()
   // perfil mínimo de onboarding + programa publicado ativo (para a tela Início/Meu programa)
@@ -27,7 +27,7 @@ async function newStudent(request) {
 test.describe.configure({ mode: 'serial' })
 let user
 test.beforeAll(async ({ playwright }) => {
-  const ctx = await playwright.request.newContext({ baseURL: 'http://localhost:4449' })
+  const ctx = await playwright.request.newContext({ baseURL: 'http://localhost:4449', extraHTTPHeaders: { Origin: new URL('http://localhost:4449').origin } })
   user = await newStudent(ctx)
   user.cookies = (await ctx.storageState()).cookies
   await ctx.dispose()
@@ -119,7 +119,7 @@ test('acessibilidade (axe, WCAG 2 A/AA) nas 5 abas', async ({ page }) => {
 })
 
 test('movimento reduzido respeitado', async ({ browser }) => {
-  const ctx = await browser.newContext({ reducedMotion: 'reduce', baseURL: 'http://localhost:4449' })
+  const ctx = await browser.newContext({ reducedMotion: 'reduce', baseURL: 'http://localhost:4449', extraHTTPHeaders: { Origin: new URL('http://localhost:4449').origin } })
   await ctx.addCookies(user.cookies)
   await ctx.addInitScript(u => localStorage.setItem('gym_user', JSON.stringify(u)), { ...user, cookies: undefined })
   const page = await ctx.newPage(); await page.goto('/#/hoje'); await page.waitForTimeout(500)
@@ -129,7 +129,7 @@ test('movimento reduzido respeitado', async ({ browser }) => {
 })
 
 test('construtor: voltar com alteração não salva pergunta "Sair sem salvar?" e não salva sozinho', async ({ browser }) => {
-  const ctx = await browser.newContext({ baseURL: 'http://localhost:4449' })
+  const ctx = await browser.newContext({ baseURL: 'http://localhost:4449', extraHTTPHeaders: { Origin: new URL('http://localhost:4449').origin } })
   const r = await ctx.request.post('/api/auth/login', { data: { email: 'pro1.e2e@avadesk.local', password: PASS } })
   expect(r.ok()).toBeTruthy()
   const u = (await r.json()).user

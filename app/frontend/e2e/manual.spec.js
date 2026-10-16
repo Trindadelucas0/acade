@@ -18,7 +18,7 @@ async function shot(page, name, full = false) {
   await page.screenshot({ path: `${OUT}/${name}.png`, fullPage: full })
 }
 async function ctxFor(browser, email, size) {
-  const ctx = await browser.newContext({ baseURL: 'http://localhost:4449', locale: 'pt-BR', viewport: size })
+  const ctx = await browser.newContext({ baseURL: 'http://localhost:4449', extraHTTPHeaders: { Origin: new URL('http://localhost:4449').origin }, locale: 'pt-BR', viewport: size })
   const r = await ctx.request.post('/api/auth/login', { data: { email, password: PASS } })
   const u = (await r.json()).user
   await ctx.addInitScript(x => { if (!localStorage.getItem('gym_user')) localStorage.setItem('gym_user', JSON.stringify(x)) }, u)
@@ -29,10 +29,10 @@ test.describe.configure({ mode: 'serial' })
 let email
 test('aluno', async ({ browser, playwright }) => {
   test.setTimeout(180000)
-  const rq = await playwright.request.newContext({ baseURL: 'http://localhost:4449' })
+  const rq = await playwright.request.newContext({ baseURL: 'http://localhost:4449', extraHTTPHeaders: { Origin: new URL('http://localhost:4449').origin } })
   const terms = (await (await rq.get('/api/terms')).json()).terms
   email = `manual${Date.now()}@e2e.local`
-  expect((await rq.post('/api/auth/register', { data: { name: 'Zé Exemplo', email, password: PASS, accept_terms: true, terms_version: terms?.version, intent: 'aluno' } })).ok()).toBeTruthy()
+  expect((await rq.post('/api/auth/register', { data: { name: 'Zé Exemplo', email, password: PASS, accept_terms: true, adult: true, terms_version: terms?.version, intent: 'aluno' } })).ok()).toBeTruthy()
   const ctx = await ctxFor(browser, email, M), page = await ctx.newPage()
   await page.goto('/#/onboarding'); await shot(page, 'a01-onboarding-objetivo')
   await page.getByRole('button', { name: /Ganhar músculos/ }).first().click()
@@ -72,20 +72,20 @@ test('aluno', async ({ browser, playwright }) => {
 test('profissional', async ({ browser, playwright }) => {
   test.setTimeout(120000)
   // profissional de teste novo (plano Free, verificado pelo fluxo real), com 1 aluno (o Zé) vinculado por convite
-  const rq = await playwright.request.newContext({ baseURL: 'http://localhost:4449' })
+  const rq = await playwright.request.newContext({ baseURL: 'http://localhost:4449', extraHTTPHeaders: { Origin: new URL('http://localhost:4449').origin } })
   const terms = (await (await rq.get('/api/terms')).json()).terms
   const pe = `manualpro${Date.now()}@e2e.local`
-  await rq.post('/api/auth/register', { data: { name: 'Prof. Exemplo', email: pe, password: PASS, accept_terms: true, terms_version: terms?.version, intent: 'profissional' } })
+  await rq.post('/api/auth/register', { data: { name: 'Prof. Exemplo', email: pe, password: PASS, accept_terms: true, adult: true, terms_version: terms?.version, intent: 'profissional' } })
   await rq.post('/api/pro/verification', { data: { full_name: 'Prof. Exemplo', council: 'CREF', registry_number: String(Date.now()).slice(-6) + '-G', registry_uf: 'SP', specialties: ['Musculação'] } })
   await rq.post('/api/pro/verification/document', { data: { data: 'data:application/pdf;base64,' + Buffer.from('%PDF-1.4\n%%EOF').toString('base64'), file_name: 'cref.pdf' } })
-  const adm = await playwright.request.newContext({ baseURL: 'http://localhost:4449' })
+  const adm = await playwright.request.newContext({ baseURL: 'http://localhost:4449', extraHTTPHeaders: { Origin: new URL('http://localhost:4449').origin } })
   await adm.post('/api/auth/login', { data: { email: 'admin.e2e@avadesk.local', password: PASS } })
   const pid = (await (await rq.get('/api/auth/me')).json()).user.id
   const v = (await (await adm.get('/api/adm/verifications?status=pendente')).json()).verifications.find(x => x.user_id === pid)
   await adm.post('/api/adm/verifications/decide', { data: { id: v.id, status: 'verificado' } })
   await adm.post('/api/adm/professionals', { data: { user_id: pid, state: 'ativo', can_publish: true } })
   const inv = await (await rq.post('/api/pro/invites', { data: { message: 'Bora treinar' } })).json()
-  const al = await playwright.request.newContext({ baseURL: 'http://localhost:4449' })
+  const al = await playwright.request.newContext({ baseURL: 'http://localhost:4449', extraHTTPHeaders: { Origin: new URL('http://localhost:4449').origin } })
   await al.post('/api/auth/login', { data: { email, password: PASS } }); await al.post('/api/invites/accept', { data: { code: inv.code } })
   await rq.post('/api/pro/invites', { data: { message: 'Convite de exemplo' } })
   const ctx = await ctxFor(browser, pe, M), page = await ctx.newPage()

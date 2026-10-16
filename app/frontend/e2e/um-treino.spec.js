@@ -5,7 +5,7 @@ import fs from 'node:fs'
 const OUT = process.env.SHOTS_DIR || 'test-artifacts/um-treino'; fs.mkdirSync(OUT, { recursive: true })
 const A = JSON.parse(fs.readFileSync('/tmp/um-treino.json', 'utf8'))
 async function open(browser, acc) {
-  const ctx = await browser.newContext({ baseURL: 'http://localhost:4449', viewport: { width: 390, height: 844 }, colorScheme: 'dark' })
+  const ctx = await browser.newContext({ baseURL: 'http://localhost:4449', extraHTTPHeaders: { Origin: new URL('http://localhost:4449').origin }, viewport: { width: 390, height: 844 }, colorScheme: 'dark' })
   const u = (await (await ctx.request.post('/api/auth/login', { data: acc })).json()).user
   await ctx.addInitScript(x => localStorage.setItem('gym_user', JSON.stringify({ ...x, needs_terms: false })), u)
   const page = await ctx.newPage(); await page.goto('/#/treinos'); await page.waitForTimeout(1800); return { ctx, page }

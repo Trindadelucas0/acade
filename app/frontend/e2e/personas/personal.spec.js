@@ -5,10 +5,10 @@ test.use({ actionTimeout: 7000, navigationTimeout: 15000 }); test.setTimeout(600
 const step = persona('personal', 'PE')
 test('Carlos (personal) — da verificação ao atendimento', async ({ browser, playwright }) => {
   const t = Date.now(), email = `carlos.persona.${t}@e2e.local`, name = `Carlos Mendes ${String(t).slice(-4)}`
-  const c0 = await browser.newContext({ baseURL: BASE, viewport: MOBILE, colorScheme: 'light', locale: 'pt-BR' }), p0 = await c0.newPage()
+  const c0 = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { Origin: new URL(BASE).origin }, viewport: MOBILE, colorScheme: 'light', locale: 'pt-BR' }), p0 = await c0.newPage()
   await step(p0, 'Cadastro como "Sou profissional"', async () => { await p0.goto('/#/'); await p0.getByRole('button', { name: 'Criar conta' }).first().click(); await p0.getByTestId('intent-profissional').click(); await expect(p0.getByTestId('intent-pro-note')).toBeVisible()
     await p0.getByLabel('Nome', { exact: false }).first().fill(name); await p0.getByLabel('E-mail').fill(email); const pw = p0.locator('input[type=password]'); await pw.nth(0).fill(PASS); if (await pw.count() > 1) await pw.nth(1).fill(PASS)
-    await p0.getByTestId('accept-terms').check(); await p0.locator('form button[type=submit]').click(); await expect(p0.locator('.lg-field')).toHaveCount(0, { timeout: 10000 }) })
+    await p0.getByTestId('accept-terms').check(); await p0.getByTestId('accept-adult').check(); await p0.locator('form button[type=submit]').click(); await expect(p0.locator('.lg-field')).toHaveCount(0, { timeout: 10000 }) })
   await c0.close()
   let P = await login(browser, email)
   await step(P.page, 'Painel do personal abre', () => go(P.page, '/#/pro'))
@@ -25,16 +25,16 @@ test('Carlos (personal) — da verificação ao atendimento', async ({ browser, 
   await P.ctx.close(); P = await login(browser, email)
   let inv = ''
   await step(P.page, 'Criar convite com link aberto', async () => { await go(P.page, '/#/pro?tab=convites', 'invites'); await P.page.getByRole('button', { name: /Convidar aluno/ }).click(); await P.page.getByTestId('inv-create').click(); await expect(P.page.getByTestId('inv-created')).toBeVisible(); inv = (await (await P.ctx.request.get('/api/pro/invites')).json()).invites[0]?.code; expect(inv).toBeTruthy() })
-  const rq = await playwright.request.newContext({ baseURL: BASE }), stuEmail = `aluna.carlos.${t}@e2e.local`; await registerApi(rq, 'Paula Ribeiro', stuEmail)
+  const rq = await playwright.request.newContext({ baseURL: BASE, extraHTTPHeaders: { Origin: new URL(BASE).origin } }), stuEmail = `aluna.carlos.${t}@e2e.local`; await registerApi(rq, 'Paula Ribeiro', stuEmail)
   const stuCode = (await (await rq.get('/api/me/code')).json()).code; await rq.dispose()
   await step(P.page, 'Convite direcionado: digitar o código do aluno mostra quem é', async () => { await P.page.getByRole('button', { name: /Convidar aluno/ }).click(); await P.page.getByTestId('inv-code').fill(stuCode); await P.page.waitForTimeout(1200); await P.page.getByTestId('inv-create').click(); await expect(P.page.getByTestId('inv-created')).toBeVisible() })
   await step(P.page, 'Popup: código de aluno colado como convite explica e leva a Convites', async () => { await P.page.goto('/#/convite/' + stuCode); await expect(P.page.getByTestId('student-code-modal')).toBeVisible(); await P.page.getByTestId('student-code-go-invites').click(); await expect(P.page).toHaveURL(/tab=convites/) })
   const myCode = (await (await P.ctx.request.get('/api/me/code')).json()).code
-  const rq2 = await playwright.request.newContext({ baseURL: BASE }); await registerApi(rq2, 'Diego Código', `diego.codigo.${t}@e2e.local`, { pro_code: myCode }); await rq2.dispose()
+  const rq2 = await playwright.request.newContext({ baseURL: BASE, extraHTTPHeaders: { Origin: new URL(BASE).origin } }); await registerApi(rq2, 'Diego Código', `diego.codigo.${t}@e2e.local`, { pro_code: myCode }); await rq2.dispose()
   await step(P.page, 'Aluno que se cadastrou com meu código aparece na lista de alunos', async () => { await go(P.page, '/#/pro?tab=alunos'); await expect(P.page.getByText('Diego Código').locator('visible=true').first()).toBeVisible({ timeout: 9000 }) })
   let temp = ''; const tempEmail = `rafa.temp.${t}@lock.test`
   await step(P.page, 'Cadastrar aluno novo: senha provisória aparece uma vez', async () => { await go(P.page, '/#/pro?tab=cadastrar', 'pc-name'); await P.page.getByTestId('pc-name').fill('Rafael Lima'); await P.page.getByTestId('pc-email').fill(tempEmail); await P.page.getByTestId('pc-create').click(); temp = (await P.page.getByTestId('pc-temp').textContent()).trim(); expect(temp.length).toBeGreaterThan(8) })
-  const C = await browser.newContext({ baseURL: BASE, viewport: MOBILE, colorScheme: 'light' }), cp = await C.newPage()
+  const C = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { Origin: new URL(BASE).origin }, viewport: MOBILE, colorScheme: 'light' }), cp = await C.newPage()
   await step(cp, '[apoio aluno] Primeiro login exige trocar a senha provisória', async () => { const u = (await (await C.request.post('/api/auth/login', { data: { email: tempEmail, password: temp } })).json()).user; await cp.addInitScript(x => localStorage.setItem('gym_user', JSON.stringify(x)), u); await go(cp, '/#/hoje', 'must-change-gate') })
   await step(cp, '[apoio aluno] Troca da senha e aceite dos termos', async () => { await cp.getByTestId('mc-current').fill(temp); await cp.getByTestId('mc-new').fill('Rafael-Senha-42'); await cp.getByTestId('mc-rep').fill('Rafael-Senha-42'); await cp.getByTestId('mc-save').click(); await expect(cp.getByTestId('must-change-gate')).toHaveCount(0, { timeout: 8000 }); await cp.waitForTimeout(2500); const tg = cp.getByRole('button', { name: /Li e aceito|Continuar|aceito|aceitar/i }).first(); if (await tg.isVisible().catch(() => false)) { await cp.getByTestId('accept-terms').check().catch(() => {}); for (const cb of await cp.getByRole('checkbox').all()) await cb.check().catch(() => {}); await tg.click(); await expect(tg).toHaveCount(0, { timeout: 8000 }) } /* QA BUG-012: o aceite tem que valer no servidor (antes passava em falso) */ const lm = await (await C.request.get('/api/legal/me')).json(); expect((lm.me || lm).needs_legal).toBeFalsy() })
   await step(P.page, 'Biblioteca de exercícios disponível para o personal', async () => { await P.page.goto('/#/library'); await P.page.waitForTimeout(1200); await expect(P.page).toHaveURL(/#\/library/); await expect(P.page.locator('h1').first()).toBeVisible() })

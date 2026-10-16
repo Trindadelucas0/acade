@@ -5,12 +5,12 @@ const SHOTS = process.env.SHOTS_DIR || 'test-artifacts/shots'
 fs.mkdirSync(SHOTS, { recursive: true })
 const PASS = 'e2e-Avadesk-2026'
 test('aluno em casa marca equipamentos e vê só programas possíveis', async ({ browser, playwright }) => {
-  const rq = await playwright.request.newContext({ baseURL: 'http://localhost:4449' })
+  const rq = await playwright.request.newContext({ baseURL: 'http://localhost:4449', extraHTTPHeaders: { Origin: new URL('http://localhost:4449').origin } })
   const terms = (await (await rq.get('/api/terms')).json()).terms
   const email = `v4f4ui${Date.now()}@e2e.local`
-  const r = await rq.post('/api/auth/register', { data: { name: 'Aluna Teste', email, password: PASS, accept_terms: true, terms_version: terms?.version } })
+  const r = await rq.post('/api/auth/register', { data: { name: 'Aluna Teste', email, password: PASS, accept_terms: true, adult: true, terms_version: terms?.version } })
   expect(r.ok()).toBeTruthy()
-  const ctx = await browser.newContext({ baseURL: 'http://localhost:4449', locale: 'pt-BR' })
+  const ctx = await browser.newContext({ baseURL: 'http://localhost:4449', extraHTTPHeaders: { Origin: new URL('http://localhost:4449').origin }, locale: 'pt-BR' })
   const u = (await (await ctx.request.post('/api/auth/login', { data: { email, password: PASS } })).json()).user
   await ctx.addInitScript(x => localStorage.setItem('gym_user', JSON.stringify(x)), u)
   ctx.on('page', p => p.on('dialog', d => { throw new Error('diálogo nativo: ' + d.message()) }))

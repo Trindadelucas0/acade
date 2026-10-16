@@ -10,12 +10,12 @@ const db = () => { const c = new pg.Client({ host: 'localhost', user: 'postgres'
 async function register(request, label, intent) {
   const terms = (await (await request.get('/api/terms')).json()).terms
   const email = `${label}${Date.now()}${Math.floor(Math.random() * 1e4)}@e2e.local`
-  const r = await request.post('/api/auth/register', { data: { name: 'Teste ' + label, email, password: PASS, accept_terms: true, terms_version: terms?.version, intent } })
+  const r = await request.post('/api/auth/register', { data: { name: 'Teste ' + label, email, password: PASS, accept_terms: true, adult: true, terms_version: terms?.version, intent } })
   expect(r.ok()).toBeTruthy()
   return { ...(await r.json()).user, email }
 }
 async function asUser(browser, email) {
-  const ctx = await browser.newContext({ baseURL: 'http://localhost:4449', locale: 'pt-BR' })
+  const ctx = await browser.newContext({ baseURL: 'http://localhost:4449', extraHTTPHeaders: { Origin: new URL('http://localhost:4449').origin }, locale: 'pt-BR' })
   const r = await ctx.request.post('/api/auth/login', { data: { email, password: PASS } })
   const u = (await r.json()).user
   await ctx.addInitScript(x => localStorage.setItem('gym_user', JSON.stringify(x)), u)
@@ -26,7 +26,7 @@ test.describe.configure({ mode: 'serial' })
 const title = 'Força Básica E2E ' + Date.now()
 let proEmail
 test('profissional cria rascunho e envia para avaliação', async ({ browser, playwright }) => {
-  const rq = await playwright.request.newContext({ baseURL: 'http://localhost:4449' })
+  const rq = await playwright.request.newContext({ baseURL: 'http://localhost:4449', extraHTTPHeaders: { Origin: new URL('http://localhost:4449').origin } })
   const p = await register(rq, 'v4f3ui', 'profissional'); proEmail = p.email
   const c = db(); await c.connect()
   await c.query(`update users set status='ativo' where id=$1`, [p.id])
@@ -69,7 +69,7 @@ test('admin avalia, aprova, publica e concede selo; aluno vê selos no catálogo
   await expect(row.getByText('✓ Oficial AVAGYM')).toBeVisible()
   await page.screenshot({ path: `${SHOTS}/f3-admin-catalogo-1280.png` })
   await ctx.close()
-  const rq = await playwright.request.newContext({ baseURL: 'http://localhost:4449' })
+  const rq = await playwright.request.newContext({ baseURL: 'http://localhost:4449', extraHTTPHeaders: { Origin: new URL('http://localhost:4449').origin } })
   const s = await register(rq, 'v4f3aluno', 'aluno')
   await rq.post('/api/guided/onboarding', { data: { objetivo: 'hypertrophy', nivel: 'beginner', local: 'gym', dias: 3, minutos: 45, restricoes: [] } })
   const progs = (await (await rq.get('/api/guided/programs')).json()).programs

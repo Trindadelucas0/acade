@@ -5,10 +5,10 @@ test.use({ actionTimeout: 7000, navigationTimeout: 15000 }); test.setTimeout(600
 const step = persona('aluno-do-personal', 'AP')
 async function proPronto(playwright, t) {   // personal novo, verificado e ativo (apoio, via API local)
   const email = `bruno.personal.${t}@e2e.local`, name = `Bruno Personal ${String(t).slice(-4)}`
-  const rq = await playwright.request.newContext({ baseURL: BASE }); await registerApi(rq, name, email, { intent: 'profissional' })
+  const rq = await playwright.request.newContext({ baseURL: BASE, extraHTTPHeaders: { Origin: new URL(BASE).origin } }); await registerApi(rq, name, email, { intent: 'profissional' })
   await rq.post('/api/pro/verification', { data: { full_name: name, council: 'CREF', registry_number: String(t).slice(-6) + '-G', registry_uf: 'RJ', specialties: ['Corrida', 'Musculação'] } })
   await rq.post('/api/pro/verification/document', { data: { data: 'data:application/pdf;base64,' + Buffer.from('%PDF-1.4\n%%EOF').toString('base64'), file_name: 'cref.pdf' } })
-  const adm = await playwright.request.newContext({ baseURL: BASE }); await adm.post('/api/auth/login', { data: { email: ADMIN, password: PASS } })
+  const adm = await playwright.request.newContext({ baseURL: BASE, extraHTTPHeaders: { Origin: new URL(BASE).origin } }); await adm.post('/api/auth/login', { data: { email: ADMIN, password: PASS } })
   const pid = (await (await adm.get('/api/adm/professionals')).json()).professionals.find(p => p.email === email)?.user_id
   const v = (await (await adm.get('/api/adm/verifications?status=pendente')).json()).verifications.find(x => x.user_id === pid)
   if (v) await adm.post('/api/adm/verifications/decide', { data: { id: v.id, status: 'verificado' } })
@@ -17,14 +17,14 @@ async function proPronto(playwright, t) {   // personal novo, verificado e ativo
 }
 test('Juliana (aluna do personal) — convite, ficha, áreas bloqueadas', async ({ browser, playwright }) => {
   const t = Date.now(), pro = await proPronto(playwright, t), email = `juliana.persona.${t}@e2e.local`
-  const rq = await playwright.request.newContext({ baseURL: BASE }); await registerApi(rq, 'Juliana Alves', email); await rq.dispose()
+  const rq = await playwright.request.newContext({ baseURL: BASE, extraHTTPHeaders: { Origin: new URL(BASE).origin } }); await registerApi(rq, 'Juliana Alves', email); await rq.dispose()
   let { ctx, page } = await login(browser, email)
   const P = await login(browser, pro.email)
   const myCode = (await (await ctx.request.get('/api/me/code')).json()).code
   let inv = ''
   await step(P.page, '[apoio personal] Personal cria convite direcionado ao código da Juliana', async () => { const r = await P.ctx.request.post('/api/pro/invites', { data: { student_code: myCode, message: 'Bora preparar os 10 km!' } }); expect(r.ok()).toBeTruthy(); inv = (await r.json()).code; await go(P.page, '/#/pro?tab=convites', 'invites') })
   await step(page, 'Perfil › Meus dados mostra o convite recebido', async () => { await go(page, '/#/perfil?secao=dados', 'my-invites'); await expect(page.getByTestId('my-invites')).toContainText(pro.name) })
-  const outro = `outro.aluno.${t}@e2e.local`, rq2 = await playwright.request.newContext({ baseURL: BASE }); await registerApi(rq2, 'Outro Aluno', outro); const outroCode = (await (await rq2.get('/api/me/code')).json()).code; await rq2.dispose()
+  const outro = `outro.aluno.${t}@e2e.local`, rq2 = await playwright.request.newContext({ baseURL: BASE, extraHTTPHeaders: { Origin: new URL(BASE).origin } }); await registerApi(rq2, 'Outro Aluno', outro); const outroCode = (await (await rq2.get('/api/me/code')).json()).code; await rq2.dispose()
   await step(page, 'Digitar por engano um código de ALUNO no campo de convite abre popup explicativo', async () => { await page.getByTestId('invite-code-in').fill(outroCode); await page.getByRole('button', { name: 'Abrir' }).click(); await expect(page.getByTestId('student-code-modal')).toBeVisible(); await expect(page.getByTestId('student-code-go-invites')).toHaveCount(0); await expect(page.getByTestId('student-code-modal')).not.toContainText('Outro Aluno') })
   await step(page, 'Digitar o código do convite e abrir', async () => { await go(page, '/#/perfil?secao=dados', 'my-invites'); await page.getByTestId('invite-code-in').fill(inv); await page.getByRole('button', { name: 'Abrir' }).click(); await expect(page.getByTestId('invite-accept')).toBeVisible(); await expect(page.getByText(/Verificado/).first()).toBeVisible() })
   await step(page, 'Aceitar o convite', async () => { await page.getByTestId('invite-accept').click(); await expect(page.getByTestId('invite-done')).toBeVisible() })
@@ -53,7 +53,7 @@ test('Juliana (aluna do personal) — convite, ficha, áreas bloqueadas', async 
   await ctx.close()
   // conta criada pelo personal (plano do personal): áreas travadas pelo ScopeGate
   const sEmail = `lia.coberta.${t}@lock.test`, r = await (await P.ctx.request.post('/api/pro/clients', { data: { name: 'Lia Coberta', email: sEmail } })).json()
-  const C = await browser.newContext({ baseURL: BASE, viewport: MOBILE, colorScheme: 'light' })
+  const C = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { Origin: new URL(BASE).origin }, viewport: MOBILE, colorScheme: 'light' })
   await C.request.post('/api/auth/login', { data: { email: sEmail, password: r.temp_password } }); await C.request.post('/api/auth/password', { data: { current_password: r.temp_password, new_password: 'Lia-Senha-4242' } })
   const terms = (await (await C.request.get('/api/terms')).json()).terms; await C.request.post('/api/terms/accept', { data: { version: terms.version } }); await C.close()
   const lid = (await (await P.ctx.request.get('/api/pro/clients')).json()).clients.find(c => c.email === sEmail)?.id
