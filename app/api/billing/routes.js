@@ -23,7 +23,10 @@ export function providerInfo() {
     webhook_token_set: p.name === 'asaas' ? !!process.env.ASAAS_WEBHOOK_TOKEN : !!process.env.SIM_WEBHOOK_TOKEN }
 }
 const pubPlan = p => ({ id: p.id, audience: p.audience, product: p.product, name: p.name, description: p.description, price_cents: p.price_cents, currency: p.currency,
-  billing_interval: p.billing_interval, trial_days: p.trial_days, benefits: (p.benefits || []).filter(x => x.state !== 'indisponivel'), limits: p.limits || {}, is_free: p.is_free })
+  billing_interval: p.billing_interval, trial_days: p.trial_days, benefits: (p.benefits || []).filter(x => x.state !== 'indisponivel'), limits: p.limits || {}, features: p.features || {}, is_free: p.is_free })
+// catalogo com 3 planos (049): Gratis (aluno_free/profissional_free), Individual e PRO
+export const CATALOG = ['aluno_free', 'profissional_free', 'individual', 'pro']
+const CATALOG_SQL = CATALOG.map(x => "'" + x + "'").join(',')
 const PLANS_SQL = `select p.*, v.limits, v.features, v.version from plans p left join lateral (select limits, features, version from plan_versions where plan_id=p.id order by version desc limit 1) v on true`
 
 // estado de acesso consolidado (PRD 17 e 18) - o frontend so exibe
@@ -78,6 +81,12 @@ export function billingRoutes({ json, readBody }) {
   }
   return {
     // ===== aluno / profissional =====
+    // pagina publica de planos (sem login): so planos ativos e vendaveis/gratuitos; sem dados de usuario
+    'GET /api/public/plans': async (req, res) => {
+      const r = await q(PLANS_SQL + ` where p.active and p.id in (${CATALOG_SQL}) order by p.audience, p.sort`)
+      const info = providerInfo()
+      json(res, 200, { plans: r.rows.map(p => ({ ...pubPlan(p), purchasable: !p.is_free && !!p.sellable && p.price_cents != null })).map(p => ({ ...p, price_label: p.is_free ? 'Gratuito' : p.price_cents == null ? 'Preço a definir' : null })), test_mode: !!info.test }, { 'Cache-Control': 'public, max-age=60' })
+    },
     'GET /api/billing/config': async (req, res) => {
       if (!await auth(req, res)) return
       const info = providerInfo()
@@ -85,7 +94,7 @@ export function billingRoutes({ json, readBody }) {
     },
     'GET /api/billing/plans': async (req, res) => {
       const u = await auth(req, res); if (!u) return
-      const r = await q(PLANS_SQL + ` where p.active and (p.sellable or p.is_free) and p.product in ('gratuito','individual','pro') order by p.audience, p.sort`)
+      const r = await q(PLANS_SQL + ` where p.active and (p.sellable or p.is_free) and p.id in (${CATALOG_SQL}) order by p.audience, p.sort`)
       json(res, 200, { plans: r.rows.filter(p => p.is_free || p.price_cents != null).map(pubPlan) })
     },
     'GET /api/billing/me': async (req, res) => {
@@ -128,7 +137,7 @@ export function billingRoutes({ json, readBody }) {
       await audit(u.tenant_id, u.id, 'cobranca.cartao_removido', 'payment_method', b.id)
       json(res, 200, { ok: true })
     },
-    'POST /api/billing/subscribe': async (req, res) => { const u = await requireAuth(req, res, json); if (!u) return; send(json, res, await core.subscribe(u, await readBody(req), ipOf(req))) },
+    'POST /api/billing/subscribe': async (req, res) => { const u = await requireAuth(req, res, json); if (!u) return; const b = await readBody(req); if (!CATALOG.includes(String(b.plan_id || ''))) return json(res, 404, { error: 'Este plano não está disponível para contratação.', code: 'PLAN_UNAVAILABLE' }); send(json, res, await core.subscribe(u, b, ipOf(req))) },
     'POST /api/billing/change-card': async (req, res) => { const u = await requireAuth(req, res, json); if (!u) return; send(json, res, await core.changeCard(u, await readBody(req), ipOf(req))) },
     'POST /api/billing/pay-now': async (req, res) => { const u = await requireAuth(req, res, json); if (!u) return; send(json, res, await core.payNow(u, await readBody(req), ipOf(req))) },
     'POST /api/billing/cancel': async (req, res) => { const u = await requireAuth(req, res, json); if (!u) return; send(json, res, await core.cancel(u, await readBody(req))) },

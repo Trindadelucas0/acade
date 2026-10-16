@@ -4,6 +4,7 @@ import { attachByProCode, autoUnlockForTests } from './accounts-v42.js'
 import './env.js'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
+import crypto from 'node:crypto'
 import { q, transaction } from './db/pool.js'
 import { allowPasswordEmail, queuePasswordLink, tokenHash, invalidatePasswordLinks } from './password-email.js'
 import { currentTerms, acceptTerms, termsStatus } from './lgpd.js'
@@ -31,7 +32,17 @@ export async function authUser(req) {
   const u = await loadUser(p.sub)
   // V4 F7: "sair de todos os dispositivos" / troca de senha sobem token_version; tokens antigos param de valer
   if (u && (p.tv || 0) !== (u.token_version || 0)) return null
+  // BUG-033: logout revoga o token (jti) no banco; token antigo passa a dar 401
+  if (u && p.jti && (await q('select 1 from revoked_tokens where jti=$1', [String(p.jti)])).rowCount) return null
   return u
+}
+// revoga o token desta requisicao. Token sem jti (emitido antes da 050) sobe token_version (encerra as sessoes antigas)
+export async function revokeRequestToken(req) {
+  const tok = readToken(req); if (!tok || !SECRET) return
+  let p; try { p = jwt.verify(tok, SECRET) } catch { return }
+  if (p.jti) await q('insert into revoked_tokens(jti,user_id,expires_at) values($1,$2,to_timestamp($3)) on conflict do nothing', [String(p.jti), p.sub, p.exp || Math.floor(Date.now() / 1000) + TTL_H * 3600])
+  else await q('update users set token_version=token_version+1 where id=$1 and token_version=$2', [p.sub, p.tv || 0])
+  q('delete from revoked_tokens where expires_at < now()').catch(() => {})
 }
 async function loadUser(id) {
   const r = await q(`select u.id,u.name,u.email,u.tenant_id,u.disabled_at,u.status,u.active_context,u.token_version,u.account_type,u.must_change_password,u.managed_by,u.access_unlocked_at,(select m.access_unlocked_at from users m where m.id=u.managed_by) coach_unlocked_at,(select pp.verification_status from professional_profiles pp where pp.user_id=u.id) verification,t.slug tenant_slug,t.name tenant_name,
@@ -71,7 +82,7 @@ export const tenantScope = (alias, idx) => `(${alias}.tenant_id is null or ${ali
 // V3: contexto de navegação ativo (aluno | profissional | admin) — o escolhido, se a conta tiver a capacidade
 export const contextOf = u => (u.active_context && u.roles.includes(u.active_context)) ? u.active_context
   : u.roles.includes('admin') ? 'admin' : u.roles.includes('aluno') ? 'aluno' : u.roles.includes('profissional') ? 'profissional' : 'aluno'
-const sign = u => jwt.sign({ sub: u.id, tid: u.tenant_id, roles: u.roles, tv: u.token_version || 0 }, SECRET, { expiresIn: TTL_H + 'h' })
+const sign = u => jwt.sign({ sub: u.id, tid: u.tenant_id, roles: u.roles, tv: u.token_version || 0, jti: crypto.randomUUID() }, SECRET, { expiresIn: TTL_H + 'h' })
 export const pub = u => ({ id: u.id, name: u.name, email: u.email, roles: u.roles, admin: u.roles.includes('admin'), pro: u.roles.includes('profissional'), status: u.status,
   capacities: u.roles.filter(r => r === 'aluno' || r === 'profissional'), context: contextOf(u), verification: u.verification || null,
   tenant: { id: u.tenant_id, slug: u.tenant_slug, name: u.tenant_name },
@@ -146,7 +157,7 @@ export function authRoutes({ json, readBody, bridge, clearCookies }) {
       await q('update users set last_seen_at=now() where id=$1', [row.id])
       await login(res, row.id)
     },
-    'POST /api/auth/logout': async (req, res) => json(res, 200, { ok: true }, { 'Set-Cookie': [clearTokenCookie, ...(clearCookies || [])] }),
+    'POST /api/auth/logout': async (req, res) => { await revokeRequestToken(req).catch(e => console.error('logout revoke', e.message)); json(res, 200, { ok: true }, { 'Set-Cookie': [clearTokenCookie, ...(clearCookies || [])] }) },
     // V4 F7: encerra a sessão em todos os aparelhos (inclusive este)
     'POST /api/auth/logout-all': async (req, res) => {
       const u = await requireAuth(req, res, json, { allowPending: true }); if (!u) return
@@ -240,7 +251,7 @@ export function authRoutes({ json, readBody, bridge, clearCookies }) {
       const r = await q(`select p.id,p.slug,p.title,p.description,p.goal,p.level,p.location,p.weeks,p.days_per_week,p.minutes,p.is_rehab,p.tags,
         (select json_agg(json_build_object('name',w.name,'focus',w.focus,'exercises',(select json_agg(json_build_object('id',x.exercise_id,'name',e.name_pt,'sets',x.sets,'reps_min',x.reps_min,'reps_max',x.reps_max,'rest_sec',x.rest_sec,'duration_sec',x.duration_sec) order by x.position)
            from program_workout_exercises x join exercises e on e.id=x.exercise_id where x.program_workout_id=w.id)) order by w.position) from program_workouts w where w.program_id=p.id) workouts
-        from programs p where (p.tenant_id is null and p.visibility='public') or p.tenant_id=$1 order by p.is_rehab, p.title`, [tid])
+        from programs p where ((p.tenant_id is null and p.visibility='public') or p.tenant_id=$1) and p.archived_at is null order by p.is_rehab, p.title`, [tid])
       json(res, 200, { programs: r.rows })
     },
     'GET /api/admin/tenant-users': async (req, res) => {

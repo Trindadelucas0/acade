@@ -229,7 +229,7 @@ export function guidedRoutes({ json, readBody }) {
     'GET /api/guided/recommendations': async (req, res) => {
       const u = await requireTrainee(req, res, json); if (!u) return
       const p = await profileOf(u.id); if (!p) return json(res, 400, { error: 'Responda o questionário primeiro' })
-      const list = (await q(LIST_SQL + ` and p.status='publicado'`, [u.tenant_id])).rows
+      const list = (await q(LIST_SQL + ` and p.status='publicado' and p.archived_at is null`, [u.tenant_id])).rows
       const ranked = scorePrograms(list, p).slice(0, 3)
       if (!ranked.length) return json(res, 200, { profile: p, recommendations: [], no_compatible: true,
         notes: ['Nenhum programa publicado combina com os equipamentos que você marcou. Você pode revisar seus equipamentos ou ver o catálogo completo.'] })
@@ -242,7 +242,7 @@ export function guidedRoutes({ json, readBody }) {
     'GET /api/guided/programs': async (req, res) => {
       const u = await requireTrainee(req, res, json); if (!u) return
       const goal = qs(req).get('goal')
-      const r = await q(LIST_SQL + ` and p.status='publicado'` + (GOALS.includes(goal) ? ` and p.goal=$2` : '') + ' order by p.is_rehab, p.goal, p.level, p.days_per_week', GOALS.includes(goal) ? [u.tenant_id, goal] : [u.tenant_id])
+      const r = await q(LIST_SQL + ` and p.status='publicado' and p.archived_at is null` + (GOALS.includes(goal) ? ` and p.goal=$2` : '') + ' order by p.is_rehab, p.goal, p.level, p.days_per_week', GOALS.includes(goal) ? [u.tenant_id, goal] : [u.tenant_id])
       json(res, 200, { programs: r.rows })
     },
     'GET /api/guided/program': async (req, res) => {

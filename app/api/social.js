@@ -64,11 +64,11 @@ async function avatarOf(uid) {
   return legacy ? { url: legacy, thumb: legacy, legacy: true } : null
 }
 async function musclesOf(where, params) {
-  return (await q(`select mg.name_pt name, round(sum(coalesce(em.weight,1))::numeric, 1)::float score
+  return (await q(`select mg.id group_id, mg.name_pt name, round(sum(coalesce(em.weight,1))::numeric, 1)::float score
     from session_sets ss join sessions s on s.id=ss.session_id
     join exercise_muscles em on em.exercise_id=ss.exercise_id join muscles m on m.id=em.muscle_id join muscle_groups mg on mg.id=m.group_id
     where ss.removed_at is null and mg.is_training is not false and ${where}
-    group by mg.name_pt order by score desc limit 8`, params)).rows
+    group by mg.id, mg.name_pt order by score desc limit 8`, params)).rows
 }
 async function serve(res, area, key, cache) {
   const buf = await storage().get(area, key).catch(() => null)

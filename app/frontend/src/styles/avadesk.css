@@ -5,8 +5,8 @@
   --ag-acc:#c8f135;--ag-acc-2:#a6d417;--ag-on:#11140a;--ag-warn:#ffb547;--ag-bad:#ff6b6b;--ag-radius:20px
 }
 :root[data-theme="dark"],:root:not([data-theme="light"]){--bg:#0b0b0c;--bg-el:#121214;--surface:#161618;--surface-2:#1f2023;--surface-3:#2a2b2f;--sep:#ffffff14}
-:root[data-accent="avadesk"]{--acc:#c8f135;--acc-2:#a6d417;--on-acc:#11140a}
-:root[data-theme="light"][data-accent="avadesk"]{--acc:#5f8a00;--acc-2:#4a6c00;--on-acc:#fff}
+:root[data-accent="avagym"]{--acc:#c8f135;--acc-2:#a6d417;--on-acc:#11140a}
+:root[data-theme="light"][data-accent="avagym"]{--acc:#5f8a00;--acc-2:#4a6c00;--on-acc:#fff}
 body{background:var(--ag-bg)}
 .ag .g-btn{box-shadow:0 10px 28px -10px #c8f13588}
 .ag .g-btn.g-ghost{box-shadow:none}

@@ -19,3 +19,4 @@ Atualizada em 16/10/2026. Fonte do PDF `documentacao-tecnica-avagym.pdf`.
 - [Backup e rollback](15-backup-rollback.md)
 - [Testes e registro de bugs](16-testes-bugs.md)
 - [Pendências](17-pendencias.md)
+- [18. Planos e Pagamento](18-planos-pagamento.md)

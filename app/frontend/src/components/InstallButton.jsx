@@ -3,7 +3,7 @@ import { useUI } from '../store/useUI.js'
 
 let deferred = null
 if (typeof window !== 'undefined') {
-  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; window.dispatchEvent(new Event('avadesk-installable')) })
+  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; window.dispatchEvent(new Event('avagym-installable')) })
 }
 const isStandalone = () => window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true
 const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
@@ -13,7 +13,7 @@ function Steps({ ios, close }) {
   const n = { flex: '0 0 26px', height: 26, borderRadius: 13, background: 'var(--acc)', color: '#fff', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: 13 }
   return <>
     <h3>Adicionar {'\u00e0'} tela inicial</h3>
-    <div className="muted small" style={{ marginBottom: 8 }}>Instale o AVADESK para abrir como um app, em tela cheia.</div>
+    <div className="muted small" style={{ marginBottom: 8 }}>Instale o AVAGYM para abrir como um app, em tela cheia.</div>
     {ios ? <>
       <div style={step}><span style={n}>1</span><span>Toque em <b>Compartilhar</b> <span style={{ fontSize: 18 }}>{'\u2b06'}</span> na barra do Safari</span></div>
       <div style={step}><span style={n}>2</span><span>Escolha <b>Adicionar {'\u00e0'} Tela de In{'\u00ed'}cio</b></span></div>
@@ -33,9 +33,9 @@ export default function InstallButton() {
   useEffect(() => {
     const r = () => force(x => x + 1)
     const done = () => { deferred = null; setInstalled(true) }
-    window.addEventListener('avadesk-installable', r)
+    window.addEventListener('avagym-installable', r)
     window.addEventListener('appinstalled', done)
-    return () => { window.removeEventListener('avadesk-installable', r); window.removeEventListener('appinstalled', done) }
+    return () => { window.removeEventListener('avagym-installable', r); window.removeEventListener('appinstalled', done) }
   }, [])
   if (installed) return null
   const click = async () => {

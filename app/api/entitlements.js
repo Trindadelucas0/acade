@@ -112,6 +112,8 @@ export const ROUTE_RULES = {
   'POST /api/pro/plans': { audience: 'profissional', feature: 'prescrever', verified: true },
   'POST /api/pro/invites': { audience: 'profissional', feature: 'convidar_alunos', verified: true },
   'POST /api/invites/accept': { audience: 'aluno', feature: 'receber_ficha_profissional' },
+  // V5 billing: publicar programa/ficha publica na biblioteca e recurso dos planos PRO pagos (so vale com monetizacao_ativa=true)
+  'POST /api/pro/programs/submit': { audience: 'profissional', feature: 'fichas_publicas', whenMonetized: true },
   // V5 monetizacao: paywall do catalogo oficial - so vale com monetizacao_ativa=true (painel admin)
   'POST /api/guided/start': { audience: 'aluno', catalog: true },
   'POST /api/guided/sessions/start': { audience: 'aluno', catalog: true, systemOnly: true }
@@ -136,6 +138,7 @@ export async function entitlementGate(key, user, res, json) {
   if (!rule || !user || user.roles.includes('admin')) return true
   if (!user.roles.includes(rule.audience)) return true   // o handler responde PERMISSION_DENIED com a mensagem própria
   if (rule.catalog) return catalogGate(rule, user, res, json)
+  if (rule.whenMonetized && (await q(`select value from app_settings where tenant_id=$1 and key='monetizacao_ativa'`, [user.tenant_id])).rows[0]?.value !== true) return true
   if (rule.verified) {
     const v = (await q('select verification_status from professional_profiles where user_id=$1', [user.id])).rows[0]
     if (!v || v.verification_status !== 'verificado') { fail(json, res, 'PERMISSION_DENIED', 'Seu cadastro profissional ainda não foi verificado. Enquanto isso você pode treinar como aluno, mas não enviar treinos nem convidar alunos.', { verification_status: v?.verification_status || 'pendente' }); return false }

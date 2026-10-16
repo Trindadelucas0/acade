@@ -185,7 +185,7 @@ export default function AdminPanel() {
   const tab = sp.get('tab') || 'visao', go = t => setSp({ tab: t })
   const X = EXTRA[tab]
   return <div className="ag" data-testid="admin-panel">
-    <span className="g-eyebrow">Administração</span><h1>Painel AVADESK</h1>
+    <span className="g-eyebrow">Administração</span><h1>Painel AVAGYM</h1>
     <div className="g-scrollx" style={{ marginTop: 10 }}>{ADMIN_TABS.map(([k, l]) => <button key={k} className={'g-chipbtn' + (tab === k ? ' g-on' : '')} onClick={() => go(k)} data-testid={'adm-' + k}>{l}</button>)}</div>
     <div style={{ marginTop: 12 }}>
       {tab === 'visao' && <Visao go={go} />}{tab === 'alunos' && <Alunos />}{tab === 'profissionais' && <Profissionais />}{tab === 'planos' && <Planos />}

@@ -7,7 +7,7 @@ import { api } from '../../lib/api.js'
 import './guided.css'
 
 const STEPS = [
-  { k: 'objetivo', q: 'Qual é o seu objetivo?', sub: 'Escolha um. O AVADESK Fitness encontra o programa certo para você.',
+  { k: 'objetivo', q: 'Qual é o seu objetivo?', sub: 'Escolha um. O AVAGYM encontra o programa certo para você.',
     opts: GOALS.map(([v, l, i]) => ({ v, l, i, s: { hypertrophy: 'Ganhar músculos e definição', weight_loss: 'Perder gordura e ganhar disposição', strength: 'Levantar mais peso com segurança', conditioning: 'Mais fôlego e resistência', mobility: 'Corpo mais solto e boa postura', home: 'Treinar sem sair de casa', rehab: 'Voltar a treinar com cuidado' }[v] })) },
   { k: 'nivel', q: 'Você já treina?', sub: 'Sem problema se estiver começando agora.',
     opts: [{ v: 'beginner', l: 'Estou começando', s: 'Nunca treinei ou parei há muito tempo', i: 'sparkles' }, { v: 'intermediate', l: 'Já treino', s: 'Treino há alguns meses', i: 'bolt' }, { v: 'advanced', l: 'Treino há anos', s: 'Conheço bem os exercícios', i: 'trophy' }] },
@@ -84,7 +84,7 @@ export default function Onboarding() {
     </div>}
     {st.k === 'restricoes' && <div className="g-bottom">
       {err && <p className="g-warn" style={{ marginBottom: 10 }}>{err}</p>}
-      {a.restricoes.some(r => r !== 'none') && <p className="g-note" style={{ marginBottom: 12 }}>O AVADESK Fitness não faz diagnóstico. Se a dor for forte ou frequente, procure um médico ou fisioterapeuta.</p>}
+      {a.restricoes.some(r => r !== 'none') && <p className="g-note" style={{ marginBottom: 12 }}>O AVAGYM não faz diagnóstico. Se a dor for forte ou frequente, procure um médico ou fisioterapeuta.</p>}
       <button className="g-btn" disabled={!a.restricoes.length || busy} onClick={finish}>{busy ? 'Buscando programas…' : 'Ver meus programas'}</button>
     </div>}
   </div>

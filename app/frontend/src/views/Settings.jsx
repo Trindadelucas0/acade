@@ -96,13 +96,13 @@ export default function Settings() {
     <Section title={MOBILE ? t('Your data') : DEMO ? t('Demo') : t('Account')}>
       {MOBILE ? <>
         <Row icon="lock" title={t('All data stays on this phone')}  />
-        <Row icon="rocket" title={t('Self-host avadesk')} subtitle={'Código aberto (AGPL) — veja o repositório.'} accessory="chevron"
+        <Row icon="rocket" title={t('Self-host avagym')} subtitle={'Código aberto (AGPL) — veja o repositório.'} accessory="chevron"
           onClick={() => window.open(REPO, '_blank', 'noopener')} />
       </> : DEMO ? <>
         <Row icon="sparkles" title={t('You’re in the demo')} subtitle={t('Example data, stored only in this browser — change anything you like.')} />
         <Row icon="reset" title={t('Reset demo data')} accessory="chevron"
           onClick={() => confirmSheet({ title: t('Reset demo data?'), message: t('Puts the example plan, workouts and weigh-ins back the way they started.'), confirmText: t('Reset'), onConfirm: () => { resetDemo(); nav('/perfil'); toast(t('Demo data reset')) } })} />
-        <Row icon="rocket" title={t('Self-host avadesk')} subtitle={'Código aberto (AGPL) — veja o repositório.'} accessory="chevron"
+        <Row icon="rocket" title={t('Self-host avagym')} subtitle={'Código aberto (AGPL) — veja o repositório.'} accessory="chevron"
           onClick={() => window.open(REPO, '_blank', 'noopener')} />
       </> : user ? <>
         <AccountCard user={user} nav={nav} />
@@ -188,7 +188,7 @@ export default function Settings() {
     {/* "Add to Home screen" makes no sense inside the native app */}
     {!MOBILE && tip && <Section title={t('Tip')}>
       <Row icon="lightbulb" title={t(TIP[tip][0])} className={'st-tip st-tip-' + tip}
-        subtitle={t('to install avadesk as a full-screen app.') + ' ' + (user ? t('Your data syncs with your profile - sign in anywhere to see it.') : t('Guest data stays on this device - export a backup now and then!'))} />
+        subtitle={t('to install avagym as a full-screen app.') + ' ' + (user ? t('Your data syncs with your profile - sign in anywhere to see it.') : t('Guest data stays on this device - export a backup now and then!'))} />
     </Section>}
 
   </div>
@@ -302,7 +302,7 @@ function PushCard({ S, update, toast }) {
           (S.reminder?.tz ? ' ' + t('Timezone: {0} (auto-detected, updates if you travel).', S.reminder.tz) : '')
         : null}
     >
-      <Row icon="bell" title={t('Push notifications')} subtitle={t('Rest-timer alerts, even if avadesk is closed.')}>
+      <Row icon="bell" title={t('Push notifications')} subtitle={t('Rest-timer alerts, even if avagym is closed.')}>
         <Switch label={t('Push notifications')} checked={on} disabled={busy} onChange={toggle} />
       </Row>
       {on && (

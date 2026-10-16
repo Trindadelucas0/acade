@@ -79,7 +79,7 @@ export default function Done() {
         <b className="g-sm">Intensidade: {inten} de 10</b>
         <input type="range" min="0" max="10" value={inten} onChange={e => setInten(+e.target.value)} />
         <textarea placeholder="Quer contar mais? (opcional)" value={notes} onChange={e => setNotes(e.target.value)} maxLength={500} />
-        <p className="g-note" style={{ marginTop: 10 }}>O AVADESK Fitness não faz diagnóstico. Registramos sua dor para você e seu profissional acompanharem. Se a dor for forte, persistir ou piorar, pare os exercícios que doem e procure um médico ou fisioterapeuta.</p>
+        <p className="g-note" style={{ marginTop: 10 }}>O AVAGYM não faz diagnóstico. Registramos sua dor para você e seu profissional acompanharem. Se a dor for forte, persistir ou piorar, pare os exercícios que doem e procure um médico ou fisioterapeuta.</p>
       </div>}
       <div className="g-bottom"><button className="g-btn g-xl" disabled={busy} onClick={save} data-testid="save-session">{busy ? 'Salvando…' : 'Concluir treino'}</button></div>
     </> : <>

@@ -42,7 +42,7 @@ async function seed(c) {
   // papéis e tenant padrão
   for (const [id, n] of [['admin', 'Administrador'], ['profissional', 'Profissional (personal/fisio)'], ['aluno', 'Aluno']])
     await c.query('insert into roles(id,name_pt) values($1,$2) on conflict (id) do update set name_pt=excluded.name_pt', [id, n])
-  const t = await c.query(`insert into tenants(slug,name) values('avadesk','AVADESK Academia') on conflict (slug) do update set name=tenants.name returning id`)
+  const t = await c.query(`insert into tenants(slug,name) values('avadesk','AVAGYM Academia') on conflict (slug) do update set name=tenants.name returning id`)
   // BUG-014: em banco novo a 018 roda antes deste insert e nenhuma organizacao fica padrao
   await c.query(`update tenants set is_default=true where slug='avadesk' and not exists (select 1 from tenants where is_default)`)
   const tenantId = t.rows[0].id

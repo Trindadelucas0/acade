@@ -56,7 +56,7 @@ function ResetPassword({ token }) {
   const go = async e => { e.preventDefault(); if (pw.length < 8) return setMsg('A senha deve ter pelo menos 8 caracteres'); if (pw !== pw2) return setMsg('As senhas não conferem')
     try { await api('/api/auth/reset', { method: 'POST', body: JSON.stringify({ token, password: pw }) }); setDone(true) } catch (er) { setMsg(er.message) } }
   return <div className="lg-wrap"><form className="lg-card" onSubmit={go}>
-    <div className="lg-brand">AVADESK <b>Fitness</b></div>
+    <div className="lg-brand">AVA<b>GYM</b></div>
     {done ? <><p className="lg-sub">Senha alterada! Entre com a nova senha.</p><button type="button" className="lg-btn" onClick={() => { location.hash = '#/hoje' }}>Ir para o login</button></> : <>
       <p className="lg-sub">Crie uma nova senha.</p>
       <label className="lg-field"><span>Nova senha</span><div className="lg-input"><input type="password" autoComplete="new-password" value={pw} onChange={e => setPw(e.target.value)} /></div></label>
@@ -76,7 +76,7 @@ function LoginForm() {
   const [health, setHealth] = useState(false)   // consentimento de saude opcional (BUG-027: 18+ vem da data de nascimento)
   const maxBirth = (() => { const d = new Date(); d.setFullYear(d.getFullYear() - 18); return d.toISOString().slice(0, 10) })()
   const { setUser, pullState, setGuest } = useStore()
-  const [mode, setMode] = useState('login')       // 'login' | 'register'
+  const [mode, setMode] = useState(() => /[?&]cadastro=1/.test(location.hash) ? 'register' : 'login')       // 'login' | 'register'
   const [intent, setIntent] = useState('aluno')   // V3: 'Quero treinar' | 'Sou profissional'
   const [f, setF] = useState({ name: '', email: '', password: '', confirm: '', pro_code: '', birth_date: '' })
   const [errs, setErrs] = useState({})
@@ -129,7 +129,7 @@ function LoginForm() {
   if (DEMO) return (
     <div className="lg-wrap"><Hero />
       <div className="lg-card">
-        <div className="lg-brand">AVADESK <b>Fitness</b></div>
+        <div className="lg-brand">AVA<b>GYM</b></div>
         <p className="lg-sub">Demonstração — tudo fica neste navegador.</p>
         <button className="lg-btn" onClick={() => setGuest(true)}>Iniciar demonstração</button>
         <a className="lg-link" href={REPO} target="_blank" rel="noopener">Código-fonte</a>
@@ -143,7 +143,7 @@ function LoginForm() {
     setBusy(true); setMsg('')
     try { const r = await api('/api/auth/forgot', {method:'POST',body:JSON.stringify({email:f.email.trim()})}); setMsg(r.message) }
     catch (e) { setMsg(e.message) } finally { setBusy(false) }
-  }}><div className="lg-brand">AVADESK <b>Fitness</b></div><h1>Recuperar acesso</h1><p className="lg-sub">Informe seu e-mail para receber o link de recuperação.</p>
+  }}><div className="lg-brand">AVA<b>GYM</b></div><h1>Recuperar acesso</h1><p className="lg-sub">Informe seu e-mail para receber o link de recuperação.</p>
     {field('email','E-mail','email','email',{inputMode:'email'})}
     {msg && <p className="lg-msg" role="status">{msg}</p>}
     <button className="lg-btn" disabled={busy}>{busy ? 'Enviando…' : 'Enviar link de recuperação'}</button>
@@ -153,7 +153,7 @@ function LoginForm() {
     <div className="lg-wrap">
       <Hero />
       <form className="lg-card" onSubmit={submit} noValidate>
-        <div className="lg-brand">AVADESK <b>Fitness</b></div>
+        <div className="lg-brand">AVA<b>GYM</b></div>
         <p className="lg-sub">{reg ? 'Crie sua conta e comece a treinar.' : 'Seu treino, seu corpo, sua evolução.'}</p>
         {reg && <div className="lg-intent" role="radiogroup" aria-label="Como você vai usar">
           {[['aluno', 'Quero treinar', 'Treinos, programas, progresso e desafios'], ['profissional', 'Sou profissional', 'Prescreva para alunos depois da verificação']].map(([k, t, d]) =>
@@ -185,6 +185,7 @@ function LoginForm() {
         <button className="lg-btn" type="submit" disabled={busy}>{busy ? 'Aguarde…' : reg ? 'Criar conta' : 'Entrar'}</button>
         <button type="button" className="lg-btn ghost" onClick={() => { setMode(reg ? 'login' : 'register'); setErrs({}); setMsg('') }}>
           {reg ? 'Já tenho conta — Entrar' : 'Criar conta'}</button>
+        <a className="lg-forgot" href="#/precos" data-testid="see-plans" style={{ display: 'block', textAlign: 'center', marginTop: 12 }}>Conhecer os planos e preços</a>
         <InstallButton />
       </form>
     </div>

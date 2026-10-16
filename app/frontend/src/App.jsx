@@ -60,6 +60,7 @@ import './styles/tours.css'
 import { TourHost } from './components/Tour.jsx'
 import ThemeToggle from './components/ThemeToggle.jsx'
 import Plans from './views/v3/Plans.jsx'
+import { PublicPlans, Subscription } from './views/billing/Billing.jsx'   // V5 cobranca
 import { NavigationAccess } from './components/NavigationAccess.jsx'
 import AcceptInvite from './views/v3/AcceptInvite.jsx'
 
@@ -94,6 +95,8 @@ function Shell() {
   )
 
   // documentos legais: páginas públicas (com ou sem login), fora dos gates
+  // V5 cobranca: pagina publica de planos (com ou sem login)
+  if (loc.pathname === '/precos') return <div id="app" className="vfade"><ErrorBoundary><PublicPlans /></ErrorBoundary></div>
   if (loc.pathname.startsWith('/legal')) return <div id="app" className="vfade"><ErrorBoundary><Routes><Route path="/legal" element={<LegalPage authed={authed} />} /><Route path="/legal/:doc" element={<LegalPage authed={authed} />} /></Routes></ErrorBoundary></div>
 
   return (
@@ -118,7 +121,7 @@ function Shell() {
               <Route path="/conversa/:id" element={<Gate title="Conversa"><Conversa /></Gate>} />
               <Route path="/avisos" element={<Avisos />} />
               <Route path="/perfil" element={<Profile />} /><Route path="/perfil/social" element={<SocialProfile />} /><Route path="/u/:id" element={<SocialPublic />} />
-              <Route path="/planos" element={<Plans />} />
+              <Route path="/planos" element={<Plans />} /><Route path="/assinatura" element={<Subscription />} />
               <Route path="/convite/:code" element={<AcceptInvite />} />
               <Route path="/settings" element={<Settings />} />{/* admin: Configuracoes (antes caia no "*" e ia para o painel) */}
 <Route path="*" element={<Navigate to="/admin/painel" replace />} />
@@ -138,7 +141,7 @@ function Shell() {
               <Route path="/conversa/:id" element={<Gate title="Conversa"><Conversa /></Gate>} />
               <Route path="/avisos" element={<Avisos />} />
               <Route path="/perfil" element={<Profile />} /><Route path="/perfil/social" element={<SocialProfile />} /><Route path="/u/:id" element={<SocialPublic />} />
-              <Route path="/planos" element={<Plans />} />
+              <Route path="/planos" element={<Plans />} /><Route path="/assinatura" element={<Subscription />} />
               <Route path="/convite/:code" element={<AcceptInvite />} />
               <Route path="/settings" element={<Settings />} />{/* personal: Configuracoes (antes caia no "*" e ia para /pro) */}
 <Route path="/admin/*" element={<Navigate to="/pro" replace />} />{/* QA AD-40/43: personal sem admin -> Inicio do PRO */}
@@ -173,7 +176,7 @@ function Shell() {
               <Route path="/progresso" element={<Gate title="Progresso"><Progress /></Gate>} />
               <Route path="/perfil" element={<Profile />} /><Route path="/perfil/social" element={<SocialProfile />} /><Route path="/u/:id" element={<SocialPublic />} />
               <Route path="/perfil/equipamentos" element={<ScopeGate title="Equipamentos"><MyEquipment /></ScopeGate>} />
-              <Route path="/planos" element={<Plans />} />
+              <Route path="/planos" element={<Plans />} /><Route path="/assinatura" element={<Subscription />} />
               <Route path="/convite/:code" element={<AcceptInvite />} />
               <Route path="/admin/programas" element={user ? <AdminPrograms /> : <Navigate to="/hoje" replace />} />
               {/* V4: sem montagem de treino nem treino livre. Rotas antigas levam às rotinas antigas (só consulta);

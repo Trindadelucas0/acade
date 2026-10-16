@@ -399,7 +399,7 @@ Object.assign(routes, lgpdRoutes({ json, readBody, legacyState: readState, legac
 Object.assign(routes, legalRoutes({ json, readBody }));  // dados da empresa + aceite dos documentos legais
 Object.assign(routes, rankingRoutes({ json, readBody }));
 Object.assign(routes, exerciseMediaRoutes({ json, readBody }));
-Object.assign(routes, portalRoutes({ json, readBody }));   // AVADESK PRO + central de solicitações + KPIs   // vídeos e fotos extras dos exercícios (admin)    // ranking semanal/mensal        // profissionais, vínculos, atendimento, admin   // treino guiado (onboarding, programas, sessões)
+Object.assign(routes, portalRoutes({ json, readBody }));   // AVAGYM PRO + central de solicitações + KPIs   // vídeos e fotos extras dos exercícios (admin)    // ranking semanal/mensal        // profissionais, vínculos, atendimento, admin   // treino guiado (onboarding, programas, sessões)
 Object.assign(routes, adminCrudRoutes({ json, readBody }));  // admin gestor: editar/excluir tudo
 Object.assign(routes, groupRoutes({ json, readBody }));  // V5: grupos
 Object.assign(routes, challengeRoutes({ json, readBody }));  // V5: desafios
@@ -483,7 +483,7 @@ setInterval(() => { const now = Date.now(); for (const [k, e] of rlHits) if (e.r
 // QA: reset do rate limit so para suites de teste. Existe apenas fora de producao, com DB_NAME *_test e TEST_RL_RESET=1; senao a rota nem e registrada (404).
 const TEST_RL_RESET = process.env.NODE_ENV !== 'production' && /_test$/.test(process.env.DB_NAME || '') && process.env.TEST_RL_RESET === '1';
 if (TEST_RL_RESET) routes['POST /api/test/rate-limit/reset'] = async (req, res) => { const n = rlHits.size; rlHits.clear(); json(res, 200, { ok: true, cleared: n }) };
-const PUBLIC_ROUTES = new Set(['GET /api/config', 'GET /api/health', 'HEAD /api/health', 'GET /api/media', 'GET /api/media/pub', 'GET /api/media/private', 'GET /api/push/public-key', 'GET /api/terms',
+const PUBLIC_ROUTES = new Set(['GET /api/public/plans', 'GET /api/config', 'GET /api/health', 'HEAD /api/health', 'GET /api/media', 'GET /api/media/pub', 'GET /api/media/private', 'GET /api/push/public-key', 'GET /api/terms',
   'GET /api/legal/company', 'POST /api/auth/forgot', 'POST /api/auth/login', 'POST /api/auth/logout', 'POST /api/auth/register', 'POST /api/auth/reset', 'POST /api/logout',
   'POST /api/billing/webhook/asaas', 'POST /api/billing/webhook/simulado']);
 const decodeURIComponentSafe = v => { try { return decodeURIComponent(v) } catch { return '\u0000' } };

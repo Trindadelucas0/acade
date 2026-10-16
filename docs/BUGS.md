@@ -35,3 +35,9 @@ A seção "Reteste QA" de cada bug é preenchida só pelo agente de testes.
 | [BUG-028](bugs/BUG-028.md) | 2026-10-16 | Termos públicos (/api/terms) diziam "versão provisória" e "AVADESK Fitness" | todos | corrigido, aguardando reteste |
 | [BUG-029](bugs/BUG-029.md) | 2026-10-16 | academ.avadesk.com.br fora do ar (TLS unexpected eof) | quem usa o endereço antigo | encerrado: domínio abandonado (decisão do Lucas) |
 | [BUG-030](bugs/BUG-030.md) | 2026-10-16 | /api/admin/programs devolve 404 | admin | esperado (documentado) |
+| [BUG-031](bugs/BUG-031.md) | 2026-10-16 | Nova tentativa após cartão recusado era tratada como sucesso no checkout | aluno/personal | corrigido, aguardando reteste |
+| [BUG-032](bugs/BUG-032.md) | 2026-10-16 | Restos da marca AVADESK em telas visíveis (login, admin, legais, onboarding) | todos | corrigido, aguardando reteste |
+| [BUG-033](bugs/BUG-033.md) | 2026-10-16 | Logout não invalidava o avagym_token | todos | corrigido, aguardando reteste |
+| [BUG-034](bugs/BUG-034.md) | 2026-10-16 | AVADESK restante no bundle e no nome da organização | todos | corrigido, aguardando reteste |
+| [BUG-035](bugs/BUG-035.md) | 2026-10-16 | Programas prontos do seed antigo em /api/programs | aluno | corrigido no código; arquivar em produção no deploy |
+| [BUG-036](bugs/BUG-036.md) | 2026-10-16 | /api/plan 400, paywall desligado, preços a definir | QA | esperado/aguardando preços (documentado) |

@@ -239,7 +239,7 @@ export function portalRoutes({ json, readBody }) {
         row = await q(`insert into pro_requests(tenant_id,professional_id,type,current_capacity,requested_amount,justification,note) values($1,$2,'vagas',$3,$4,$5,$6) on conflict do nothing returning id`,
           [u.tenant_id, u.id, (await capacitySummary(u.id)).effective_limit ?? 0, amount, just, txt(b.note, 500) || null])
         if (!row.rowCount) return json(res, 409, { error: 'Você já tem uma solicitação de vagas em andamento' })
-      } else if (b.type === 'vinculo') return json(res, 410, { code: 'FLOW_REMOVED', error: 'O pedido de vínculo pela administração foi substituído pelos convites: use AVADESK PRO › Convites (o aluno aceita).' })  // V3 F6: fluxo removido
+      } else if (b.type === 'vinculo') return json(res, 410, { code: 'FLOW_REMOVED', error: 'O pedido de vínculo pela administração foi substituído pelos convites: use AVAGYM PRO › Convites (o aluno aceita).' })  // V3 F6: fluxo removido
       else return json(res, 400, { error: 'Tipo de solicitação inválido' })
       const id = row.rows[0].id
       await q('insert into pro_request_history(request_id,actor_id,status,note) values($1,$2,$3,$4)', [id, u.id, 'pendente', 'Solicitação criada'])
@@ -294,7 +294,7 @@ export function portalRoutes({ json, readBody }) {
       const r = (await q(`select * from pro_requests where id=$1 and tenant_id=$2`, [+b.id, u.tenant_id])).rows[0]
       if (!r) return json(res, 404, { error: 'Solicitação não encontrada' })
       if (!OPEN.includes(r.status)) return json(res, 409, { error: 'Solicitação já finalizada' })
-      if (r.type === 'vinculo') return json(res, 410, { code: 'FLOW_REMOVED', error: 'O pedido de vínculo pela administração foi substituído pelos convites: use AVADESK PRO › Convites (o aluno aceita).' })
+      if (r.type === 'vinculo') return json(res, 410, { code: 'FLOW_REMOVED', error: 'O pedido de vínculo pela administração foi substituído pelos convites: use AVAGYM PRO › Convites (o aluno aceita).' })
       const hist = (st, note) => q('insert into pro_request_history(request_id,actor_id,status,note) values($1,$2,$3,$4)', [r.id, u.id, st, note])
       const tell = (t, body) => notify(r.professional_id, 'solicitacao', t, body, '/pro?tab=capacidade')
       if (b.action === 'analisar') { await q(`update pro_requests set status='em_analise',updated_at=now() where id=$1`, [r.id]); await hist('em_analise', null); await audit(u.tenant_id, u.id, 'solicitacao.em_analise', 'pro_request', r.id); return json(res, 200, { ok: true, status: 'em_analise' }) }

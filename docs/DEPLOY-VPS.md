@@ -49,3 +49,16 @@ E-mail: admin logado -> `POST /api/adm/email-test {"to":"..."}` devolve `provide
 
 ## Variáveis do .env (sem valores)
 `ORIGIN=https://ornygym.avadesk.com.br`, `EMAIL_PROVIDER=resend`, `RESEND_API_KEY`, `RESEND_FROM`, `DB_*`, `DATA_DIR=/opt/avagym-runtime/data`, `RP_NAME=AVAGYM`. Passkeys ficam presas ao domínio (ornygym).
+
+## Cobrança (planos e pagamento)
+
+A VPS roda a cobrança em modo teste (simulador): o `.env` não tem `BILLING_PROVIDER` nem `ASAAS_*`, então nenhum valor real é cobrado. Para ligar produção, só variáveis de ambiente (detalhes em `docs/sistema/18-planos-pagamento.md`):
+
+```
+BILLING_PROVIDER=asaas
+ASAAS_ENV=producao
+ASAAS_API_KEY=<chave $aact_prod_ do Asaas>
+ASAAS_WEBHOOK_TOKEN=<token igual ao do webhook no painel Asaas>
+```
+
+Depois: `pm2 restart avagym-api --update-env`, cadastrar no Asaas o webhook `https://ornygym.avadesk.com.br/api/billing/webhook/asaas` com o mesmo token, e conferir no admin (Cobrança, preços e cupons > Visão geral) que o provedor aparece como "Asaas (producao)". Para testar antes com o sandbox: `ASAAS_ENV` ausente e chave `$aact_hmlg_`.

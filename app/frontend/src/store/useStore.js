@@ -10,7 +10,7 @@ const KEY = 'gym_state_v1'
 const USER_CACHE_KEYS = ['id', 'roles', 'capacities', 'context', 'admin', 'pro', 'status', 'needs_terms', 'needs_legal', 'must_change_password', 'account_type', 'managed_by']
 export const DEF = {
   unit: 'kg', restSec: 90, sound: true, keepAwake: true, lang: 'pt',
-  theme: 'dark', accent: 'avadesk', body: 'male', targetW: null,
+  theme: 'dark', accent: 'avagym', body: 'male', targetW: null,
   bodyweight: [], routines: [], week: {}, dayPlan: {},
   exWeights: {}, workouts: [], active: null, customEx: [], gifSize: 'full',
   // effort: which per-set effort scale is logged — 'none' | 'rir' | 'rpe'. null, not 'none', so

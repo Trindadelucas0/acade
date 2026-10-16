@@ -20,6 +20,7 @@ import UserPanel, { accountTypePT, mensalidadePT } from './UserPanel.jsx'
 import AdminPrograms from '../guided/AdminPrograms.jsx'
 import AdminLogs from './AdminLogs.jsx'   // V5: logs e auditoria (request_audit + audit_log)
 import ManagementDashboard from './ManagementDashboard.jsx'
+import AdmBilling from '../billing/AdmBilling.jsx'   // V5 cobranca: planos, precos, cupons, parceiros, assinaturas
 import { AdmEmpresa } from '../app/Legal.jsx'
 
 // ---------- utilitários ----------
@@ -344,7 +345,7 @@ function Wrap({ children }) { return <div className="ag">{children}</div> }
 const NAV = [
  ['Visão geral', [['dashboard','Visão geral','chart']]],
  ['Pessoas', [['usuarios','Contas','person'],['profissionais','Profissionais e verificação','clipboard'],['vinculos','Vínculos e convites','users']]],
- ['Planos e capacidade', [['assinaturas','Assinaturas','sparkles'],['planos','Limites de acompanhamento','shield'],['solicitacoes','Solicitações de vagas','flag']]],
+ ['Planos e capacidade', [['cobranca','Cobrança, preços e cupons','sparkles'],['assinaturas','Assinaturas','sparkles'],['planos','Limites de acompanhamento','shield'],['solicitacoes','Solicitações de vagas','flag']]],
  ['Treinos', [['modelos','Modelos de treino','pencil'],['exercicios','Biblioteca e mídia','dumbbell']]],
  ['Comunidade', [['publicacoes','Publicações e moderação','chat'],['grupos','Grupos e desafios','users'],['ranking','Ranking','sparkles']]],
  ['Operação', [['filas','Atendimentos e prazos','bell']]],
@@ -369,17 +370,18 @@ export default function AdminApp() {
   const X = EXTRA[tab]
   return <div className="adm" data-testid="admin-panel">
     <aside className={'adm-side' + (open ? ' open' : '')} aria-label="Menu administrativo" id="admin-navigation">
-      <div className="adm-brand">AVADESK <b>Admin</b></div>
+      <div className="adm-brand">AVAGYM <b>Admin</b></div>
       {NAV.map(([g, items]) => <div key={g}><h6>{g}</h6>{items.map(([k, l, ic]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => go(k)} data-testid={'adm-' + k}><Icon name={ic} />{l}</button>)}</div>)}
       <h6>Conta</h6><button onClick={() => nav('/comunidade')} data-testid="adm-comunidade-app"><Icon name="chevronLeft" />Ver comunidade</button><button onClick={() => nav('/perfil')}><Icon name="chevronLeft" />Minha conta</button><button onClick={() => useStore.getState().signOut()} data-testid="adm-sair"><Icon name="chevronLeft" />Sair</button>
     </aside>
     <main className="adm-main">
       <div className="adm-mtop"><button className="adm-btn ghost" style={{ minWidth: 44, minHeight: 44, fontSize: 18 }} onClick={() => setOpen(!open)} aria-label="Menu" aria-expanded={open} aria-controls="admin-navigation" data-testid="adm-menu">☰</button><b>{TITLE[tab]}</b></div>
-      <h1 data-testid="adm-title">{TITLE[tab]}</h1><p className="adm-sub">AVADESK Fitness · central administrativa · <button className="g-link" style={{ minHeight: 32, padding: '4px 8px' }} data-testid="tour-restart" onClick={() => dispatchEvent(new Event('avagym:tour-restart'))}>Rever orientações</button></p>
+      <h1 data-testid="adm-title">{TITLE[tab]}</h1><p className="adm-sub">AVAGYM · central administrativa · <button className="g-link" style={{ minHeight: 32, padding: '4px 8px' }} data-testid="tour-restart" onClick={() => dispatchEvent(new Event('avagym:tour-restart'))}>Rever orientações</button></p>
       {tab === 'dashboard' && <ManagementDashboard go={go} />}
       {tab === 'usuarios' && <><SubTabs items={[['contas','Contas'],['pendencias','Pendências'],['liberacoes','Liberação das ações']]} current={sub} onChange={setSub}/>{sub==='liberacoes'?<AdmLiberacoes/>:<Usuarios key={sub} pendingOnly={sub==='pendencias'}/>}</>}
 
 
+      {tab === 'cobranca' && <AdmBilling />}
       {tab === 'assinaturas' && <AdmSubscriptions />}
       {tab === 'publicacoes' && <><SubTabs items={[['publicacoes','Publicações e comentários'],['moderacao','Moderação']]} current={sub} onChange={setSub}/>{sub==='moderacao'?<ExtraSection name="moderacao"/>:<Publicacoes DataTable={DataTable} Drawer={Drawer}/>}</>}
 

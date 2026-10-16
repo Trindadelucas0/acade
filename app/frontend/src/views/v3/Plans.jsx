@@ -10,6 +10,7 @@ export default function Plans() {
   const [cat, err2] = useLoad(() => V.plans())
   return <div className="ag" data-testid="plans">
     <span className="g-eyebrow">Conta</span><h1>Meu plano</h1>
+    <a className="g-btn" href="#/assinatura" data-testid="go-subscription" style={{ display: 'inline-flex', marginTop: 8 }}>Planos, assinatura e pagamento</a>
     {err ? <Err msg={err} retry={reload} /> : !mine ? <Load /> : !Object.keys(mine.subscriptions).length ? <Empty icon="info">Nenhum plano nesta conta.</Empty> :
       Object.entries(mine.subscriptions).map(([aud, s]) => <div key={aud} className="g-card" style={{ marginTop: 12 }} data-testid={'sub-' + aud}>
         <span className="g-eyebrow">{AUD_PT[aud]}</span>

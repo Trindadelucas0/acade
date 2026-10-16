@@ -1,4 +1,4 @@
-export default `# TERMOS DE USO — AVAGYM / AVADESK FITNESS
+export default `# TERMOS DE USO — AVAGYM
 
 **Versão:** [versão]  
 **Data de vigência:** [data de vigência]  

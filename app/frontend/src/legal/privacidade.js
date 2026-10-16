@@ -1,4 +1,4 @@
-export default `# POLÍTICA DE PRIVACIDADE — AVAGYM / AVADESK FITNESS
+export default `# POLÍTICA DE PRIVACIDADE — AVAGYM
 
 **Versão:** [versão]  
 **Vigência:** [data de vigência]  

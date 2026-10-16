@@ -323,7 +323,8 @@ export async function subscribe(user, b, ip) {
   await audit(user.tenant_id, user.id, 'cobranca.contratacao', 'subscription', sub.id, { plan: plan.id, status: r.status })
   if (r.status === 'paga') return { status: 200, result: 'ativa', charge_id: r.charge.id }
   if (r.status === 'pendente') return { status: 202, result: 'pendente', message: 'Pagamento em análise. Avisaremos assim que for confirmado.' }
-  if (r.duplicate) return { status: 200, result: r.charge.status }
+  // BUG-031: reenvio com a mesma chave devolve o resultado real (recusada nao vira sucesso)
+  if (r.duplicate) return r.charge.status === 'paga' ? { status: 200, result: 'ativa', charge_id: r.charge.id, duplicate: true } : r.charge.status === 'pendente' ? { status: 202, result: 'pendente', duplicate: true } : { status: 402, error: 'Pagamento recusado. Confira os dados do cartão ou use outro cartão.', code: 'CARD_DECLINED', duplicate: true }
   return { status: 402, error: 'Pagamento recusado. Confira os dados do cartão ou use outro cartão.', code: 'CARD_DECLINED' }
 }
 // troca entre planos pagos da mesma area: vale ja, o novo preco entra na proxima cobranca (sem pro-rata nesta versao)

@@ -6,6 +6,7 @@ import Icon from '../../components/Icon.jsx'
 import { api } from '../../lib/api.js'
 import { CARD_FORMATS } from '../../lib/socialRules.js'
 import { drawCard } from '../../lib/shareCard.js'
+import { useStore } from '../../store/useStore.js'
 import './guided.css'
 
 const KINDS = [['treino', 'Treino do dia'], ['semana', 'Minha semana'], ['musculos', 'Músculos']]
@@ -17,13 +18,16 @@ export default function ShareCard() {
   const [fmt, setFmt] = useState('9:16'), [showStats, setShowStats] = useState(true), [showWho, setShowWho] = useState(true)
   const [d, setD] = useState(null), [err, setErr] = useState(''), [msg, setMsg] = useState(''), [avatar, setAvatar] = useState(null), [busy, setBusy] = useState(false)
   const ref = useRef(null)
+  const body = useStore(s => s.S?.body) || 'male'
+  const [bodyPaths, setBodyPaths] = useState(null)   // silhueta 2D (mesma geometria do BodyMap), carregada sob demanda
+  useEffect(() => { if (kind === 'musculos' && !bodyPaths) import('../../lib/body-paths.js').then(m => setBodyPaths(m.default)).catch(() => {}) }, [kind])
   useEffect(() => { setD(null); setErr(''); setMsg(''); api('/api/me/share-card?kind=' + kind).then(setD).catch(e => setErr(e.message)) }, [kind])
   useEffect(() => { const url = d?.who?.avatar; if (!url) { setAvatar(null); return } const i = new Image(); i.onload = () => setAvatar(i); i.onerror = () => setAvatar(null); i.src = url }, [d?.who?.avatar])
   useEffect(() => {
     if (!d?.eligible || !ref.current) return
     const [w, h] = CARD_FORMATS[fmt], c = ref.current; c.width = w; c.height = h
-    drawCard(c.getContext('2d'), { kind, data: d.data, who: d.who, showStats, showWho, avatar, accent: accentColor() })
-  }, [d, fmt, showStats, showWho, avatar, kind])
+    drawCard(c.getContext('2d'), { kind, data: d.data, who: d.who, showStats, showWho, avatar, accent: '#c8f135', bodyPaths, body })   // cartao sempre escuro: verde-limao da marca em qualquer tema
+  }, [d, fmt, showStats, showWho, avatar, kind, bodyPaths, body])
   const fileName = 'tapago-' + kind + '-' + fmt.replace(':', 'x') + '.png'
   const toBlob = () => new Promise(r => ref.current.toBlob(r, 'image/png'))
   const save = async b0 => {
