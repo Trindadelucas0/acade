@@ -101,6 +101,7 @@ function Shell() {
             <Routes>
               <Route path="/admin/painel" element={<AdminApp />} />
               <Route path="/pro/treino" element={<Builder />} />
+              <Route path="/library" element={<Library />} />
               <Route path="/admin/programas" element={<Navigate to="/admin/painel?tab=programas" replace />} />
               <Route path="/comunidade" element={<Gate title="Comunidade"><Comunidade /></Gate>} />
               <Route path="/grupo/:id" element={<Gate title="Comunidade"><GroupPage /></Gate>} />
@@ -120,6 +121,7 @@ function Shell() {
               <Route path="/pro" element={<Gate title="AVADESK PRO"><ProPortal /></Gate>} />
               <Route path="/pro/programas" element={<Gate title="AVADESK PRO"><MyPrograms /></Gate>} />
               <Route path="/pro/treino" element={<Gate title="AVADESK PRO"><Builder /></Gate>} />
+              <Route path="/library" element={<Library />} />
               <Route path="/comunidade" element={<Gate title="Comunidade"><Comunidade /></Gate>} />
               <Route path="/grupo/:id" element={<Gate title="Comunidade"><GroupPage /></Gate>} />
               <Route path="/desafio/:id" element={<Gate title="Comunidade"><ChallengePage /></Gate>} />

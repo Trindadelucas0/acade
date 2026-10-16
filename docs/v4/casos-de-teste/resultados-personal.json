@@ -1,0 +1,251 @@
+[
+ {
+  "id": "PE-01",
+  "objetivo": "Cadastro como \"Sou profissional\"",
+  "ok": true,
+  "err": "",
+  "shot": "prints/personal/PE-01-cadastro-como-sou-profissional.png",
+  "url": "/#/pro"
+ },
+ {
+  "id": "PE-02",
+  "objetivo": "Painel do personal abre",
+  "ok": true,
+  "err": "",
+  "shot": "prints/personal/PE-02-painel-do-personal-abre.png",
+  "url": "/#/pro"
+ },
+ {
+  "id": "PE-03",
+  "objetivo": "Sem verificação: botão \"Convidar aluno\" desabilitado e aviso",
+  "ok": true,
+  "err": "",
+  "shot": "prints/personal/PE-03-sem-verificacao-botao-convidar-aluno-desabilitad.png",
+  "url": "/#/pro?tab=convites"
+ },
+ {
+  "id": "PE-04",
+  "objetivo": "Sem verificação: API recusa convite",
+  "ok": true,
+  "err": "",
+  "shot": "prints/personal/PE-04-sem-verificacao-api-recusa-convite.png",
+  "url": "/#/pro?tab=convites"
+ },
+ {
+  "id": "PE-05",
+  "objetivo": "Enviar verificação profissional (CREF + documento)",
+  "ok": true,
+  "err": "",
+  "shot": "prints/personal/PE-05-enviar-verificacao-profissional-cref-documento.png",
+  "url": "/#/pro?tab=verificacao"
+ },
+ {
+  "id": "PE-06",
+  "objetivo": "[apoio admin] Admin verifica o registro pela tela",
+  "ok": true,
+  "err": "",
+  "shot": "prints/personal/PE-06-apoio-admin-admin-verifica-o-registro-pela-tela.png",
+  "url": "/#/admin/painel?tab=profissionais&secao=verificacoes"
+ },
+ {
+  "id": "PE-07",
+  "objetivo": "Verificado mas não ativo: convite ainda recusado (regra ativo+verificado)",
+  "ok": true,
+  "err": "",
+  "shot": "prints/personal/PE-07-verificado-mas-nao-ativo-convite-ainda-recusado-.png",
+  "url": "/#/pro?tab=verificacao",
+  "nota": "só vale se o perfil ainda não estiver ativo"
+ },
+ {
+  "id": "PE-08",
+  "objetivo": "[apoio admin] Admin ativa o profissional (Situação = ativo)",
+  "ok": true,
+  "err": "",
+  "shot": "prints/personal/PE-08-apoio-admin-admin-ativa-o-profissional-situacao-.png",
+  "url": "/#/admin/painel?tab=profissionais"
+ },
+ {
+  "id": "PE-09",
+  "objetivo": "Criar convite com link aberto",
+  "ok": true,
+  "err": "",
+  "shot": "prints/personal/PE-09-criar-convite-com-link-aberto.png",
+  "url": "/#/pro?tab=convites"
+ },
+ {
+  "id": "PE-10",
+  "objetivo": "Convite direcionado: digitar o código do aluno mostra quem é",
+  "ok": true,
+  "err": "",
+  "shot": "prints/personal/PE-10-convite-direcionado-digitar-o-codigo-do-aluno-mo.png",
+  "url": "/#/pro?tab=convites"
+ },
+ {
+  "id": "PE-11",
+  "objetivo": "Popup: código de aluno colado como convite explica e leva a Convites",
+  "ok": true,
+  "err": "",
+  "shot": "prints/personal/PE-11-popup-codigo-de-aluno-colado-como-convite-explic.png",
+  "url": "/#/pro?tab=convites"
+ },
+ {
+  "id": "PE-12",
+  "objetivo": "Aluno que se cadastrou com meu código aparece na lista de alunos",
+  "ok": true,
+  "err": "",
+  "shot": "prints/personal/PE-12-aluno-que-se-cadastrou-com-meu-codigo-aparece-na.png",
+  "url": "/#/pro?tab=alunos"
+ },
+ {
+  "id": "PE-13",
+  "objetivo": "Cadastrar aluno novo: senha provisória aparece uma vez",
+  "ok": true,
+  "err": "",
+  "shot": "prints/personal/PE-13-cadastrar-aluno-novo-senha-provisoria-aparece-um.png",
+  "url": "/#/pro?tab=cadastrar"
+ },
+ {
+  "id": "PE-14",
+  "objetivo": "[apoio aluno] Primeiro login exige trocar a senha provisória",
+  "ok": true,
+  "err": "",
+  "shot": "prints/personal/PE-14-apoio-aluno-primeiro-login-exige-trocar-a-senha-.png",
+  "url": "/#/hoje"
+ },
+ {
+  "id": "PE-15",
+  "objetivo": "[apoio aluno] Troca da senha e aceite dos termos",
+  "ok": true,
+  "err": "",
+  "shot": "prints/personal/PE-15-apoio-aluno-troca-da-senha-e-aceite-dos-termos.png",
+  "url": "/#/hoje"
+ },
+ {
+  "id": "PE-16",
+  "objetivo": "Biblioteca de exercícios disponível para o personal",
+  "ok": true,
+  "err": "",
+  "shot": "prints/personal/PE-16-biblioteca-de-exercicios-disponivel-para-o-perso.png",
+  "url": "/#/library"
+ },
+ {
+  "id": "PE-17",
+  "objetivo": "Criar e publicar a ficha \"Força A\" para o aluno",
+  "ok": true,
+  "err": "",
+  "shot": "prints/personal/PE-17-criar-e-publicar-a-ficha-forca-a-para-o-aluno.png",
+  "url": "/#/pro?tab=treinos"
+ },
+ {
+  "id": "PE-18",
+  "objetivo": "[apoio aluno] Aluno vê a ficha como treino ativo",
+  "ok": true,
+  "err": "",
+  "shot": "prints/personal/PE-18-apoio-aluno-aluno-ve-a-ficha-como-treino-ativo.png",
+  "url": "/#/treinos"
+ },
+ {
+  "id": "PE-19",
+  "objetivo": "[apoio aluno] Aluno envia uma dúvida durante o treino",
+  "ok": true,
+  "err": "",
+  "shot": "prints/personal/PE-19-apoio-aluno-aluno-envia-uma-duvida-durante-o-tre.png",
+  "url": "/#/treinar?plan=9121d13e-918b-4654-893a-29488a8fc89f"
+ },
+ {
+  "id": "PE-20",
+  "objetivo": "Atendimentos: a dúvida aparece em Pendentes",
+  "ok": true,
+  "err": "",
+  "shot": "prints/personal/PE-20-atendimentos-a-duvida-aparece-em-pendentes.png",
+  "url": "/#/pro?tab=atendimentos"
+ },
+ {
+  "id": "PE-21",
+  "objetivo": "Responder a dúvida na conversa",
+  "ok": true,
+  "err": "",
+  "shot": "prints/personal/PE-21-responder-a-duvida-na-conversa.png",
+  "url": "/#/conversa/a23837b8-2a96-4fe8-8d56-61dd65f23028"
+ },
+ {
+  "id": "PE-22",
+  "objetivo": "Sem permissão de publicar ainda: botão \"Nova publicação\" não aparece",
+  "ok": true,
+  "err": "",
+  "shot": "prints/personal/PE-22-sem-permissao-de-publicar-ainda-botao-nova-publi.png",
+  "url": "/#/comunidade"
+ },
+ {
+  "id": "PE-23",
+  "objetivo": "[apoio admin] Admin libera \"pode publicar\" para o personal",
+  "ok": true,
+  "err": "",
+  "shot": "prints/personal/PE-23-apoio-admin-admin-libera-pode-publicar-para-o-pe.png",
+  "url": "/#/admin/painel?tab=profissionais"
+ },
+ {
+  "id": "PE-24",
+  "objetivo": "Publicar uma dica na comunidade",
+  "ok": true,
+  "err": "",
+  "shot": "prints/personal/PE-24-publicar-uma-dica-na-comunidade.png",
+  "url": "/#/comunidade"
+ },
+ {
+  "id": "PE-25",
+  "objetivo": "Lista de alunos com busca",
+  "ok": true,
+  "err": "",
+  "shot": "prints/personal/PE-25-lista-de-alunos-com-busca.png",
+  "url": "/#/pro?tab=alunos"
+ },
+ {
+  "id": "PE-26",
+  "objetivo": "Mais: perfil, verificação e plano",
+  "ok": true,
+  "err": "",
+  "shot": "prints/personal/PE-26-mais-perfil-verificacao-e-plano.png",
+  "url": "/#/pro?tab=mais"
+ },
+ {
+  "id": "PE-27",
+  "objetivo": "[apoio admin] Mensalidade do personal marcada como pendente",
+  "ok": true,
+  "err": "",
+  "shot": "prints/personal/PE-27-apoio-admin-mensalidade-do-personal-marcada-como.png",
+  "url": "/#/admin/painel?tab=profissionais"
+ },
+ {
+  "id": "PE-28",
+  "objetivo": "Mensalidade pendente: aluno vê aviso e só visualiza",
+  "ok": true,
+  "err": "",
+  "shot": "prints/personal/PE-28-mensalidade-pendente-aluno-ve-aviso-e-so-visuali.png",
+  "url": "/#/treinos"
+ },
+ {
+  "id": "PE-29",
+  "objetivo": "Mensalidade pendente: personal vê o aviso",
+  "ok": true,
+  "err": "",
+  "shot": "prints/personal/PE-29-mensalidade-pendente-personal-ve-o-aviso.png",
+  "url": "/#/pro"
+ },
+ {
+  "id": "PE-30",
+  "objetivo": "[apoio admin] Mensalidade volta para em dia",
+  "ok": true,
+  "err": "",
+  "shot": "prints/personal/PE-30-apoio-admin-mensalidade-volta-para-em-dia.png",
+  "url": "/#/admin/painel?tab=profissionais"
+ },
+ {
+  "id": "PE-31",
+  "objetivo": "Tour do personal aparece no painel",
+  "ok": true,
+  "err": "",
+  "shot": "prints/personal/PE-31-tour-do-personal-aparece-no-painel.png",
+  "url": "/#/pro"
+ }
+]

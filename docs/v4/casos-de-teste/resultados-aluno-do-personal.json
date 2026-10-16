@@ -1,0 +1,227 @@
+[
+ {
+  "id": "AP-01",
+  "objetivo": "[apoio personal] Personal cria convite direcionado ao código da Juliana",
+  "ok": true,
+  "err": "",
+  "shot": "prints/aluno-do-personal/AP-01-apoio-personal-personal-cria-convite-direcionado.png",
+  "url": "/#/pro?tab=convites"
+ },
+ {
+  "id": "AP-02",
+  "objetivo": "Perfil › Meus dados mostra o convite recebido",
+  "ok": true,
+  "err": "",
+  "shot": "prints/aluno-do-personal/AP-02-perfil-meus-dados-mostra-o-convite-recebido.png",
+  "url": "/#/perfil?secao=dados"
+ },
+ {
+  "id": "AP-03",
+  "objetivo": "Digitar por engano um código de ALUNO no campo de convite abre popup explicativo",
+  "ok": true,
+  "err": "",
+  "shot": "prints/aluno-do-personal/AP-03-digitar-por-engano-um-codigo-de-aluno-no-campo-d.png",
+  "url": "/#/convite/UDMMMCK8"
+ },
+ {
+  "id": "AP-04",
+  "objetivo": "Digitar o código do convite e abrir",
+  "ok": true,
+  "err": "",
+  "shot": "prints/aluno-do-personal/AP-04-digitar-o-codigo-do-convite-e-abrir.png",
+  "url": "/#/convite/VXKD53K3"
+ },
+ {
+  "id": "AP-05",
+  "objetivo": "Aceitar o convite",
+  "ok": true,
+  "err": "",
+  "shot": "prints/aluno-do-personal/AP-05-aceitar-o-convite.png",
+  "url": "/#/convite/VXKD53K3"
+ },
+ {
+  "id": "AP-06",
+  "objetivo": "Convite já usado não pode ser aceito de novo",
+  "ok": true,
+  "err": "",
+  "shot": "prints/aluno-do-personal/AP-06-convite-ja-usado-nao-pode-ser-aceito-de-novo.png",
+  "url": "/#/convite/VXKD53K3"
+ },
+ {
+  "id": "AP-07",
+  "objetivo": "Perfil: card \"Meus profissionais\" lista o personal",
+  "ok": true,
+  "err": "",
+  "shot": "prints/aluno-do-personal/AP-07-perfil-card-meus-profissionais-lista-o-personal.png",
+  "url": "/#/perfil"
+ },
+ {
+  "id": "AP-08",
+  "objetivo": "Abrir a página do profissional pelo card",
+  "ok": true,
+  "err": "",
+  "shot": "prints/aluno-do-personal/AP-08-abrir-a-pagina-do-profissional-pelo-card.png",
+  "url": "/#/profissional/dec8454a-d82a-46bb-a232-7d4f032df6ab"
+ },
+ {
+  "id": "AP-09",
+  "objetivo": "Treinos sem ficha: \"Você está vinculado a…\"",
+  "ok": true,
+  "err": "",
+  "shot": "prints/aluno-do-personal/AP-09-treinos-sem-ficha-voce-esta-vinculado-a.png",
+  "url": "/#/treinos"
+ },
+ {
+  "id": "AP-10",
+  "objetivo": "[apoio personal] Personal publica a ficha \"Corrida + Força\"",
+  "ok": true,
+  "err": "",
+  "shot": "prints/aluno-do-personal/AP-10-apoio-personal-personal-publica-a-ficha-corrida-.png",
+  "url": "/#/pro?tab=alunos"
+ },
+ {
+  "id": "AP-11",
+  "objetivo": "A ficha do personal vira o único treino ativo",
+  "ok": true,
+  "err": "",
+  "shot": "prints/aluno-do-personal/AP-11-a-ficha-do-personal-vira-o-unico-treino-ativo.png",
+  "url": "/#/treinos"
+ },
+ {
+  "id": "AP-12",
+  "objetivo": "Programa do sistema não substitui a ficha do personal (um treino ativo)",
+  "ok": true,
+  "err": "",
+  "shot": "prints/aluno-do-personal/AP-12-programa-do-sistema-nao-substitui-a-ficha-do-per.png",
+  "url": "/#/treinos"
+ },
+ {
+  "id": "AP-13",
+  "objetivo": "Iniciar a ficha pelo botão do treino ativo",
+  "ok": true,
+  "err": "",
+  "shot": "prints/aluno-do-personal/AP-13-iniciar-a-ficha-pelo-botao-do-treino-ativo.png",
+  "url": "/#/treinar?plan=2a44348c-e57e-42fa-867c-5a153c9add02"
+ },
+ {
+  "id": "AP-14",
+  "objetivo": "Durante o treino: enviar dúvida ao personal",
+  "ok": true,
+  "err": "",
+  "shot": "prints/aluno-do-personal/AP-14-durante-o-treino-enviar-duvida-ao-personal.png",
+  "url": "/#/treinar?plan=2a44348c-e57e-42fa-867c-5a153c9add02"
+ },
+ {
+  "id": "AP-15",
+  "objetivo": "Treinar a ficha até o fim e salvar",
+  "ok": true,
+  "err": "",
+  "shot": "prints/aluno-do-personal/AP-15-treinar-a-ficha-ate-o-fim-e-salvar.png",
+  "url": "/#/concluido"
+ },
+ {
+  "id": "AP-16",
+  "objetivo": "Acompanhamento mostra a dúvida enviada",
+  "ok": true,
+  "err": "",
+  "shot": "prints/aluno-do-personal/AP-16-acompanhamento-mostra-a-duvida-enviada.png",
+  "url": "/#/acompanhamento"
+ },
+ {
+  "id": "AP-17",
+  "objetivo": "Progresso (layout clássico, com Troféus)",
+  "ok": true,
+  "err": "",
+  "shot": "prints/aluno-do-personal/AP-17-progresso-layout-classico-com-trofeus.png",
+  "url": "/#/progresso"
+ },
+ {
+  "id": "AP-18",
+  "objetivo": "Bloqueado: Biblioteca de exercícios (/library → Treinos)",
+  "ok": true,
+  "err": "",
+  "shot": "prints/aluno-do-personal/AP-18-bloqueado-biblioteca-de-exercicios-library-trein.png",
+  "url": "/#/treinos"
+ },
+ {
+  "id": "AP-19",
+  "objetivo": "Bloqueado: aluno não publica no feed",
+  "ok": true,
+  "err": "",
+  "shot": "prints/aluno-do-personal/AP-19-bloqueado-aluno-nao-publica-no-feed.png",
+  "url": "/#/comunidade"
+ },
+ {
+  "id": "AP-20",
+  "objetivo": "Aluna convidada (conta própria) pode desvincular a ficha do personal se quiser",
+  "ok": true,
+  "err": "",
+  "shot": "prints/aluno-do-personal/AP-20-aluna-convidada-conta-propria-pode-desvincular-a.png",
+  "url": "/#/treinos"
+ },
+ {
+  "id": "AP-21",
+  "objetivo": "Bloqueado: API do personal recusa o aluno (403)",
+  "ok": true,
+  "err": "",
+  "shot": "prints/aluno-do-personal/AP-21-bloqueado-api-do-personal-recusa-o-aluno-403.png",
+  "url": "/#/treinos"
+ },
+ {
+  "id": "AP-22",
+  "objetivo": "Bloqueado: painel admin redireciona para Início",
+  "ok": true,
+  "err": "",
+  "shot": "prints/aluno-do-personal/AP-22-bloqueado-painel-admin-redireciona-para-inicio.png",
+  "url": "/#/onboarding"
+ },
+ {
+  "id": "AP-23",
+  "objetivo": "Conta do plano do personal: Programas travado com explicação",
+  "ok": true,
+  "err": "",
+  "shot": "prints/aluno-do-personal/AP-23-conta-do-plano-do-personal-programas-travado-com.png",
+  "url": "/#/programas"
+ },
+ {
+  "id": "AP-24",
+  "objetivo": "Conta do plano do personal: não pode desvincular a ficha",
+  "ok": true,
+  "err": "",
+  "shot": "prints/aluno-do-personal/AP-24-conta-do-plano-do-personal-nao-pode-desvincular-.png",
+  "url": "/#/treinos"
+ },
+ {
+  "id": "AP-25",
+  "objetivo": "Conta do plano do personal: Músculos travado",
+  "ok": true,
+  "err": "",
+  "shot": "prints/aluno-do-personal/AP-25-conta-do-plano-do-personal-musculos-travado.png",
+  "url": "/#/muscles"
+ },
+ {
+  "id": "AP-26",
+  "objetivo": "Conta do plano do personal: botão \"Ver minhas fichas\" leva a Treinos",
+  "ok": true,
+  "err": "",
+  "shot": "prints/aluno-do-personal/AP-26-conta-do-plano-do-personal-botao-ver-minhas-fich.png",
+  "url": "/#/treinos"
+ },
+ {
+  "id": "AP-27",
+  "objetivo": "Mesmo com ficha do personal, Início pede o questionário inicial (onboarding)",
+  "ok": true,
+  "err": "",
+  "shot": "prints/aluno-do-personal/AP-27-mesmo-com-ficha-do-personal-inicio-pede-o-questi.png",
+  "url": "/#/onboarding",
+  "nota": "observação de UX"
+ },
+ {
+  "id": "AP-28",
+  "objetivo": "Tour de boas-vindas após tocar \"Agora não — quero conhecer o app primeiro\"",
+  "ok": true,
+  "err": "",
+  "shot": "prints/aluno-do-personal/AP-28-tour-de-boas-vindas-apos-tocar-agora-nao-quero-c.png",
+  "url": "/#/hoje"
+ }
+]

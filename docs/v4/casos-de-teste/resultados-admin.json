@@ -1,0 +1,354 @@
+[
+ {
+  "id": "AD-01",
+  "objetivo": "Abrir área: Visão geral (dashboard)",
+  "ok": true,
+  "err": "",
+  "shot": "prints/admin/AD-01-abrir-area-visao-geral-dashboard.png",
+  "url": "/#/admin/painel?tab=dashboard"
+ },
+ {
+  "id": "AD-02",
+  "objetivo": "Abrir área: Contas (usuários)",
+  "ok": true,
+  "err": "",
+  "shot": "prints/admin/AD-02-abrir-area-contas-usuarios.png",
+  "url": "/#/admin/painel?tab=usuarios"
+ },
+ {
+  "id": "AD-03",
+  "objetivo": "Abrir área: Pendências",
+  "ok": true,
+  "err": "",
+  "shot": "prints/admin/AD-03-abrir-area-pendencias.png",
+  "url": "/#/admin/painel?tab=usuarios&secao=pendencias"
+ },
+ {
+  "id": "AD-04",
+  "objetivo": "Abrir área: Liberação de contas",
+  "ok": true,
+  "err": "",
+  "shot": "prints/admin/AD-04-abrir-area-liberacao-de-contas.png",
+  "url": "/#/admin/painel?tab=usuarios&secao=liberacoes"
+ },
+ {
+  "id": "AD-05",
+  "objetivo": "Abrir área: Profissionais",
+  "ok": true,
+  "err": "",
+  "shot": "prints/admin/AD-05-abrir-area-profissionais.png",
+  "url": "/#/admin/painel?tab=profissionais"
+ },
+ {
+  "id": "AD-06",
+  "objetivo": "Abrir área: Verificação profissional",
+  "ok": true,
+  "err": "",
+  "shot": "prints/admin/AD-06-abrir-area-verificacao-profissional.png",
+  "url": "/#/admin/painel?tab=profissionais&secao=verificacoes"
+ },
+ {
+  "id": "AD-07",
+  "objetivo": "Abrir área: Vínculos",
+  "ok": true,
+  "err": "",
+  "shot": "prints/admin/AD-07-abrir-area-vinculos.png",
+  "url": "/#/admin/painel?tab=vinculos"
+ },
+ {
+  "id": "AD-08",
+  "objetivo": "Abrir área: Convites",
+  "ok": true,
+  "err": "",
+  "shot": "prints/admin/AD-08-abrir-area-convites.png",
+  "url": "/#/admin/painel?tab=vinculos&secao=convites"
+ },
+ {
+  "id": "AD-09",
+  "objetivo": "Abrir área: Assinaturas dos personais",
+  "ok": true,
+  "err": "",
+  "shot": "prints/admin/AD-09-abrir-area-assinaturas-dos-personais.png",
+  "url": "/#/admin/painel?tab=assinaturas"
+ },
+ {
+  "id": "AD-10",
+  "objetivo": "Abrir área: Limites de acompanhamento",
+  "ok": true,
+  "err": "",
+  "shot": "prints/admin/AD-10-abrir-area-limites-de-acompanhamento.png",
+  "url": "/#/admin/painel?tab=planos"
+ },
+ {
+  "id": "AD-11",
+  "objetivo": "Abrir área: Solicitações de vagas",
+  "ok": true,
+  "err": "",
+  "shot": "prints/admin/AD-11-abrir-area-solicitacoes-de-vagas.png",
+  "url": "/#/admin/painel?tab=solicitacoes"
+ },
+ {
+  "id": "AD-12",
+  "objetivo": "Abrir área: Programas guiados",
+  "ok": true,
+  "err": "",
+  "shot": "prints/admin/AD-12-abrir-area-programas-guiados.png",
+  "url": "/#/admin/painel?tab=programas"
+ },
+ {
+  "id": "AD-13",
+  "objetivo": "Abrir área: Modelos de treino",
+  "ok": true,
+  "err": "",
+  "shot": "prints/admin/AD-13-abrir-area-modelos-de-treino.png",
+  "url": "/#/admin/painel?tab=modelos"
+ },
+ {
+  "id": "AD-14",
+  "objetivo": "Abrir área: Biblioteca e mídia",
+  "ok": true,
+  "err": "",
+  "shot": "prints/admin/AD-14-abrir-area-biblioteca-e-midia.png",
+  "url": "/#/admin/painel?tab=exercicios"
+ },
+ {
+  "id": "AD-15",
+  "objetivo": "Abrir área: Publicações",
+  "ok": true,
+  "err": "",
+  "shot": "prints/admin/AD-15-abrir-area-publicacoes.png",
+  "url": "/#/admin/painel?tab=publicacoes"
+ },
+ {
+  "id": "AD-16",
+  "objetivo": "Abrir área: Moderação",
+  "ok": true,
+  "err": "",
+  "shot": "prints/admin/AD-16-abrir-area-moderacao.png",
+  "url": "/#/admin/painel?tab=publicacoes&secao=moderacao"
+ },
+ {
+  "id": "AD-17",
+  "objetivo": "Abrir área: Grupos",
+  "ok": true,
+  "err": "",
+  "shot": "prints/admin/AD-17-abrir-area-grupos.png",
+  "url": "/#/admin/painel?tab=grupos"
+ },
+ {
+  "id": "AD-18",
+  "objetivo": "Abrir área: Desafios",
+  "ok": true,
+  "err": "",
+  "shot": "prints/admin/AD-18-abrir-area-desafios.png",
+  "url": "/#/admin/painel?tab=grupos&secao=desafios"
+ },
+ {
+  "id": "AD-19",
+  "objetivo": "Abrir área: Ranking",
+  "ok": true,
+  "err": "",
+  "shot": "prints/admin/AD-19-abrir-area-ranking.png",
+  "url": "/#/admin/painel?tab=ranking"
+ },
+ {
+  "id": "AD-20",
+  "objetivo": "Abrir área: Atendimentos e prazos",
+  "ok": true,
+  "err": "",
+  "shot": "prints/admin/AD-20-abrir-area-atendimentos-e-prazos.png",
+  "url": "/#/admin/painel?tab=filas"
+ },
+ {
+  "id": "AD-21",
+  "objetivo": "Abrir área: LGPD",
+  "ok": true,
+  "err": "",
+  "shot": "prints/admin/AD-21-abrir-area-lgpd.png",
+  "url": "/#/admin/painel?tab=lgpd"
+ },
+ {
+  "id": "AD-22",
+  "objetivo": "Abrir área: Termos",
+  "ok": true,
+  "err": "",
+  "shot": "prints/admin/AD-22-abrir-area-termos.png",
+  "url": "/#/admin/painel?tab=lgpd&secao=termos"
+ },
+ {
+  "id": "AD-23",
+  "objetivo": "Abrir área: Auditoria",
+  "ok": true,
+  "err": "",
+  "shot": "prints/admin/AD-23-abrir-area-auditoria.png",
+  "url": "/#/admin/painel?tab=auditoria"
+ },
+ {
+  "id": "AD-24",
+  "objetivo": "Abrir área: Configurações",
+  "ok": true,
+  "err": "",
+  "shot": "prints/admin/AD-24-abrir-area-configuracoes.png",
+  "url": "/#/admin/painel?tab=config"
+ },
+ {
+  "id": "AD-25",
+  "objetivo": "Dashboard mostra indicadores",
+  "ok": true,
+  "err": "",
+  "shot": "prints/admin/AD-25-dashboard-mostra-indicadores.png",
+  "url": "/#/admin/painel?tab=dashboard"
+ },
+ {
+  "id": "AD-26",
+  "objetivo": "Contas: abrir o painel de um usuário",
+  "ok": true,
+  "err": "",
+  "shot": "prints/admin/AD-26-contas-abrir-o-painel-de-um-usuario.png",
+  "url": "/#/admin/painel?tab=usuarios"
+ },
+ {
+  "id": "AD-27",
+  "objetivo": "Liberação: aprovar o pedido do Pedro",
+  "ok": true,
+  "err": "",
+  "shot": "prints/admin/AD-27-liberacao-aprovar-o-pedido-do-pedro.png",
+  "url": "/#/admin/painel?tab=usuarios&secao=liberacoes"
+ },
+ {
+  "id": "AD-28",
+  "objetivo": "Verificação: aprovar o registro da Nova Pro",
+  "ok": true,
+  "err": "",
+  "shot": "prints/admin/AD-28-verificacao-aprovar-o-registro-da-nova-pro.png",
+  "url": "/#/admin/painel?tab=profissionais&secao=verificacoes"
+ },
+ {
+  "id": "AD-29",
+  "objetivo": "Profissionais: ativar a Nova Pro (Situação = ativo, com motivo)",
+  "ok": true,
+  "err": "",
+  "shot": "prints/admin/AD-29-profissionais-ativar-a-nova-pro-situacao-ativo-c.png",
+  "url": "/#/admin/painel?tab=profissionais"
+ },
+ {
+  "id": "AD-30",
+  "objetivo": "Assinaturas: abrir a assinatura de um personal",
+  "ok": true,
+  "err": "",
+  "shot": "prints/admin/AD-30-assinaturas-abrir-a-assinatura-de-um-personal.png",
+  "url": "/#/admin/painel?tab=assinaturas"
+ },
+ {
+  "id": "AD-31",
+  "objetivo": "LGPD: pedidos de exportação/exclusão listados",
+  "ok": true,
+  "err": "",
+  "shot": "prints/admin/AD-31-lgpd-pedidos-de-exportacao-exclusao-listados.png",
+  "url": "/#/admin/painel?tab=lgpd"
+ },
+ {
+  "id": "AD-32",
+  "objetivo": "Vínculos: lista de aluno ↔ personal",
+  "ok": true,
+  "err": "",
+  "shot": "prints/admin/AD-32-vinculos-lista-de-aluno-personal.png",
+  "url": "/#/admin/painel?tab=vinculos"
+ },
+ {
+  "id": "AD-33",
+  "objetivo": "Auditoria registra a ativação feita agora",
+  "ok": true,
+  "err": "",
+  "shot": "prints/admin/AD-33-auditoria-registra-a-ativacao-feita-agora.png",
+  "url": "/#/admin/painel?tab=auditoria"
+ },
+ {
+  "id": "AD-34",
+  "objetivo": "Tour do admin abre por Ajuda",
+  "ok": true,
+  "err": "",
+  "shot": "prints/admin/AD-34-tour-do-admin-abre-por-ajuda.png",
+  "url": "/#/admin/painel"
+ },
+ {
+  "id": "AD-35",
+  "objetivo": "Biblioteca de exercícios abre para o admin (/library)",
+  "ok": true,
+  "err": "",
+  "shot": "prints/admin/AD-35-biblioteca-de-exercicios-abre-para-o-admin-libra.png",
+  "url": "/#/library"
+ },
+ {
+  "id": "AD-36",
+  "objetivo": "Celular (390px): painel admin abre com menu",
+  "ok": true,
+  "err": "",
+  "shot": "prints/admin/AD-36-celular-390px-painel-admin-abre-com-menu.png",
+  "url": "/#/admin/painel?tab=dashboard"
+ },
+ {
+  "id": "AD-37",
+  "objetivo": "Negativo: ativar profissional inexistente → 404",
+  "ok": true,
+  "err": "",
+  "shot": "prints/admin/AD-37-negativo-ativar-profissional-inexistente-404.png",
+  "url": "/#/admin/painel?tab=dashboard"
+ },
+ {
+  "id": "AD-38",
+  "objetivo": "Permissão: sem login, API admin → 401",
+  "ok": true,
+  "err": "",
+  "shot": "prints/admin/AD-38-permissao-sem-login-api-admin-401.png",
+  "url": "/#/admin/painel?tab=dashboard"
+ },
+ {
+  "id": "AD-39",
+  "objetivo": "Permissão: aluno na API admin → 403",
+  "ok": true,
+  "err": "",
+  "shot": "prints/admin/AD-39-permissao-aluno-na-api-admin-403.png",
+  "url": "about:blank"
+ },
+ {
+  "id": "AD-40",
+  "objetivo": "Permissão: aluno abrindo /admin/painel é redirecionado",
+  "ok": true,
+  "err": "",
+  "shot": "prints/admin/AD-40-permissao-aluno-abrindo-admin-painel-e-redirecio.png",
+  "url": "/#/onboarding"
+ },
+ {
+  "id": "AD-41",
+  "objetivo": "Permissão: aluno não aprova liberação (403)",
+  "ok": true,
+  "err": "",
+  "shot": "prints/admin/AD-41-permissao-aluno-nao-aprova-liberacao-403.png",
+  "url": "/#/onboarding"
+ },
+ {
+  "id": "AD-42",
+  "objetivo": "Permissão: personal na API admin → 403",
+  "ok": true,
+  "err": "",
+  "shot": "prints/admin/AD-42-permissao-personal-na-api-admin-403.png",
+  "url": "about:blank"
+ },
+ {
+  "id": "AD-43",
+  "objetivo": "Permissão: personal abrindo /admin/painel vai para /pro",
+  "ok": true,
+  "err": "",
+  "shot": "prints/admin/AD-43-permissao-personal-abrindo-admin-painel-vai-para.png",
+  "url": "/#/pro"
+ },
+ {
+  "id": "AD-44",
+  "objetivo": "Permissão: personal não se autoverifica",
+  "ok": true,
+  "err": "",
+  "shot": "prints/admin/AD-44-permissao-personal-nao-se-autoverifica.png",
+  "url": "/#/pro"
+ }
+]
