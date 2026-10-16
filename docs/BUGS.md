@@ -33,5 +33,5 @@ A seção "Reteste QA" de cada bug é preenchida só pelo agente de testes.
 | [BUG-026](bugs/BUG-026.md) | 2026-10-16 | Sem envio de teste de e-mail no admin | admin | corrigido, aguardando reteste |
 | [BUG-027](bugs/BUG-027.md) | 2026-10-16 | Cadastro em produção exigia 18+ sem campo na tela; troca por data de nascimento | visitante (cadastro) | corrigido, aguardando reteste |
 | [BUG-028](bugs/BUG-028.md) | 2026-10-16 | Termos públicos (/api/terms) diziam "versão provisória" e "AVADESK Fitness" | todos | corrigido, aguardando reteste |
-| [BUG-029](bugs/BUG-029.md) | 2026-10-16 | academ.avadesk.com.br fora do ar (TLS unexpected eof) | quem usa o endereço antigo | corrigido, aguardando reteste |
+| [BUG-029](bugs/BUG-029.md) | 2026-10-16 | academ.avadesk.com.br fora do ar (TLS unexpected eof) | quem usa o endereço antigo | encerrado: domínio abandonado (decisão do Lucas) |
 | [BUG-030](bugs/BUG-030.md) | 2026-10-16 | /api/admin/programs devolve 404 | admin | esperado (documentado) |

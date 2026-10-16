@@ -8,7 +8,6 @@ const PORT = +(process.env.PORT || 4449), API = +(process.env.API_PORT || 3449)
 const DIST = path.resolve(process.env.DIST_DIR || '/opt/avagym/app/frontend/dist')
 const MEDIA = path.resolve(process.env.MEDIA_DIR || '/opt/avagym-runtime/media')
 const FORCE_HTTPS = process.env.FORCE_HTTPS !== '0'
-const CANONICAL = String(process.env.CANONICAL_HOST || '').toLowerCase(), ALIASES = String(process.env.ALIAS_HOSTS || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean)
 export const CSP = [
   "default-src 'self'", "script-src 'self' 'wasm-unsafe-eval'", "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:", "media-src 'self' blob: https:", "font-src 'self' data:",
@@ -40,9 +39,6 @@ export function handler(req, res) {
   if (FORCE_HTTPS && String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim() === 'http' && host && !/^(localhost|127\.)/.test(host)) {
     res.writeHead(301, { Location: 'https://' + host + req.url }); return res.end()
   }
-  // BUG-029: dominios antigos (ALIAS_HOSTS, ex.: academ.avadesk.com.br) redirecionam para o canonico (301 GET/HEAD, 308 demais)
-  const hn = host.replace(/:\d+$/, '').toLowerCase()
-  if (CANONICAL && hn !== CANONICAL && ALIASES.includes(hn)) { res.writeHead(['GET', 'HEAD'].includes(req.method) ? 301 : 308, { Location: 'https://' + CANONICAL + req.url }); return res.end() }
   let u; try { u = decodeURIComponent(new URL(req.url, 'http://x').pathname) } catch { res.writeHead(400); return res.end() }
   if (u.startsWith('/api/') || u === '/api') {
     const ip = req.socket.remoteAddress

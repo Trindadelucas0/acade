@@ -1,6 +1,6 @@
 # Deploy na VPS (setup real, 2026-10-16)
 
-Produção: **https://ornygym.avadesk.com.br** (antigo: https://academ.avadesk.com.br, aceito em CSRF durante a transição).
+Produção: **https://ornygym.avadesk.com.br** (único domínio; academ.avadesk.com.br foi abandonado em 16/10/2026).
 
 ## Visão geral
 | Peça | Onde |
@@ -42,13 +42,10 @@ curl -s $U/sw.js | grep -c AVADESK          # 0
 ```
 E-mail: admin logado -> `POST /api/adm/email-test {"to":"..."}` devolve `provider_id` (id do Resend).
 
-## Gateway: domínio antigo
-PM2 `avagym-web` com `CANONICAL_HOST=ornygym.avadesk.com.br` e `ALIAS_HOSTS=academ.avadesk.com.br`: o endereço antigo recebe 301/308 para o novo (precisa do hostname academ no túnel).
-
 ## Passos que dependem do painel Cloudflare (Lucas)
 1. **Always Use HTTPS:** Cloudflare > avadesk.com.br > SSL/TLS > Edge Certificates > Always Use HTTPS = On. (O gateway já redireciona; isto só adianta na borda.)
-2. **Hostnames do túnel:** Zero Trust > Networks > Tunnels > (túnel da VPS) > Public Hostname: `ornygym.avadesk.com.br` (já existe) e **adicionar** `academ.avadesk.com.br`, ambos -> `http://localhost:4460`.
+2. **Hostname do túnel:** Zero Trust > Networks > Tunnels > (túnel da VPS) > Public Hostname: `ornygym.avadesk.com.br` -> `http://localhost:4460` (já existe).
 3. **DNS do Resend** para `ornygym.avadesk.com.br`: registros SPF/DKIM/MX informados pelo Resend (Domains), proxy desligado (nuvem cinza).
 
 ## Variáveis do .env (sem valores)
-`ORIGIN=https://ornygym.avadesk.com.br`, `CSRF_ALLOWED_ORIGINS=https://academ.avadesk.com.br`, `EMAIL_PROVIDER=resend`, `RESEND_API_KEY`, `RESEND_FROM`, `DB_*`, `DATA_DIR=/opt/avagym-runtime/data`, `RP_NAME=AVAGYM`. Passkeys ficam presas ao domínio: as cadastradas em academ não valem em ornygym (usuário entra com senha e cadastra de novo).
+`ORIGIN=https://ornygym.avadesk.com.br`, `EMAIL_PROVIDER=resend`, `RESEND_API_KEY`, `RESEND_FROM`, `DB_*`, `DATA_DIR=/opt/avagym-runtime/data`, `RP_NAME=AVAGYM`. Passkeys ficam presas ao domínio (ornygym).
