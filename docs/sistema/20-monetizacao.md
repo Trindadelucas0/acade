@@ -42,3 +42,11 @@ Decisões do Lucas D1–D9 (16/10/2026). Tudo fica **desligado** até a virada: 
 - F8: telas.
 - F9: fila de fraude.
 - F10: virada e transição D1, só com o OK do Lucas.
+
+## Atualização F7–F10 (16/10/2026)
+
+- **D1 decidida pelo Lucas (16/10):** a transição de 7 dias de quem está no Grátis **CONTA como o teste único**. A política `transicao_conta_como_teste` agora vale `true` por padrão. A transição cria `trial_grants(source='transicao')` + `trial_identities` (migração 055), e um cupom de teste depois é recusado (`TRIAL_ALREADY_USED`). Com a política em `false`, a transição vira cortesia (`entitlement_grants` key `acesso`) e não consome o teste.
+- **F7:** Administração › Monetização (`/api/adm/monetizacao/*`, só admin), com 9 submenus. A receita confirmada (pagamentos reais) aparece separada do simulador, e o MRR aparece como estimativa. A troca de indicador é feita só pelo admin, com motivo e auditoria.
+- **F8:** cartão "Teste PRO ativo" com o tempo restante, uma faixa global e um 402 `ACCESS_REQUIRED` que leva à assinatura. Também há o campo de cupom na tela de assinatura.
+- **F9:** sinais de 3+ testes do mesmo IP/dispositivo em 24h (`FRAUD_TRIALS_PER_IP`) e uma fila de revisão (descartar/confirmar com nota, auditado). Os sinais só geram alerta.
+- **F10:** `app/api/scripts/virada-monetizacao.mjs` (dry-run por padrão). Ver `22-virada-monetizacao.md`. **Não executado.**
