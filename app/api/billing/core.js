@@ -33,7 +33,7 @@ export async function policy(tid, c) {
     // Monetizacao F6: teste SO por cupom (PROMPT MASTER); o "teste do plano" no checkout fica desligado por padrao
     teste_so_cupom: s.teste_so_cupom !== false,
     // D1 (pendente de decisao do Lucas): a transicao conta ou nao como o teste da pessoa; padrao = NAO conta (separada)
-    transicao_conta_como_teste: s.transicao_conta_como_teste === true,
+    transicao_conta_como_teste: s.transicao_conta_como_teste !== false,   // D1 (Lucas, 16/10): a transicao CONTA como o teste unico
     transicao_dias: num(s.transicao_dias, 1, 30) ?? 7,
     configured: { carencia: s.cobranca_carencia_dias != null, retentativas: s.cobranca_retentativas_dias != null, experimental: s.experimental_dias != null }
   }

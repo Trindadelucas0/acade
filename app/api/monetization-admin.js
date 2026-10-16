@@ -2,7 +2,30 @@
 // /api/adm/* para nao-admin; as rotas conferem de novo). Receita CONFIRMADA = cobrancas pagas fora do simulador;
 // valores do simulador aparecem separados e rotulados. MRR e estimativa (nao e dinheiro recebido).
 import { q } from './db/pool.js'
+import crypto from 'node:crypto'
 import { audit } from './auth.js'
+import { fraudSignal } from './billing/coupons.js'
+
+// F9 (D6): dispositivo/IP so geram ALERTA. Cada teste ativado registra o hash do IP e do visitante; 3+ testes do mesmo
+// IP (ou mesmo visitante) em 24h abrem uma suspeita para revisao do admin. Nada e bloqueado automaticamente.
+const SALT = () => process.env.IDENTITY_SALT || process.env.JWT_SECRET || 'avagym'
+const hm = v => crypto.createHmac('sha256', SALT()).update(String(v)).digest('hex').slice(0, 40)
+export const IP_LIMIT = () => Math.max(2, +process.env.FRAUD_TRIALS_PER_IP || 3)
+export async function trialIpSignal(user, req) {
+  const ip = String(req.headers['cf-connecting-ip'] || req.headers['x-real-ip'] || req.socket?.remoteAddress || '')
+  const vid = String(req.headers['x-visitor-id'] || '').slice(0, 64)
+  const ipH = ip ? hm('ip:' + ip) : null, vH = vid ? hm('v:' + vid) : null
+  await audit(user.tenant_id, user.id, 'monetizacao.teste_origem', 'user', user.id, { ip_hash: ipH, visitor_hash: vH })
+  for (const [k, h, kind] of [['ip_hash', ipH, 'muitos_testes_mesmo_ip'], ['visitor_hash', vH, 'muitos_testes_mesmo_dispositivo']]) {
+    if (!h) continue
+    const n = (await q(`select count(distinct actor_id)::int n from audit_log where tenant_id=$1 and action='monetizacao.teste_origem' and data->>$2=$3 and created_at>now()-interval '24 hours'`, [user.tenant_id, k, h])).rows[0].n
+    if (n >= IP_LIMIT()) {
+      const dup = (await q(`select 1 from fraud_signals where tenant_id=$1 and kind=$2 and status='aberto' and data->>'hash'=$3 and created_at>now()-interval '24 hours'`, [user.tenant_id, kind, h])).rowCount
+      if (!dup) await fraudSignal(user.tenant_id, user.id, kind, Math.min(90, 20 + 10 * n), { hash: h, contas_24h: n })
+      else await q(`update fraud_signals set data=jsonb_set(data,'{contas_24h}',to_jsonb($4::int)) where tenant_id=$1 and kind=$2 and status='aberto' and data->>'hash'=$3`, [user.tenant_id, kind, h, n])
+    }
+  }
+}
 
 const isUuid = s => /^[0-9a-f-]{36}$/i.test(String(s || ''))
 const txt = (s, n = 300) => String(s ?? '').trim().slice(0, n)
@@ -107,6 +130,26 @@ export function monetizationAdminRoutes({ json, readBody, requireRole }) {
         from referral_conversions rc join referral_attributions a on a.id=rc.attribution_id join users iu on iu.id=a.user_id join users ru on ru.id=a.referrer_user_id
         where rc.tenant_id=$1 order by rc.created_at desc limit 500`, [u.tenant_id])
       json(res, 200, { conversoes: r.rows })
+    },
+    'GET /api/adm/monetizacao/fraude': async (req, res) => {
+      const u = await admin(req, res, json); if (!u) return
+      const st = new URL(req.url, 'http://x').searchParams.get('status')
+      const r = await q(`select f.id, f.kind, f.score, f.data, f.status, f.created_at, f.review_note, f.reviewed_at, us.name user_name, us.id user_id, rv.name reviewed_by_name
+        from fraud_signals f left join users us on us.id=f.user_id left join users rv on rv.id=f.reviewed_by
+        where f.tenant_id=$1 and ($2::text is null or f.status=$2) order by (f.status='aberto') desc, f.score desc, f.created_at desc limit 300`, [u.tenant_id, ['aberto', 'descartado', 'confirmado'].includes(st) ? st : null])
+      json(res, 200, { sinais: r.rows })
+    },
+    // revisao humana: descartar ou confirmar, com nota obrigatoria e auditoria. Confirmar NAO bloqueia a conta sozinho;
+    // o admin decide a acao (ex.: revogar o teste na aba Cupons) e ela fica registrada.
+    'POST /api/adm/monetizacao/fraude/revisar': async (req, res) => {
+      const u = await admin(req, res, json); if (!u) return
+      const b = await readBody(req)
+      if (!['descartado', 'confirmado'].includes(b.decision)) return json(res, 400, { error: 'Decisão inválida.' })
+      if (txt(b.note).length < 3) return json(res, 400, { error: 'Escreva uma nota explicando a decisão.' })
+      const r = await q(`update fraud_signals set status=$3, reviewed_by=$4, reviewed_at=now(), review_note=$5 where id=$1 and tenant_id=$2 and status='aberto' returning kind, user_id`, [+b.id, u.tenant_id, b.decision, u.id, txt(b.note)])
+      if (!r.rowCount) return json(res, 404, { error: 'Suspeita não encontrada ou já revisada.' })
+      await audit(u.tenant_id, u.id, 'fraude.' + b.decision, 'fraud_signal', String(b.id), { kind: r.rows[0].kind, user_id: r.rows[0].user_id, note: txt(b.note) })
+      json(res, 200, { ok: true })
     },
     'GET /api/adm/monetizacao/auditoria': async (req, res) => {
       const u = await admin(req, res, json); if (!u) return

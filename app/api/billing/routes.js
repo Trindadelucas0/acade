@@ -10,6 +10,7 @@ import * as core from './core.js'
 import * as cp from './coupons.js'
 import { pageNum } from '../sqlsafe.js'
 import { clearMonetizationCache } from '../access.js'
+import { trialIpSignal } from '../monetization-admin.js'   // Monetizacao F9
 
 const qs = req => new URL(req.url, 'http://x').searchParams
 const isUuid = s => /^[0-9a-f-]{36}$/i.test(String(s || ''))
@@ -123,7 +124,9 @@ export function billingRoutes({ json, readBody }) {
       const b = await readBody(req)
       const audience = b.audience === 'profissional' ? 'profissional' : b.audience === 'aluno' ? 'aluno' : (u.active_context === 'profissional' || !u.roles.includes('aluno') ? 'profissional' : 'aluno')
       if (!u.roles.includes(audience)) return json(res, 403, { error: audience === 'profissional' ? 'O teste do PRO é para contas de profissional.' : 'O teste do Individual é para contas de aluno.', code: 'PERMISSION_DENIED' })
-      send(json, res, await cp.redeemTrial(u, b.code, { audience }))
+      const r = await cp.redeemTrial(u, b.code, { audience })
+      if (!r.status || r.status < 300) trialIpSignal(u, req).catch(() => {})   // F9: so alerta, nunca bloqueia (D6)
+      send(json, res, r)
     },
     'POST /api/billing/cards': async (req, res) => {
       const u = await requireAuth(req, res, json); if (!u) return
