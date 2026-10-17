@@ -2,6 +2,7 @@
 import { useStore } from '../../store/useStore.js'
 import Icon from '../../components/Icon.jsx'
 import '../guided/guided.css'
+import { usePremium, PremiumPage } from '../billing/Premium.jsx'
 export const isPending = u => !!u && u.status && u.status !== 'ativo'
 export function PendingCard() {
   const status = useStore(s => s.user?.status)
@@ -10,8 +11,12 @@ export function PendingCard() {
     <p className="g-mut g-sm" style={{ marginTop: 8 }}>{status === 'bloqueado' ? 'O acesso desta conta foi suspenso pela administração. Se acha que é um engano, fale com o suporte.' : 'Esta conta ainda não está ativa. Se acha que é um engano, fale com o suporte.'}</p>
   </div>
 }
-export default function Gate({ children, title }) {
+// Gate: conta pendente/suspensa -> aviso; sem plano com monetizacao ligada -> pagina com cadeado (lote 7).
+// free: a propria tela trata o cadeado por secao (ex.: Progresso). aud='profissional': rotas do personal.
+export default function Gate({ children, title, free, aud }) {
   const user = useStore(s => s.user)
-  if (!isPending(user)) return children
-  return <div className="ag"><span className="g-eyebrow">{title}</span><h1>{title}</h1><div style={{ marginTop: 14 }}><PendingCard /></div></div>
+  const { locked } = usePremium(aud)
+  if (isPending(user)) return <div className="ag"><span className="g-eyebrow">{title}</span><h1>{title}</h1><div style={{ marginTop: 14 }}><PendingCard /></div></div>
+  if (locked && !free) return <PremiumPage title={title === 'AVAGYM' ? 'Área do personal' : title} />
+  return children
 }

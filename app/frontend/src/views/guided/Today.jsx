@@ -13,6 +13,8 @@ import { AT } from '../../lib/active.js'
 import { C } from '../../lib/care.js'
 import { Li } from '../app/Treinos.jsx'
 import { ResumeBar } from '../v3/StartHub.jsx'
+import { usePremium, PremiumLock } from '../billing/Premium.jsx'
+import { HomeWidgets, useHome, plural } from './HomeWidgets.jsx'
 import './guided.css'
 
 const DN = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D']
@@ -28,7 +30,8 @@ export function WeekStrip({ sessions }) {
 
 export default function Today() {
   const nav = useNavigate()
-  const user = useStore(s => s.user)
+  const user = useStore(s => s.user), { locked } = usePremium()
+  const home = useHome()
   const [st, setSt] = useState(null), [today, setToday] = useState(null), [err, setErr] = useState(''), [pend, setPend] = useState(pendingCount())
   const local = loadSession()
   const [at, setAt] = useState(null), [care, setCare] = useState(null)
@@ -41,7 +44,7 @@ export default function Today() {
       setSt(s)
       if (s.active) G.today().then(setToday).catch(() => {})
     }).catch(e => setErr(e.status === 401 ? 'Entre com sua conta para usar os programas guiados.' : 'Sem conexão. Você ainda pode continuar um treino salvo no aparelho.'))
-  }, [nav])
+  }, [nav, locked])
   // V4.4 U2: sessão aberta > ficha > vínculo sem ficha > programa > sem treino. O questionário só aparece no último caso
   // e nunca com dados incompletos (falha de carregamento não é "sem treino").
   useEffect(() => {
@@ -50,6 +53,19 @@ export default function Today() {
     if (window.history.state?.usr?.noOnboarding) return   // QA AD-40/43: veio de rota sem permissao -> fica no Inicio
     if (shouldOfferOnboarding(pr, { profile: st.profile, skipped: st.onboarding_skipped })) nav('/onboarding', { replace: true })
   }, [st, at, atFail, coaches])
+  const first0 = (user?.name || '').split(' ')[0]
+  const head = <div className="g-row">
+      <div style={{ minWidth: 0 }}><span className="g-mut g-sm hw-date">{new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
+        <h1 style={{ marginTop: 2 }}>Olá{first0 ? ', ' + first0 : ''}!</h1></div>
+      <span className="g-sp" />
+      <Bell />
+    </div>
+  // lote 7: sem plano (monetizacao ligada) -> Inicio com cadeado; o acesso e negado no servidor (402)
+  if (locked && !isPending(user)) return <div className="ag" data-testid="today">{head}
+    <PremiumLock title="Escolha um plano para treinar" feature="inicio" desc="Com o plano Individual ou PRO você libera treinos guiados, programas, progresso, estatísticas e comunidade. Seus dados continuam guardados." preview={<div className="hw-grid">{['Minha semana', 'Sequência', 'Volume', 'Recordes'].map(t => <div key={t} className="hw-w"><b>—</b><span>{t}</span></div>)}</div>} />
+    <PremiumLock compact title="Músculos para o próximo treino" feature="proximo-treino" />
+    <div className="g-card g-list org-list" style={{ marginTop: 12 }}><Li icon="chat" t="Acompanhamento" s="Profissionais, conversas e ocorrências" to="/acompanhamento" testid="home-care" /></div>
+  </div>
   if (isPending(user)) return <div className="ag" data-testid="today"><span className="g-eyebrow">Início</span><h1>Olá{user.name ? ', ' + user.name.split(' ')[0] : ''}!</h1><div style={{ marginTop: 14 }}><PendingCard /></div></div>
   if (err) return <div className="ag"><h1>Hoje</h1><p className="g-mut">{err}</p>
     {local && <button className="g-btn g-xl" style={{ marginTop: 20 }} onClick={() => nav('/treinar')}>CONTINUAR TREINO</button>}</div>
@@ -60,15 +76,21 @@ export default function Today() {
   const estMin = w ? Math.round(w.exercises.reduce((a, e) => a + (e.sets || 3) * (((e.duration_sec || 40)) + (e.rest_sec || 60)), 0) / 60) : 0
   // Primeiro a tarefa do dia; semana e acompanhamento são apoio.
   return <div className="ag" data-testid="today">
-    <div className="g-row">
-      <div style={{ minWidth: 0 }}><span className="g-mut g-sm">{new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
-        <h1 style={{ marginTop: 2 }}>Olá{first ? ', ' + first : ''}!</h1></div>
-      <span className="g-sp" />
-      {st.streak_weeks > 0 && <span className="g-ring" title="Semanas seguidas treinando"><Icon name="flame" /> {st.streak_weeks} sem.</span>}
-      <Bell />
-    </div>
+    {head}
 
     {pend > 0 && <p className="g-note" style={{ margin: '8px 0' }} data-testid="pending-sync">{rejectedCount() > 0 ? `${rejectedCount()} registro(s) recusado(s) pelo servidor ficam guardados no aparelho (nada é apagado). ` : ''}{pend - rejectedCount() > 0 ? `${pend - rejectedCount()} registro(s) aguardando conexão para sincronizar.` : ''}</p>}
+
+    {/* lote 7: 'Minha semana' fixa no topo, em destaque */}
+    <section className="av-hero hw-week" style={{ marginTop: 12 }} data-testid="week-ring" aria-labelledby="wk-ttl">
+      <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+        <div className="av-ring"><svg width="112" height="112" viewBox="0 0 132 132" aria-hidden="true"><circle cx="66" cy="66" r="56" stroke="var(--ag-card-2)" strokeWidth="12" fill="none" />
+          <circle cx="66" cy="66" r="56" stroke="var(--ag-acc)" strokeWidth="12" fill="none" strokeLinecap="round" strokeDasharray={`${2 * Math.PI * 56 * Math.min(1, st.week.done / Math.max(1, st.week.target))} 999`} /></svg>
+          <b>{st.week.done}/{st.week.target}<small>treinos</small></b></div>
+        <div style={{ minWidth: 0 }}><h2 id="wk-ttl" style={{ margin: 0 }}>Minha semana</h2><p className="g-mut g-sm" style={{ margin: '4px 0 0' }}>{st.week.done >= st.week.target ? 'Meta da semana cumprida!' : (n => `${n === 1 ? 'Falta' : 'Faltam'} ${plural(n, 'treino', 'treinos')} para a meta.`)(Math.max(0, st.week.target - st.week.done))}</p>
+          {st.streak_weeks > 0 && <span className="g-ring hw-streak" title="Semanas seguidas treinando"><Icon name="flame" /> {plural(st.streak_weeks, 'semana seguida', 'semanas seguidas')}</span>}</div>
+      </div>
+      <WeekStrip sessions={st.week.sessions} />
+    </section>
 
     {!st.active ? <><ResumeBar /><StartHere profile={!!st.profile} at={at} care={care} coaches={coaches} /></> : <>
       <div className="g-hero" style={{ marginTop: 14 }} data-testid="today-card">
@@ -87,20 +109,12 @@ export default function Today() {
       {w && <div className="g-card" style={{ marginTop: 12 }}>
         <div className="g-row"><b>O que vem hoje</b><span className="g-sp" /><button className="g-link" onClick={() => nav('/meu-programa')}>Ver programa</button></div>
         {w.exercises.slice(0, 4).map(e => <div key={e.id} className="g-row g-sm" style={{ padding: '6px 0' }}><span className="g-acc" aria-hidden="true">•</span>{e.name}<span className="g-sp" /><span className="g-dim">{e.sets}x</span></div>)}
-        {w.exercises.length > 4 && <p className="g-dim g-xs">+ {w.exercises.length - 4} exercícios</p>}
+        {w.exercises.length > 4 && <p className="g-mut g-xs">+ {plural(w.exercises.length - 4, 'exercício', 'exercícios')}</p>}
       </div>}
     </>}
+    <HomeWidgets h={home} />
 
-    <section className="av-hero" style={{ marginTop: 12 }} data-testid="week-ring" aria-labelledby="wk-ttl">
-      <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-        <div className="av-ring"><svg width="112" height="112" viewBox="0 0 132 132" aria-hidden="true"><circle cx="66" cy="66" r="56" stroke="var(--ag-card-2)" strokeWidth="12" fill="none" />
-          <circle cx="66" cy="66" r="56" stroke="var(--ag-acc)" strokeWidth="12" fill="none" strokeLinecap="round" strokeDasharray={`${2 * Math.PI * 56 * Math.min(1, st.week.done / Math.max(1, st.week.target))} 999`} /></svg>
-          <b>{st.week.done}/{st.week.target}<small>treinos</small></b></div>
-        <div style={{ minWidth: 0 }}><h2 id="wk-ttl" style={{ margin: 0 }}>Minha semana</h2><p className="g-mut g-xs" style={{ margin: '4px 0 0' }}>{st.week.done >= st.week.target ? 'Meta da semana cumprida!' : `Faltam ${Math.max(0, st.week.target - st.week.done)} treino(s) para a meta.`}</p></div>
-      </div>
-      <WeekStrip sessions={st.week.sessions} />
-    </section>
-    <div className="g-card g-list org-list"><Li icon="chat" t="Acompanhamento" s="Profissionais, conversas e ocorrências" to="/acompanhamento" testid="home-care" badge={care?.occurrences?.filter(o => o.status !== 'encerrada').length ? care.occurrences.filter(o => o.status !== 'encerrada').length + ' em aberto' : undefined} /></div>
+    <div className="g-card g-list org-list" style={{ marginTop: 12 }}><Li icon="chat" t="Acompanhamento" s="Profissionais, conversas e ocorrências" to="/acompanhamento" testid="home-care" badge={care?.occurrences?.filter(o => o.status !== 'encerrada').length ? care.occurrences.filter(o => o.status !== 'encerrada').length + ' em aberto' : undefined} /></div>
   </div>
 }
 

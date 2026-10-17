@@ -8,13 +8,35 @@ import { Spin } from './Programs.jsx'
 import MuscleStatus from './MuscleStatus.jsx'
 import { MyTrophies } from '../app/Trofeus.jsx'
 import { useNavigationAccess } from '../../components/NavigationAccess.jsx'
+import { usePremium, PremiumLock } from '../billing/Premium.jsx'
+import BodyMap from '../../components/BodyMap.jsx'
+import { useStore } from '../../store/useStore.js'
 import './guided.css'
+
+// lote 7: sem plano (monetizacao ligada) -> o Progresso mostra o que existe, com cadeado em cada trecho premium
+const DEMO = { chest: 9, deltoids: 6, triceps: 4, quadriceps: 10, gluteal: 7, abs: 4, 'upper-back': 5, biceps: 3 }
+export function ProgressLocked() {
+  const body = useStore(s => s.S?.body) || 'male'
+  return <div className="ag" data-testid="progress-locked">
+    <span className="g-eyebrow">Progresso</span>
+    <h1>Seu progresso</h1>
+    <p className="g-mut" style={{ marginTop: 6 }}>Assine ou ative o teste de 7 dias para acompanhar sua evolução.</p>
+    <h2>Músculos trabalhados</h2>
+    <PremiumLock title="Músculos trabalhados" feature="musculos" desc="Veja no mapa do corpo, frente e costas, quais músculos você treinou e quanto." preview={<BodyMap load={DEMO} body={body} />} />
+    <h2>Estatísticas</h2>
+    <PremiumLock compact title="Estatísticas detalhadas: volume, 1RM e consistência" feature="estatisticas" />
+    <PremiumLock compact title="Corpo 3D" feature="corpo-3d" />
+    <PremiumLock compact title="Recordes, histórico e troféus" feature="recordes" />
+  </div>
+}
+
 
 const monday = d => { const x = new Date(d); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x }
 export default function Progress() {
-  const nav = useNavigate(), can = useNavigationAccess()
+  const nav = useNavigate(), can = useNavigationAccess(), { locked } = usePremium()
   const [d, setD] = useState(null)
-  useEffect(() => { G.progress().then(setD).catch(() => setD(false)) }, [])
+  useEffect(() => { if (!locked) G.progress().then(setD).catch(() => setD(false)) }, [locked])
+  if (locked) return <ProgressLocked />
   if (d === false) return <div className="ag"><h1>Progresso</h1><p className="g-mut">Sem conexão.</p></div>
   if (!d) return <Spin />
   const now = monday(new Date()), map = Object.fromEntries(d.weeks.map(w => [String(w.wk).slice(0, 10), w.n]))
@@ -32,7 +54,8 @@ export default function Progress() {
     <MuscleStatus /></>}
     <div className="g-card g-list" style={{ marginTop: 12 }}>
       {can('musculos') && <button className="g-li" onClick={() => nav('/muscles')} data-testid="open-3d"><span className="g-ico"><Icon name="person" /></span><span><b>Corpo 3D</b><br /><span className="g-mut g-xs">Veja no modelo anatômico o que você treinou</span></span></button>}
-      <button className="g-li" onClick={() => nav('/stats')}><span className="g-ico"><Icon name="chart" /></span><span><b>Estatísticas detalhadas</b><br /><span className="g-mut g-xs">1RM, volume e gráficos (registros antigos)</span></span></button>
+      <button className="g-li" onClick={() => nav('/estatisticas')} data-testid="open-estatisticas"><span className="g-ico"><Icon name="chart" /></span><span><b>Estatísticas detalhadas</b><br /><span className="g-mut g-xs">Volume, frequência, 1RM estimado, recordes e consistência</span></span></button>
+      <button className="g-li" onClick={() => nav('/stats')}><span className="g-ico"><Icon name="clipboard" /></span><span><b>Registros antigos</b><br /><span className="g-mut g-xs">Gráficos dos treinos feitos antes da versão nova</span></span></button>
       <button className="g-li" onClick={() => nav('/history')}><span className="g-ico"><Icon name="history" /></span><span><b>Histórico antigo (somente consulta)</b></span></button>
     </div>
     <h2>Treinos por semana</h2>

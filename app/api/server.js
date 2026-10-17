@@ -27,6 +27,7 @@ import { prizeRoutes } from './prizes.js';
 import { identityRoutes } from './identity.js';
 import { entitlementRoutes, entitlementGate } from './entitlements.js';
 import { monetizationGate, accessRoutes } from './access.js';
+import { statsRoutes } from './stats.js';
 import { referralRoutes } from './referral.js';
 import { monetizationAdminRoutes } from './monetization-admin.js';
 import { inviteRoutes } from './invites.js';
@@ -124,7 +125,7 @@ function scheduleRestTimer(userId, sec) {
   if (t) clearTimeout(t);
   restTimers.set(userId, setTimeout(() => {
     restTimers.delete(userId);
-    sendPush(userId, { title: 'Rest over 💪', body: 'Time for your next set.', tag: 'rest-timer' });
+    sendPush(userId, { title: 'Descanso concluído 💪', body: 'Hora da próxima série.', tag: 'rest-timer' });
   }, sec * 1000));
 }
 function cancelRestTimer(userId) {
@@ -169,8 +170,8 @@ setInterval(async () => {
     user.lastReminder = now.date;
     saveDb();
     sendPush(user.id, {
-      title: routine ? `${routine.emoji || '🏋️'} ${routine.name} today` : 'Workout planned today',
-      body: "It's on your plan — let's go 💪",
+      title: routine ? `${routine.emoji || '🏋️'} ${routine.name} hoje` : 'Treino planejado para hoje',
+      body: 'Está no seu plano. Bora treinar! 💪',
       tag: 'day-reminder'
     });
   }
@@ -238,12 +239,12 @@ function readBody(req) {
     let size = 0; const chunks = [];
     req.on('data', d => {
       size += d.length;
-      if (size > MAX_BODY) { reject(new Error('body too large')); req.destroy(); return; }
+      if (size > MAX_BODY) { reject(Object.assign(new Error('Conteúdo grande demais'), { status: 413 })); req.destroy(); return; }
       chunks.push(d);
     });
     req.on('end', () => {
       try { resolve(chunks.length ? JSON.parse(Buffer.concat(chunks).toString('utf8')) : {}); }
-      catch { reject(new Error('bad json')); }
+      catch { reject(Object.assign(new Error('Requisição inválida: JSON malformado'), { status: 400 })); }
     });
     req.on('error', reject);
   });
@@ -321,7 +322,7 @@ const routes = {
   'POST /api/push/test': async (req, res) => {
     const user = readSession(req);
     if (!user) return json(res, 401, { error: 'not signed in' });
-    await sendPush(user.id, { title: 'openGym', body: 'Test notification ✅ — this is what alerts look like.', tag: 'test' });
+    await sendPush(user.id, { title: 'AVAGYM', body: 'Notificação de teste ✅: é assim que os avisos aparecem.', tag: 'test' });
     json(res, 200, { ok: true });
   },
 
@@ -413,7 +414,8 @@ Object.assign(routes, challengeFeedRoutes({ json, readBody }));  // V5-C: feed d
 Object.assign(routes, prizeRoutes({ json, readBody }));  // V5-E: troféus e premiações
 Object.assign(routes, identityRoutes({ json, readBody }));  // V3 F2: identidade global, contexto, verificação profissional
 Object.assign(routes, entitlementRoutes({ json, readBody, requireAuth, requireRole }));
-Object.assign(routes, accessRoutes({ json, requireAuth }));
+Object.assign(routes, accessRoutes({ json, requireAuth, readBody }));
+Object.assign(routes, statsRoutes({ json }));   // lote 7: estatisticas e widgets do Inicio
 Object.assign(routes, referralRoutes({ json, requireAuth }));
 Object.assign(routes, monetizationAdminRoutes({ json, readBody, requireRole }));  // Monetizacao F7: Admin > Monetizacao  // Monetizacao F5: /convite/CODIGO e painel de indicacoes  // Monetizacao F3: GET /api/access/me  // V3 F3: motor de planos
 Object.assign(routes, inviteRoutes({ json, readBody }));  // V3 F4: convites do profissional (Profissional Free)
@@ -511,7 +513,7 @@ http.createServer(async (req, res) => {
   if (req.rl) { res.setHeader('RateLimit-Limit', String(req.rl.limit)); res.setHeader('RateLimit-Remaining', String(req.rl.remaining)); res.setHeader('RateLimit-Reset', String(req.rl.reset)); }
   if (retry) return json(res, 429, { error: 'Muitas tentativas. Aguarde alguns minutos e tente de novo.' }, { 'Retry-After': String(retry) });
   const handler = routes[key];
-  if (!handler) return json(res, 404, { error: 'not found' });
+  if (!handler) return json(res, 404, { error: 'Endereço não encontrado', code: 'NOT_FOUND' });
   // V5 middleware central: validacao basica da URL, autenticacao e autorizacao antes de qualquer rota (defesa em profundidade;
   // as rotas continuam conferindo papel/escopo). Auditoria de cada acao em request_audit (audit-log.js).
   if (url.pathname.length > 512 || url.search.length > 4096 || /[\u0000-\u001f\u007f]/.test(decodeURIComponentSafe(url.pathname + url.search))) return json(res, 400, { error: 'Requisição inválida', code: 'INVALID_INPUT' });
@@ -532,7 +534,8 @@ http.createServer(async (req, res) => {
     if (e && (e.code === 'LIMIT_REACHED' || e.code === 'SUBSCRIPTION_INACTIVE') && !res.headersSent) return json(res, e.code === 'LIMIT_REACHED' ? 409 : 402, { error: e.message, code: e.code, metric: e.metric, used: e.used, limit: e.limit, plan: e.plan });
     // log sem corpo da requisição nem "detail" do Postgres (pode conter e-mail/valores)
     console.error(key, e && e.code ? '[' + e.code + ']' : '', e && e.message, e && e.stack ? '\n' + String(e.stack).split('\n').slice(1, 6).join('\n') : '');
-    if (!res.headersSent) json(res, 500, { error: 'server error' });
+    if (e && (e.status === 400 || e.status === 413) && !res.headersSent) return json(res, e.status, { error: e.message, code: e.status === 413 ? 'PAYLOAD_TOO_LARGE' : 'INVALID_INPUT' });
+    if (!res.headersSent) json(res, 500, { error: 'Erro interno. Tente de novo em instantes.', code: 'SERVER_ERROR' });
   }
 // HOST: em produção use 127.0.0.1 (só o gateway/túnel acessa). Padrão 0.0.0.0 mantém o docker-compose funcionando.
 }).listen(PORT, process.env.HOST || '0.0.0.0', () => console.log(`gym-api on ${process.env.HOST || '0.0.0.0'}:${PORT} (origin=${ORIGIN})`));

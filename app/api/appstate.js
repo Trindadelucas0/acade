@@ -113,7 +113,7 @@ export function appStateRoutes({ json, readBody, readSession, dataDir }) {
     'PUT /api/me/live-session': async (req, res) => {
       const id = await who(req, res); if (!id) return
       const b = await readBody(req)
-      if (!b?.session || typeof b.session !== 'object' || Array.isArray(b.session)) return json(res, 400, { error: 'session required' })
+      if (!b?.session || typeof b.session !== 'object' || Array.isArray(b.session)) return json(res, 400, { error: 'Sessão de treino obrigatória', code: 'INVALID_INPUT' })
       if (JSON.stringify(b.session).length > 1024 * 1024) return json(res, 413, { error: 'Sessão grande demais' })
       await q(`insert into guided_live_sessions(user_id, tenant_id, session) select id, tenant_id, $2 from users where id=$1
         on conflict (user_id) do update set session=excluded.session, updated_at=now()`, [id, JSON.stringify(b.session)])

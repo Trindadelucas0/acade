@@ -43,7 +43,8 @@ test('aluno: foco no treino, preferências, histórico e notificações', async 
   const errors = await boot(page)
   await page.goto('/#/hoje')
   await expect(page.getByTestId('start-workout')).toBeVisible()
-  expect((await page.getByTestId('start-workout').boundingBox()).y).toBeLessThan((await page.getByTestId('week-ring').boundingBox()).y)
+  // lote 7 (pedido do Lucas): 'Minha semana' fica fixa no topo, acima do botao de comecar
+  expect((await page.getByTestId('week-ring').boundingBox()).y).toBeLessThan((await page.getByTestId('start-workout').boundingBox()).y)
   await expect(page.getByTestId('ranking-card')).toHaveCount(0)
   await page.getByTestId('tab-perfil').click()
   await expect(page.getByTestId('profile-preferences')).toBeVisible()

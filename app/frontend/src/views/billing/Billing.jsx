@@ -7,7 +7,7 @@ import Icon from '../../components/Icon.jsx'
 import { useStore } from '../../store/useStore.js'
 import './billing.css'
 import ReferralPanel from './Referral.jsx'   // Monetizacao F5
-import { TrialCard } from './Access.jsx'   // Monetizacao F8
+import { TrialCard, accessChanged } from './Access.jsx'   // Monetizacao F8
 import { PlanGrid, TrialSeal, Faq } from './PlansShowcase.jsx'   // redesenho dos planos
 
 export const FEAT = {
@@ -186,6 +186,6 @@ export function Subscription() {
       <button className="g-btn" disabled={busy} onClick={async () => (await ask('Remover este cartão?', { ok: 'Remover', cancel: 'Voltar', danger: true })) && act('/api/billing/cards/remove', { id: c.id }, 'Cartão removido.')}>Remover</button></div>)}</section>}
     <p className="bl-fine"><a href="#/precos">Ver página pública de planos</a> · <a href="#/legal/assinatura">Termos de assinatura</a></p>
     <ReferralPanel />
-    {buy && <Checkout plan={buy} cfg={cfg} cards={me.cards} onClose={() => setBuy(null)} onDone={t => { setBuy(null); setNote({ ok: true, t }); load() }} />}
+    {buy && <Checkout plan={buy} cfg={cfg} cards={me.cards} onClose={() => setBuy(null)} onDone={t => { setBuy(null); setNote({ ok: true, t }); load(); accessChanged() }} />}
   </div>
 }

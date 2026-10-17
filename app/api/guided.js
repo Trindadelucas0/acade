@@ -135,19 +135,19 @@ export function suggestNext(last, ex) {
   return { weight: w || null, reps: Math.max(lastReps, ex.reps_min || 1), note: null }
 }
 
-async function profileOf(uid) {
+export async function profileOf(uid) {
   const r = await q('select objetivo,nivel,local,dias,minutos,restricoes,updated_at,equipment_answered,equipment_unknown from user_onboarding where user_id=$1', [uid])
   const p = r.rows[0] || null
   if (p) p.equipamentos = (await q('select equipment_id from user_equipment where user_id=$1 order by 1', [uid])).rows.map(x => x.equipment_id)
   return p
 }
-async function activeOf(u) {
+export async function activeOf(u) {
   const r = await q(`select up.id, up.program_id, up.start_date, up.started_at, (select x.revision_id from user_program_revisions x where x.user_program_id=up.id) revision_id, p.status program_status, p.title, p.weeks, p.days_per_week, p.minutes, p.minutes_max, p.goal, p.level, p.cover_url
     from user_programs up join programs p on p.id=up.program_id where up.user_id=$1 and up.tenant_id=$2 and up.status='active' order by up.started_at desc limit 1`, [u.id, u.tenant_id])
   return r.rows[0] || null
 }
 // V4: os treinos vêm da revisão (a do aluno, se ele já aderiu; senão a publicada). Revisões antigas não são sobrescritas.
-async function programFull(id, tid, revisionId = null) {
+export async function programFull(id, tid, revisionId = null) {
   const r = await q(`select p.*, ${BADGES_SQL('p')} from programs p where p.id=$1 and ${tenantScope('p', 2)}`, [id, tid])
   const p = r.rows[0]; if (!p) return null
   const rev = revisionId || p.published_revision_id || null
@@ -176,10 +176,10 @@ const LIST_SQL = `select p.id,p.slug,p.title,p.description,p.goal,p.level,p.loca
        where w.program_id=p.id and (p.published_revision_id is null or w.revision_id is not distinct from p.published_revision_id) group by ci.restriction_code) c) caution
   from programs p where ((p.tenant_id is null and p.visibility='public') or p.tenant_id=$1)`
 
-async function sessionsDoneIn(upId) {
+export async function sessionsDoneIn(upId) {
   return +(await q(`select count(*) from sessions where user_program_id=$1 and status='done'`, [upId])).rows[0].count
 }
-function weekStart(d = new Date()) { const x = new Date(d); x.setHours(0, 0, 0, 0); const k = (x.getDay() + 6) % 7; x.setDate(x.getDate() - k); return x }
+export function weekStart(d = new Date()) { const x = new Date(d); x.setHours(0, 0, 0, 0); const k = (x.getDay() + 6) % 7; x.setDate(x.getDate() - k); return x }
 
 export function guidedRoutes({ json, readBody }) {
   return {

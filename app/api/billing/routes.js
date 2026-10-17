@@ -171,7 +171,7 @@ export function billingRoutes({ json, readBody }) {
       send(json, res, await core.handleWebhook('asaas', await readBody(req)))
     },
     'POST /api/billing/webhook/simulado': async (req, res) => {
-      if (providerName() !== 'simulado' || !process.env.SIM_WEBHOOK_TOKEN) return json(res, 404, { error: 'not found' })
+      if (providerName() !== 'simulado' || !process.env.SIM_WEBHOOK_TOKEN) return json(res, 404, { error: 'Endereço não encontrado', code: 'NOT_FOUND' })
       if (!safeEq(req.headers['x-webhook-token'], process.env.SIM_WEBHOOK_TOKEN)) return json(res, 401, { error: 'token inválido' })
       send(json, res, await core.handleWebhook('simulado', await readBody(req)))
     },

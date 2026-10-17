@@ -1,9 +1,12 @@
-// Monetizacao F8: estado de acesso do usuario. AccessHost (global): 402 ACCESS_REQUIRED -> tela de assinatura;
+// Monetizacao F8: estado de acesso do usuario. AccessHost (global): 402 ACCESS_REQUIRED -> cadeado na tela (lote 7; antes redirecionava);
 // faixa discreta de "teste ativo" com tempo restante. TrialCard: cartao na tela de assinatura (teste ativo,
 // teste encerrado com dados preservados, ou campo para ativar cupom de 7 dias).
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { api } from '../../lib/api.js'
+import { usePremiumStore, PremiumLock } from './Premium.jsx'
+import { useStore } from '../../store/useStore.js'
+export const accessChanged = () => window.dispatchEvent(new CustomEvent('avagym:access-changed'))
 
 export function fmtRemaining(ms) {
   if (!(ms > 0)) return 'encerrado'
@@ -20,21 +23,32 @@ export function useAccess(dep) {
 }
 
 export function AccessHost() {
-  const nav = useNavigate(), loc = useLocation()
-  const [a] = useAccess(loc.pathname === '/assinatura' ? 1 : 0)
+  const nav = useNavigate(), loc = useLocation(), uid = useStore(s => s.user?.id)
+  const [a, reloadA] = useAccess(loc.pathname === '/assinatura' ? 1 : 0)
   const [hide, setHide] = useState(() => sessionStorage.getItem('avagym_trialbar') === '1')
+  const [sheet, setSheet] = useState(false)
+  const P = usePremiumStore()
+  useEffect(() => { P.reset(); if (uid) P.load() }, [uid])
+  useEffect(() => { if (uid && loc.pathname === '/assinatura') P.load() }, [loc.pathname])
+  useEffect(() => { setSheet(false) }, [loc.pathname])
+  // lote 7: 402 nao redireciona mais; a tela mostra o cadeado. Se o trecho negado nao tiver cadeado proprio, abre o aviso.
   useEffect(() => {
-    let last = 0
-    const on = () => { if (Date.now() - last < 3000) return; last = Date.now(); nav('/assinatura?acesso=bloqueado') }
-    window.addEventListener('avagym:access-required', on); return () => window.removeEventListener('avagym:access-required', on)
-  }, [nav])
+    const on = () => { usePremiumStore.getState().deny(); usePremiumStore.getState().load(); setTimeout(() => { if (!document.querySelector('[data-testid="premium-lock"]')) setSheet(true) }, 400) }
+    const changed = () => { usePremiumStore.getState().load(); reloadA() }
+    window.addEventListener('avagym:access-required', on); window.addEventListener('avagym:access-changed', changed)
+    return () => { window.removeEventListener('avagym:access-required', on); window.removeEventListener('avagym:access-changed', changed) }
+  }, [])
+  const lockSheet = sheet && loc.pathname !== '/assinatura' ? <div className="pm-sheet ag-portal" role="dialog" aria-label="Recurso premium" data-testid="premium-sheet">
+    <button className="pm-close" aria-label="Fechar" onClick={() => setSheet(false)}>×</button>
+    <PremiumLock title="Recurso premium" />
+  </div> : null
   const t = a?.trial
-  if (!t?.active || hide || loc.pathname === '/assinatura') return null
-  return <div className="bl-trialbar" role="status" data-testid="trial-bar" style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 60, display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'center', padding: '6px 10px', fontSize: 13, background: 'var(--g-accent-soft, #eef6ff)' }}>
-    <span>Teste PRO ativo · faltam <b>{fmtRemaining(t.remaining_ms)}</b></span>
+  if (!t?.active || hide || loc.pathname === '/assinatura') return lockSheet
+  return <>{lockSheet}<div className="bl-trialbar" role="status" data-testid="trial-bar" style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 60, display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'center', padding: '6px 10px', fontSize: 13, background: 'var(--g-accent-soft, #eef6ff)' }}>
+    <span>Teste {t.plan_id === 'pro' ? 'PRO' : 'Individual'} ativo · faltam <b>{fmtRemaining(t.remaining_ms)}</b></span>
     <button className="adm-btn ghost" style={{ padding: '2px 8px' }} onClick={() => nav('/assinatura')}>Assinar</button>
     <button aria-label="Fechar aviso" className="adm-btn ghost" style={{ padding: '2px 8px' }} onClick={() => { sessionStorage.setItem('avagym_trialbar', '1'); setHide(true) }}>×</button>
-  </div>
+  </div></>
 }
 
 export function TrialCard({ onChange }) {
@@ -44,11 +58,11 @@ export function TrialCard({ onChange }) {
   const t = a.trial
   async function redeem() {
     setBusy(true); setMsg(null)
-    try { await api('/api/billing/coupon/redeem', { method: 'POST', body: JSON.stringify({ code: code.trim() }) }); setMsg({ ok: true, t: 'Seu teste de 7 dias começou!' }); setCode(''); await load(); onChange?.() }
+    try { await api('/api/billing/coupon/redeem', { method: 'POST', body: JSON.stringify({ code: code.trim() }) }); setMsg({ ok: true, t: 'Seu teste de 7 dias começou!' }); setCode(''); await load(); onChange?.(); accessChanged() }
     catch (e) { setMsg({ ok: false, t: e.message }) } finally { setBusy(false) }
   }
   return <section className="bl-sub" data-testid="trial-card">
-    {t?.active && <><h2>Teste PRO ativo</h2><p data-testid="trial-remaining">Faltam <b>{fmtRemaining(t.remaining_ms)}</b> (até {new Date(t.ends_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' })}). Assine antes do fim para não perder o acesso aos recursos premium.</p></>}
+    {t?.active && <><h2>Teste {t.plan_id === 'pro' ? 'PRO' : 'Individual'} ativo</h2><p data-testid="trial-remaining">Faltam <b>{fmtRemaining(t.remaining_ms)}</b> (até {new Date(t.ends_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' })}). Assine antes do fim para não perder o acesso aos recursos premium.</p></>}
     {!t?.active && a.monetized && !a.has_any && <div data-testid="access-required">
       <h2>{t ? 'Seu teste terminou' : 'Assine para continuar'}</h2>
       <p>{blocked ? 'Esse recurso faz parte da assinatura. ' : ''}Seus dados, treinos e histórico continuam guardados. Escolha um plano abaixo para voltar a usar treinos e comunidade.</p>

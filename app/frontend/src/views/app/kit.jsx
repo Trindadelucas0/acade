@@ -32,7 +32,7 @@ export function useAutoRefresh(reload, ms = 30000) {
   }, [ms]) // eslint-disable-line
 }
 // 404 de rota (API sem o recurso: dado opcional) não vira aviso vermelho — some em silêncio (registrado no console)
-export const isMissing = m => m === 'not found' || m?.status === 404
+export const isMissing = m => m === 'not found' || m === 'Endereço não encontrado' || m?.status === 404
 export const Err = ({ msg, retry }) => isMissing(msg) ? null : <div className="g-card"><p className="g-warn">{msg}</p>{retry && <button className="g-btn g-ghost g-sm" style={{ marginTop: 10 }} onClick={retry}>Tentar novamente</button>}</div>
 export function Field({ label, children }) { return <label className="g-field"><span className="g-mut g-xs">{label}</span>{children}</label> }
 

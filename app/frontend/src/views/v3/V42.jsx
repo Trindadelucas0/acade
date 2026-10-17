@@ -42,7 +42,7 @@ export function MustChangePassword() {
 export function UnlockRequest({ compact }) {
   const [d, err, reload] = useLoad(() => api('/api/me/unlock-request'))
   const [reason, setReason] = useState(''), [msg, setMsg] = useState(''), [busy, setBusy] = useState(false)
-  if (err) return err === 'not found' ? null : <p className="g-warn g-sm">{err}</p>
+  if (err) return ['not found', 'Endereço não encontrado'].includes(err) ? null : <p className="g-warn g-sm">{err}</p>
   if (!d) return null
   if (!d.locked) return null
   const open = d.requests.find(r => r.status === 'pendente'), last = d.requests[0]

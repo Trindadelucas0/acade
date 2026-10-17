@@ -16,6 +16,8 @@ export const G = {
   today: wid => api('/api/guided/today' + (wid ? '?workout=' + wid : '')),
   saveSession: s => api('/api/guided/sessions', { method: 'POST', body: JSON.stringify(s) }),
   progress: () => api('/api/guided/progress'),
+  stats: dias => api('/api/guided/stats?dias=' + dias),   // lote 7
+  home: () => api('/api/guided/home'),                     // lote 7: widgets do Inicio
   startSession: p => api('/api/guided/sessions/start', { method: 'POST', body: JSON.stringify(p) }),
   sessionEvents: (client_id, events, reason) => api('/api/guided/sessions/events', { method: 'POST', body: JSON.stringify({ client_id, events, reason }) }),
   openSession: () => api('/api/guided/sessions/open'),

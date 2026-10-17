@@ -36,10 +36,10 @@ async function ownSources(c, userId, audience) {
   const out = []
   const sub = (await c.query(`select s.id, s.plan_id, s.status, s.current_period_end, p.name plan_name from subscriptions s join plans p on p.id=s.plan_id
       where s.user_id=$1 and s.audience=$2 and s.status = any($3) and not p.is_free order by s.started_at desc limit 1`, [userId, audience, PAID_STATUSES])).rows[0]
-  if (sub) out.push({ kind: 'propria', plan_id: sub.plan_id, plan_name: sub.plan_name, status: sub.status, until: sub.current_period_end })
+  if (sub) out.push({ kind: 'propria', id: sub.id, plan_id: sub.plan_id, plan_name: sub.plan_name, status: sub.status, until: sub.current_period_end })
   const t = (await c.query(`select t.id, t.plan_id, t.starts_at, t.ends_at, t.source, p.name plan_name from trial_grants t join plans p on p.id=t.plan_id
       where t.user_id=$1 and t.audience=$2 and t.revoked_at is null and t.starts_at<=now() and t.ends_at>now() limit 1`, [userId, audience])).rows[0]
-  if (t) out.push({ kind: 'teste', plan_id: t.plan_id, plan_name: t.plan_name, starts_at: t.starts_at, until: t.ends_at, source: t.source })
+  if (t) out.push({ kind: 'teste', id: t.id, plan_id: t.plan_id, plan_name: t.plan_name, starts_at: t.starts_at, until: t.ends_at, source: t.source })
   const g = (await c.query(`select id, reason, expires_at from entitlement_grants where user_id=$1 and audience=$2 and kind='feature' and key='acesso' and revoked_at is null
       and starts_at<=now() and (expires_at is null or expires_at>now()) order by expires_at desc nulls first limit 1`, [userId, audience])).rows[0]
   if (g) out.push({ kind: 'concessao', reason: g.reason, until: g.expires_at })
@@ -103,9 +103,38 @@ export async function monetizationGate(key, user, res, json) {
   return false
 }
 
+// Lote 7 (16/10): boas-vindas depois de assinar ou ativar o teste. Uma vez por ativacao, registrada em access_welcome.
+// Chave: 'assinatura:<id>:<plano>' (troca de plano = nova ativacao) ou 'teste:<id>'. A transicao da virada (D1) e as
+// concessoes do admin nao abrem a tela (a pessoa nao "ativou" nada). Vale com a monetizacao ligada ou desligada.
+export async function pendingWelcome(user) {
+  const acc = await accessOf(user)
+  const cands = []
+  for (const [audience, a] of Object.entries(acc.audiences)) for (const s of a.sources) {
+    if (s.kind === 'propria') cands.push({ key: `assinatura:${s.id}:${s.plan_id}`, kind: 'assinatura', audience, plan_id: s.plan_id, plan_name: s.plan_name, until: s.until || null })
+    if (s.kind === 'teste' && s.source !== 'transicao') cands.push({ key: `teste:${s.id}`, kind: 'teste', audience, plan_id: s.plan_id, plan_name: s.plan_name, until: s.until })
+  }
+  if (!cands.length) return null
+  const seen = new Set((await q('select activation_key from access_welcome where user_id=$1 and activation_key = any($2)', [user.id, cands.map(c => c.key)])).rows.map(r => r.activation_key))
+  return cands.find(c => !seen.has(c.key)) || null
+}
+
 // GET /api/access/me: o que a tela de assinatura/teste mostra (origens, fim do teste, elegibilidade ao teste)
-export function accessRoutes({ json, requireAuth }) {
+const readJson = req => new Promise(r => { let d = ''; req.on('data', c => { d += c; if (d.length > 4096) req.destroy() }); req.on('end', () => { try { r(JSON.parse(d || '{}')) } catch { r({}) } }); req.on('error', () => r({})) })
+export function accessRoutes({ json, requireAuth, readBody }) {
   return {
+    'GET /api/access/welcome': async (req, res) => {
+      const u = await requireAuth(req, res, json); if (!u) return
+      json(res, 200, { welcome: await pendingWelcome(u) })
+    },
+    // registra que a tela foi mostrada (chamado ao abrir). So aceita a ativacao pendente da propria pessoa.
+    'POST /api/access/welcome/seen': async (req, res) => {
+      const u = await requireAuth(req, res, json); if (!u) return
+      const b = await (readBody ? readBody(req).catch(() => ({})) : readJson(req))
+      const w = await pendingWelcome(u)
+      if (!w || w.key !== String(b.key || '')) return json(res, 409, { error: 'Nenhuma boas-vindas pendente com essa chave.', code: 'NOT_PENDING' })
+      await q(`insert into access_welcome(tenant_id,user_id,activation_key,kind,plan_id) values($1,$2,$3,$4,$5) on conflict (user_id, activation_key) do nothing`, [u.tenant_id, u.id, w.key, w.kind, w.plan_id])
+      json(res, 200, { ok: true })
+    },
     'GET /api/access/me': async (req, res) => {
       const u = await requireAuth(req, res, json, { allowPending: true }); if (!u) return
       const acc = await accessOf(u)

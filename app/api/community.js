@@ -228,7 +228,7 @@ export function communityRoutes({ json, readBody }) {
     },
     'GET /api/media': async (req, res) => {
       const f = qs(req).get('f') || ''
-      if (!/^[a-f0-9]{24}\.(png|jpg|webp|gif|mp4|webm)$/.test(f) || !fs.existsSync(uploadFile(f))) return json(res, 404, { error: 'not found', code: 'NOT_FOUND' })
+      if (!/^[a-f0-9]{24}\.(png|jpg|webp|gif|mp4|webm)$/.test(f) || !fs.existsSync(uploadFile(f))) return json(res, 404, { error: 'Arquivo não encontrado', code: 'NOT_FOUND' })
       const file = uploadFile(f), size = fs.statSync(file).size
       const type = { png: 'image/png', jpg: 'image/jpeg', webp: 'image/webp', gif: 'image/gif', mp4: 'video/mp4', webm: 'video/webm' }[f.split('.')[1]]
       const h = { 'Content-Type': type, 'Cache-Control': 'public, max-age=86400', 'X-Content-Type-Options': 'nosniff', 'Accept-Ranges': 'bytes' }

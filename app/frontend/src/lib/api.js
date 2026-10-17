@@ -1,8 +1,8 @@
 // Cliente do backend AVADESK (login por e-mail e senha).
 export const IS_APPLE = /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent)
 export const IS_ANDROID = /Android/.test(navigator.userAgent)
-export const BIO = IS_APPLE ? 'Face ID / Touch ID' : IS_ANDROID ? 'fingerprint or face unlock' : 'your fingerprint, face or PIN'
-export const VAULT = IS_APPLE ? 'iCloud Keychain' : IS_ANDROID ? 'Google Password Manager' : 'your password manager'
+export const BIO = IS_APPLE ? 'Face ID / Touch ID' : IS_ANDROID ? 'digital ou reconhecimento facial' : 'sua digital, rosto ou PIN'
+export const VAULT = IS_APPLE ? 'iCloud Keychain' : IS_ANDROID ? 'Gerenciador de senhas do Google' : 'seu gerenciador de senhas'
 
 const API_BASE = import.meta.env.VITE_API_BASE || ''
 

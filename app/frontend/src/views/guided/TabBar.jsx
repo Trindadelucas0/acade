@@ -8,6 +8,8 @@ import { useStore } from '../../store/useStore.js'
 import './guided.css'
 import { STUDENT_NAV, PRO_NAV, studentTab, professionalTab } from '../../lib/navigation.js'
 import { useNavigationAccess } from '../../components/NavigationAccess.jsx'
+import { usePremium, LockBadge } from '../billing/Premium.jsx'
+const PREMIUM_TABS = ['treinos', 'comunidade', 'progresso']   // lote 7: cadeado na aba quando o acesso premium e negado
 
 const HIDE = ['treinar', 'concluido', 'onboarding', 'workout']
 // cada rota pertence a uma aba
@@ -16,13 +18,13 @@ const HIDE = ['treinar', 'concluido', 'onboarding', 'workout']
 export const tabOf = path => studentTab(path)
 export default function GuidedTabBar() {
   const nav = useNavigate(), loc = useLocation(), user = useStore(s => s.user)
-  const can = useNavigationAccess()
+  const can = useNavigationAccess(), { locked } = usePremium()
   if (isProAccount(user)) return <ProTabBar />
   const cur = loc.pathname.split('/')[1] || 'hoje'
   if (HIDE.includes(cur)) return null
   const group = tabOf(loc.pathname)
   const live = !!loadSession()
-  const Tab = ({ k, icon, label, to }) => <button className={group === k ? 'g-on' : ''} onClick={() => nav(to)} data-testid={'tab-' + k} aria-current={group === k ? 'page' : undefined}><Icon name={icon} /><span>{label}</span>{k === 'treinos' && live && <i className="g-live" aria-label="treino em andamento" />}</button>
+  const Tab = ({ k, icon, label, to }) => <button className={group === k ? 'g-on' : ''} onClick={() => nav(to)} data-testid={'tab-' + k} aria-current={group === k ? 'page' : undefined}><Icon name={icon} /><span>{label}</span>{k === 'treinos' && live && <i className="g-live" aria-label="treino em andamento" />}{locked && PREMIUM_TABS.includes(k) && <LockBadge />}</button>
   return <nav id="agtab" aria-label="Navegação principal">
     {STUDENT_NAV.filter(([k]) => k !== 'progresso' || can('progresso')).map(([k, icon, label, to]) => <Tab key={k} k={k} icon={icon} label={label} to={to} />)}
   </nav>

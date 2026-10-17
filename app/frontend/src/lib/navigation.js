@@ -14,7 +14,7 @@ const GROUP = {
   hoje: 'inicio', inicio: 'inicio', avisos: 'inicio', acompanhamento: 'inicio', profissionais: 'inicio', profissional: 'inicio', conversa: 'inicio',
   treinos: 'treinos', 'meu-programa': 'treinos', programas: 'treinos', programa: 'treinos', recomendados: 'treinos', library: 'treinos',
   comunidade: 'comunidade', post: 'comunidade', grupo: 'comunidade', desafio: 'comunidade', desafios: 'comunidade', ranking: 'comunidade',
-  progresso: 'progresso', stats: 'progresso', history: 'progresso', muscles: 'progresso'
+  progresso: 'progresso', estatisticas: 'progresso', stats: 'progresso', history: 'progresso', muscles: 'progresso'
 }
 export const studentTab = path => GROUP[path.split('/')[1] || 'hoje'] || 'perfil'
 export function professionalTab(path, search = '') {
