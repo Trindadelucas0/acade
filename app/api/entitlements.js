@@ -126,7 +126,7 @@ export const ROUTE_RULES = {
   'POST /api/guided/start': { audience: 'aluno', catalog: true },
   'POST /api/guided/sessions/start': { audience: 'aluno', catalog: true, systemOnly: true }
 }
-const PAYWALL_MSG = 'Os programas oficiais fazem parte do AVAGYM Individual. Ative seu período experimental com um cupom ou conheça a assinatura. Seu histórico continua salvo.'
+const PAYWALL_MSG = 'Os programas oficiais fazem parte do ORNY Individual. Ative seu período experimental com um cupom ou conheça a assinatura. Seu histórico continua salvo.'
 async function catalogGate(rule, user, res, json) {
   const on = (await q(`select value from app_settings where tenant_id=$1 and key='monetizacao_ativa'`, [user.tenant_id])).rows[0]?.value === true
   if (!on) return true

@@ -1,6 +1,6 @@
 // ATENÇÃO: o texto que o Lucas colou (t17u) não chegou a este editor; esta é uma versão reconstruída pela
 // estrutura pedida. Para usar o texto original, cole-o aqui mantendo os marcadores entre colchetes.
-export default `# TERMOS DE ASSINATURA E PAGAMENTO — AVAGYM
+export default `# TERMOS DE ASSINATURA E PAGAMENTO — ORNY
 
 **Versão:** [versão]  
 **Vigência:** [data de vigência]  
@@ -9,11 +9,11 @@ export default `# TERMOS DE ASSINATURA E PAGAMENTO — AVAGYM
 
 ## Resumo
 
-O AVAGYM tem planos gratuitos e pagos. Antes de contratar, você vê o preço, a periodicidade e os limites do plano. A assinatura paga renova automaticamente até você cancelar, o que pode ser feito a qualquer momento pelo próprio app. Você tem 7 dias de arrependimento na primeira contratação. Se o pagamento falhar, seus dados não são apagados: apenas novas ações do plano pago ficam bloqueadas.
+O ORNY tem planos gratuitos e pagos. Antes de contratar, você vê o preço, a periodicidade e os limites do plano. A assinatura paga renova automaticamente até você cancelar, o que pode ser feito a qualquer momento pelo próprio app. Você tem 7 dias de arrependimento na primeira contratação. Se o pagamento falhar, seus dados não são apagados: apenas novas ações do plano pago ficam bloqueadas.
 
 ## 1. Objeto
 
-1.1. Estes Termos regulam a contratação dos planos do AVAGYM e integram os Termos de Uso.
+1.1. Estes Termos regulam a contratação dos planos do ORNY e integram os Termos de Uso.
 
 ## 2. Planos
 
@@ -39,7 +39,7 @@ O AVAGYM tem planos gratuitos e pagos. Antes de contratar, você vê o preço, a
 
 5.1. A cobrança é recorrente, na periodicidade escolhida, pelo meio de pagamento informado.
 
-5.2. Os pagamentos são processados por empresa especializada indicada na Política de Privacidade; o AVAGYM não armazena dados completos de cartão.
+5.2. Os pagamentos são processados por empresa especializada indicada na Política de Privacidade; o ORNY não armazena dados completos de cartão.
 
 ## 6. Renovação automática
 

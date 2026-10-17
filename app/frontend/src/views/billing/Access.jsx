@@ -16,28 +16,30 @@ export function fmtRemaining(ms) {
   return `${Math.max(1, Math.round(ms / 6e4))} min`
 }
 export function useAccess(dep) {
+  const uid = useStore(s => s.user?.id)
   const [a, setA] = useState(null)
-  const load = () => api('/api/access/me').then(setA).catch(() => setA(null))
-  useEffect(() => { load() }, [dep])
-  return [a, load]
+  const load = () => api('/api/access/me').then(value => { if (useStore.getState().user?.id === uid) setA({ uid, value }) }).catch(() => { if (useStore.getState().user?.id === uid) setA(null) })
+  useEffect(() => { setA(null); if (uid) load() }, [dep, uid])
+  return [a?.uid === uid ? a.value : null, load]
 }
 
 export function AccessHost() {
   const nav = useNavigate(), loc = useLocation(), uid = useStore(s => s.user?.id)
   const [a, reloadA] = useAccess(loc.pathname === '/assinatura' ? 1 : 0)
-  const [hide, setHide] = useState(() => sessionStorage.getItem('avagym_trialbar') === '1')
+  const [hide, setHide] = useState(false)
   const [sheet, setSheet] = useState(false)
   const P = usePremiumStore()
-  useEffect(() => { P.reset(); if (uid) P.load() }, [uid])
+  useEffect(() => { P.reset(); setSheet(false); setHide(sessionStorage.getItem('avagym_trialbar_' + uid) === '1'); if (uid) P.load(); return () => P.reset() }, [uid])
   useEffect(() => { if (uid && loc.pathname === '/assinatura') P.load() }, [loc.pathname])
   useEffect(() => { setSheet(false) }, [loc.pathname])
   // lote 7: 402 nao redireciona mais; a tela mostra o cadeado. Se o trecho negado nao tiver cadeado proprio, abre o aviso.
   useEffect(() => {
-    const on = () => { usePremiumStore.getState().deny(); usePremiumStore.getState().load(); setTimeout(() => { if (!document.querySelector('[data-testid="premium-lock"]')) setSheet(true) }, 400) }
-    const changed = () => { usePremiumStore.getState().load(); reloadA() }
+    let timer
+    const on = () => { usePremiumStore.getState().deny(); usePremiumStore.getState().load(); clearTimeout(timer); timer = setTimeout(() => { if (useStore.getState().user?.id === uid && !document.querySelector('[data-testid="premium-lock"]')) setSheet(true) }, 400) }
+    const changed = () => { setSheet(false); usePremiumStore.getState().load(); reloadA() }
     window.addEventListener('avagym:access-required', on); window.addEventListener('avagym:access-changed', changed)
-    return () => { window.removeEventListener('avagym:access-required', on); window.removeEventListener('avagym:access-changed', changed) }
-  }, [])
+    return () => { clearTimeout(timer); window.removeEventListener('avagym:access-required', on); window.removeEventListener('avagym:access-changed', changed) }
+  }, [uid])
   const lockSheet = sheet && loc.pathname !== '/assinatura' ? <div className="pm-sheet ag-portal" role="dialog" aria-label="Recurso premium" data-testid="premium-sheet">
     <button className="pm-close" aria-label="Fechar" onClick={() => setSheet(false)}>×</button>
     <PremiumLock title="Recurso premium" />
@@ -47,7 +49,7 @@ export function AccessHost() {
   return <>{lockSheet}<div className="bl-trialbar" role="status" data-testid="trial-bar" style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 60, display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'center', padding: '6px 10px', fontSize: 13, background: 'var(--g-accent-soft, #eef6ff)' }}>
     <span>Teste {t.plan_id === 'pro' ? 'PRO' : 'Individual'} ativo · faltam <b>{fmtRemaining(t.remaining_ms)}</b></span>
     <button className="adm-btn ghost" style={{ padding: '2px 8px' }} onClick={() => nav('/assinatura')}>Assinar</button>
-    <button aria-label="Fechar aviso" className="adm-btn ghost" style={{ padding: '2px 8px' }} onClick={() => { sessionStorage.setItem('avagym_trialbar', '1'); setHide(true) }}>×</button>
+    <button aria-label="Fechar aviso" className="adm-btn ghost" style={{ padding: '2px 8px' }} onClick={() => { sessionStorage.setItem('avagym_trialbar_' + uid, '1'); setHide(true) }}>×</button>
   </div></>
 }
 

@@ -4,7 +4,7 @@ export default function ProgramBadges({ p, compact }) {
   const list = []
   if (p.author_verified) list.push(['Profissional verificado', 'v'])
   if (p.approved) list.push(['Programa aprovado', 'a'])
-  if ((p.badges || []).includes('oficial')) list.push(['Oficial AVAGYM', 'o'])
+  if ((p.badges || []).includes('oficial')) list.push(['Oficial ORNY', 'o'])
   if ((p.badges || []).includes('destaque')) list.push(['Destaque', 'd'])
   if (!list.length && !p.sponsored) return null
   return <div className="g-chips" style={{ marginTop: compact ? 6 : 10 }} data-testid="program-badges">

@@ -1,4 +1,4 @@
-# Documentação do AVADESK Fitness
+# Documentação da ORNY
 
 Este arquivo é a capa da documentação do repositório. A fonte única de comportamento é [app/DOCUMENTACAO-SISTEMA.md](app/DOCUMENTACAO-SISTEMA.md), incluindo treino e painel de gestão. Atualizações de regras devem ser feitas nessa fonte, evitando versões conflitantes.
 

@@ -1,21 +1,21 @@
-/* AVADESK Fitness — sistema visual (grafite + verde-limão). Inspirado nas referências em docs/referencias, sem copiar marca/ativos.
+/* ORNY — sistema visual (grafite + verde-limão). Inspirado nas referências em docs/referencias, sem copiar marca/ativos.
    Carregado por último: unifica as telas novas (.ag / g-*) e as telas herdadas do openGym (--bg/--surface/--acc). */
 :root{
   --ag-bg:#0b0b0c;--ag-card:#161618;--ag-card-2:#1f2023;--ag-line:#ffffff12;--ag-txt:#f4f5f2;--ag-mut:#a3a69c;--ag-dim:#8a8d84;
-  --ag-acc:#c8f135;--ag-acc-2:#a6d417;--ag-on:#11140a;--ag-warn:#ffb547;--ag-bad:#ff6b6b;--ag-radius:20px
+  --ag-acc:#20f51b;--ag-acc-2:#19cb16;--ag-on:#11140a;--ag-warn:#ffb547;--ag-bad:#ff6b6b;--ag-radius:20px
 }
 :root[data-theme="dark"],:root:not([data-theme="light"]){--bg:#0b0b0c;--bg-el:#121214;--surface:#161618;--surface-2:#1f2023;--surface-3:#2a2b2f;--sep:#ffffff14}
-:root[data-accent="avagym"]{--acc:#c8f135;--acc-2:#a6d417;--on-acc:#11140a}
+:root[data-accent="avagym"]{--acc:#20f51b;--acc-2:#19cb16;--on-acc:#11140a}
 :root[data-theme="light"][data-accent="avagym"]{--acc:#5f8a00;--acc-2:#4a6c00;--on-acc:#fff}
 body{background:var(--ag-bg)}
-.ag .g-btn{box-shadow:0 10px 28px -10px #c8f13588}
+.ag .g-btn{box-shadow:0 10px 28px -10px #20f51b88}
 .ag .g-btn.g-ghost{box-shadow:none}
 #agtab{background:#0b0b0ce8;border-top:1px solid #ffffff10}
 #agtab button.g-on{color:var(--ag-acc)}
-#agtab button.g-on .icn{filter:drop-shadow(0 0 8px #c8f13566)}
+#agtab button.g-on .icn{filter:drop-shadow(0 0 8px #20f51b66)}
 .ag .g-acc,.ag a{color:var(--ag-acc)}
 .ag .g-chipbtn.g-on,.ag .g-chip.g-on{background:var(--ag-acc);color:var(--ag-on);border-color:transparent}
-.ag .g-pill.g-ok{background:#c8f1351f;color:var(--ag-acc)}
+.ag .g-pill.g-ok{background:#20f51b1f;color:var(--ag-acc)}
 
 /* anel de progresso, ações rápidas, cartão "Treino de hoje", miniaturas */
 .av-ring{position:relative;width:132px;height:132px;flex:none}
@@ -25,7 +25,7 @@ body{background:var(--ag-bg)}
 .av-quick{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
 .av-quick button{display:flex;flex-direction:column;align-items:center;gap:6px;background:var(--ag-card);border:1px solid var(--ag-line);border-radius:18px;padding:12px 4px;min-height:76px;color:var(--ag-txt);font-size:11.5px;font-weight:650;cursor:pointer}
 .av-quick button .icn{font-size:22px;color:var(--ag-acc)}
-.av-hero{background:radial-gradient(120% 140% at 100% 0%,#c8f13533,transparent 55%),var(--ag-card);border:1px solid var(--ag-line);border-radius:24px;padding:18px}
+.av-hero{background:radial-gradient(120% 140% at 100% 0%,#20f51b33,transparent 55%),var(--ag-card);border:1px solid var(--ag-line);border-radius:24px;padding:18px}
 .av-thumb{width:56px;height:56px;border-radius:14px;object-fit:cover;background:var(--ag-card-2);flex:none}
 .av-bar{height:10px;border-radius:99px;background:var(--ag-card-2);overflow:hidden}
 .av-bar>i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--ag-acc-2),var(--ag-acc))}
@@ -50,7 +50,7 @@ body{background:var(--ag-bg)}
 .adm-brand{font-weight:800;font-size:18px;padding:6px 10px 16px}.adm-brand b{color:var(--ag-acc)}
 .adm-side button{display:flex;align-items:center;gap:10px;width:100%;min-height:42px;padding:0 12px;border:0;border-radius:12px;background:none;color:var(--ag-mut);font-size:14px;font-weight:600;cursor:pointer;text-align:left}
 .adm-side button:hover{background:#ffffff08;color:var(--ag-txt)}
-.adm-side button.on{background:#c8f13518;color:var(--ag-acc)}
+.adm-side button.on{background:#20f51b18;color:var(--ag-acc)}
 .adm-side button em{margin-left:auto;font-style:normal;background:var(--ag-acc);color:var(--ag-on);border-radius:99px;padding:1px 8px;font-size:11px;font-weight:800}
 .adm-side h6{margin:14px 12px 6px;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ag-dim)}
 .adm-main{padding:24px 28px 80px;min-width:0}
@@ -76,7 +76,7 @@ body{background:var(--ag-bg)}
 .adm-tbl tbody tr:hover{background:#ffffff05;cursor:pointer}
 .adm-pager{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:8px;color:var(--ag-mut);font-size:12.5px}
 .adm-pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11.5px;font-weight:700;background:#ffffff10;color:var(--ag-mut)}
-.adm-pill.ok{background:#c8f1351c;color:var(--ag-acc)}.adm-pill.warn{background:#ffb54722;color:var(--ag-warn)}.adm-pill.bad{background:#ff6b6b22;color:var(--ag-bad)}
+.adm-pill.ok{background:#20f51b1c;color:var(--ag-acc)}.adm-pill.warn{background:#ffb54722;color:var(--ag-warn)}.adm-pill.bad{background:#ff6b6b22;color:var(--ag-bad)}
 .adm-drawer-bg{position:fixed;inset:0;background:#0009;z-index:90}
 .adm-drawer{position:fixed;top:0;right:0;bottom:0;width:min(520px,100vw);background:#111113;border-left:1px solid var(--ag-line);z-index:91;overflow:auto;padding:20px}
 .adm-drawer h2{margin:0 0 6px}
@@ -107,7 +107,7 @@ body{background:var(--ag-bg)}
 #app .card,#app .sect-b,#app .tile,#app .item{background:var(--ag-card);border:1px solid var(--ag-line);border-radius:var(--ag-radius)}
 #app .sect-t{color:var(--ag-dim);text-transform:uppercase;letter-spacing:.07em;font-size:11.5px;font-weight:700}
 #app .btn{border-radius:16px;min-height:48px;font-weight:750}
-#app .btn.primary,#app .btn-primary{background:linear-gradient(135deg,var(--ag-acc),var(--ag-acc-2));color:var(--ag-on);box-shadow:0 10px 28px -10px #c8f13588}
+#app .btn.primary,#app .btn-primary{background:linear-gradient(135deg,var(--ag-acc),var(--ag-acc-2));color:var(--ag-on);box-shadow:0 10px 28px -10px #20f51b88}
 #app .iconbtn,#app .chip,#app .seg button{min-height:44px;min-width:44px}
 #app .chip.on,#app .seg .on{background:var(--ag-acc);color:var(--ag-on)}
 #app input,#app select,#app textarea{border-radius:12px}

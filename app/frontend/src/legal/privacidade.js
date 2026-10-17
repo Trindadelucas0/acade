@@ -1,4 +1,4 @@
-export default `# POLÍTICA DE PRIVACIDADE — AVAGYM
+export default `# POLÍTICA DE PRIVACIDADE — ORNY
 
 **Versão:** [versão]  
 **Vigência:** [data de vigência]  
@@ -9,13 +9,13 @@ export default `# POLÍTICA DE PRIVACIDADE — AVAGYM
 
 ## Resumo
 
-O AVAGYM coleta dados necessários à criação de contas, execução de treinos, acompanhamento profissional, segurança e funcionamento das funcionalidades contratadas. Relatos de dor, avaliações físicas, IMC, medidas e fotos de evolução corporal são dados pessoais sensíveis de saúde e só são tratados com o seu consentimento específico. Seus dados não são vendidos a anunciantes.
+O ORNY coleta dados necessários à criação de contas, execução de treinos, acompanhamento profissional, segurança e funcionamento das funcionalidades contratadas. Relatos de dor, avaliações físicas, IMC, medidas e fotos de evolução corporal são dados pessoais sensíveis de saúde e só são tratados com o seu consentimento específico. Seus dados não são vendidos a anunciantes.
 
 Você pode consultar seus dados, pedir correção, exportação ou exclusão e revogar autorizações a qualquer momento, observadas as bases legais aplicáveis.
 
 ## 1. Identificação e papéis
 
-1.1. Esta Política descreve como [razão social] realiza o tratamento de dados pessoais no AVAGYM.
+1.1. Esta Política descreve como [razão social] realiza o tratamento de dados pessoais no ORNY.
 
 1.2. Aplica-se a alunos, profissionais, administradores e visitantes, conforme os serviços utilizados.
 
@@ -45,7 +45,7 @@ Você pode consultar seus dados, pedir correção, exportação ou exclusão e r
 
 2.9. **Dados comerciais:** plano contratado, status de assinatura, cupons, concessões e histórico financeiro, quando aplicável.
 
-2.10. Fotografias comuns não são automaticamente dados sensíveis ou biométricos. Fotos de evolução corporal e de avaliação física são tratadas como dados de saúde. O AVAGYM não usa reconhecimento facial nem identificação biométrica.
+2.10. Fotografias comuns não são automaticamente dados sensíveis ou biométricos. Fotos de evolução corporal e de avaliação física são tratadas como dados de saúde. O ORNY não usa reconhecimento facial nem identificação biométrica.
 
 ## 3. Finalidades e bases legais
 
@@ -88,7 +88,7 @@ Quando você se cadastra pelo link ou cupom de indicação de outra pessoa (por 
 
 ## 8. Não venda de dados
 
-8.1. O AVAGYM não vende dados pessoais e não os compartilha com anunciantes.
+8.1. O ORNY não vende dados pessoais e não os compartilha com anunciantes.
 
 ## 9. Fornecedores (operadores)
 
@@ -200,7 +200,7 @@ d) comunicações comerciais consentidas.
 
 ## 16. Cookies e armazenamento local
 
-16.1. O AVAGYM usa apenas cookies e armazenamento local **essenciais** ao funcionamento:
+16.1. O ORNY usa apenas cookies e armazenamento local **essenciais** ao funcionamento:
 
 a) cookie de sessão (login), protegido (HttpOnly), que mantém você conectado;
 
@@ -210,7 +210,7 @@ b) armazenamento local do navegador e cache do PWA, para guardar preferências (
 
 ## 17. Menores de idade
 
-17.1. O AVAGYM não permite cadastro nem uso por menores de 18 anos. A maioridade é confirmada no cadastro.
+17.1. O ORNY não permite cadastro nem uso por menores de 18 anos. A maioridade é confirmada no cadastro.
 
 17.2. Se identificada conta de menor, ela será restringida e seus dados eliminados, observadas obrigações legais e o melhor interesse do titular.
 

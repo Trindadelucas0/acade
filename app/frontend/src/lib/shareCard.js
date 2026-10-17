@@ -6,7 +6,7 @@ export const GROUP_SLUG = { peito: 'chest', costas: 'upper-back', ombros: 'delto
   obliquos: 'obliques', lombar: 'lower-back', gluteos: 'gluteal', quadriceps: 'quadriceps', posteriores: 'hamstring', panturrilhas: 'calves', trapezio: 'trapezius' }
 const BASE = '#223142', SIL = '#2a3a4c'
 function mix(a, b, t) { const h = x => [1, 3, 5].map(i => parseInt(x.slice(i, i + 2), 16)); const A = h(a), B = h(b); return '#' + A.map((v, i) => Math.round(v * t + B[i] * (1 - t)).toString(16).padStart(2, '0')).join('') }
-const hex = c => /^#[0-9a-f]{6}$/i.test(c) ? c : '#c8f135'
+const hex = c => /^#[0-9a-f]{6}$/i.test(c) ? c : '#20f51b'
 export const levelColor = (lv, accent) => lv <= 0 ? BASE : lv >= 4 ? hex(accent) : mix(hex(accent), BASE, [0, .32, .56, .78][lv])
 // silhueta 2D frente + costas em (x, y, w, h); devolve a altura usada
 export function drawBody(ctx, paths, load, x, y, w, h, accent, body = 'male') {
@@ -45,7 +45,7 @@ export function drawCard(ctx, { kind, data = {}, who, showStats = true, showWho 
   ctx.fillStyle = accent; ctx.fillRect(0, 0, W, 14)
   ctx.textBaseline = 'top'; ctx.textAlign = 'left'
   ctx.fillStyle = accent; ctx.font = `800 ${tall ? 120 : 100}px ${FONT}`; ctx.fillText('#TáPago', P, P)
-  ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.font = `600 34px ${FONT}`; ctx.textAlign = 'right'; ctx.fillText('AVAGYM', W - P, P + 10); ctx.textAlign = 'left'
+  ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.font = `600 34px ${FONT}`; ctx.textAlign = 'right'; ctx.fillText('ORNY', W - P, P + 10); ctx.textAlign = 'left'
   let y = P + (tall ? 210 : 160)
   const title = kind === 'treino' ? data.workout_name || 'Treino concluído' : kind === 'semana' ? 'Minha semana' : 'Músculos da semana'
   ctx.fillStyle = '#fff'; ctx.font = `700 ${tall ? 78 : 66}px ${FONT}`
@@ -121,5 +121,5 @@ export function drawCard(ctx, { kind, data = {}, who, showStats = true, showWho 
     ctx.fillStyle = '#fff'; ctx.font = `700 40px ${FONT}`; ctx.fillText(who.name || '', P + 2 * r + 28, fy + 14)
     if (who.handle) { ctx.fillStyle = 'rgba(255,255,255,.65)'; ctx.font = `500 32px ${FONT}`; ctx.fillText('@' + who.handle, P + 2 * r + 28, fy + 64) }
   }
-  ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.font = `500 28px ${FONT}`; ctx.textAlign = 'right'; ctx.fillText('treino registrado no AVAGYM', W - P, H - P); ctx.textAlign = 'left'
+  ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.font = `500 28px ${FONT}`; ctx.textAlign = 'right'; ctx.fillText('treino registrado no ORNY', W - P, H - P); ctx.textAlign = 'left'
 }

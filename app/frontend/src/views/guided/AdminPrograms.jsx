@@ -34,7 +34,7 @@ export default function AdminPrograms() {
 
 function Actions({ p, reload }) {
   const run = fn => async () => { try { await fn(); reload() } catch (e) { notifyError(e) } }
-  const badge = t => run(async () => { const r = await askText(t === 'oficial' ? 'Motivo do selo Oficial AVAGYM' : 'Motivo do destaque', { required: true }); if (r) { await E.badge(p.id, t, r); notify('Selo concedido.') } })
+  const badge = t => run(async () => { const r = await askText(t === 'oficial' ? 'Motivo do selo Oficial ORNY' : 'Motivo do destaque', { required: true }); if (r) { await E.badge(p.id, t, r); notify('Selo concedido.') } })
   return <div className="g-row" style={{ gap: 6, flexWrap: 'wrap' }}>
     {!(p.badges || []).includes('oficial') && <button className="g-btn g-ghost g-sm" onClick={badge('oficial')}>Selo oficial</button>}
     {!(p.badges || []).includes('destaque') && <button className="g-btn g-ghost g-sm" onClick={badge('destaque')}>Destacar</button>}

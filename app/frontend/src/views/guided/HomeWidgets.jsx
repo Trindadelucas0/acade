@@ -7,16 +7,18 @@ import BodyMap from '../../components/BodyMap.jsx'
 import { useStore } from '../../store/useStore.js'
 import { G, fmtMin, fmtKg } from '../../lib/guided.js'
 import { GROUP_SLUG, SLUG_PT } from './MuscleStatus.jsx'
+import { useNavigationAccess } from '../../components/NavigationAccess.jsx'
 import './lote7.css'
 
 export const plural = (n, um, varios) => `${n} ${n === 1 ? um : varios}`
 const pct = (a, b) => b > 0 ? Math.round((a - b) / b * 100) : null
 export const groupPt = g => SLUG_PT[GROUP_SLUG[g]] || (g || '').replace(/_/g, ' ').replace(/^./, c => c.toUpperCase())
 
-export function useHome() {
+export function useHome(enabled = true) {
   const [h, setH] = useState(null)
-  useEffect(() => { G.home().then(setH).catch(() => setH(false)) }, [])
-  return h
+  const [revision, setRevision] = useState(0)
+  useEffect(() => { let live = true; setH(null); if (enabled) G.home().then(value => { if (live) setH(value) }).catch(() => { if (live) setH(false) }); return () => { live = false } }, [enabled, revision])
+  return { h, reload: () => setRevision(v => v + 1) }
 }
 
 export function NextMuscles({ next }) {
@@ -30,14 +32,17 @@ export function NextMuscles({ next }) {
   return <section className="g-card hw-card" data-testid="home-next-muscles" aria-labelledby="hw-nm">
     <div className="g-row"><h2 className="hw-h" id="hw-nm">Músculos para o próximo treino</h2></div>
     <p className="g-mut g-sm hw-sub">{next.name} · {plural(next.exercises, 'exercício', 'exercícios')}</p>
+    {next.source === 'ficha' && <p className="g-mut g-xs">Próximo dia sugerido pela sequência da ficha. Você também pode escolher outro dia em Treinos.</p>}
     <div className="hw-body"><BodyMap load={load} body={body} /></div>
     {top.length > 0 && <ul className="hw-chips" aria-label="Músculos principais">{top.map(g => <li key={g.group_id}>{groupPt(g.group_id)} <b>{(Math.round(g.sets * 10) / 10).toLocaleString('pt-BR')}</b> <small>séries</small></li>)}</ul>}
+    {next.to && <button className="g-link" onClick={() => nav(next.to)}>Preparar este treino</button>}
   </section>
 }
 
-export function HomeWidgets({ h }) {
-  const nav = useNavigate()
-  if (!h) return null
+export function HomeWidgets({ h, onRetry }) {
+  const nav = useNavigate(), can = useNavigationAccess()
+  if (h === false) return <section className="g-card hw-card" role="status"><p className="g-mut">Não foi possível carregar os indicadores.</p><button className="g-link" onClick={onRetry}>Tentar novamente</button></section>
+  if (!h) return <p className="g-mut" role="status">Carregando indicadores…</p>
   const dv = pct(h.week.vol, h.prev_week.vol)
   return <>
     <div className="hw-grid" data-testid="home-widgets">
@@ -52,6 +57,6 @@ export function HomeWidgets({ h }) {
         <b>{h.recent_records.length ? plural(h.recent_records.length, 'recorde', 'recordes') : 'Nenhum'}</b><span>Recordes em 14 dias</span>
         <small>{h.recent_records[0] ? `${h.recent_records[0].name}: ${h.recent_records[0].weight} kg × ${h.recent_records[0].reps}` : 'Supere uma carga para marcar'}</small></button>
     </div>
-    <NextMuscles next={h.next} />
+    {can('musculos') && <NextMuscles next={h.next} />}
   </>
 }

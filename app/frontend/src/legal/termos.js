@@ -1,4 +1,4 @@
-export default `# TERMOS DE USO — AVAGYM
+export default `# TERMOS DE USO — ORNY
 
 **Versão:** [versão]  
 **Data de vigência:** [data de vigência]  
@@ -10,11 +10,11 @@ export default `# TERMOS DE USO — AVAGYM
 
 ## Resumo
 
-O AVAGYM é uma plataforma digital de treinos, acompanhamento físico e interação entre alunos e profissionais. O usuário deve fornecer informações verdadeiras, respeitar as regras de utilização e executar atividades físicas com responsabilidade. Os profissionais respondem tecnicamente pelas prescrições que elaboram, sem prejuízo das responsabilidades legais da plataforma por seus próprios serviços. O uso é permitido apenas para maiores de 18 anos.
+O ORNY é uma plataforma digital de treinos, acompanhamento físico e interação entre alunos e profissionais. O usuário deve fornecer informações verdadeiras, respeitar as regras de utilização e executar atividades físicas com responsabilidade. Os profissionais respondem tecnicamente pelas prescrições que elaboram, sem prejuízo das responsabilidades legais da plataforma por seus próprios serviços. O uso é permitido apenas para maiores de 18 anos.
 
 ## 1. Objeto
 
-1.1. Estes Termos regulam o acesso e o uso do AVAGYM, aplicativo web e PWA operado por [razão social].
+1.1. Estes Termos regulam o acesso e o uso do ORNY, aplicativo web e PWA operado por [razão social].
 
 1.2. Integram estes Termos a Política de Privacidade, o Termo do Profissional (para profissionais), os Termos de Assinatura e Pagamento e as Regras da Comunidade.
 
@@ -30,7 +30,7 @@ O AVAGYM é uma plataforma digital de treinos, acompanhamento físico e interaç
 
 3.1. O usuário deve fornecer dados verdadeiros, completos e atualizados e manter a confidencialidade de sua senha.
 
-3.2. O AVAGYM é destinado exclusivamente a maiores de 18 anos. No cadastro, o usuário confirma, por declaração expressa, que tem 18 anos ou mais. Contas identificadas como de menores de idade serão restringidas e seus dados tratados conforme a Política de Privacidade.
+3.2. O ORNY é destinado exclusivamente a maiores de 18 anos. No cadastro, o usuário confirma, por declaração expressa, que tem 18 anos ou mais. Contas identificadas como de menores de idade serão restringidas e seus dados tratados conforme a Política de Privacidade.
 
 3.3. Cada pessoa deve manter uma única conta pessoal, sem compartilhá-la com terceiros.
 
@@ -48,7 +48,7 @@ O AVAGYM é uma plataforma digital de treinos, acompanhamento físico e interaç
 
 ## 5. Saúde e atividade física
 
-5.1. O AVAGYM é uma ferramenta tecnológica e não substitui avaliação médica, nutricional ou de outro profissional de saúde.
+5.1. O ORNY é uma ferramenta tecnológica e não substitui avaliação médica, nutricional ou de outro profissional de saúde.
 
 5.2. O usuário deve procurar orientação médica antes de iniciar ou intensificar atividade física, especialmente se tiver condição de saúde preexistente.
 
@@ -90,7 +90,7 @@ O AVAGYM é uma plataforma digital de treinos, acompanhamento físico e interaç
 
 ## 10. Propriedade intelectual e conteúdo
 
-10.1. Software, marca, interface, identidade visual e conteúdos próprios do AVAGYM são protegidos pela legislação aplicável.
+10.1. Software, marca, interface, identidade visual e conteúdos próprios do ORNY são protegidos pela legislação aplicável.
 
 10.2. O acesso à plataforma não transfere propriedade intelectual ao usuário.
 

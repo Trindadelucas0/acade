@@ -26,7 +26,7 @@ export default function ShareCard() {
   useEffect(() => {
     if (!d?.eligible || !ref.current) return
     const [w, h] = CARD_FORMATS[fmt], c = ref.current; c.width = w; c.height = h
-    drawCard(c.getContext('2d'), { kind, data: d.data, who: d.who, showStats, showWho, avatar, accent: '#c8f135', bodyPaths, body })   // cartao sempre escuro: verde-limao da marca em qualquer tema
+    drawCard(c.getContext('2d'), { kind, data: d.data, who: d.who, showStats, showWho, avatar, accent: '#20f51b', bodyPaths, body })   // cartao sempre escuro: verde-limao da marca em qualquer tema
   }, [d, fmt, showStats, showWho, avatar, kind, bodyPaths, body])
   const fileName = 'tapago-' + kind + '-' + fmt.replace(':', 'x') + '.png'
   const toBlob = () => new Promise(r => ref.current.toBlob(r, 'image/png'))
@@ -38,7 +38,7 @@ export default function ShareCard() {
     setMsg(''); setBusy(true)
     try {
       const b = await toBlob(), file = new File([b], fileName, { type: 'image/png' })
-      if (navigator.canShare?.({ files: [file] })) { try { await navigator.share({ files: [file], title: '#TáPago', text: '#TáPago no AVAGYM' }) } catch (e) { if (e?.name !== 'AbortError') setMsg('Não foi possível abrir o compartilhamento. Use "Salvar imagem".') } }
+      if (navigator.canShare?.({ files: [file] })) { try { await navigator.share({ files: [file], title: '#TáPago', text: '#TáPago no ORNY' }) } catch (e) { if (e?.name !== 'AbortError') setMsg('Não foi possível abrir o compartilhamento. Use "Salvar imagem".') } }
       else { await save(b); setMsg('Seu aparelho não envia arquivos direto para outros apps. A imagem foi salva para você publicar onde quiser.') }
     } finally { setBusy(false) }
   }

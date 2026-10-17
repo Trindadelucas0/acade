@@ -8,7 +8,7 @@ const common = {
 }
 export const TOURS = {
   normal: {
-    welcome: [S(null, 'Bem-vindo ao AVAGYM', 'Um minuto para conhecer o app. Você pode pular quando quiser.'),
+    welcome: [S(null, 'Bem-vindo ao ORNY', 'Um minuto para conhecer o app. Você pode pular quando quiser.'),
       S('week-ring', 'Minha semana', 'Aqui você vê quantos treinos fez nesta semana e o que falta para a meta.'),
       S('bell', 'Notificações', 'Avisos do personal, desafios e lembretes chegam aqui.'),
       S('tab-treinos', 'Treinos', 'Treino ativo, fichas anteriores, rotinas antigas (consulta) e Explorar programas. Só um treino fica ativo por vez.'),
@@ -28,7 +28,7 @@ export const TOURS = {
     ...common
   },
   pro: {
-    welcome: [S(null, 'Bem-vindo ao AVAGYM', 'Aqui você acompanha seus alunos e envia fichas.'),
+    welcome: [S(null, 'Bem-vindo ao ORNY', 'Aqui você acompanha seus alunos e envia fichas.'),
       S('ptab-alunos', 'Alunos', 'Lista dos alunos vinculados, com treinos e evolução.'),
       S('ptab-atendimentos', 'Atendimentos', 'Dúvidas e ocorrências dos alunos, com prazo.'),
       S('ptab-alunos', 'Convidar ou cadastrar aluno', 'Em Alunos, use Adicionar aluno: cadastrar conta ou convidar por código.'),

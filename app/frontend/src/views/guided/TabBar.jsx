@@ -1,3 +1,4 @@
+import Brand from '../../components/Brand.jsx'
 export { isProAccount, isAdminAccount, isNonTrainee } from '../../lib/accounts.js'
 import { isProAccount, isAdminAccount, isNonTrainee } from '../../lib/accounts.js'
 // AVAGYM — navegação principal: 5 abas (Início, Treinos, Comunidade, Progresso, Perfil).
@@ -26,16 +27,17 @@ export default function GuidedTabBar() {
   const live = !!loadSession()
   const Tab = ({ k, icon, label, to }) => <button className={group === k ? 'g-on' : ''} onClick={() => nav(to)} data-testid={'tab-' + k} aria-current={group === k ? 'page' : undefined}><Icon name={icon} /><span>{label}</span>{k === 'treinos' && live && <i className="g-live" aria-label="treino em andamento" />}{locked && PREMIUM_TABS.includes(k) && <LockBadge />}</button>
   return <nav id="agtab" aria-label="Navegação principal">
-    {STUDENT_NAV.filter(([k]) => k !== 'progresso' || can('progresso')).map(([k, icon, label, to]) => <Tab key={k} k={k} icon={icon} label={label} to={to} />)}
+    {STUDENT_NAV.filter(([k]) => k !== 'progresso' || locked || can('progresso')).map(([k, icon, label, to]) => <Tab key={k} k={k} icon={icon} label={label} to={to} />)}
   </nav>
 }
 
 function ProTabBar() {
   const nav = useNavigate(), loc = useLocation()
+  const { locked } = usePremium('profissional')
   const k = professionalTab(loc.pathname, loc.search)
-  const Tab = ({ id, icon, label, to }) => <button className={k === id ? 'g-on' : ''} onClick={() => nav(to)} data-testid={'ptab-' + id} aria-current={k === id ? 'page' : undefined}><Icon name={icon} /><span>{label}</span></button>
+  const Tab = ({ id, icon, label, to }) => <button className={k === id ? 'g-on' : ''} onClick={() => nav(to)} data-testid={'ptab-' + id} aria-current={k === id ? 'page' : undefined}><Icon name={icon} /><span>{label}</span>{locked && id !== 'mais' && <LockBadge />}</button>
   return <nav id="agtab" className="org-pro-nav" aria-label="Navegação do profissional">
-    <div className="org-brand">AVAGYM</div>
+    <div className="org-brand"><Brand /></div>
     {PRO_NAV.map(([id, icon, label, to]) => <Tab key={id} id={id} icon={icon} label={label} to={to} />)}
   </nav>
 }

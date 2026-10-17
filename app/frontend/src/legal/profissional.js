@@ -1,4 +1,4 @@
-export default `# TERMO DE ADESÃO E RESPONSABILIDADE DO PROFISSIONAL — AVAGYM PRO
+export default `# TERMO DE ADESÃO E RESPONSABILIDADE DO PROFISSIONAL — ORNY PRO
 
 **Versão:** [versão]  
 **Vigência:** [data de vigência]  
@@ -9,11 +9,11 @@ export default `# TERMO DE ADESÃO E RESPONSABILIDADE DO PROFISSIONAL — AVAGYM
 
 ## Resumo
 
-O AVAGYM PRO oferece ferramentas digitais para profissionais habilitados organizarem programas, fichas e acompanhamentos. O profissional é responsável pela adequação técnica das prescrições que elaborar, pela regularidade de seu registro e pelo uso legítimo dos dados dos alunos, dos quais é controlador independente para fins de prescrição. O AVAGYM permanece responsável pelas obrigações legais inerentes à plataforma.
+O ORNY PRO oferece ferramentas digitais para profissionais habilitados organizarem programas, fichas e acompanhamentos. O profissional é responsável pela adequação técnica das prescrições que elaborar, pela regularidade de seu registro e pelo uso legítimo dos dados dos alunos, dos quais é controlador independente para fins de prescrição. O ORNY permanece responsável pelas obrigações legais inerentes à plataforma.
 
 ## 1. Objeto e adesão
 
-1.1. Este Termo disciplina a utilização das funcionalidades profissionais do AVAGYM.
+1.1. Este Termo disciplina a utilização das funcionalidades profissionais do ORNY.
 
 1.2. Seu aceite é necessário para solicitar habilitação e utilizar capacidades profissionais sujeitas a verificação.
 
@@ -23,7 +23,7 @@ O AVAGYM PRO oferece ferramentas digitais para profissionais habilitados organiz
 
 ## 2. Habilitação e registro profissional
 
-2.1. O profissional declara possuir habilitação legal para exercer as atividades que pretende oferecer por meio do AVAGYM.
+2.1. O profissional declara possuir habilitação legal para exercer as atividades que pretende oferecer por meio do ORNY.
 
 2.2. Para exercer atividades regulamentadas de Educação Física, deverá possuir registro regular no Conselho Regional de Educação Física (CREF) competente.
 
@@ -35,7 +35,7 @@ O AVAGYM PRO oferece ferramentas digitais para profissionais habilitados organiz
 
 2.6. A verificação pela plataforma não representa garantia irrestrita de capacidade técnica, inexistência de infrações ou aprovação de todos os serviços prestados pelo profissional.
 
-2.7. Em caso de irregularidade relevante, o AVAGYM poderá restringir capacidades profissionais, observados proporcionalidade, segurança e legislação aplicável.
+2.7. Em caso de irregularidade relevante, o ORNY poderá restringir capacidades profissionais, observados proporcionalidade, segurança e legislação aplicável.
 
 ## 3. Estados da habilitação
 
@@ -139,7 +139,7 @@ d) encerrado.
 
 10.2. Não deverá divulgar fotos de evolução, avaliações físicas ou relatos de alunos sem fundamento jurídico adequado e autorização específica quando necessária.
 
-10.3. Não poderá utilizar marcas do AVAGYM como se representasse oficialmente a empresa sem autorização.
+10.3. Não poderá utilizar marcas do ORNY como se representasse oficialmente a empresa sem autorização.
 
 10.4. Depoimentos e resultados divulgados deverão respeitar legislação publicitária e normas profissionais.
 
@@ -191,7 +191,7 @@ d) utilizará dados pessoais exclusivamente de maneira legítima;
 
 e) respeitará o sigilo das informações dos alunos;
 
-f) reconhece que o AVAGYM é ferramenta tecnológica e não substitui sua responsabilidade profissional.
+f) reconhece que o ORNY é ferramenta tecnológica e não substitui sua responsabilidade profissional.
 
 **Aceite eletrônico:** registrado ao marcar a caixa de aceite no app, com versão, data, hora e IP.
 `

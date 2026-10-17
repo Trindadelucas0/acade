@@ -8,11 +8,11 @@ import * as THREE from 'three'
 export const MODEL_URL = (import.meta.env.BASE_URL || '/') + 'models/corpo.glb'
 const MUSCLE = new THREE.Color('#a3241c'), TENDON = new THREE.Color('#e9e0d0')
 const HERO = new THREE.Color('#3b5f86'), HERO_T = new THREE.Color('#6d8db0')
-const ACC = new THREE.Color('#c8f135')
+const ACC = new THREE.Color('#20f51b')
 
 function labelOf(o) { while (o) { if (o.userData?.label) return o.userData.label; o = o.parent } return null }
 
-const HEAT = ['#2b3644', '#1f6f63', '#1c9c84', '#1fbf9a', '#c8f135'].map(c => new THREE.Color(c))
+const HEAT = ['#2b3644', '#1f6f63', '#1c9c84', '#1fbf9a', '#20f51b'].map(c => new THREE.Color(c))
 function Model({ hero, selected, heat, onPick, onHover }) {
   const { scene } = useGLTF(MODEL_URL)
   const root = useRef()
@@ -56,7 +56,7 @@ export default function Body3D({ hero = false, selected, heat, onPick, onHover, 
       {background && <color attach="background" args={[background]} />}
       <hemisphereLight args={['#cfe3ff', '#0b1220', .8]} />
       <directionalLight position={[2, 3, 4]} intensity={1.6} />
-      <directionalLight position={[-3, 2, -4]} intensity={1.1} color={hero ? '#c8f135' : '#ffffff'} />
+      <directionalLight position={[-3, 2, -4]} intensity={1.1} color={hero ? '#20f51b' : '#ffffff'} />
       <Suspense fallback={hero ? null : <Html center style={{ color: '#9fb3c8', whiteSpace: 'nowrap' }}>Carregando modelo…</Html>}>
         <Model hero={hero} selected={selected} heat={heat} onPick={onPick} onHover={onHover} />
       </Suspense>

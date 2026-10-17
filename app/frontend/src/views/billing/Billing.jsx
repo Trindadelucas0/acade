@@ -1,3 +1,4 @@
+import Brand from '../../components/Brand.jsx'
 // V5 cobranca: pagina de planos (publica e no app), checkout com cartao, gestao da assinatura.
 // Todo estado e regra ficam no servidor (/api/billing, /api/public/plans); aqui so exibimos e enviamos.
 import { useState, useEffect } from 'react'
@@ -45,7 +46,7 @@ export function PublicPlans() {
   const cta = p => !p.purchasable ? <span className="pl-btn" aria-disabled="true" data-testid={'cta-' + p.id}>Em breve</span>
     : <a className="pl-btn" data-testid={'cta-' + p.id} href={authed ? '#/assinatura?plano=' + p.id : '#/?cadastro=1&plano=' + p.id}>{authed ? 'Assinar o ' + p.name : 'Começar com o ' + p.name}<Icon name="bolt" /></a>
   return <div className="bl-page" data-testid="public-plans">
-    <header className="pl-hero"><a href="#/" className="bl-logo">AVA<b>GYM</b></a>
+    <header className="pl-hero"><a href="#/" className="bl-logo"><Brand /></a>
       <h1>Treine com método.<br /><em>Evolua de verdade.</em></h1>
       <p>Um plano para quem treina, outro para quem prescreve. Experimente 7 dias com cupom, sem cartão.</p>
       <TrialSeal /></header>

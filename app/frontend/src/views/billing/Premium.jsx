@@ -9,30 +9,43 @@ import Icon from '../../components/Icon.jsx'
 import './premium.css'
 
 export const usePremiumStore = create((set, get) => ({
-  acc: null, denied: false, loading: false,
+  acc: null, denied: false, loading: false, owner: null, generation: 0, error: false,
   async load() {
-    if (get().loading) return
-    set({ loading: true })
-    try { const acc = await api('/api/access/me'); set({ acc, denied: acc.monetized && !acc.has_any ? get().denied : false }) } catch { /* sem rede: mantem o ultimo estado */ } finally { set({ loading: false }) }
+    const owner = useStore.getState().user?.id
+    if (!owner) return
+    const generation = get().generation + 1
+    set({ loading: true, generation, owner, error: false, ...(get().owner !== owner ? { acc: null, denied: false } : {}) })
+    const current = () => get().generation === generation && useStore.getState().user?.id === owner
+    try {
+      const acc = await api('/api/access/me')
+      if (current()) set({ acc, denied: false })
+    } catch { if (current()) set({ error: true }) }
+    finally { if (current()) set({ loading: false }) }
   },
   deny() { set({ denied: true }) },
-  reset() { set({ acc: null, denied: false }) }
+  reset() { set({ acc: null, denied: false, owner: null, loading: false, error: false, generation: get().generation + 1 }) }
 }))
 
 const exempt = u => !u || u.admin || (u.roles || []).includes('admin') || !((u.roles || []).includes('aluno') || (u.roles || []).includes('profissional'))
 // locked(aud): true quando o servidor nega (ou negaria) o acesso premium. aud 'profissional' = rotas /api/pro/*
 export function usePremium(aud) {
-  const user = useStore(s => s.user), { acc, denied } = usePremiumStore()
+  const user = useStore(s => s.user), state = usePremiumStore()
+  const acc = state.owner === user?.id ? state.acc : null, denied = state.owner === user?.id && state.denied
   if (exempt(user)) return { locked: false, ready: true, acc }
   const noAccess = !!acc?.monetized && (aud === 'profissional' ? !acc.audiences?.profissional?.has : !acc.has_any)
-  return { locked: noAccess || (denied && !acc?.has_any), ready: !!acc, acc }
+  return { locked: noAccess || denied, ready: !!acc || denied, acc, error: state.owner === user?.id && state.error }
+}
+
+export function PremiumLoading() {
+  const { error } = usePremium()
+  return <div className="ag" role="status" data-testid="premium-loading"><p className="g-mut">{error ? 'Não foi possível conferir seu acesso.' : 'Conferindo seu acesso…'}</p>{error && <button className="g-btn" onClick={() => usePremiumStore.getState().load()}>Tentar novamente</button>}</div>
 }
 
 export const PREMIUM_TEXT = 'Este recurso faz parte dos planos Individual e PRO. Seus dados continuam guardados e voltam assim que você assinar ou ativar o teste de 7 dias com cupom.'
 // cartao de cadeado: preview (opcional) aparece desfocado por tras, sem interacao
 export function PremiumLock({ title, desc, feature, preview, compact, cta = 'Ver planos' }) {
   return <section className={'pm-lock' + (compact ? ' pm-compact' : '') + (preview ? ' pm-has-preview' : '')} data-testid="premium-lock" data-feature={feature || title}>
-    {preview && <div className="pm-preview" aria-hidden="true" inert="">{preview}</div>}
+    {preview && <div className="pm-preview" aria-hidden="true" inert>{preview}</div>}
     <div className="pm-body">
       <span className="pm-ico" aria-hidden="true"><Icon name="lock" /></span>
       <div className="pm-txt"><b>{title}</b>{!compact && <p>{desc || PREMIUM_TEXT}</p>}</div>
@@ -53,7 +66,8 @@ export function PremiumPage({ title }) {
 }
 // envolve um trecho premium: travado -> cadeado; liberado -> conteudo
 export function Premium({ title, desc, feature, preview, compact, aud, children }) {
-  const { locked } = usePremium(aud)
+  const { locked, ready } = usePremium(aud)
+  if (!ready) return <PremiumLoading />
   return locked ? <PremiumLock title={title} desc={desc} feature={feature} preview={preview} compact={compact} /> : children
 }
 // marcador de cadeado (abas, itens de lista)

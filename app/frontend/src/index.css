@@ -920,7 +920,7 @@ h4.sec{
 
 
 /* ============================================================================
-   AVADESK — identidade visual (sobrescreve apenas tokens; layout inalterado)
+   ORNY — identidade visual (sobrescreve apenas tokens; layout inalterado)
    navy #0E2439 · laranja #FE6B00 (ações) · teal #1C9A8E (positivo/sucesso)
    ========================================================================== */
 :root{
@@ -939,7 +939,7 @@ h4.sec{
   --sep:#E2E8F0; --sep-op:#E2E8F0;
   --green:#1C9A8E; --teal:#1C9A8E; --orange:#FE6B00;
 }
-:root[data-accent="avagym"]{ --acc:#C8F135; --acc-2:#A6D417; --on-acc:#11140A }
+:root[data-accent="avagym"]{ --acc:#20f51b; --acc-2:#19cb16; --on-acc:#11140A }
 :root[data-theme="light"][data-accent="avagym"]{ --on-acc:#FFFFFF }
 h1,h2,h3,h4,.sec{font-family:var(--font-head),var(--font-body),system-ui,sans-serif}
 :root[data-theme="light"] h1,:root[data-theme="light"] h2{color:var(--navy)}

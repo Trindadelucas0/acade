@@ -2,31 +2,31 @@
 .bl-page{min-height:100vh;padding:24px 16px 48px;max-width:1180px;margin:0 auto;color:var(--label,#f2f2f2)}
 .bl-hero{text-align:center;padding:16px 0 8px}
 .bl-logo{display:inline-block;font-weight:800;letter-spacing:.06em;font-size:22px;color:inherit;text-decoration:none;margin-bottom:18px}
-.bl-logo b{color:var(--acc,#C8F135)}
+.bl-logo b{color:var(--acc,#20f51b)}
 .bl-hero h1{font-size:clamp(26px,5vw,44px);line-height:1.1;margin:0 0 10px}
 .bl-hero p{opacity:.75;margin:0 auto;max-width:560px}
 .bl-wrap{margin-top:18px}
 .bl-seg{display:flex;gap:4px;padding:4px;border-radius:999px;background:var(--fill,#ffffff12);width:max-content;max-width:100%;margin:0 auto 18px}
 .bl-seg button{border:0;background:transparent;color:inherit;padding:10px 18px;border-radius:999px;font-weight:600;min-height:44px;cursor:pointer}
-.bl-seg button.on{background:var(--acc,#C8F135);color:var(--on-acc,#11140A)}
+.bl-seg button.on{background:var(--acc,#20f51b);color:var(--on-acc,#11140A)}
 .bl-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;align-items:stretch}
 .bl-card{position:relative;display:flex;flex-direction:column;padding:22px;border-radius:20px;background:var(--bg-2,#1b1d1f);border:1px solid var(--sep,#ffffff1a)}
 .bl-card h3{margin:0 0 6px;font-size:20px}
-.bl-best{border:2px solid var(--acc,#C8F135);box-shadow:0 10px 40px -18px var(--acc,#C8F135)}
-.bl-cur{outline:2px dashed var(--acc,#C8F135);outline-offset:3px}
-.bl-ribbon{position:absolute;top:-12px;right:16px;background:var(--acc,#C8F135);color:var(--on-acc,#11140A);font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px}
+.bl-best{border:2px solid var(--acc,#20f51b);box-shadow:0 10px 40px -18px var(--acc,#20f51b)}
+.bl-cur{outline:2px dashed var(--acc,#20f51b);outline-offset:3px}
+.bl-ribbon{position:absolute;top:-12px;right:16px;background:var(--acc,#20f51b);color:var(--on-acc,#11140A);font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px}
 .bl-desc{opacity:.72;font-size:14px;min-height:2.6em;margin:0 0 12px}
 .bl-price{display:flex;align-items:baseline;gap:4px;margin:4px 0}
 .bl-price b{font-size:34px;letter-spacing:-.02em}
 .bl-price .bl-tbd{font-size:20px;opacity:.8}
 .bl-price span{opacity:.6}
-.bl-trial{color:var(--acc,#C8F135);font-weight:600;font-size:14px;margin:2px 0 6px}
+.bl-trial{color:var(--acc,#20f51b);font-weight:600;font-size:14px;margin:2px 0 6px}
 .bl-feats{list-style:none;padding:0;margin:12px 0 18px;display:grid;gap:8px;font-size:14px;flex:1}
 .bl-feats li{display:flex;gap:8px;align-items:flex-start}
-.bl-feats li svg{flex:none;color:var(--acc,#C8F135);margin-top:2px}
+.bl-feats li svg{flex:none;color:var(--acc,#20f51b);margin-top:2px}
 .bl-soon{opacity:.6}.bl-soon em{font-size:12px}
 .bl-cta{margin-top:auto}
-.bl-btn{display:inline-flex;justify-content:center;align-items:center;width:100%;min-height:48px;padding:12px 18px;border-radius:14px;border:0;background:var(--acc,#C8F135);color:var(--on-acc,#11140A);font-weight:700;font-size:16px;text-decoration:none;cursor:pointer}
+.bl-btn{display:inline-flex;justify-content:center;align-items:center;width:100%;min-height:48px;padding:12px 18px;border-radius:14px;border:0;background:var(--acc,#20f51b);color:var(--on-acc,#11140A);font-weight:700;font-size:16px;text-decoration:none;cursor:pointer}
 .bl-btn:disabled{opacity:.6}
 .bl-btn.bl-ghost{background:transparent;color:inherit;border:1px solid var(--sep,#ffffff33);cursor:default}
 .bl-wide{width:100%;margin-top:12px}
@@ -35,7 +35,7 @@
 .bl-tbl caption{text-align:left;font-weight:700;padding:14px 16px 4px}
 .bl-tbl th,.bl-tbl td{padding:12px 16px;border-top:1px solid var(--sep,#ffffff12);text-align:center}
 .bl-tbl th[scope=row],.bl-tbl thead th:first-child{text-align:left;font-weight:500}
-.bl-yes{color:var(--acc,#C8F135);font-weight:800}.bl-no{opacity:.4}
+.bl-yes{color:var(--acc,#20f51b);font-weight:800}.bl-no{opacity:.4}
 .bl-fine{font-size:12px;opacity:.65;margin:16px 0 0;text-align:center}
 .bl-fine a,.bl-foot a{color:inherit}
 .bl-foot{text-align:center;font-size:13px;opacity:.7;margin-top:36px}

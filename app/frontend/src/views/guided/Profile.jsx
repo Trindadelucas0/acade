@@ -69,7 +69,7 @@ function MyCodePanel() {
 function MyCode({ code }) {
   const [ok, setOk] = useState('')
   const copy = async () => { try { await navigator.clipboard.writeText(code); setOk('Copiado') } catch { setOk('Não foi possível copiar') } }
-  const share = async () => { try { await navigator.share({ title: 'Meu código AVAGYM', text: 'Meu código de aluno no AVAGYM: ' + code }) } catch { /* cancelado */ } }
+  const share = async () => { try { await navigator.share({ title: 'Meu código ORNY', text: 'Meu código de aluno no ORNY: ' + code }) } catch { /* cancelado */ } }
   return <div className="g-card" style={{ marginBottom: 10 }} data-testid="my-code"><span className="g-mut g-xs">Meu código de aluno — envie ao seu profissional para ele te convidar</span>
     <div className="g-row" style={{ gap: 8, alignItems: 'center' }}><b style={{ fontSize: 24, letterSpacing: '.12em', flex: 1 }}>{code}</b>
       <button className="g-btn g-ghost g-sm" onClick={copy} data-testid="my-code-copy">{ok || 'Copiar'}</button>

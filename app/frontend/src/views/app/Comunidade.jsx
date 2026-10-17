@@ -84,7 +84,7 @@ export function PostCard({ p, onChange, full }) {
   const like = async () => { if (busy) return; setBusy(true); try { setLk(await F.like(p.id, !lk.liked)) } catch { /* */ } finally { setBusy(false) } }
   return <article className="g-card g-post" data-testid="post">
     <div className="g-row"><button className="g-row" style={{ background: 'none', border: 0, color: 'inherit', padding: 0, cursor: 'pointer', textAlign: 'left' }} onClick={() => !p.author_admin && nav('/profissional/' + p.author_id)}>
-      <Av name={p.author_name} url={p.author_photo} /><span><b>{p.author_name}</b><br /><span className="g-mut g-xs">{p.author_admin && !p.verified.length ? 'Administração AVAGYM' : p.verified.length ? '✓ ' + p.verified.join(' · ') : 'Profissional'} · {dt(p.created_at)}{p.edited_at ? ' · editado' : ''}</span></span></button>
+      <Av name={p.author_name} url={p.author_photo} /><span><b>{p.author_name}</b><br /><span className="g-mut g-xs">{p.author_admin && !p.verified.length ? 'Administração ORNY' : p.verified.length ? '✓ ' + p.verified.join(' · ') : 'Profissional'} · {dt(p.created_at)}{p.edited_at ? ' · editado' : ''}</span></span></button>
       <span className="g-sp" />{p.status !== 'publicado' && <span className="g-pill g-warn2">{p.status}</span>}</div>
     <h3 style={{ marginTop: 10, cursor: full ? 'auto' : 'pointer' }} onClick={() => !full && nav('/post/' + p.id)}>{p.title}</h3>
     <p className="g-sm" style={{ whiteSpace: 'pre-wrap', marginTop: 4 }}>{full ? p.body : p.body.length > 280 ? p.body.slice(0, 280) + '…' : p.body}</p>

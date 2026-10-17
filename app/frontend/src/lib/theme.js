@@ -12,7 +12,7 @@ export function applyTheme(p = pref) {
   pref = p
   const de = document.documentElement, t = resolved(p)
   de.dataset.theme = t; de.dataset.accent = 'avagym'
-  const meta = document.querySelector('meta[name="theme-color"]'); if (meta) meta.content = t === 'light' ? '#f4f5f0' : '#0b0b0c'
+  const meta = document.querySelector('meta[name="theme-color"]'); if (meta) meta.content = t === 'light' ? '#f5f5f5' : '#000000'
   try { localStorage.setItem(CACHE, p) } catch { /* */ }
   subs.forEach(f => f(pref))
 }

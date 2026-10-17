@@ -64,7 +64,7 @@ export function ChallengeWizard() {
       <Field label="Nome"><input className="g-in" value={w.name} onChange={inp('name')} maxLength={80} data-testid="cw-name" /></Field>
       <Field label="Descrição"><textarea className="g-in" rows={3} value={w.description || ''} onChange={inp('description')} /></Field>
       <Field label="Capa (link https da imagem)"><input className="g-in" value={w.cover_url} onChange={inp('cover_url')} placeholder="https://…" /></Field>
-      {isAdmin && !w.id && <label className="g-chk"><input type="checkbox" checked={!!w.official} onChange={inp('official')} data-testid="cw-official" /> Desafio oficial (campanha do AVAGYM)</label>}
+      {isAdmin && !w.id && <label className="g-chk"><input type="checkbox" checked={!!w.official} onChange={inp('official')} data-testid="cw-official" /> Desafio oficial (campanha do ORNY)</label>}
       <Field label="Categoria"><select className="g-in" value={w.category} onChange={inp('category')} data-testid="cw-cat">{(cats?.categories || []).map(c => <option key={c.id} value={c.id}>{c.name_pt}</option>)}</select></Field></>}
     {S === 1 && <>
       <Field label="Tipo"><select className="g-in" value={w.type} onChange={inp('type')} data-testid="cw-type">{Object.entries(TYPE_PT).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></Field>

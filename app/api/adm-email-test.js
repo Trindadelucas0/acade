@@ -14,8 +14,8 @@ export function admEmailTestRoutes({ json, readBody, requireRole }) {
       if (n >= 10) return json(res, 429, { error: 'Limite de 10 e-mails de teste por hora', code: 'RATE_LIMITED' })
       const when = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })
       const row = await enqueueEmail({ to, kind: 'teste_admin', ref: String(u.id), eventKey: `teste_admin:${u.id}:${Date.now()}`,
-        subject: 'AVAGYM - e-mail de teste',
-        body: `Este é um e-mail de TESTE do AVAGYM, enviado pelo administrador em ${when} (horário de Brasília) para conferir a entrega de e-mails do sistema.\n\nNão é preciso fazer nada. Se você não esperava esta mensagem, pode ignorá-la.` })
+        subject: 'ORNY - e-mail de teste',
+        body: `Este é um e-mail de TESTE do ORNY, enviado pelo administrador em ${when} (horário de Brasília) para conferir a entrega de e-mails do sistema.\n\nNão é preciso fazer nada. Se você não esperava esta mensagem, pode ignorá-la.` })
       await processOutbox(5).catch(() => {})
       const r = (await q('select status, provider_id, last_error from email_outbox where id=$1', [row.id])).rows[0] || {}
       json(res, 200, { ok: r.status === 'enviado', outbox_id: row.id, status: r.status, provider_id: r.provider_id || null, error: r.last_error || null })

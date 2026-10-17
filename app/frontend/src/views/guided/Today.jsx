@@ -31,20 +31,26 @@ export function WeekStrip({ sessions }) {
 export default function Today() {
   const nav = useNavigate()
   const user = useStore(s => s.user), { locked } = usePremium()
-  const home = useHome()
+  const { h: home, reload: reloadHome } = useHome(!locked)
+  const [retry, setRetry] = useState(0)
   const [st, setSt] = useState(null), [today, setToday] = useState(null), [err, setErr] = useState(''), [pend, setPend] = useState(pendingCount())
   const local = loadSession()
   const [at, setAt] = useState(null), [care, setCare] = useState(null)
-  useEffect(() => { C.care().then(setCare).catch(() => {}) }, [])
+  useEffect(() => { if (!locked) C.care().then(setCare).catch(() => {}) }, [locked])
   const [atFail, setAtFail] = useState(false), coaches = useCoaches()
-  useEffect(() => { AT.get().then(setAt).catch(() => setAtFail(true)) }, [])
+  useEffect(() => { if (!locked) AT.get().then(setAt).catch(() => setAtFail(true)) }, [locked])
   useEffect(() => {
+    if (locked) return
+    let live = true
+    setErr('')
     flushQueue().then(setPend).catch(() => {})
     G.state().then(s => {
+      if (!live) return
       setSt(s)
       if (s.active) G.today().then(setToday).catch(() => {})
-    }).catch(e => setErr(e.status === 401 ? 'Entre com sua conta para usar os programas guiados.' : 'Sem conexão. Você ainda pode continuar um treino salvo no aparelho.'))
-  }, [nav, locked])
+    }).catch(e => { if (live) setErr(e.status === 401 ? 'Entre com sua conta para usar os programas guiados.' : 'Não foi possível carregar seu início. Você ainda pode continuar um treino salvo no aparelho.') })
+    return () => { live = false }
+  }, [nav, locked, retry])
   // V4.4 U2: sessão aberta > ficha > vínculo sem ficha > programa > sem treino. O questionário só aparece no último caso
   // e nunca com dados incompletos (falha de carregamento não é "sem treino").
   useEffect(() => {
@@ -67,7 +73,7 @@ export default function Today() {
     <div className="g-card g-list org-list" style={{ marginTop: 12 }}><Li icon="chat" t="Acompanhamento" s="Profissionais, conversas e ocorrências" to="/acompanhamento" testid="home-care" /></div>
   </div>
   if (isPending(user)) return <div className="ag" data-testid="today"><span className="g-eyebrow">Início</span><h1>Olá{user.name ? ', ' + user.name.split(' ')[0] : ''}!</h1><div style={{ marginTop: 14 }}><PendingCard /></div></div>
-  if (err) return <div className="ag"><h1>Hoje</h1><p className="g-mut">{err}</p>
+  if (err) return <div className="ag">{head}<p className="g-mut">{err}</p><button className="g-btn g-ghost" onClick={() => setRetry(v => v + 1)}>Tentar novamente</button>
     {local && <button className="g-btn g-xl" style={{ marginTop: 20 }} onClick={() => nav('/treinar')}>CONTINUAR TREINO</button>}</div>
   if (!st) return <Spin />
   const first = (user?.name || '').split(' ')[0]
@@ -112,7 +118,7 @@ export default function Today() {
         {w.exercises.length > 4 && <p className="g-mut g-xs">+ {plural(w.exercises.length - 4, 'exercício', 'exercícios')}</p>}
       </div>}
     </>}
-    <HomeWidgets h={home} />
+    <HomeWidgets h={home} onRetry={reloadHome} />
 
     <div className="g-card g-list org-list" style={{ marginTop: 12 }}><Li icon="chat" t="Acompanhamento" s="Profissionais, conversas e ocorrências" to="/acompanhamento" testid="home-care" badge={care?.occurrences?.filter(o => o.status !== 'encerrada').length ? care.occurrences.filter(o => o.status !== 'encerrada').length + ' em aberto' : undefined} /></div>
   </div>
@@ -133,9 +139,9 @@ function StartHere({ profile, at, care, coaches }) {
         <span className="g-eyebrow">Comece por aqui</span>
         {(() => { const cs = coachContextState({ coaches, hasProPlan: false, scoped: !!useStore.getState().user?.client_locked }); return cs === 'A' || cs === 'B' ? <><h2 style={{ marginTop: 6 }}>Aguardando sua ficha</h2>
         <CoachContext state={cs} coaches={coaches} testid="client-wait" />
-        {cs === 'B' && can('programas') && <><p className="g-mut g-sm" style={{ marginTop: 8 }}>Enquanto isso, você pode seguir um programa do AVAGYM.</p><button className="g-btn g-ghost" style={{ marginTop: 8 }} onClick={() => nav(profile ? '/programas' : '/onboarding')} data-testid="start-choose">VER PROGRAMAS</button></>}</> : <>
+        {cs === 'B' && can('programas') && <><p className="g-mut g-sm" style={{ marginTop: 8 }}>Enquanto isso, você pode seguir um programa do ORNY.</p><button className="g-btn g-ghost" style={{ marginTop: 8 }} onClick={() => nav(profile ? '/programas' : '/onboarding')} data-testid="start-choose">VER PROGRAMAS</button></>}</> : <>
         <h2 style={{ marginTop: 6 }}>Escolha seu treino</h2>
-        <p className="g-mut g-sm">Programas publicados pelo AVAGYM e por profissionais verificados.</p>
+        <p className="g-mut g-sm">Programas publicados pelo ORNY e por profissionais verificados.</p>
         {can('programas') ? <button className="g-btn" style={{ marginTop: 12 }} onClick={() => nav(profile ? '/programas' : '/onboarding')} data-testid="start-choose">ESCOLHER MEU TREINO</button> : <button className="g-link" onClick={() => nav('/planos')}>Consultar meu acesso</button>}</> })()}
       </div></div>}
 

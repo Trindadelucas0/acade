@@ -1,3 +1,4 @@
+import Brand from '../../components/Brand.jsx'
 // Central administrativa AVADESK (desktop-first, funciona no celular): barra lateral, KPIs com gráficos,
 // tabelas com busca/filtro/ordenação/paginação/CSV e gavetas de detalhe. O admin é quem decide vínculos, capacidade e liberações.
 import { AdmLiberacoes } from '../v3/V42.jsx'
@@ -372,13 +373,13 @@ export default function AdminApp() {
   const X = EXTRA[tab]
   return <div className="adm" data-testid="admin-panel">
     <aside className={'adm-side' + (open ? ' open' : '')} aria-label="Menu administrativo" id="admin-navigation">
-      <div className="adm-brand">AVAGYM <b>Admin</b></div>
+      <div className="adm-brand"><Brand /> <b>Admin</b></div>
       {NAV.map(([g, items]) => <div key={g}><h6>{g}</h6>{items.map(([k, l, ic]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => go(k)} data-testid={'adm-' + k}><Icon name={ic} />{l}</button>)}</div>)}
       <h6>Conta</h6><button onClick={() => nav('/comunidade')} data-testid="adm-comunidade-app"><Icon name="chevronLeft" />Ver comunidade</button><button onClick={() => nav('/perfil')}><Icon name="chevronLeft" />Minha conta</button><button onClick={() => useStore.getState().signOut()} data-testid="adm-sair"><Icon name="chevronLeft" />Sair</button>
     </aside>
     <main className="adm-main">
-      <div className="adm-mtop"><button className="adm-btn ghost" style={{ minWidth: 44, minHeight: 44, fontSize: 18 }} onClick={() => setOpen(!open)} aria-label="Menu" aria-expanded={open} aria-controls="admin-navigation" data-testid="adm-menu">☰</button><b>{TITLE[tab]}</b></div>
-      <h1 data-testid="adm-title">{TITLE[tab]}</h1><p className="adm-sub">AVAGYM · central administrativa · <button className="g-link" style={{ minHeight: 32, padding: '4px 8px' }} data-testid="tour-restart" onClick={() => dispatchEvent(new Event('avagym:tour-restart'))}>Rever orientações</button></p>
+      <div className="adm-mtop"><button className="adm-btn ghost" style={{ minWidth: 44, minHeight: 44, fontSize: 18 }} onClick={() => setOpen(!open)} aria-label="Menu" aria-expanded={open} aria-controls="admin-navigation" data-testid="adm-menu">☰</button><b>{TITLE[tab]}</b><Brand compact /></div>
+      <h1 data-testid="adm-title">{TITLE[tab]}</h1><p className="adm-sub">ORNY · central administrativa · <button className="g-link" style={{ minHeight: 32, padding: '4px 8px' }} data-testid="tour-restart" onClick={() => dispatchEvent(new Event('avagym:tour-restart'))}>Rever orientações</button></p>
       {tab === 'dashboard' && <ManagementDashboard go={go} />}
       {tab === 'usuarios' && <><SubTabs items={[['contas','Contas'],['pendencias','Pendências'],['liberacoes','Liberação das ações']]} current={sub} onChange={setSub}/>{sub==='liberacoes'?<AdmLiberacoes/>:<Usuarios key={sub} pendingOnly={sub==='pendencias'}/>}</>}
 

@@ -13,7 +13,7 @@ function Steps({ ios, close }) {
   const n = { flex: '0 0 26px', height: 26, borderRadius: 13, background: 'var(--acc)', color: '#fff', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: 13 }
   return <>
     <h3>Adicionar {'\u00e0'} tela inicial</h3>
-    <div className="muted small" style={{ marginBottom: 8 }}>Instale o AVAGYM para abrir como um app, em tela cheia.</div>
+    <div className="muted small" style={{ marginBottom: 8 }}>Instale o ORNY para abrir como um app, em tela cheia.</div>
     {ios ? <>
       <div style={step}><span style={n}>1</span><span>Toque em <b>Compartilhar</b> <span style={{ fontSize: 18 }}>{'\u2b06'}</span> na barra do Safari</span></div>
       <div style={step}><span style={n}>2</span><span>Escolha <b>Adicionar {'\u00e0'} Tela de In{'\u00ed'}cio</b></span></div>

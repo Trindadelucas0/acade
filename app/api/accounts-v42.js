@@ -194,8 +194,8 @@ export function accountRoutes({ json, readBody }) {
         await q('select id from users where id=$1 for update', [u.id])
         if ((await q("select 1 from data_export_requests where user_id=$1 and created_at>now()-interval '24 hours'", [u.id])).rowCount) return null
         const ob = await enqueueEmail({ tenantId: u.tenant_id, to: u.email, cc: copy, kind: 'lgpd_export', ref: u.id,
-          subject: 'AVAGYM — exportação dos seus dados (LGPD)',
-          body: `Olá, ${u.name}.\n\nSegue em anexo o arquivo com os seus dados pessoais, conforme pedido feito em ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}.\nSe você não fez este pedido, troque sua senha e fale com o suporte.\n\nAVAGYM`,
+          subject: 'ORNY — exportação dos seus dados (LGPD)',
+          body: `Olá, ${u.name}.\n\nSegue em anexo o arquivo com os seus dados pessoais, conforme pedido feito em ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}.\nSe você não fez este pedido, troque sua senha e fale com o suporte.\n\nORNY`,
           attachment: { name: 'avagym-meus-dados.json', type: 'application/json', content: JSON.stringify(data, null, 2) } })
         const r = (await q(`insert into data_export_requests(tenant_id,user_id,email,copy_email,outbox_id,ip) values($1,$2,$3,$4,$5,$6) returning id`,
           [u.tenant_id, u.id, email, copy, ob.id, clientIp(req)])).rows[0]

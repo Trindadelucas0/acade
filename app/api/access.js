@@ -4,6 +4,8 @@
 // Com 'monetizacao_ativa' DESLIGADA nada e bloqueado (comportamento atual). Ligada: tudo que nao esta na lista
 // ALWAYS_ALLOWED exige acesso (negar por padrao: rota nova nasce protegida). Regras SO no backend.
 import { q } from './db/pool.js'
+import { resolve } from './entitlements.js'
+import { welcomeResources } from './welcome-features.js'
 
 export const PAID_STATUSES = ['ativa', 'trial', 'inadimplente', 'carencia']
 const db = c => c || { query: (t, p) => q(t, p) }
@@ -86,7 +88,7 @@ export async function commercialStatus(c, userId, audience, sources) {
   return 'sem_assinatura'
 }
 
-const NO_ACCESS_MSG = 'Seu acesso aos recursos do AVAGYM terminou. Seus dados continuam salvos e voltam assim que você assinar. Você ainda pode acessar sua conta, perfil, configurações, privacidade e a tela de assinatura.'
+const NO_ACCESS_MSG = 'Seu acesso aos recursos do ORNY terminou. Seus dados continuam salvos e voltam assim que você assinar. Você ainda pode acessar sua conta, perfil, configurações, privacidade e a tela de assinatura.'
 
 // middleware global (server.js), depois da autenticacao. Admin nunca e cobrado.
 export async function monetizationGate(key, user, res, json) {
@@ -114,8 +116,15 @@ export async function pendingWelcome(user) {
     if (s.kind === 'teste' && s.source !== 'transicao') cands.push({ key: `teste:${s.id}`, kind: 'teste', audience, plan_id: s.plan_id, plan_name: s.plan_name, until: s.until })
   }
   if (!cands.length) return null
-  const seen = new Set((await q('select activation_key from access_welcome where user_id=$1 and activation_key = any($2)', [user.id, cands.map(c => c.key)])).rows.map(r => r.activation_key))
-  return cands.find(c => !seen.has(c.key)) || null
+  const seen = new Set((await q('select activation_key from access_welcome where user_id=$1 and tenant_id=$3 and activation_key = any($2)', [user.id, cands.map(c => c.key), user.tenant_id])).rows.map(r => r.activation_key))
+  const pending = cands.find(c => !seen.has(c.key))
+  if (!pending) return null
+  const e = await resolve(user.id, pending.audience)
+  const scoped = user.account_type === 'personal_client' && !user.access_unlocked_at
+  const professional = pending.audience === 'profissional' ? (await q('select verification_status, can_publish from professional_profiles where user_id=$1 and tenant_id=$2', [user.id, user.tenant_id])).rows[0] : null
+  const resources = welcomeResources(pending.audience, e?.active ? e.features : {}, scoped, professional?.verification_status === 'verificado')
+    .filter(path => path !== '/pro/programas' || professional?.can_publish)
+  return { ...pending, resources }
 }
 
 // GET /api/access/me: o que a tela de assinatura/teste mostra (origens, fim do teste, elegibilidade ao teste)
@@ -124,12 +133,19 @@ export function accessRoutes({ json, requireAuth, readBody }) {
   return {
     'GET /api/access/welcome': async (req, res) => {
       const u = await requireAuth(req, res, json); if (!u) return
-      json(res, 200, { welcome: await pendingWelcome(u) })
+      try { json(res, 200, { welcome: await pendingWelcome(u) }) }
+      catch (e) {
+        if (e.code !== '42P01' || !e.message.includes('access_welcome')) throw e
+        json(res, 503, { error: 'As boas-vindas aguardam atualização do sistema.', code: 'WELCOME_SCHEMA_PENDING' })
+      }
     },
     // registra que a tela foi mostrada (chamado ao abrir). So aceita a ativacao pendente da propria pessoa.
     'POST /api/access/welcome/seen': async (req, res) => {
       const u = await requireAuth(req, res, json); if (!u) return
       const b = await (readBody ? readBody(req).catch(() => ({})) : readJson(req))
+      if (typeof b?.key !== 'string' || !b.key || b.key.length > 200) return json(res, 400, { error: 'Ativação inválida.', code: 'INVALID_INPUT' })
+      const seen = await q('select 1 from access_welcome where user_id=$1 and tenant_id=$2 and activation_key=$3', [u.id, u.tenant_id, b.key])
+      if (seen.rowCount) return json(res, 200, { ok: true })
       const w = await pendingWelcome(u)
       if (!w || w.key !== String(b.key || '')) return json(res, 409, { error: 'Nenhuma boas-vindas pendente com essa chave.', code: 'NOT_PENDING' })
       await q(`insert into access_welcome(tenant_id,user_id,activation_key,kind,plan_id) values($1,$2,$3,$4,$5) on conflict (user_id, activation_key) do nothing`, [u.tenant_id, u.id, w.key, w.kind, w.plan_id])

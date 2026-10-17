@@ -1,5 +1,5 @@
 // Lote 7: grafico de barras em SVG proprio (sem biblioteca). data: [{ label, value, title? }]
-export default function BarChart({ data, h = 150, fmt = v => String(v), color = 'var(--st-bar, #c8f135)', goal = null, label = 'Gráfico de barras', testid }) {
+export default function BarChart({ data, h = 150, fmt = v => String(v), color = 'var(--st-bar, #20f51b)', goal = null, label = 'Gráfico de barras', testid }) {
   if (!data?.length) return <p className="g-mut g-sm st-empty">Sem treinos no período.</p>
   const W = 340, H = h, P = { t: 18, b: 22, l: 4, r: 4 }
   const max = Math.max(goal || 0, ...data.map(d => d.value), 1)

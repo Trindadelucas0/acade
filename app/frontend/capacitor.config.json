@@ -1,8 +1,8 @@
 {
   "appId": "avadesk",
-  "appName": "avadesk",
+  "appName": "ORNY",
   "webDir": "dist",
-  "backgroundColor": "#0c0e12",
+  "backgroundColor": "#000000",
   "android": {
     "allowMixedContent": false
   }

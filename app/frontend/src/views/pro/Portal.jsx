@@ -225,7 +225,7 @@ export default function ProPortal() {
   const [dash, err, reloadDash] = useLoad(() => tab === 'atendimentos' || tab === 'perfil' ? C.dash(tab === 'atendimentos') : Promise.resolve(null), [tab])
   const TITLES = { painel: 'Painel', alunos: 'Meus alunos', treinos: 'Treinos', atendimentos: 'Atendimentos', capacidade: 'Meu plano e vagas', perfil: 'Perfil profissional', verificacao: 'Verificação profissional', convites: 'Convites pendentes', cadastrar: 'Cadastrar conta do aluno', adicionar: 'Adicionar aluno', mais: 'Mais' }
   return <div className="ag" data-testid="pro">
-    <div className="g-row"><div><span className="g-eyebrow">AVAGYM</span><h1>{TITLES[tab] || 'Painel'}</h1></div><span className="g-sp" /><Bell /></div>
+    <div className="g-row"><div><span className="g-eyebrow">ORNY</span><h1>{TITLES[tab] || 'Painel'}</h1></div><span className="g-sp" /><Bell /></div>
     {['perfil', 'verificacao', 'capacidade'].includes(tab) && <button className="g-link org-back" onClick={() => go('mais')}>← Mais</button>}
     {['adicionar','convites','cadastrar'].includes(tab) && <button className="g-link org-back" onClick={() => go('alunos')}>← Alunos</button>}
     <div className="org-section">

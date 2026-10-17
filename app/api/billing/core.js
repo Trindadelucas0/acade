@@ -53,7 +53,7 @@ const MSG = {
   estornada: v => ['Pagamento estornado', `O pagamento de ${v.amount} foi estornado.`],
   teste_cupom_ativo: v => ['Seu acesso experimental está ativo.', `Acesso até ${v.until}. Sem cobrança automática.`],
   teste_terminando: v => ['Seu acesso experimental está terminando.', `Seu acesso termina em ${v.until}.`],
-  teste_terminou: () => ['Seu período gratuito terminou. Seu histórico continua salvo.', 'Conheça o AVAGYM Individual para continuar com os programas oficiais.']
+  teste_terminou: () => ['Seu período gratuito terminou. Seu histórico continua salvo.', 'Conheça o ORNY Individual para continuar com os programas oficiais.']
 }
 export async function notifyBilling(userId, ev, vars, dedupe) {
   const [title, body0] = MSG[ev](vars || {})
@@ -65,7 +65,7 @@ export async function notifyBilling(userId, ev, vars, dedupe) {
   try { if (pushFn) await pushFn(userId, { title, body, tag: 'billing-' + ev, url: '/#' + link }) } catch (e) { console.error('billing push', e.message) }
   try {
     const u = (await q('select tenant_id, email from users where id=$1', [userId])).rows[0]
-    if (u?.email) await enqueueEmail({ tenantId: u.tenant_id, to: u.email, subject: (test ? '[TESTE] ' : '') + title, body, kind: 'cobranca', eventKey: key + ':' + userId, actionPath: link, actionLabel: ev.startsWith('teste_') ? 'Abrir AVAGYM' : 'Ver minha assinatura' })
+    if (u?.email) await enqueueEmail({ tenantId: u.tenant_id, to: u.email, subject: (test ? '[TESTE] ' : '') + title, body, kind: 'cobranca', eventKey: key + ':' + userId, actionPath: link, actionLabel: ev.startsWith('teste_') ? 'Abrir ORNY' : 'Ver minha assinatura' })
   } catch (e) { if (!/duplicate key/.test(e.message)) console.error('billing email', e.message) }
 }
 

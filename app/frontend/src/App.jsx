@@ -1,3 +1,4 @@
+import Brand, { BrandLoading } from './components/Brand.jsx'
 import { applyTheme, loadTheme } from './lib/theme.js'
 import { useEffect, lazy, Suspense } from 'react'
 import { HashRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
@@ -93,9 +94,7 @@ function Shell() {
   const authed = user || isGuest
   if (!ready && !authed) return (
     <div id="app">
-      <div style={{ paddingTop: '44vh', display: 'flex', justifyContent: 'center', fontSize: 34, color: 'var(--label-3)' }}>
-        <Icon name="dumbbell" />
-      </div>
+      <BrandLoading />
     </div>
   )
 
@@ -109,6 +108,7 @@ function Shell() {
       {/* keyed on the route: a view that throws is contained, and switching tabs
           re-mounts the boundary, so the tab bar is always a way out */}
       <div id="app" className="vfade" key={loc.pathname}>
+        {authed && !isAdminAccount(user) && <div className="orny-app-brand"><Brand /></div>}
         {authed && !user?.must_change_password && <LockBanner />}
         {authed && user?.profile_incomplete && !user?.must_change_password && !user?.needs_terms && <ProfileNotice />}
         <ErrorBoundary>
@@ -134,9 +134,9 @@ function Shell() {
             </Routes>
           ) : isProAccount(user) ? (
             <Routes>
-              <Route path="/pro" element={<Gate title="AVAGYM" aud="profissional"><ProPortal /></Gate>} />
-              <Route path="/pro/programas" element={<Gate title="AVAGYM" aud="profissional"><MyPrograms /></Gate>} />
-              <Route path="/pro/treino" element={<Gate title="AVAGYM" aud="profissional"><Builder /></Gate>} />
+              <Route path="/pro" element={<Gate title="ORNY" aud="profissional"><ProPortal /></Gate>} />
+              <Route path="/pro/programas" element={<Gate title="ORNY" aud="profissional"><MyPrograms /></Gate>} />
+              <Route path="/pro/treino" element={<Gate title="ORNY" aud="profissional"><Builder /></Gate>} />
               <Route path="/library" element={<Library />} />
               <Route path="/comunidade" element={<Gate title="Comunidade"><Comunidade /></Gate>} />
               <Route path="/grupo/:id" element={<Gate title="Comunidade"><GroupPage /></Gate>} />
@@ -156,7 +156,7 @@ function Shell() {
           ) : (
             <Routes>
               <Route path="/pro/treino" element={user?.admin ? <Builder /> : <Navigate to="/hoje" replace />} />
-              <Route path="/hoje" element={<Today />} />
+              <Route path="/hoje" element={<Gate title="Início" free><Today /></Gate>} />
               <Route path="/treinos" element={<Gate title="Treinos"><Treinos /></Gate>} />
               <Route path="/comunidade" element={<Gate title="Comunidade"><Comunidade /></Gate>} />
               <Route path="/acompanhamento" element={<Gate title="Acompanhamento"><Acompanhamento /></Gate>} />
@@ -168,8 +168,8 @@ function Shell() {
               <Route path="/post/:id" element={<Gate title="Comunidade"><PostPage /></Gate>} />
               <Route path="/profissional/:id" element={<Gate title="Comunidade"><ProfessionalPage /></Gate>} />
               <Route path="/ranking" element={<ScopeGate title="Ranking"><Gate title="Ranking"><Ranking /></Gate></ScopeGate>} />
-              <Route path="/pro" element={user?.pro || user?.admin ? <Gate title="AVAGYM" aud="profissional"><ProPortal /></Gate> : <Navigate to="/hoje" replace />} />
-              <Route path="/pro/programas" element={<Gate title="AVAGYM" aud="profissional"><MyPrograms /></Gate>} />
+              <Route path="/pro" element={user?.pro || user?.admin ? <Gate title="ORNY" aud="profissional"><ProPortal /></Gate> : <Navigate to="/hoje" replace />} />
+              <Route path="/pro/programas" element={<Gate title="ORNY" aud="profissional"><MyPrograms /></Gate>} />
               <Route path="/admin/painel" element={user?.admin ? <AdminApp /> : <Navigate to="/hoje" replace state={{ noOnboarding: true }} />} />{/* QA AD-40/43: sem permissao -> Inicio, sem cair no questionario */}
               <Route path="/onboarding" element={<Gate title="Treinos"><Onboarding /></Gate>} />
               <Route path="/recomendados" element={<ScopeGate title="Recomendados"><Gate title="Recomendados"><Recommendations /></Gate></ScopeGate>} />

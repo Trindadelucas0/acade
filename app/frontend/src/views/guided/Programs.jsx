@@ -67,8 +67,11 @@ export function Recommendations() {
 export function Library() {
   const nav = useNavigate()
   const [goal, setGoal] = useState('')
+  const [level, setLevel] = useState(''), [location, setLocation] = useState(''), [retry, setRetry] = useState(0)
+  const [error, setError] = useState(false)
   const [list, setList] = useState(null)
-  useEffect(() => { setList(null); G.programs(goal).then(r => setList(r.programs)).catch(() => setList([])) }, [goal])
+  useEffect(() => { let live = true; setList(null); setError(false); G.programs(goal).then(r => { if (live) setList(r.programs) }).catch(() => { if (live) setError(true) }); return () => { live = false } }, [goal, retry])
+  const filtered = list?.filter(p => (!level || p.level === level) && (!location || p.location === location))
   return <div className="ag" data-testid="library">
     <CoachLockNote />
     <span className="g-eyebrow">Programas</span>
@@ -79,11 +82,14 @@ export function Library() {
       <span><b>Recomendados para você</b><br /><span className="g-mut g-sm">Com base nas suas respostas</span></span>
       <span className="g-sp" /><Icon name="play" />
     </button>
-    <label className="g-filter-field">Objetivo
+    <div className="program-filters"><label className="g-filter-field">Objetivo
       <GSelect label="Objetivo" value={goal} onChange={setGoal} options={[['', 'Todos os objetivos'], ...GOALS.map(([v, l]) => [v, v === 'rehab' ? 'Fisioterapia' : l])]} testid="prog-goal" />
     </label>
+    <label className="g-filter-field">Nível<GSelect label="Nível" value={level} onChange={setLevel} options={[["", "Todos os níveis"], ...Object.entries(LEVEL_PT)]} testid="prog-level" /></label>
+    <label className="g-filter-field">Local<GSelect label="Local" value={location} onChange={setLocation} options={[["", "Todos os locais"], ...Object.entries(LOC_PT)]} testid="prog-location" /></label></div>
+    {(goal || level || location) && <button className="g-link" onClick={() => { setGoal(''); setLevel(''); setLocation('') }}>Limpar filtros</button>}
     <div style={{ marginTop: 12 }}>
-      {!list ? <p className="g-dim g-center">Carregando…</p> : list.map(p => <ProgramCard key={p.id} p={p} onClick={() => nav('/programa/' + p.id)} />)}
+      {error ? <><p className="g-mut">Não foi possível carregar os programas.</p><button className="g-btn" onClick={() => setRetry(v => v + 1)}>Tentar novamente</button></> : !list ? <p className="g-dim g-center" role="status">Carregando…</p> : filtered.length ? filtered.map(p => <ProgramCard key={p.id} p={p} onClick={() => nav('/programa/' + p.id)} />) : <p className="g-note">Nenhum programa encontrado para esses filtros. Experimente outro objetivo, nível ou local.</p>}
     </div>
   </div>
 }

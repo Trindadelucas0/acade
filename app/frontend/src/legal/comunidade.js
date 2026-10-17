@@ -1,6 +1,6 @@
 // ATENÇÃO: o texto completo que o Lucas colou (t20u) não chegou a este editor; esta é uma versão reconstruída
 // com as 15 seções e os ajustes pedidos (11.2/11.3 prazo de 15 dias; 12.2 art. 21). Para usar o original, cole-o aqui.
-export default `# REGRAS DA COMUNIDADE E POLÍTICA DE MODERAÇÃO — AVAGYM
+export default `# REGRAS DA COMUNIDADE E POLÍTICA DE MODERAÇÃO — ORNY
 
 **Versão:** [versão]  
 **Vigência:** [data de vigência]  
@@ -9,7 +9,7 @@ export default `# REGRAS DA COMUNIDADE E POLÍTICA DE MODERAÇÃO — AVAGYM
 
 ## Resumo
 
-A comunidade do AVAGYM existe para motivar e trocar experiências sobre treino com respeito. Não é permitido conteúdo ilegal, ofensivo, sexual, enganoso ou que exponha outras pessoas. Você pode denunciar pelo botão "Denunciar" ou por e-mail. As medidas de moderação são proporcionais e você pode contestar.
+A comunidade do ORNY existe para motivar e trocar experiências sobre treino com respeito. Não é permitido conteúdo ilegal, ofensivo, sexual, enganoso ou que exponha outras pessoas. Você pode denunciar pelo botão "Denunciar" ou por e-mail. As medidas de moderação são proporcionais e você pode contestar.
 
 ## 1. Objetivo
 
@@ -49,7 +49,7 @@ h) viole direitos autorais, de marca ou de imagem.
 
 ## 6. Direitos sobre o conteúdo
 
-6.1. O conteúdo continua sendo seu. Você concede ao AVAGYM a licença prevista nos Termos de Uso apenas para exibi-lo na plataforma.
+6.1. O conteúdo continua sendo seu. Você concede ao ORNY a licença prevista nos Termos de Uso apenas para exibi-lo na plataforma.
 
 ## 7. Desafios e ranking
 
@@ -69,7 +69,7 @@ h) viole direitos autorais, de marca ou de imagem.
 
 ## 8. Grupos
 
-8.1. Donos e moderadores de grupos devem seguir estas Regras e podem remover conteúdo do próprio grupo; a moderação do AVAGYM pode intervir a qualquer momento.
+8.1. Donos e moderadores de grupos devem seguir estas Regras e podem remover conteúdo do próprio grupo; a moderação do ORNY pode intervir a qualquer momento.
 
 ## 9. Denúncias
 
@@ -97,7 +97,7 @@ h) viole direitos autorais, de marca ou de imagem.
 
 ## 12. Responsabilidade e ordens judiciais
 
-12.1. Nos termos do art. 19 do Marco Civil da Internet (Lei 12.965/2014), o AVAGYM poderá ser responsabilizado civilmente por conteúdo de terceiros somente se, após ordem judicial específica, não o tornar indisponível, sem prejuízo da remoção voluntária de conteúdo que viole estas Regras.
+12.1. Nos termos do art. 19 do Marco Civil da Internet (Lei 12.965/2014), o ORNY poderá ser responsabilizado civilmente por conteúdo de terceiros somente se, após ordem judicial específica, não o tornar indisponível, sem prejuízo da remoção voluntária de conteúdo que viole estas Regras.
 
 12.2. Exceção do art. 21 do Marco Civil: imagens, vídeos ou outros materiais com nudez ou atos sexuais de caráter privado divulgados sem autorização serão removidos após notificação da vítima ou de seu representante legal, sem necessidade de ordem judicial. A notificação deve identificar o conteúdo e pode ser enviada para [e-mail de moderação].
 

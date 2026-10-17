@@ -2,7 +2,7 @@
 import { useStore } from '../../store/useStore.js'
 import Icon from '../../components/Icon.jsx'
 import '../guided/guided.css'
-import { usePremium, PremiumPage } from '../billing/Premium.jsx'
+import { usePremium, PremiumPage, PremiumLoading } from '../billing/Premium.jsx'
 export const isPending = u => !!u && u.status && u.status !== 'ativo'
 export function PendingCard() {
   const status = useStore(s => s.user?.status)
@@ -15,8 +15,9 @@ export function PendingCard() {
 // free: a propria tela trata o cadeado por secao (ex.: Progresso). aud='profissional': rotas do personal.
 export default function Gate({ children, title, free, aud }) {
   const user = useStore(s => s.user)
-  const { locked } = usePremium(aud)
+  const { locked, ready } = usePremium(aud)
   if (isPending(user)) return <div className="ag"><span className="g-eyebrow">{title}</span><h1>{title}</h1><div style={{ marginTop: 14 }}><PendingCard /></div></div>
-  if (locked && !free) return <PremiumPage title={title === 'AVAGYM' ? 'Área do personal' : title} />
+  if (locked && !free) return <PremiumPage title={title === 'ORNY' ? 'Área do personal' : title} />
+  if (!ready) return <PremiumLoading />
   return children
 }

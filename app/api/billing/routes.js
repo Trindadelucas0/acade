@@ -53,7 +53,7 @@ export async function accessSummary(user) {
   if (e?.features?.catalogo_completo && !paid && !trialActive) sources.push('concessao')
   // uma mensagem principal, sem contradicao (PRD 18 "usuario com varios direitos")
   let state, message
-  if (paid) { state = 'assinatura_ativa'; message = 'Seu acesso AVAGYM Individual está ativo.' }
+  if (paid) { state = 'assinatura_ativa'; message = 'Seu acesso ORNY Individual está ativo.' }
   else if (trialActive && new Date(trial.expires_at).getTime() - now <= warnMs) { state = 'teste_terminando'; message = 'Seu acesso experimental está terminando.' }
   else if (trialActive) { state = 'teste_ativo'; message = 'Seu acesso experimental está ativo.' }
   else if (trial && coach) { state = 'teste_expirado_personal'; message = 'Seu período promocional terminou, mas você pode continuar utilizando os treinamentos disponibilizados pelo seu profissional.' }

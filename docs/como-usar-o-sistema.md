@@ -1,6 +1,19 @@
-# Guia diário do administrador — AVADESK Fitness
+# Guia diário do administrador — ORNY
 
 Fonte oficial: [documentação do sistema](../app/DOCUMENTACAO-SISTEMA.md). Este guia descreve o uso, sem substituir as regras da fonte oficial.
+
+## Aluno: Início, programas e evolução
+
+1. Em Início, confira Minha semana logo abaixo da data e do seu nome. O cartão acompanha a rolagem; o botão Começar treino ou Continuar treino fica abaixo do treino ativo.
+2. Confira os cartões de sequência, volume, tempo e recordes. O mapa informa os músculos do próximo treino. Preparar este treino abre o dia mostrado; para uma ficha com vários dias, você também pode escolher o dia em Treinos.
+3. Antes de iniciar uma nova sessão, confira os pesos e toque em Confirmar pesos e iniciar treino. Só então o cronômetro começa. Finalize as séries e conclua o treino para atualizar o progresso.
+4. Em Programas, combine Objetivo, Nível e Local. Limpar filtros volta a mostrar todo o catálogo disponível. Nenhum resultado significa que não há programa naquela combinação.
+5. Em Progresso, abra Estatísticas detalhadas e escolha o período. Volume, frequência, tempo e cargas usam treinos válidos; semanas vazias entram como zero. A consistência usa sua meta atual e inclui semanas parciais no período. A primeira carga é a base; recorde exige superar uma marca anterior.
+6. Se aparecer cadeado, use Ver planos para consultar sua assinatura ou ativar um cupom elegível. O acesso por teste, concessão ou personal segue as regras da conta. O aluno coberto pelo personal mantém as restrições próprias desse perfil.
+7. Após ativar um plano ou teste, o agradecimento mostra os recursos disponíveis e seus atalhos. Se estiver treinando, ele aguarda você sair da execução. Use Fechar ou Começar agora; após o registro bem-sucedido, ele não volta para a mesma ativação.
+8. Abra o sino para consultar as notificações em português. Mensagens escritas pelo seu profissional mantêm a redação original. Se uma consulta falhar, use Tentar novamente.
+
+Disponibilidade: melhorias preparadas e testadas localmente. O banco de uso ainda exige reconciliação das atualizações, incluindo a tabela das boas-vindas; esta entrega não realizou publicação nem alteração desse banco.
 
 1. Entre com uma conta administradora e abra Visão geral.
 2. Escolha Últimos 7, 30 ou 90 dias. Cadastros e treinos mudam conforme o período. Vínculos, assinaturas e vagas mostram a situação atual.
@@ -43,3 +56,9 @@ As opções internas aparecem em linhas, sem precisar arrastar botões para os l
 
 ## Administração: organização atual
 Os grupos atuais são Visão geral, Pessoas, Planos e capacidade, Treinos, Comunidade, Operação e Sistema. Pessoas → Contas substitui o rótulo anterior Usuários e liberações; Treinos substitui Treinos e conteúdo. Em Visão geral, abra Análises detalhadas para gráficos e distribuição. No celular, cada registro começa com três campos; Ver mais campos revela os demais. Busca, ordenação, paginação e CSV continuam disponíveis.
+
+
+### Marca ORNY e aplicativo instalado
+A marca do sistema é ORNY em todas as áreas. O uso dos menus e permissões permanece o mesmo. O tema claro/escuro continua no controle de tema existente e conserva sua preferência.
+Para instalar, use a opção de instalação apresentada pelo aplicativo ou pelo navegador. O ícone usa o símbolo oficial sobre preto. Uma instalação anterior pode receber nome e ícone em momento diferente da atualização das telas, conforme aparelho/navegador; não limpe seus dados como procedimento padrão.
+Na abertura, se houver falha de carregamento, confira a conexão e use Tentar novamente. Atualizações continuam aguardando o término de treino ativo antes de recarregar. Esta entrega foi preparada localmente; publicação e validação física da instalação são etapas separadas.

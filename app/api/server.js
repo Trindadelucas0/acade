@@ -171,7 +171,7 @@ setInterval(async () => {
     saveDb();
     sendPush(user.id, {
       title: routine ? `${routine.emoji || '🏋️'} ${routine.name} hoje` : 'Treino planejado para hoje',
-      body: 'Está no seu plano. Bora treinar! 💪',
+      body: 'Seu treino de hoje está previsto. Acesse o aplicativo para começar.',
       tag: 'day-reminder'
     });
   }

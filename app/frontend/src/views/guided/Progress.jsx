@@ -35,9 +35,10 @@ const monday = d => { const x = new Date(d); x.setHours(0, 0, 0, 0); x.setDate(x
 export default function Progress() {
   const nav = useNavigate(), can = useNavigationAccess(), { locked } = usePremium()
   const [d, setD] = useState(null)
-  useEffect(() => { if (!locked) G.progress().then(setD).catch(() => setD(false)) }, [locked])
+  const [retry, setRetry] = useState(0)
+  useEffect(() => { let live = true; setD(null); if (!locked) G.progress().then(r => { if (live) setD(r) }).catch(() => { if (live) setD(false) }); return () => { live = false } }, [locked, retry])
   if (locked) return <ProgressLocked />
-  if (d === false) return <div className="ag"><h1>Progresso</h1><p className="g-mut">Sem conexão.</p></div>
+  if (d === false) return <div className="ag"><h1>Progresso</h1><p className="g-mut">Não foi possível carregar seu progresso.</p><button className="g-btn" onClick={() => setRetry(v => v + 1)}>Tentar novamente</button></div>
   if (!d) return <Spin />
   const now = monday(new Date()), map = Object.fromEntries(d.weeks.map(w => [String(w.wk).slice(0, 10), w.n]))
   const weeks = Array.from({ length: 8 }, (_, i) => { const x = new Date(now); x.setDate(x.getDate() - (7 - i) * 7); const k = x.toISOString().slice(0, 10)

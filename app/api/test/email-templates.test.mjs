@@ -15,7 +15,11 @@ test('todos os modelos possuem HTML acessível e texto alternativo', () => {
 test('escapa texto e não aceita URL executável', () => {
   const result = renderEmail({ subject: '<script>teste</script>', body: '<img src=x>', actionUrl: 'javascript:alert(1)' })
   assert.ok(!result.html.includes('<script>'))
-  assert.ok(!result.html.includes('<img'))
+  assert.ok(!result.html.includes('<img src=x>'))
+  assert.ok(result.html.includes('&lt;img src=x&gt;'))
+  assert.equal((result.html.match(/<img /g) || []).length, 1)
+  assert.match(result.html, /alt="ORNY"/)
+  assert.match(result.html, /\/brand\/orny-wordmark\.png/)
   assert.ok(!result.html.includes('javascript:'))
 })
 test('links são construídos a partir da origem configurada', () => {

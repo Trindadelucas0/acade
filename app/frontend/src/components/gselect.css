@@ -1,8 +1,8 @@
-/* AVAGYM V5 - GSelect: usa as variáveis do tema (--ag-*), então segue claro/escuro automaticamente */
+/* ORNY V5 - GSelect: usa as variáveis do tema (--ag-*), então segue claro/escuro automaticamente */
 .gs{position:relative;width:100%}
 .gs-btn{width:100%;min-height:48px;display:flex;align-items:center;gap:10px;border-radius:14px;border:1px solid var(--ag-line,#ffffff14);background:var(--ag-card-2,#16212d);color:var(--ag-txt,#eef4f9);padding:12px 14px;font:inherit;font-size:16px;text-align:left;cursor:pointer;transition:border-color .15s,box-shadow .15s}
-.gs-btn:hover:not(:disabled){border-color:color-mix(in srgb,var(--ag-acc,#c8f135) 45%,transparent)}
-.gs-btn:focus-visible,.gs[data-open] .gs-btn{outline:none;border-color:var(--ag-acc,#c8f135);box-shadow:0 0 0 3px color-mix(in srgb,var(--ag-acc,#c8f135) 28%,transparent)}
+.gs-btn:hover:not(:disabled){border-color:color-mix(in srgb,var(--ag-acc,#20f51b) 45%,transparent)}
+.gs-btn:focus-visible,.gs[data-open] .gs-btn{outline:none;border-color:var(--ag-acc,#20f51b);box-shadow:0 0 0 3px color-mix(in srgb,var(--ag-acc,#20f51b) 28%,transparent)}
 .gs-btn:disabled{opacity:.55;cursor:not-allowed}
 .gs-val{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .gs-ph{color:var(--ag-dim,#5f7387)}
@@ -13,7 +13,7 @@
 .gs-opt{display:flex;align-items:center;gap:10px;min-height:44px;padding:10px 12px;border-radius:12px;color:var(--ag-txt,#eef4f9);cursor:pointer;font-size:15px}
 .gs-opt.gs-act{background:var(--ag-card-2,#16212d)}
 .gs-opt.gs-sel{font-weight:700}
-.gs-opt.gs-sel .gs-check{color:var(--ag-acc,#c8f135)}
+.gs-opt.gs-sel .gs-check{color:var(--ag-acc,#20f51b)}
 .gs-opt.gs-dis{opacity:.45;cursor:not-allowed}
 .gs-opt-l{flex:1;min-width:0}
 .gs-hint{display:block;font-size:12.5px;color:var(--ag-mut,#93a7bb);font-weight:400}

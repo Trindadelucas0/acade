@@ -1,7 +1,43 @@
-# AVAGYM — Documentação do sistema
+# ORNY — Documentação do sistema
 
-Fonte oficial de comportamento. Versão frontend: 1.2.7. Atualização: 15/10/2026.
+Fonte oficial de comportamento. Versão frontend: 1.2.8. Atualização: 17/10/2026.
 O inventário em `docs/INVENTARIO-FUNCIONAL.md` preserva o levantamento histórico e seus limites de validação; este documento consolida os fluxos atualizados.
+
+## Acesso premium, Início e Progresso — conclusão de 17/10/2026
+
+### Comportamento e guia do aluno
+
+- Início mantém a data, o cumprimento e as notificações no cabeçalho. Minha semana é o primeiro cartão, com rolagem normal. Abaixo ficam treino ativo, ação para começar/continuar, sequência de dias, volume, tempo, recordes recentes e mapa do próximo treino.
+- O mapa usa os exercícios e as séries da próxima sessão do programa ativo ou da ficha do personal, que tem prioridade. Na ficha, a sequência sugere um dia; o aluno ainda pode escolher outro em Treinos. Preparar este treino abre exatamente o dia exibido e mantém a confirmação de pesos antes de iniciar. Repetições do mesmo exercício em blocos diferentes somam as séries.
+- Com monetização ativa e sem origem válida de acesso, Treinos, Comunidade, Progresso e páginas premium mostram cadeado e acesso à assinatura. Músculos trabalhados tem bloqueio explícito. Conta não ativa vê a situação cadastral. Administradores continuam isentos; teste, concessão vigente e cobertura pelo personal continuam sendo reconhecidos pelo servidor. Monetização desligada preserva o comportamento anterior.
+- A interface aguarda a consulta de acesso antes de montar conteúdo premium. Falha inicial oferece Tentar novamente. Respostas atrasadas de outra conta ou anteriores a uma atualização de acesso são ignoradas. A confirmação de acesso e a faixa de teste são vinculadas à conta atual.
+- Após assinatura ou teste elegível, o agradecimento informa o plano e os atalhos permitidos para aquele público, recursos e contexto. Recursos restritos ao aluno de personal e publicação por profissional sem verificação/liberação não são anunciados. O agradecimento aguarda a saída de Treinar e o registro de exibição só é enviado depois de aparecer; fechar ou usar um atalho também confirma a apresentação. Não repete após registro bem-sucedido; falha de rede pode levar a nova tentativa em outra entrada. O modal permite teclado, mantém o foco e fecha com Escape.
+- Programas permite combinar Objetivo, Nível e Local, com Limpar filtros, ausência de resultados e nova tentativa após falha. A auditoria somente leitura do catálogo local encontrou 21 programas com revisões publicadas, cobrindo os sete objetivos existentes, sem exercícios ausentes ou prescrições incompletas nos critérios conferidos. Nenhum programa foi duplicado, nenhum seed foi executado e nenhuma revisão publicada foi reescrita.
+- Progresso mantém resumo, histórico, recordes e acesso a Estatísticas detalhadas. Estatísticas oferece 7/30/90/180/365 dias ou Tudo, volume e frequência semanais, tempo, cargas e 1RM estimado, distribuição muscular e calendário. Erros permitem Tentar novamente. O aluno de personal sem liberação própria não recebe o mapa nem a distribuição muscular nessas novas respostas.
+- Notificações internas e push de treino permanecem em português. O lembrete local do aplicativo instalado usa texto português com o nome original do treino. Títulos/observações escritos pelos usuários não são traduzidos nem regravados. A permissão e a entrega física de notificações dependem do aparelho.
+
+### Regras dos indicadores e mapa do código
+
+`api/stats.js` mantém `GET /api/guided/stats?dias=7|30|90|180|365|0` e `GET /api/guided/home`, com autenticação e bloqueios centrais do servidor. As consultas de sessões/séries usam usuário e comunidade, ignoram datas futuras e aplicam `countsInMetrics`: concluídas, não anuladas, sem correção manual de tempo e fora do legado. Séries removidas não entram nos detalhes. Falta de acesso retorna 402 pelo motor de monetização; período inválido retorna 400.
+
+Períodos finitos incluem hoje e os N-1 dias anteriores em America/Sao_Paulo. As semanas começam na segunda-feira; semanas vazias aparecem com zero, inclusive antes do primeiro treino dentro do período escolhido. Tudo começa na semana do primeiro treino válido, ou na semana atual quando vazio. Consistência é semanas que atingiram a meta atual divididas por todas as semanas do recorte, inclusive semanas parciais nas bordas; isso é explicado na tela. Não há comparação com metas históricas que não foram registradas. `api/stats-calendar.js` centraliza dias e preenchimento das semanas.
+
+O 1RM usa Epley, apenas com carga positiva e 1 a 12 repetições. Uma superação conta uma vez por exercício/sessão, comparada ao melhor resultado anterior; a primeira carga estabelece a base. `kpis.records_count` conta as superações do período, independentemente da lista de melhores marcas de todo o histórico. Os recordes do Início usam os últimos 14 dias de calendário, sem o antigo limite de três resultados. A sequência de dias aceita hoje ou ontem como último dia treinado; não obriga treino hoje para manter a sequência de ontem. O calendário visual mostra no máximo 18 semanas, enquanto os indicadores usam o período inteiro.
+
+O campo adicional `next.to` em `/api/guided/home` aponta para o treino exibido, incluindo o índice real do dia na ficha. As ações mantêm as validações existentes ao preparar/iniciar. Apresentação em `frontend/src/views/guided/Today.jsx`, `HomeWidgets.jsx`, `Estatisticas.jsx` e `Programs.jsx`; acesso em `frontend/src/views/billing/Premium.jsx`, `Access.jsx` e `frontend/src/components/NavigationAccess.jsx`.
+
+Boas-vindas: `api/access.js` / `api/welcome-features.js`, `GET /api/access/welcome` retorna `welcome` ou null, com `resources` contendo os destinos liberados. `POST /api/access/welcome/seen` aceita a chave da ativação da própria conta; chave inválida retorna 400, chave alheia/não pendente retorna 409 e repetição já registrada retorna 200. A tabela `access_welcome` é definida na migration 056; sua ausência produz 503 `WELCOME_SCHEMA_PENDING` na consulta. As chaves existentes identificam assinatura por assinatura+plano e teste por concessão. Concessões administrativas/transição não disparam agradecimento. A migration marca ativações anteriores como vistas, evitando agradecimento retroativo. Interface em `frontend/src/views/billing/Welcome.jsx`.
+
+### Validação e disponibilidade
+
+Implementação local, sem publicação e sem alteração do banco de uso. A consulta somente leitura encontrou o banco `avagym` com histórico de migrations até 047 e sem `access_welcome`. Reconciliar o esquema completo antes de disponibilizar as novas rotas nesse banco; não executar migration/seed às cegas. A 056 foi testada duas vezes na base exclusiva `avagym_improvements_test_20261017`, criada a partir de `avagym_test`, sem duplicar registros de boas-vindas.
+
+- Unitários do frontend: 289 testes passaram; quatro novos casos verificam respostas atrasadas, logout, ativação e falha de consulta do acesso. No Windows, usar TEMP/TMP locais se o cache do Vitest retornar EPERM.
+- API: 4 testes de calendário/recursos e 34 verificações de integração passaram, incluindo isolamento, períodos, superações, mapa do próximo treino, acessos, expiração, concessão, agradecimento e idempotência.
+- Navegador: 42 cenários passaram (16 novos e 26 de regressão de navegação). `frontend/e2e/premium-progress.spec.js` cobre matriz 320/390/768/1280px, temas claro/escuro, filtros, cadeados, agradecimento adiado, erros e programa → pesos → série → conclusão → Progresso. APIs simuladas nesses cenários; persistência e autorização são verificadas separadamente na integração PostgreSQL.
+- Comandos: frontend `npm test`, `npm run build`, `npx playwright test e2e/premium-progress.spec.js e2e/navigation-layout.spec.js`; API `node --test test/improvements.test.mjs`, `DB_NAME=avagym_improvements_test_20261017 node test/improvements.integration.mjs`. Auditoria de catálogo: `node scripts/review-programs.mjs` (somente leitura).
+
+O build local passou com os avisos de tamanho de bundle/importação dinâmica. A validação de viewport não equivale a teste em celular físico ou entrega real de push. O guia diário fica em `../docs/como-usar-o-sistema.md`.
 
 ## Tecnologias e mapa
 Frontend React/Vite; API em `api/`. A rota `/treinar` usa `frontend/src/views/guided/Train.jsx`; sessão e integração ficam em `frontend/src/lib/guided.js`.
@@ -143,3 +179,24 @@ No celular, tabelas mostram três campos por registro; Ver mais campos expande o
 ### Validação e limites
 Build e testes de frontend locais. frontend/e2e/organization.spec.js usa dados controlados e intercepta todas as APIs, cobrindo navegação por perfil, links restritos, cargas, recuperação de erros, layouts 360/390/768/1440px e temas claro/escuro. Não comprova entrega de e-mail nem persistência no Postgres. Executar após build: npx playwright test --config playwright.organization.config.js, com dependências de teste disponíveis.
 api/test/dashboard-history.test.mjs valida a rota isoladamente: visitante/aluno negados, escopo de profissional/comunidade e compatibilidade dos callers anteriores. Executar na API: node --experimental-test-module-mocks --test test/dashboard-history.test.mjs. Não acessa banco real. Validação integrada com dados reais e publicação são etapas separadas.
+
+
+## Identidade ORNY — 1.2.8 (17/10/2026)
+
+Nome comercial ORNY e slogan “Seu progresso começa aqui”. O símbolo oficial está preservado em `frontend/public/brand/orny-original.png`; os derivados mantêm proporção e gradiente sobre preto. A assinatura completa é extraída do manual visual fornecido. Montserrat identifica títulos/botões e Inter identifica textos, hospedadas no próprio build.
+
+Mapa: login/cadastro/recuperação em `frontend/src/views/Login.jsx`; marca compartilhada em `frontend/src/components/Brand.jsx` e `frontend/src/lib/brand.js`; temas e componentes em `frontend/src/styles/orny.css`; administração em `frontend/src/views/admin/AdminApp.jsx`. A paleta usa verde #20F51B, preto #000000, grafite #1E1E1E e branco. No tema claro, links e textos verdes usam verde escuro para legibilidade; ações primárias verdes usam texto preto. A preferência de tema existente permanece salva no mesmo local e servidor.
+
+PWA: `frontend/public/manifest.json` e `frontend/index.html` definem nome ORNY, fundo preto, favicon e apresentação de compartilhamento. Ícones 180, 192 e 512 pixels e adaptável 512 usam o símbolo com margem; o favicon usa 32 pixels. O original não tem transparência: a apresentação em fundo claro mantém área preta. O nome de exibição Capacitor é ORNY; appId, id/scope/start_url do PWA e chaves de armazenamento não mudam.
+
+A abertura HTML identifica a marca antes de carregar React; falha de script ou espera superior a 20 segundos oferece Tentar novamente. A espera de inicialização React também oferece nova tentativa após 20 segundos, sem atraso mínimo artificial. A tela nativa de abertura é gerada conforme o navegador/aparelho. O mecanismo de atualização existente continua adiando recarga durante treino ativo. Não limpar dados nem desinstalar para aplicar a marca como procedimento padrão.
+
+Comunicações: modelos em `api/email-templates.js` usam ORNY, preto/grafite e verde. Textos comerciais de acesso/assinatura e exportação usam ORNY; remetentes, URLs, razão social, aceites e registros não foram migrados. Conteúdos históricos já gravados e catálogos existentes não são reescritos por esta entrega.
+
+Como usar: entrar e navegar normalmente; usar o controle de tema existente. Instalar pelo botão disponível ou recurso do navegador. A mudança do ícone/nome em instalações antigas depende da plataforma e precisa de conferência em aparelho. Nutrição e IA ilustradas no manual não foram acrescentadas. Nenhum banco, permissão, identificador interno ou regra de treino foi alterado pela identidade. Deploy e distribuição nativa não realizados nesta entrega.
+
+Validação: build, testes unitários, modelos de e-mail e testes de navegador com respostas simuladas; resultados finais registrados abaixo após execução. Teste físico de instalação/atualização e confirmação em produção permanecem separados.
+
+Resultados locais ORNY: build de produção aprovado; 285 testes unitários aprovados; 36 cenários Playwright aprovados com API simulada (login, aluno/profissional/admin, temas claro/escuro, larguras 320/375/768/1280, manifesto/ícones, falha de carregamento e duas prévias de e-mail). A revisão visual incluiu capturas de login e áreas internas. A instalação física e atualização do ícone em PWA existente não foram testadas. Sem deploy ou envio real de e-mails. Não existem scripts de lint/typecheck no pacote frontend; o build verifica a compilação.
+
+Modelos de e-mail: 10 testes aprovados, incluindo escape de conteúdo, links e idempotência. As duas prévias visuais (375 e 1280 pixels) foram aprovadas sem envio de mensagens. A imagem original foi conferida por hash e a margem do ícone adaptável por geometria.

@@ -4,7 +4,7 @@ import App from './App.jsx'
 import { MOBILE } from './lib/mobile.js'
 import { setupPwaUpdate } from './lib/pwa-update.js'
 import '@fontsource-variable/inter'
-import '@fontsource-variable/plus-jakarta-sans'
+import '@fontsource-variable/montserrat'
 import './index.css'
 import './styles/avadesk.css'
 import './styles/v41.css'
@@ -23,3 +23,5 @@ if (!MOBILE && 'serviceWorker' in navigator && location.protocol === 'https:') {
 
 // Shared responsive navigation follows theme and legacy styles.
 import './styles/organization.css'
+
+import './styles/orny.css'

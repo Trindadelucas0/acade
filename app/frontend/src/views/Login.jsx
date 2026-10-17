@@ -1,3 +1,4 @@
+import Brand from '../components/Brand.jsx'
 import { useStore, hasData } from '../store/useStore.js'
 import ContactFields from '../components/ContactFields.jsx'
 import { EMPTY_CONTACT, validateContact, toApi } from '../lib/contact.js'
@@ -61,7 +62,7 @@ function ResetPassword({ token }) {
   const go = async e => { e.preventDefault(); if (pw.length < 8) return setMsg('A senha deve ter pelo menos 8 caracteres'); if (pw !== pw2) return setMsg('As senhas não conferem')
     try { await api('/api/auth/reset', { method: 'POST', body: JSON.stringify({ token, password: pw }) }); setDone(true) } catch (er) { setMsg(er.message) } }
   return <div className="lg-wrap"><form className="lg-card" onSubmit={go}>
-    <div className="lg-brand">AVA<b>GYM</b></div>
+    <div className="lg-brand"><Brand /></div>
     {done ? <><p className="lg-sub">Senha alterada! Entre com a nova senha.</p><button type="button" className="lg-btn" onClick={() => { location.hash = '#/hoje' }}>Ir para o login</button></> : <>
       <p className="lg-sub">Crie uma nova senha.</p>
       <label className="lg-field"><span>Nova senha</span><div className="lg-input"><input type="password" autoComplete="new-password" value={pw} onChange={e => setPw(e.target.value)} /></div></label>
@@ -162,7 +163,7 @@ function LoginForm() {
   if (DEMO) return (
     <div className="lg-wrap"><Hero />
       <div className="lg-card">
-        <div className="lg-brand">AVA<b>GYM</b></div>
+        <div className="lg-brand"><Brand /></div>
         <p className="lg-sub">Demonstração — tudo fica neste navegador.</p>
         <button className="lg-btn" onClick={() => setGuest(true)}>Iniciar demonstração</button>
         <a className="lg-link" href={REPO} target="_blank" rel="noopener">Código-fonte</a>
@@ -176,14 +177,14 @@ function LoginForm() {
     setBusy(true); setMsg('')
     try { const r = await api('/api/auth/forgot', {method:'POST',body:JSON.stringify({email:f.email.trim()})}); setMsg(r.message) }
     catch (e) { setMsg(e.message) } finally { setBusy(false) }
-  }}><div className="lg-brand">AVA<b>GYM</b></div><h1>Recuperar acesso</h1><p className="lg-sub">Informe seu e-mail para receber o link de recuperação.</p>
+  }}><div className="lg-brand"><Brand /></div><h1>Recuperar acesso</h1><p className="lg-sub">Informe seu e-mail para receber o link de recuperação.</p>
     {field('email','E-mail','email','email',{inputMode:'email'})}
     {msg && <p className="lg-msg" role="status">{msg}</p>}
     <button className="lg-btn" disabled={busy}>{busy ? 'Enviando…' : 'Enviar link de recuperação'}</button>
     <button type="button" className="lg-btn ghost" onClick={() => {setMode('login');setMsg('');setErrs({})}}>Voltar para entrar</button>
   </form></div>
   if (reg && step === 6 && created) return <div className="lg-wrap"><Hero /><div className="lg-card" data-testid="signup-onboarding">
-    <div className="lg-brand">AVA<b>GYM</b></div><p className="lg-sub" style={{ marginTop: 0 }}>Etapa 6 de 6 · Pronto</p>
+    <div className="lg-brand"><Brand /></div><p className="lg-sub" style={{ marginTop: 0 }}>Etapa 6 de 6 · Pronto</p>
     <h1>Conta criada, {created.u.name.split(' ')[0]}!</h1>
     {created.trial?.ok && <p className="lg-sub" data-testid="onb-trial">Seu teste de 7 dias começou. Você tem acesso completo até {new Date(Date.now() + 168 * 36e5).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}.</p>}
     {created.trial && !created.trial.ok && <p className="lg-msg" role="alert">O cupom não foi aplicado: {created.trial.t} Você pode tentar de novo em Planos e pagamento.</p>}
@@ -197,8 +198,8 @@ function LoginForm() {
     <div className="lg-wrap">
       <Hero />
       <form className="lg-card" onSubmit={submit} noValidate>
-        <div className="lg-brand">AVA<b>GYM</b></div>
-        <p className="lg-sub">{reg ? 'Crie sua conta e comece a treinar.' : 'Seu treino, seu corpo, sua evolução.'}</p>
+        <div className="lg-brand"><Brand /></div>
+        <p className="lg-sub">{reg ? 'Crie sua conta e comece a treinar.' : 'Seu progresso começa aqui'}</p>
         {reg && step < 6 && <p className="lg-sub" data-testid="signup-step" style={{ marginTop: 0 }}>Etapa {step} de 6 · {['Perfil', 'Seus dados', 'Assinatura', choice === 'cupom' ? 'Cupom' : 'Contratar', 'Confirmação'][step - 1]}</p>}
         {reg && step === 1 && <div className="lg-intent" role="radiogroup" aria-label="Como você vai usar">
           {[['aluno', 'Quero treinar', 'Treinos, programas, progresso e desafios'], ['profissional', 'Sou profissional', 'Prescreva para alunos depois da verificação']].map(([k, t, d]) =>
