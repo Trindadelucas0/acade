@@ -10,7 +10,11 @@ export function asaasConfig(env = process.env) {
   if (!key) problems.push('ASAAS_API_KEY ausente')
   if (mode === 'producao' && key && !key.startsWith('$aact_prod_')) problems.push('ASAAS_ENV=producao exige chave de producao ($aact_prod_...)')
   if (mode === 'sandbox' && key.startsWith('$aact_prod_')) problems.push('chave de PRODUCAO com ASAAS_ENV diferente de producao: recusada para evitar cobranca real')
-  if (!env.ASAAS_WEBHOOK_TOKEN) problems.push('ASAAS_WEBHOOK_TOKEN ausente (webhooks seriam recusados)')
+  if (mode === 'sandbox' && key && !key.startsWith('$aact_hmlg_')) problems.push('ASAAS_API_KEY deve usar o prefixo de sandbox ($aact_hmlg_...)')
+  const webhook = env.ASAAS_WEBHOOK_TOKEN || ''
+  if (!webhook) problems.push('ASAAS_WEBHOOK_TOKEN ausente')
+  else if (webhook.length < 32 || webhook.length > 255 || /\s/.test(webhook)) problems.push('ASAAS_WEBHOOK_TOKEN deve ter entre 32 e 255 caracteres e não conter espaços')
+  else if (webhook === key) problems.push('ASAAS_WEBHOOK_TOKEN não pode ser igual à ASAAS_API_KEY')
   return { mode, key, baseUrl: ASAAS_URLS[mode], problems, live: mode === 'producao' }
 }
 const brl = c => Math.round(c) / 100
@@ -54,6 +58,13 @@ export function asaas({ env = process.env, fetchImpl = fetch } = {}) {
         return { status: 'recusada', providerChargeId: null, failure: { code: e.code, message: e.message } }
       }
     },
+    async createPix({ customerId, amountCents, charge, split, dueDate }) {
+      const p = await call('POST', '/payments', { customer: customerId, billingType: 'PIX', value: brl(amountCents), dueDate,
+        description: 'AVAGYM - ' + (charge.description || 'assinatura'), externalReference: charge.id, ...(split?.length ? { split } : {}) })
+      const qr = await call('GET', `/payments/${encodeURIComponent(p.id)}/pixQrCode`)
+      return { status: ['CONFIRMED', 'RECEIVED'].includes(p.status) ? 'paga' : 'pendente', providerChargeId: p.id,
+        pix: { payload: qr.payload, encodedImage: qr.encodedImage, expiresAt: qr.expirationDate || null } }
+    },
     // reconciliacao: consulta pela nossa referencia (evita cobranca duplicada depois de timeout)
     async getCharge(charge) {
       const p = charge.provider_charge_id ? await call('GET', '/payments/' + encodeURIComponent(charge.provider_charge_id))
@@ -62,6 +73,7 @@ export function asaas({ env = process.env, fetchImpl = fetch } = {}) {
       const map = { CONFIRMED: 'paga', RECEIVED: 'paga', RECEIVED_IN_CASH: 'paga', REFUNDED: 'estornada', REFUND_REQUESTED: 'estornada', CHARGEBACK_REQUESTED: 'estornada', OVERDUE: 'recusada', PENDING: 'pendente', AWAITING_RISK_ANALYSIS: 'pendente' }
       return { status: map[p.status] || 'pendente', providerChargeId: p.id }
     },
-    async refund(charge) { await call('POST', `/payments/${encodeURIComponent(charge.provider_charge_id)}/refund`, {}); return { ok: true } }
+    async refund(charge) { await call('POST', `/payments/${encodeURIComponent(charge.provider_charge_id)}/refund`, {}); return { ok: true } },
+    async cancelCharge(charge) { if (charge.provider_charge_id) await call('DELETE', `/payments/${encodeURIComponent(charge.provider_charge_id)}`); return { ok: true } }
   }
 }

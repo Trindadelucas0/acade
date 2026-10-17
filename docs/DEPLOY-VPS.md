@@ -52,7 +52,7 @@ E-mail: admin logado -> `POST /api/adm/email-test {"to":"..."}` devolve `provide
 
 ## Cobrança (planos e pagamento)
 
-A VPS roda a cobrança em modo teste (simulador): o `.env` não tem `BILLING_PROVIDER` nem `ASAAS_*`, então nenhum valor real é cobrado. Para ligar produção, só variáveis de ambiente (detalhes em `docs/sistema/18-planos-pagamento.md`):
+A configuração segura mantém a cobrança em modo teste até a troca explícita abaixo. O código pode ser publicado antes; publicar ou aplicar a migration não gera cobrança real. Procedimento detalhado: `docs/sistema/21-asaas-ambientes.md`.
 
 ```
 BILLING_PROVIDER=asaas
@@ -61,4 +61,4 @@ ASAAS_API_KEY=<chave $aact_prod_ do Asaas>
 ASAAS_WEBHOOK_TOKEN=<token igual ao do webhook no painel Asaas>
 ```
 
-Depois: `pm2 restart avagym-api --update-env`, cadastrar no Asaas o webhook `https://ornygym.avadesk.com.br/api/billing/webhook/asaas` com o mesmo token, e conferir no admin (Cobrança, preços e cupons > Visão geral) que o provedor aparece como "Asaas (producao)". Para testar antes com o sandbox: `ASAAS_ENV` ausente e chave `$aact_hmlg_`.
+Antes da virada, confirmar conta aprovada, chave Pix, tokenização de cartão, preços, monetização e carência; cadastrar no Asaas o webhook `https://ornygym.avadesk.com.br/api/billing/webhook/asaas` com envio sequencial e o token exclusivo. Depois de preencher o `.env`: `pm2 restart avagym-api --update-env` e conferir no admin (Cobrança, preços e cupons > Visão geral) **Asaas (produção)**. Configuração incompleta ou com prefixo de chave incompatível impede a API de iniciar; não cai no simulador.

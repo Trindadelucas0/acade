@@ -57,6 +57,17 @@ As opções internas aparecem em linhas, sem precisar arrastar botões para os l
 ## Administração: organização atual
 Os grupos atuais são Visão geral, Pessoas, Planos e capacidade, Treinos, Comunidade, Operação e Sistema. Pessoas → Contas substitui o rótulo anterior Usuários e liberações; Treinos substitui Treinos e conteúdo. Em Visão geral, abra Análises detalhadas para gráficos e distribuição. No celular, cada registro começa com três campos; Ver mais campos revela os demais. Busca, ordenação, paginação e CSV continuam disponíveis.
 
+## Assinatura por cartão ou Pix
+
+1. Abra **Meu plano**, escolha Individual ou PRO e selecione **Cartão de crédito** ou **Pix**.
+2. No cartão, cadastre os dados no checkout. O ORNY não guarda número nem CVV; conserva somente o token devolvido pelo provedor.
+3. No Pix, use o QR Code ou copie o código. O plano permanece pendente até a confirmação do pagamento.
+4. Se o Pix vencer, abra novamente a assinatura e use **Gerar novo Pix**. O código anterior deixa de valer.
+5. Assinatura escolhida como Pix recebe uma nova cobrança cinco dias antes da renovação e não tenta usar cartão.
+6. O período já pago continua acessível até o vencimento; depois disso vale a carência configurada.
+
+Administrador: antes de ativar cobranças reais, abra **Cobrança, preços e cupons → Visão geral**, confira preços, venda dos planos, monetização e carência. Depois da configuração da VPS, confirme **Asaas (produção)** e acompanhe a cobrança controlada e o webhook. O procedimento completo e seguro está em `docs/sistema/21-asaas-ambientes.md`.
+
 
 ### Marca ORNY e aplicativo instalado
 A marca do sistema é ORNY em todas as áreas. O uso dos menus e permissões permanece o mesmo. O tema claro/escuro continua no controle de tema existente e conserva sua preferência.

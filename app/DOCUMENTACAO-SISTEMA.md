@@ -200,3 +200,25 @@ Validação: build, testes unitários, modelos de e-mail e testes de navegador c
 Resultados locais ORNY: build de produção aprovado; 285 testes unitários aprovados; 36 cenários Playwright aprovados com API simulada (login, aluno/profissional/admin, temas claro/escuro, larguras 320/375/768/1280, manifesto/ícones, falha de carregamento e duas prévias de e-mail). A revisão visual incluiu capturas de login e áreas internas. A instalação física e atualização do ícone em PWA existente não foram testadas. Sem deploy ou envio real de e-mails. Não existem scripts de lint/typecheck no pacote frontend; o build verifica a compilação.
 
 Modelos de e-mail: 10 testes aprovados, incluindo escape de conteúdo, links e idempotência. As duas prévias visuais (375 e 1280 pixels) foram aprovadas sem envio de mensagens. A imagem original foi conferida por hash e a margem do ícone adaptável por geometria.
+
+Compatibilidade de produção (17/10/2026): a abertura usa `frontend/public/orny-boot.js` externo e botão com evento registrado por script; não depende de JavaScript inline, bloqueado pela CSP do gateway. A política de segurança é preservada.
+
+## Publicação ORNY — 17/10/2026
+
+Publicada na VPS em https://ornygym.avadesk.com.br/, repositório `/opt/avagym`, commit `1353db7`, build `20261017135618`. Serviços `avagym-api` e `avagym-web` online. Migração pendente `056_boas_vindas.sql` aplicada com `--no-seed`; nenhuma outra migration estava pendente. Backup prévio do banco avagym em formato pg_dump, configuração e dist em `/opt/avagym-backups/20261017_135457_pre-orny`; catálogo do dump verificado com pg_restore --list (não foi executada restauração).
+
+Validação pública: HTTP 200 no site, API /api/health e manifesto ORNY; login mobile abriu com logo carregada, slogan correto e sem erros JavaScript. Nenhuma autenticação, alteração de usuários ou envio real de e-mail foi feito nesta conferência. Instalação física e propagação do ícone em PWA antigo continuam sem confirmação.
+
+Compatibilidade CSP: a publicação externalizou o script de abertura em `dist/orny-boot.js` e removeu onclick inline do HTML gerado, preservando a política de segurança. A mesma correção está salva no código local (`frontend/index.html` e `frontend/public/orny-boot.js`) e precisa integrar o próximo push; o checkout da VPS permaneceu limpo no commit publicado. Até esse push, novo build na VPS precisa preservar essa transformação. Não usar o script antigo /opt/acade-deploy.sh: seus caminhos /opt/acade estão desatualizados; runtime atual fica em /opt/avagym-runtime.
+
+## Pagamentos Asaas — cartão e Pix preparados para produção (17/10/2026)
+
+O checkout permite escolher cartão de crédito ou Pix. Cartão mantém assinatura mensal e renovação automática. Pix inicial gera QR Code e copia e cola com validade de 24 horas e não libera o plano antes da confirmação do webhook. Um Pix vencido pode ser regenerado sem criar outra assinatura; na renovação, o sistema gera nova cobrança cinco dias antes do fim do período pago, avisa o usuário e respeita a carência configurada. Assinatura Pix nunca tenta cobrar cartão.
+
+Contratos: `POST /api/billing/subscribe` aceita `payment_type` igual a `card` ou `pix`; `card_id` é obrigatório somente para cartão. `GET /api/billing/me` informa o tipo e o Pix pendente ao titular. `POST /api/billing/pix/regenerate` exige propriedade da assinatura; `POST /api/billing/pix/confirm-test` existe apenas no simulador. A migration aditiva `057_cobranca_pix.sql` identifica o meio de pagamento e guarda somente apresentação/expiração da cobrança Pix. Cartões guardam apenas o token do provedor, nunca número ou CVV.
+
+Segurança: o webhook Asaas valida token em tempo constante e eventos repetidos são idempotentes. QR Code e copia e cola ficam sob autenticação e vínculo do usuário. O provedor Asaas exige API Key e token de webhook completos; ambiente e prefixo da chave precisam corresponder. Configuração inválida impede a API de iniciar e nunca retorna silenciosamente ao simulador. Segredos ficam somente no `.env` privado da API e não aparecem em endpoint, frontend, documentação ou log.
+
+Ativação: o código pode ser publicado mantendo `BILLING_PROVIDER=simulado`. Para cobrança real, concluir aprovação/prova de vida da conta, chave Pix e tokenização de cartão; cadastrar chave e webhook no Asaas; conferir preços, venda, monetização e carência; aplicar migrations; preencher as quatro variáveis privadas; executar `pm2 restart avagym-api --update-env`; confirmar **Asaas (produção)** no admin e realizar cobrança controlada de baixo valor. O checklist, retorno ao teste e diagnóstico seguro ficam em `docs/sistema/21-asaas-ambientes.md` e `docs/DEPLOY-VPS.md`.
+
+Estado desta entrega: implementação e migration validadas somente em base local isolada, sem chave Asaas real e sem deploy. A produção publicada anteriormente não foi alterada por esta tarefa e continua com a configuração que já possuía até uma nova publicação e troca explícita do `.env`.

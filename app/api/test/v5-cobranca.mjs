@@ -9,7 +9,7 @@ const B = process.env.API || 'http://localhost:8797', PASS = process.env.E2E_PAS
 if (!/_test$/.test(process.env.DB_NAME || '')) throw new Error('Recusado: rode com DB_NAME=<banco>_test')
 if (/:(4449|8787)\b/.test(B)) throw new Error('Recusado: API de desenvolvimento do Lucas')
 async function call(tok, method, p, body, headers = {}) {
-  const r = await fetch(B + p, { method, headers: { 'Content-Type': 'application/json', ...(tok ? { Authorization: 'Bearer ' + tok } : {}), ...headers }, body: body ? JSON.stringify(body) : undefined })
+  const r = await fetch(B + p, { method, headers: { 'Content-Type': 'application/json', Origin: 'http://localhost:4449', ...(tok ? { Authorization: 'Bearer ' + tok } : {}), ...headers }, body: body ? JSON.stringify(body) : undefined })
   let d = {}; try { d = await r.json() } catch { /* */ }
   return { s: r.status, d }
 }
@@ -18,7 +18,7 @@ async function conta(tag, intent = 'aluno') {
   const terms = (await call(null, 'GET', '/api/terms')).d.terms
   const email = `bill.${tag}.${Date.now()}${Math.random().toString(36).slice(2, 6)}@e2e.local`
   const r = await call(null, 'POST', '/api/auth/register', { name: 'Cobranca ' + tag, email, password: PASS, accept_terms: true, birth_date: '1990-01-01', terms_version: terms?.version, intent })
-  assert.equal(r.s, 200, JSON.stringify(r.d)); return { tok: r.d.token, id: r.d.user.id, email }
+  assert.equal(r.s, 200, JSON.stringify(r.d)); await pool.query('update users set access_unlocked_at=now() where id=$1', [r.d.user.id]); return { tok: r.d.token, id: r.d.user.id, email }
 }
 const card = async (u, number) => { const r = await call(u.tok, 'POST', '/api/billing/cards', { number, holder_name: 'TESTE E2E', exp_month: 12, exp_year: 2030, cvv: '123' }); assert.equal(r.s, 201, JSON.stringify(r.d)); return r.d.card.id }
 const subOf = async (u, aud = 'aluno') => (await call(u.tok, 'GET', '/api/billing/me')).d.subscriptions[aud]
@@ -37,6 +37,21 @@ test('catalogo publico sem login: exatamente Gratis, Individual e PRO', async ()
   const pro = r.d.plans.find(p => p.id === 'pro'); assert.equal(pro.purchasable, true); assert.equal(pro.features.fichas_publicas, true)
   assert.equal(r.d.plans.find(p => p.id === 'profissional_free').features.fichas_publicas, undefined)
   assert.equal(r.d.test_mode, true)
+})
+test('Pix: gera QR, protege por usuario e so ativa depois da confirmacao', async () => {
+  const u = await conta('pix'), other = await conta('pix-outro')
+  const r = await call(u.tok, 'POST', '/api/billing/subscribe', { plan_id: 'individual', payment_type: 'pix', idempotency_key: 'pix-' + Date.now() })
+  assert.equal(r.s, 202, JSON.stringify(r.d)); assert.ok(r.d.pix?.payload); assert.ok(r.d.pix?.qr_image); assert.equal(r.d.pix.expired, false)
+  const before = await call(u.tok, 'GET', '/api/billing/me'); assert.equal(before.d.subscriptions.aluno.is_free, true); assert.equal(before.d.subscriptions.aluno.pending_pix.charge_id, r.d.pix.charge_id)
+  assert.equal((await call(other.tok, 'POST', '/api/billing/pix/confirm-test', { charge_id: r.d.pix.charge_id })).s, 404)
+  await pool.query(`update billing_charges set pix_expires_at=now()-interval '1 minute' where id=$1`, [r.d.pix.charge_id])
+  const regen = await call(u.tok, 'POST', '/api/billing/pix/regenerate', { charge_id: r.d.pix.charge_id }); assert.equal(regen.s, 202, JSON.stringify(regen.d)); assert.notEqual(regen.d.pix.charge_id, r.d.pix.charge_id)
+  assert.equal((await call(u.tok, 'POST', '/api/billing/pix/confirm-test', { charge_id: r.d.pix.charge_id })).s, 404)
+  assert.equal((await call(u.tok, 'POST', '/api/billing/pix/confirm-test', { charge_id: regen.d.pix.charge_id })).s, 200)
+  const afterPix = await call(u.tok, 'GET', '/api/billing/me'); assert.equal(afterPix.d.subscriptions.aluno.plan_id, 'individual'); assert.equal(afterPix.d.subscriptions.aluno.payment_type, 'pix')
+  await pool.query(`update subscriptions set current_period_end=now()+interval '4 days' where user_id=$1 and audience='aluno'`, [u.id])
+  assert.equal((await call(adm, 'POST', '/api/adm/billing/reconcile')).s, 200)
+  const renewal = await call(u.tok, 'GET', '/api/billing/me'); assert.ok(renewal.d.subscriptions.aluno.pending_pix?.charge_id); assert.equal(renewal.d.subscriptions.aluno.payment_type, 'pix')
 })
 test('admin: venda exige preco; planos antigos nao sao contrataveis', async () => {
   const r = await call(adm, 'POST', '/api/adm/billing/plans', { id: 'pro', price_cents: null, sellable: true }); assert.equal(r.s, 400); assert.equal(r.d.code, 'PRICE_REQUIRED')

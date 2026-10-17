@@ -13,11 +13,11 @@ export function getProvider(env = process.env) {
   let p
   if (name === 'asaas') {
     const cfg = asaasConfig(env)
-    // configuracao perigosa ou incompleta: nao sobe cobranca real; cai no simulador e avisa no painel
-    p = cfg.problems.filter(x => !x.startsWith('ASAAS_WEBHOOK_TOKEN')).length ? { ...simulado(), fallbackReason: cfg.problems.join('; ') } : asaas({ env })
-    if (p.name === 'asaas' && cfg.problems.length) p.warnings = cfg.problems
+    if (cfg.problems.length) throw new Error(`Configuração Asaas inválida: ${cfg.problems.join('; ')}`)
+    p = asaas({ env })
   } else p = simulado()
   if (env === process.env) cached = p
   return p
 }
 export function resetProviderCache() { cached = null }
+export function assertBillingConfig(env = process.env) { return getProvider(env) }

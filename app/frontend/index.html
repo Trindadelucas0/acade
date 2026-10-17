@@ -26,14 +26,9 @@ html,body{margin:0;background:#000;color:#fff}#orny-boot{min-height:100dvh;displ
 </style>
 </head>
 <body>
-<div id="root"><div id="orny-boot" role="status"><img src="/brand/orny-symbol.png" alt=""><strong>ORNY</strong><span id="orny-boot-message">Carregando…</span><button id="orny-boot-retry" hidden onclick="location.reload()">Tentar novamente</button></div></div>
+<div id="root"><div id="orny-boot" role="status"><img src="/brand/orny-symbol.png" alt=""><strong>ORNY</strong><span id="orny-boot-message">Carregando…</span><button id="orny-boot-retry" hidden>Tentar novamente</button></div></div>
 <noscript>Ative o JavaScript para abrir a ORNY.</noscript>
-<script>
-function ornyBootError(){var box=document.getElementById('orny-boot');if(box){box.setAttribute('role','alert');document.getElementById('orny-boot-message').textContent='Não foi possível abrir a ORNY. Confira sua conexão e tente novamente.';document.getElementById('orny-boot-retry').hidden=false}}
-window.addEventListener('error',function(e){if(e.target && e.target.tagName==='SCRIPT')ornyBootError()},true);
-window.addEventListener('unhandledrejection',ornyBootError);
-setTimeout(ornyBootError,20000);
-</script>
+<script src="/orny-boot.js" defer></script>
 <script type="module" src="/src/main.jsx"></script>
 </body>
 </html>

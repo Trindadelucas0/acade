@@ -34,6 +34,7 @@ import { inviteRoutes } from './invites.js';
 import { managementRoutes } from './management.js';
 import { saasRoutes } from './saas.js';
 import { billingRoutes } from './billing/routes.js';
+import { assertBillingConfig } from './billing/providers/index.js';
 import { contactRoutes } from './contact.js';   // V5: contato e endereco (cadastro/perfil)
 import { setPush as setBillingPush, startBillingJob } from './billing/core.js';
 import { appStateRoutes, readStatePg, eraseStatePg } from './appstate.js';
@@ -46,6 +47,9 @@ import { loadLegacy, persistLegacy, serverKey, importStateFiles } from './legacy
 import { watchResponse, recordRequest, auditRoutes, startAuditPurge } from './audit-log.js';
 import { admEmailTestRoutes } from './adm-email-test.js';
 import { writeStatePg } from './appstate.js';
+
+// Falha antes de abrir banco, porta ou jobs: Asaas explícito nunca volta ao simulador.
+assertBillingConfig();
 
 const PORT = +(process.env.PORT || 3000);
 const DATA = process.env.DATA_DIR || '/data';
@@ -456,6 +460,7 @@ const RL_RULES = {
   // V5 monetizacao: cupom (validacao/resgate), cartao e checkout por sessao
   'POST /api/billing/coupon/validate': [30, 10 * 60e3], 'POST /api/billing/coupon/redeem': [10, 60 * 60e3], 'POST /api/billing/cards': [10, 60 * 60e3],
   'POST /api/billing/subscribe': [10, 60 * 60e3], 'POST /api/billing/pay-now': [10, 60 * 60e3], 'POST /api/billing/change-card': [10, 60 * 60e3],
+  'POST /api/billing/pix/regenerate': [10, 60 * 60e3], 'POST /api/billing/pix/confirm-test': [10, 60 * 60e3],
   'POST /api/billing/webhook/asaas': [600, 60e3],
   'POST /api/me/export-request': [5, 60 * 60e3], 'POST /api/me/delete-request': [5, 60 * 60e3], 'POST /api/me/social': [30, 10 * 60e3],
 };
@@ -499,7 +504,7 @@ const PUBLIC_ROUTES = new Set(['GET /api/public/plans', 'GET /api/cep', 'GET /ap
   'GET /api/legal/company', 'POST /api/auth/forgot', 'POST /api/auth/login', 'POST /api/auth/logout', 'POST /api/auth/register', 'POST /api/auth/reset', 'POST /api/logout',
   'POST /api/billing/webhook/asaas', 'POST /api/billing/webhook/simulado']);
 const decodeURIComponentSafe = v => { try { return decodeURIComponent(v) } catch { return '\u0000' } };
-http.createServer(async (req, res) => {
+const server = http.createServer(async (req, res) => {
   const t0 = performance.now(), audit = watchResponse(res);
   res.on('finish', () => recordRequest({ method: req.method, key: req.method + ' ' + new URL(req.url, 'http://x').pathname, path: new URL(req.url, 'http://x').pathname, status: audit.status, code: audit.code,
     ms: performance.now() - t0, ip: clientIp(req), ua: req.headers['user-agent'], user: req.auditUser, legacyUser: req.auditLegacy, routeKnown: !!routes[req.method + ' ' + new URL(req.url, 'http://x').pathname] }));
@@ -538,7 +543,8 @@ http.createServer(async (req, res) => {
     if (!res.headersSent) json(res, 500, { error: 'Erro interno. Tente de novo em instantes.', code: 'SERVER_ERROR' });
   }
 // HOST: em produção use 127.0.0.1 (só o gateway/túnel acessa). Padrão 0.0.0.0 mantém o docker-compose funcionando.
-}).listen(PORT, process.env.HOST || '0.0.0.0', () => console.log(`gym-api on ${process.env.HOST || '0.0.0.0'}:${PORT} (origin=${ORIGIN})`));
+});
+server.listen(PORT, process.env.HOST || '0.0.0.0', () => console.log(`gym-api on ${process.env.HOST || '0.0.0.0'}:${PORT} (origin=${ORIGIN})`));
 startMailer();
 startAuditPurge();   // V5: retencao da auditoria (app_settings auditoria_retencao_dias; padrao AUDIT_RETENTION_DAYS ou 180)
 setBillingPush(sendPush);   // V5: eventos de cobranca tambem saem por push

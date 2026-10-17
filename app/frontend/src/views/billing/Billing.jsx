@@ -34,7 +34,7 @@ export function PlansCompare({ plans, cta, current = {}, testMode, initialAud })
   return <div className="bl-wrap" data-testid="plans-compare">
     {testMode && <p className="bl-test" data-testid="billing-test-banner"><Icon name="info" /> Ambiente de teste: nenhum valor real é cobrado.</p>}
     <PlanGrid plans={plans} cta={cta} current={current} initialAud={initialAud} />
-    <p className="pl-note">Cobrança mensal no cartão de crédito. Cancele quando quiser: o acesso continua até o fim do período pago e seus dados ficam salvos.</p>
+    <p className="pl-note">Cobrança mensal por cartão de crédito ou Pix. Cancele quando quiser: o acesso continua até o fim do período pago e seus dados ficam salvos.</p>
   </div>
 }
 
@@ -61,10 +61,12 @@ export function PublicPlans() {
 
 // ===== checkout =====
 function Checkout({ plan, cfg, cards, onClose, onDone }) {
+  const [paymentType, setPaymentType] = useState('card')
   const [useCard, setUseCard] = useState(cards[0]?.id || 'novo')
   const [f, setF] = useState({ number: '', holder_name: '', exp: '', cvv: '', cpf: '', postal_code: '', address_number: '', phone: '' })
   const [coupon, setCoupon] = useState(''), [cv, setCv] = useState(null)
   const [busy, setBusy] = useState(false), [msg, setMsg] = useState(null)
+  const [pix, setPix] = useState(null)
   const newKey = () => crypto.randomUUID?.() || String(Date.now() + Math.random())
   const [idem, setIdem] = useState(newKey)   // BUG-031: uma chave por tentativa (duplo clique nao cobra 2x; nova tentativa usa chave nova)
   const set = k => e => setF({ ...f, [k]: e.target.value })
@@ -73,26 +75,33 @@ function Checkout({ plan, cfg, cards, onClose, onDone }) {
   async function pay(e) {
     e.preventDefault(); setBusy(true); setMsg(null)
     try {
-      let card_id = useCard
-      if (useCard === 'novo') {
+      let card_id = paymentType === 'card' ? useCard : null
+      if (paymentType === 'card' && useCard === 'novo') {
         const [mm, yy] = f.exp.split('/').map(s => s.trim())
         const r = await post('/api/billing/cards', { number: f.number, holder_name: f.holder_name, exp_month: mm, exp_year: yy, cvv: f.cvv,
           holder: cfg.requires_holder_info ? { cpf: f.cpf, postal_code: f.postal_code, address_number: f.address_number, phone: f.phone } : undefined })
         card_id = r.card.id
       }
-      const r = await post('/api/billing/subscribe', { plan_id: plan.id, card_id, coupon: cv?.valid && cv.benefit === 'desconto' ? coupon.trim() : undefined, idempotency_key: idem })
+      const r = await post('/api/billing/subscribe', { plan_id: plan.id, payment_type: paymentType, card_id, coupon: cv?.valid && cv.benefit === 'desconto' ? coupon.trim() : undefined, idempotency_key: idem })
+      if (r.pix) { setPix(r.pix); setMsg(null); return }
       onDone(r.result === 'trial' ? `Pronto! Seu teste do ${plan.name} vai até ${dBR(r.trial_ends_at)}. A primeira cobrança só acontece depois.` : r.result === 'pendente' ? r.message : `Assinatura do ${plan.name} ativa. Obrigado!`)
     } catch (e2) { setMsg(e2.message); setIdem(newKey()) } finally { setBusy(false) }
   }
   const tc = cfg.test_cards
+  if (pix) return <div className="bl-modal-bg" onClick={onClose}><div className="bl-modal" role="dialog" aria-modal="true" aria-label={'Pagar ' + plan.name + ' com Pix'} onClick={e => e.stopPropagation()} data-testid="checkout-pix">
+    <div className="bl-row"><h2>Pix gerado</h2><span className="bl-sp" /><button type="button" className="bl-x" aria-label="Fechar" onClick={onClose}>×</button></div>
+    <PixBox pix={pix} testMode={cfg.test} onPaid={() => onDone(`Assinatura do ${plan.name} ativa. Obrigado!`)} onRegenerated={setPix} />
+  </div></div>
   return <div className="bl-modal-bg" onClick={onClose}><form className="bl-modal" role="dialog" aria-modal="true" aria-label={'Assinar ' + plan.name} onClick={e => e.stopPropagation()} onSubmit={pay} data-testid="checkout">
     <div className="bl-row"><h2>Assinar {plan.name}</h2><span className="bl-sp" /><button type="button" className="bl-x" aria-label="Fechar" onClick={onClose}>×</button></div>
     <p className="bl-sum">{plan.trial_days > 0 ? <>{plan.trial_days} dias grátis, depois <b>{brl(price)}/mês</b></> : <><b>{brl(price)}</b> hoje e a cada mês</>}{cv?.valid && cv.benefit === 'desconto' && <> · {cv.discount_pct}% de desconto por {cv.discount_cycles || 1} {(cv.discount_cycles || 1) > 1 ? 'meses' : 'mês'}</>}</p>
-    {tc && <details className="bl-test" open data-testid="test-cards"><summary>Ambiente de teste — use um cartão de teste</summary>
+    <fieldset className="bl-paytypes"><legend>Forma de pagamento</legend><label><input type="radio" name="payment-type" value="card" checked={paymentType === 'card'} onChange={() => setPaymentType('card')} /> Cartão de crédito</label><label><input type="radio" name="payment-type" value="pix" checked={paymentType === 'pix'} onChange={() => setPaymentType('pix')} /> Pix</label></fieldset>
+    {paymentType === 'pix' && <p className="bl-info">O plano será liberado após a confirmação do Pix. Na renovação, um novo Pix será gerado cinco dias antes do vencimento.</p>}
+    {paymentType === 'card' && tc && <details className="bl-test" open data-testid="test-cards"><summary>Ambiente de teste — use um cartão de teste</summary>
       <p>Aprovado: <code>{tc.aprova?.[0]}</code>{tc.recusa?.[0] && <> · Recusado: <code>{tc.recusa[0]}</code></>}{tc.recusa_renovacao?.[0] && <> · Recusa na renovação: <code>{tc.recusa_renovacao[0]}</code></>}. Validade futura e qualquer CVV.</p></details>}
-    {cards.length > 0 && <label className="bl-f">Cartão<select className="g-in" value={useCard} onChange={e => setUseCard(e.target.value)} data-testid="card-select">
+    {paymentType === 'card' && cards.length > 0 && <label className="bl-f">Cartão<select className="g-in" value={useCard} onChange={e => setUseCard(e.target.value)} data-testid="card-select">
       {cards.map(c => <option key={c.id} value={c.id}>{(c.brand || 'Cartão') + ' final ' + c.last4}</option>)}<option value="novo">Novo cartão</option></select></label>}
-    {useCard === 'novo' && <div className="bl-grid">
+    {paymentType === 'card' && useCard === 'novo' && <div className="bl-grid">
       <label className="bl-f bl-full">Número do cartão<input className="g-in" inputMode="numeric" autoComplete="cc-number" required value={f.number} onChange={set('number')} data-testid="cc-number" /></label>
       <label className="bl-f bl-full">Nome impresso<input className="g-in" autoComplete="cc-name" required value={f.holder_name} onChange={set('holder_name')} data-testid="cc-name" /></label>
       <label className="bl-f">Validade (MM/AA)<input className="g-in" inputMode="numeric" autoComplete="cc-exp" placeholder="12/30" required value={f.exp} onChange={set('exp')} data-testid="cc-exp" /></label>
@@ -106,9 +115,26 @@ function Checkout({ plan, cfg, cards, onClose, onDone }) {
     <div className="bl-row bl-coupon"><input className="g-in" placeholder="Cupom de desconto (opcional)" value={coupon} onChange={e => { setCoupon(e.target.value); setCv(null) }} data-testid="coupon" /><button type="button" className="g-btn" onClick={checkCoupon}>Aplicar</button></div>
     {cv && <p className={cv.valid && cv.benefit === 'desconto' ? 'bl-ok' : 'bl-err'} data-testid="coupon-msg">{cv.valid ? cv.benefit === 'desconto' ? `Cupom aplicado: ${cv.discount_pct}% off.` : 'Este cupom é de período experimental; ative-o na tela inicial.' : cv.error}</p>}
     {msg && <p className="bl-err" role="alert" data-testid="checkout-error">{msg}</p>}
-    <button className="bl-btn bl-wide" disabled={busy} data-testid="checkout-pay">{busy ? 'Processando…' : plan.trial_days > 0 ? 'Começar teste grátis' : 'Pagar ' + brl(price)}</button>
-    <p className="bl-fine">Pagamento processado por {cfg.label}. Não guardamos o número do cartão. Ao assinar você aceita os <a href="#/legal/assinatura" target="_blank" rel="noopener">Termos de assinatura</a>.</p>
+    <button className="bl-btn bl-wide" disabled={busy} data-testid="checkout-pay">{busy ? 'Processando…' : paymentType === 'pix' ? 'Gerar Pix de ' + brl(price) : plan.trial_days > 0 ? 'Começar teste grátis' : 'Pagar ' + brl(price)}</button>
+    <p className="bl-fine">Pagamento processado por {cfg.label}. Não guardamos o número nem o CVV do cartão. Ao assinar você aceita os <a href="#/legal/assinatura" target="_blank" rel="noopener">Termos de assinatura</a>.</p>
   </form></div>
+}
+
+function PixBox({ pix, testMode, onPaid, onRegenerated }) {
+  const [busy, setBusy] = useState(false), [note, setNote] = useState('')
+  const copy = async () => { try { await navigator.clipboard.writeText(pix.payload); setNote('Código Pix copiado.') } catch { setNote('Selecione e copie o código abaixo.') } }
+  const regenerate = async () => { setBusy(true); try { const r = await post('/api/billing/pix/regenerate', { charge_id: pix.charge_id }); onRegenerated?.(r.pix); setNote('Novo Pix gerado.') } catch (e) { setNote(e.message) } finally { setBusy(false) } }
+  const confirm = async () => { setBusy(true); try { await post('/api/billing/pix/confirm-test', { charge_id: pix.charge_id }); onPaid?.() } catch (e) { setNote(e.message) } finally { setBusy(false) } }
+  return <div className="bl-pix" data-testid="pix-payment">
+    {pix.qr_image && <img src={pix.qr_image} alt="QR Code Pix para pagamento" width="220" height="220" />}
+    <p><b>{brl(pix.amount_cents)}</b> · válido até {new Date(pix.expires_at).toLocaleString('pt-BR')}</p>
+    <label className="bl-f">Pix copia e cola<textarea className="g-in" readOnly value={pix.payload || ''} rows="4" /></label>
+    <div className="bl-actions"><button type="button" className="bl-btn" onClick={copy}>Copiar código Pix</button>
+      {pix.expired && <button type="button" className="g-btn" disabled={busy} onClick={regenerate}>Gerar novo Pix</button>}
+      {testMode && <button type="button" className="g-btn" disabled={busy} onClick={confirm}>Confirmar Pix de teste</button>}</div>
+    {note && <p className="bl-info" role="status">{note}</p>}
+    <p className="bl-fine">O acesso só é liberado depois da confirmação do pagamento.</p>
+  </div>
 }
 
 function NewCard({ cfg, onSaved, onCancel }) {
@@ -151,18 +177,20 @@ export function Subscription() {
       <div className="bl-row"><div><span className="g-eyebrow">{AUD[aud]}</span><h3>{s.plan_name}</h3></div><span className="bl-sp" /><span className={'bl-st ' + (ST_CLS[s.status] || '')} data-testid={'sub-status-' + aud}>{s.status_label || s.status}</span></div>
       {!s.is_free && <dl className="bl-dl">
         {s.price_cents != null && <><dt>Valor</dt><dd>{brl(s.price_cents)}/mês{s.discount_pct ? ` (${+s.discount_pct}% off por mais ${s.discount_cycles_left} ciclo(s))` : ''}</dd></>}
+        <dt>Pagamento</dt><dd>{s.payment_type === 'pix' ? 'Pix mensal' : 'Cartão de crédito'}</dd>
         {s.status === 'trial' && <><dt>Teste até</dt><dd>{dBR(s.trial_ends_at)}</dd></>}
         {s.current_period_end && <><dt>{s.cancel_at_period_end ? 'Acesso até' : 'Próxima cobrança'}</dt><dd>{dBR(s.current_period_end)}</dd></>}
         {s.next_retry_at && <><dt>Nova tentativa</dt><dd>{dBR(s.next_retry_at)}</dd></>}
         {s.grace_until && s.status === 'carencia' && <><dt>Carência até</dt><dd>{dBR(s.grace_until)}</dd></>}
         {s.card && <><dt>Cartão</dt><dd>{(s.card.brand || 'Cartão') + ' final ' + s.card.last4}</dd></>}
       </dl>}
-      {['inadimplente', 'carencia'].includes(s.status) && <p className="bl-warn">Não conseguimos cobrar seu cartão. Atualize o cartão ou pague agora para não perder o acesso.</p>}
+      {s.pending_pix && <PixBox pix={s.pending_pix} testMode={cfg.test} onPaid={() => { load(); accessChanged() }} onRegenerated={() => load()} />}
+      {['inadimplente', 'carencia'].includes(s.status) && <p className="bl-warn">{s.payment_type === 'pix' ? 'O Pix da mensalidade ainda não foi confirmado. Pague ou gere um novo código para não perder o acesso.' : 'Não conseguimos cobrar seu cartão. Atualize o cartão ou pague agora para não perder o acesso.'}</p>}
       {s.status === 'suspensa' && <p className="bl-warn">Assinatura suspensa por falta de pagamento. Seus dados estão salvos: pague para reativar.</p>}
       {s.cancel_at_period_end && <p className="bl-info">Cancelamento agendado. Você pode desfazer até {dBR(s.current_period_end)}.</p>}
       {!s.is_free && s.provider && <div className="bl-actions">
         {['inadimplente', 'carencia', 'suspensa'].includes(s.status) && <button className="bl-btn" disabled={busy} onClick={() => act('/api/billing/pay-now', { audience: aud }, r => r.result === 'ativa' ? 'Pagamento aprovado. Assinatura em dia.' : 'Pagamento em análise.')} data-testid={'pay-now-' + aud}>Pagar agora</button>}
-        <button className="g-btn" onClick={() => setCardFor(cardFor === aud ? null : aud)} data-testid={'change-card-' + aud}>Trocar cartão</button>
+        {s.payment_type === 'card' && <button className="g-btn" onClick={() => setCardFor(cardFor === aud ? null : aud)} data-testid={'change-card-' + aud}>Trocar cartão</button>}
         {s.cancel_at_period_end ? <button className="g-btn" disabled={busy} onClick={() => act('/api/billing/reactivate', { audience: aud }, 'Cancelamento desfeito.')} data-testid={'reactivate-' + aud}>Desfazer cancelamento</button>
           : s.status !== 'cancelada' && <button className="g-btn bl-danger" disabled={busy} onClick={async () => { const reason = await askText('Quer nos contar o motivo? (opcional)', { ok: 'Cancelar assinatura', cancel: 'Voltar' }); if (reason === null || reason === undefined) return; act('/api/billing/cancel', { audience: aud, reason }, r => r.result === 'agendado' ? `Cancelamento agendado: acesso até ${dBR(r.until)}.` : 'Assinatura encerrada.') }} data-testid={'cancel-' + aud}>Cancelar assinatura</button>}
       </div>}
