@@ -16,6 +16,8 @@ let r = await post(t, '/api/guided/start', { program_id: prog.id })
 check(r.s === 403 && r.d.code === 'ACCESS_LOCKED', 'conta não liberada não inicia programa (backend)')
 check((await post(t, '/api/posts', { body: 'oi' })).s === 403, 'conta não liberada não publica')
 check((await post(t, '/api/me/theme', { theme: 'dark' })).s === 200, 'preferências continuam liberadas')
+r = await post(t, '/api/billing/cards', { number: '1234567812345670', holder_name: 'X Y', exp_month: 12, exp_year: 2030, cvv: '123' })
+check(r.s === 400 && r.d.code === 'CARD_INVALID', 'conta não liberada pode iniciar pagamento; validação não retorna ACCESS_LOCKED')
 r = await post(t, '/api/me/unlock-request', { reason: 'quero treinar' })
 check(r.s === 201, 'pede liberação'); const rid = r.d.id
 check((await post(t, '/api/me/unlock-request', {})).s === 409, 'um pedido aberto por vez')

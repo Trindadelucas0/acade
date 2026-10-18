@@ -42,7 +42,7 @@ As opções internas aparecem em linhas, sem precisar arrastar botões para os l
 6. Comunidade reúne Publicações, Grupos, Desafios e Ranking. Dentro do desafio, consulte Regras separadamente da Gestão.
 7. Perfil → Preferências: aparência, idioma e treino. Perfil → Conta: identificação, código e convites. Privacidade e segurança: senha, aparelhos e pedidos de dados.
 8. Meu plano mostra recursos, limites e solicitação de acesso; recursos indisponíveis ficam fora do menu. Links antigos restritos continuam explicando o bloqueio.
-9. Perfil → Ajuda → Ver tour de novo reabre as dicas.
+9. Perfil → Ajuda e suporte permite enviar um e-mail pelo aplicativo de e-mail do aparelho e usar Rever orientações para abrir novamente as dicas. Se o contato não aparecer, o administrador deve preencher o e-mail em Sistema → Dados da empresa.
 10. No sino, alterne Não lidas/Todas. Na entrada, Esqueci a senha abre uma etapa própria para solicitar o link.
 
 ## Profissional: alunos, treinos e atendimentos
@@ -57,6 +57,8 @@ As opções internas aparecem em linhas, sem precisar arrastar botões para os l
 ## Administração: organização atual
 Os grupos atuais são Visão geral, Pessoas, Planos e capacidade, Treinos, Comunidade, Operação e Sistema. Pessoas → Contas substitui o rótulo anterior Usuários e liberações; Treinos substitui Treinos e conteúdo. Em Visão geral, abra Análises detalhadas para gráficos e distribuição. No celular, cada registro começa com três campos; Ver mais campos revela os demais. Busca, ordenação, paginação e CSV continuam disponíveis.
 
+Em Sistema → Dados da empresa, confira a identificação da ORNY, a chave Pix CNPJ e os e-mails usados nos documentos e no contato de suporte. Use Preencher pela Receita para consultar os dados públicos do CNPJ, revise o resultado e clique em Salvar. A consulta não inventa e-mail nem completa endereço ausente. Alterar a versão dos documentos exige novo aceite dos usuários.
+
 ## Assinatura por cartão ou Pix
 
 1. Abra **Meu plano**, escolha Individual ou PRO e selecione **Cartão de crédito** ou **Pix**.
@@ -65,6 +67,8 @@ Os grupos atuais são Visão geral, Pessoas, Planos e capacidade, Treinos, Comun
 4. Se o Pix vencer, abra novamente a assinatura e use **Gerar novo Pix**. O código anterior deixa de valer.
 5. Assinatura escolhida como Pix recebe uma nova cobrança cinco dias antes da renovação e não tenta usar cartão.
 6. O período já pago continua acessível até o vencimento; depois disso vale a carência configurada.
+
+Conta recém-cadastrada ou aguardando liberação também pode concluir a compra. A aprovação administrativa continua necessária para usar as demais funções do aplicativo.
 
 Administrador: antes de ativar cobranças reais, abra **Cobrança, preços e cupons → Visão geral**, confira preços, venda dos planos, monetização e carência. Depois da configuração da VPS, confirme **Asaas (produção)** e acompanhe a cobrança controlada e o webhook. O procedimento completo e seguro está em `docs/sistema/21-asaas-ambientes.md`.
 

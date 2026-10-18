@@ -217,6 +217,8 @@ O checkout permite escolher cartão de crédito ou Pix. Cartão mantém assinatu
 
 Contratos: `POST /api/billing/subscribe` aceita `payment_type` igual a `card` ou `pix`; `card_id` é obrigatório somente para cartão. `GET /api/billing/me` informa o tipo e o Pix pendente ao titular. `POST /api/billing/pix/regenerate` exige propriedade da assinatura; `POST /api/billing/pix/confirm-test` existe apenas no simulador. A migration aditiva `057_cobranca_pix.sql` identifica o meio de pagamento e guarda somente apresentação/expiração da cobrança Pix. Cartões guardam apenas o token do provedor, nunca número ou CVV.
 
+Uma conta ainda não liberada administrativamente pode cadastrar o meio de pagamento e adquirir um plano. A liberação continua exigida para usar as funcionalidades do aplicativo; liberar a compra não libera automaticamente o restante do sistema.
+
 Segurança: o webhook Asaas valida token em tempo constante e eventos repetidos são idempotentes. QR Code e copia e cola ficam sob autenticação e vínculo do usuário. O provedor Asaas exige API Key e token de webhook completos; ambiente e prefixo da chave precisam corresponder. Configuração inválida impede a API de iniciar e nunca retorna silenciosamente ao simulador. Segredos ficam somente no `.env` privado da API e não aparecem em endpoint, frontend, documentação ou log.
 
 Ativação: o código pode ser publicado mantendo `BILLING_PROVIDER=simulado`. Para cobrança real, concluir aprovação/prova de vida da conta, chave Pix e tokenização de cartão; cadastrar chave e webhook no Asaas; conferir preços, venda, monetização e carência; aplicar migrations; preencher as quatro variáveis privadas; executar `pm2 restart avagym-api --update-env`; confirmar **Asaas (produção)** no admin e realizar cobrança controlada de baixo valor. O checklist, retorno ao teste e diagnóstico seguro ficam em `docs/sistema/21-asaas-ambientes.md` e `docs/DEPLOY-VPS.md`.
@@ -234,3 +236,9 @@ No painel administrativo, Sistema → Dados da empresa continua sendo a fonte do
 Onde olhar no código: contato em `frontend/src/views/guided/Profile.jsx`; formulário administrativo e apresentação dos documentos em `frontend/src/views/app/Legal.jsx`; validação, valores-base, consulta externa e persistência por tenant em `api/legal.js`.
 
 Validação desta entrega: build de produção aprovado; 289 testes unitários do frontend aprovados; 2 testes unitários específicos da identificação empresarial, formatação e validade do CNPJ aprovados. A primeira execução do Vitest dentro do sandbox falhou antes de carregar os testes por `EPERM` ao renomear o cache temporário; a repetição no runtime normal passou integralmente. Nenhum dado foi gravado em produção e nenhum e-mail foi enviado.
+
+## Auditoria 360° de prontidão SaaS (18/10/2026)
+
+A auditoria funcional, técnica, de segurança, monetização, operação e mercado está registrada em `docs/auditoria-saas/`. Ela avaliou principalmente o corte `1353db7` e as alterações locais de cobrança existentes no início do trabalho; durante a execução, o checkout avançou externamente até `ae28831`, com publicação de PIX documentada no commit `288793a` e provedor mantido em simulador. Os relatórios preservam essa separação e não tratam o avanço posterior como revalidação automática.
+
+Decisão da auditoria: manter somente beta controlado e adiar lançamento comercial amplo até provar o fluxo cadastro → contratação → confirmação → acesso sem liberação manual, validar provedor real e idempotência, estabilizar as fixtures E2E, concluir configuração legal e fechar os itens P1. A auditoria não alterou regra de negócio, funcionalidade, infraestrutura, dados de produção ou configuração de cobrança.

@@ -31,6 +31,8 @@ export const PAYMENT = {
 // ações permitidas para QUALQUER conta não liberada (conta, termos, LGPD, preferências, questionário)
 const ALLOW_LOCKED = [ /^(POST|DELETE) \/api\/me\/(social|avatar)$/,/^POST \/api\/auth\//, /^POST \/api\/terms/, /^POST \/api\/legal\/(accept|health-consent)$/, /^POST \/api\/me\/(theme|context|unlock-request|export-request|delete-request|delete-request\/cancel|capacities|tours|tours\/reset)$/,
   /^POST \/api\/notifications\/read$/, /^POST \/api\/notification-prefs$/, /^POST \/api\/guided\/onboarding$/, /^POST \/api\/me\/onboarding\/skip$/, /^PUT \/api\/data$/,
+  // A conta pode pagar e adquirir o plano antes da liberação administrativa; o cadeado continua valendo para as ações de uso.
+  /^POST \/api\/billing\/(cards|subscribe|coupon\/(validate|redeem)|pay-now|change-card|pix\/(regenerate|confirm-test))$/,
   /^POST \/api\/logout(\/all)?$/, /^POST \/api\/activity$/, /^POST \/api\/push\//, /^POST \/api\/me\/trophies\/show$/, /^POST \/api\/pro\/verification(\/document)?$/]
 // ações do aluno do personal DENTRO do escopo do plano do personal (fichas, atendimento, comunidade, desafios do personal)
 const CLIENT_SCOPE = [/^POST \/api\/guided\/sessions/, /^POST \/api\/active-training/, /^POST \/api\/(occurrences|threads|messages)$/, /^(POST|PUT) \/api\/me\/live-session/,
