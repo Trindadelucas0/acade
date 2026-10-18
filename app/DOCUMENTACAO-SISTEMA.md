@@ -217,7 +217,7 @@ O checkout permite escolher cartão de crédito ou Pix. Cartão mantém assinatu
 
 Contratos: `POST /api/billing/subscribe` aceita `payment_type` igual a `card` ou `pix`; `card_id` é obrigatório somente para cartão. `GET /api/billing/me` informa o tipo e o Pix pendente ao titular. `POST /api/billing/pix/regenerate` exige propriedade da assinatura; `POST /api/billing/pix/confirm-test` existe apenas no simulador. A migration aditiva `057_cobranca_pix.sql` identifica o meio de pagamento e guarda somente apresentação/expiração da cobrança Pix. Cartões guardam apenas o token do provedor, nunca número ou CVV.
 
-Uma conta ainda não liberada administrativamente pode cadastrar o meio de pagamento e adquirir um plano. A liberação continua exigida para usar as funcionalidades do aplicativo; liberar a compra não libera automaticamente o restante do sistema.
+Uma conta ainda não liberada administrativamente pode cadastrar o meio de pagamento e adquirir um plano. Quando o pagamento da contratação é confirmado, a própria conta é liberada automaticamente para usar o plano pago; pagamentos recusados ou pendentes não liberam acesso. A liberação administrativa continua separada para contas que não pagaram.
 
 Segurança: o webhook Asaas valida token em tempo constante e eventos repetidos são idempotentes. QR Code e copia e cola ficam sob autenticação e vínculo do usuário. O provedor Asaas exige API Key e token de webhook completos; ambiente e prefixo da chave precisam corresponder. Configuração inválida impede a API de iniciar e nunca retorna silenciosamente ao simulador. Segredos ficam somente no `.env` privado da API e não aparecem em endpoint, frontend, documentação ou log.
 

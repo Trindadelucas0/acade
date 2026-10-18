@@ -68,7 +68,7 @@ Em Sistema → Dados da empresa, confira a identificação da ORNY, a chave Pix 
 5. Assinatura escolhida como Pix recebe uma nova cobrança cinco dias antes da renovação e não tenta usar cartão.
 6. O período já pago continua acessível até o vencimento; depois disso vale a carência configurada.
 
-Conta recém-cadastrada ou aguardando liberação também pode concluir a compra. A aprovação administrativa continua necessária para usar as demais funções do aplicativo.
+Conta recém-cadastrada ou aguardando liberação também pode concluir a compra. Depois da confirmação do pagamento, a conta é liberada automaticamente para o plano pago; sem confirmação, continua bloqueada. A aprovação administrativa continua necessária apenas para quem não adquiriu um plano pago.
 
 Administrador: antes de ativar cobranças reais, abra **Cobrança, preços e cupons → Visão geral**, confira preços, venda dos planos, monetização e carência. Depois da configuração da VPS, confirme **Asaas (produção)** e acompanhe a cobrança controlada e o webhook. O procedimento completo e seguro está em `docs/sistema/21-asaas-ambientes.md`.
 
