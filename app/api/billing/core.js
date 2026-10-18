@@ -233,6 +233,16 @@ export async function applyChargeResult(chargeId, result, source) {
       const left = s.discount_cycles_left > 0 && charge.discount_cents > 0 ? s.discount_cycles_left - 1 : s.discount_cycles_left
       s = (await c.query(`update subscriptions set status='ativa', current_period_start=coalesce($2,now()), current_period_end=$3, retry_count=0, next_retry_at=null, grace_until=null,
           suspended_kind=null, discount_cycles_left=$4, trial_ends_at=null, updated_at=now() where id=$1 returning *`, [s.id, charge.period_start, charge.period_end, left])).rows[0]
+      if (charge.meta?.activate_plan) {
+        const unlocked = (await c.query(`update users set access_unlocked_at=coalesce(access_unlocked_at, now()), access_unlocked_by=null
+          where id=$1 and access_unlocked_at is null returning id`, [s.user_id])).rows[0]
+        if (unlocked) {
+          await c.query(`insert into access_events(user_id, action, actor_id, note) values($1, 'liberada', null, $2)`, [s.user_id, 'liberação automática após pagamento confirmado'])
+          await c.query(`update unlock_requests set status='aprovada', decided_at=coalesce(decided_at, now()), decision_note=coalesce(decision_note, $2)
+            where user_id=$1 and status='pendente'`, [s.user_id, 'liberação automática após pagamento confirmado'])
+          after.push(() => audit(charge.tenant_id, s.user_id, 'acesso.liberado_pagamento', 'user', s.user_id, { charge_id: charge.id }))
+        }
+      }
       if (sub.status !== 'ativa') await ev('status', { from: sub.status, to: 'ativa' })
       // comissao do parceiro (prevista; liberacao e repasse fora do app ou via split no Asaas)
       if (charge.split?.pct > 0 && s.partner_user_id && charge.amount_cents > 0) {
