@@ -82,10 +82,12 @@ Preencha também **Provedor e país da hospedagem**. O sistema não salva a conf
 ## Assinatura somente por cartão de crédito
 
 1. Abra **Meu plano**, escolha Individual, Personal 15 ou Personal Ilimitado e cadastre ou selecione um **cartão de crédito**.
-2. O ORNY encaminha o cartão ao provedor de pagamento e conserva somente o token devolvido; número e CVV não ficam armazenados no sistema.
-3. Se a cobrança ficar em análise, aguarde: o plano não é liberado pela tela de checkout nem pelo cadastro do cartão. O webhook autenticado do Asaas confirma a cobrança e então o acesso é ativado.
-4. A renovação é cobrada no cartão salvo. Se a cobrança for recusada, abra **Planos e pagamento**, atualize o cartão ou use **Pagar agora**.
-5. Assinaturas antigas de Pix continuam até o fim do período já pago. Para manter ou reativar o serviço, abra a assinatura e use **Adicionar cartão**; cobranças Pix pendentes antigas serão canceladas pelo Asaas durante essa migração. O histórico de cobranças permanece disponível.
+2. No celular, preencha **Dados do cartão** e **Dados do titular**. O formulário formata cartão, validade, CPF, telefone e CEP; se houver erro, corrija o campo destacado sem perder os demais dados.
+3. O cupom é opcional. Se ele não puder ser aplicado, a tela informa que você pode continuar pelo valor integral.
+4. Toque uma vez em **Pagar** e aguarde **Processando pagamento**. O ORNY encaminha os dados ao provedor e conserva somente o token devolvido; número e CVV não ficam armazenados no sistema.
+5. Se a cobrança ficar em análise, aguarde: o plano não é liberado pela tela de checkout nem pelo cadastro do cartão. O webhook autenticado do Asaas confirma a cobrança e então o acesso é ativado.
+6. A renovação é cobrada no cartão salvo. Se a cobrança for recusada, abra **Planos e pagamento**, atualize o cartão ou use **Pagar agora**. Essas ações permanecem disponíveis mesmo quando a conta ainda não tem acesso aos recursos internos.
+7. Assinaturas antigas de Pix continuam até o fim do período já pago. Para manter ou reativar o serviço, abra a assinatura e use **Adicionar cartão**; cobranças Pix pendentes antigas serão canceladas pelo Asaas durante essa migração. O histórico de cobranças permanece disponível.
 
 Conta recém-cadastrada pode concluir a compra diretamente. Depois da confirmação do Asaas, usa o plano imediatamente; uma cobrança pendente não libera recursos pagos. Aluno coberto pelo PRO pago e confirmado usa as fichas e os recursos incluídos disponibilizados pelo personal. Para outras áreas, precisa do Individual pago e confirmado. Não existe pedido de análise ou liberação manual. Uma suspensão administrativa excepcional continua visível até o suporte reativar a conta.
 

@@ -1,6 +1,6 @@
 # ORNY — Documentação do sistema
 
-Fonte oficial de comportamento. Versão frontend: 1.7.6. Atualização: 19/10/2026 — erro de permissão ao validar cupom não impede contratar sem desconto.
+Fonte oficial de comportamento. Versão frontend/API: 1.7.7. Atualização: 19/10/2026 — checkout mobile com validação por campo e autoatendimento financeiro disponível para conta ainda não liberada.
 O inventário em `docs/INVENTARIO-FUNCIONAL.md` preserva o levantamento histórico e seus limites de validação; este documento consolida os fluxos atualizados.
 
 ## Bloqueio comercial — somente pagamento confirmado (19/10/2026)
@@ -20,6 +20,8 @@ Onde olhar no código: `api/access.js` (origem paga, allowlist e middleware glob
 
 O checkout aceita somente cartão de crédito. O cupom é opcional; se a validação retornar falta de permissão, ele não é aplicado e a pessoa pode contratar pelo valor integral. O erro de cupom não autoriza nem bloqueia o envio da cobrança. A contratação continua exigindo um plano compatível com o perfil da conta. A API recusa `payment_type=pix`, e as rotas antigas para regenerar ou confirmar Pix respondem HTTP 410; o backend Asaas não cria mais cobranças Pix. `GET /api/billing/me` não retorna QR Code nem copia e cola. Cobranças históricas continuam no histórico, e o webhook ainda reconhece eventos reais de cobranças Pix criadas anteriormente para manter o registro financeiro correto.
 
+O autoatendimento financeiro usa a autenticação que aceita conta pendente nas rotas de consulta, validação/resgate de cupom, cadastro/remoção/troca de cartão, contratação, pagamento de pendência, cancelamento e reativação. Isso não concede acesso ao produto: ownership do cartão e da assinatura continua validado pelo usuário autenticado, e as demais APIs permanecem sob o bloqueio comercial. No celular, o checkout abre em tela cheia, separa dados do cartão e do titular, aplica máscaras sem enviar pontuação ao Asaas, mostra erros junto ao campo e mantém o botão de pagamento alcançável. Toques repetidos durante o processamento são ignorados e a mesma tentativa conserva a chave de idempotência.
+
 Uma assinatura Pix antiga conserva o acesso até o fim do período já pago e não recebe novas cobranças Pix. O job avisa quando a renovação se aproxima. Em **Planos e pagamento → Adicionar cartão**, a migração cancela primeiro as cobranças Pix antigas ainda pendentes no Asaas e só então troca a assinatura para cartão; se o cancelamento remoto falhar, a migração é recusada e pode ser tentada novamente. A cobrança/renovação por cartão não libera acesso enquanto estiver pendente: `applyChargeResult` ativa o plano somente quando o webhook autenticado (`PAYMENT_CONFIRMED` ou `PAYMENT_RECEIVED`) confirmar o pagamento. Repetições são idempotentes.
 
 Onde olhar no código: `api/billing/core.js` (validação do meio, migração de legado e ativação por webhook), `api/billing/routes.js` (contrato e rotas aposentadas), `api/billing/providers/asaas.js` (cartão), `frontend/src/views/billing/Billing.jsx` (checkout/assinatura) e `api/access.js` (gate de acesso).
@@ -27,8 +29,13 @@ Onde olhar no código: `api/billing/core.js` (validação do meio, migração de
 ### Como usar
 
 1. Em **Planos e pagamento**, escolha um plano e selecione ou cadastre o cartão; não há QR Code ou opção Pix.
-2. Se o Asaas indicar análise, aguarde a atualização. Só depois do webhook confirmado os recursos do plano aparecem.
-3. Se a assinatura ainda for Pix, adicione um cartão antes da renovação para manter o serviço. O período pago permanece até sua data final; cobranças Pix pendentes antigas são canceladas durante a troca.
+2. Confira os campos destacados. Se o cupom opcional não puder ser aplicado, continue pelo valor integral. Ao tocar em **Pagar**, aguarde o estado **Processando pagamento**; não é necessário tocar novamente.
+3. Se o Asaas indicar análise, mantenha a tela aberta ou volte depois a **Planos e pagamento**. Só depois do webhook confirmado os recursos do plano aparecem.
+4. Se a assinatura ainda for Pix, adicione um cartão antes da renovação para manter o serviço. O período pago permanece até sua data final; cobranças Pix pendentes antigas são canceladas durante a troca.
+
+### Validação da versão 1.7.7
+
+Cobertura local adicionada para máscaras, limpeza do payload, validação por campo e mensagens por etapa, além de cenários Playwright em 320, 360 e 390 pixels com erro de cupom, pagamento pendente e preservação do formulário. A compra real, o webhook da conta Asaas de produção, o estorno e a publicação desta versão continuam sendo validações operacionais separadas; não são comprovados por testes simulados.
 
 Publicação em 19/10/2026: commit `7f2fe14` implantado na VPS após backup validado em `/opt/avagym-backups/orny_card_only_20261019_142225`. Nenhuma migration foi necessária. API e site responderam HTTP 200, o webhook sem token respondeu 401, os processos PM2 ficaram online e o build publicado não contém os controles Pix. O Asaas permanece configurado em produção com token de webhook presente; nenhum pagamento real de teste foi criado. Cinco testes unitários da API passaram. O build de produção passou; a suíte frontend completa não executou por `EPERM` no sandbox antes de rodar testes, e o cenário integrado da API ficou pendente por falta de banco `_test` local.
 
@@ -203,6 +210,7 @@ Conferir que esperar na preparação não cria sessão; campos vazios/negativos 
 O início utiliza `startRemote`, que preserva a autorização existente e a continuidade offline. Nenhuma alteração de permissão ou banco nesta versão.
 
 ## Histórico
+- 1.7.7 (19/10/2026): checkout mobile em tela cheia, validação por campo, mensagens por etapa e autenticação uniforme nas operações de autoatendimento financeiro; acesso continua dependente de pagamento real confirmado.
 - 19/10/2026 (operação, sem bump do frontend): planos Individual, Personal 15 e Personal Ilimitado abertos para venda na VPS; monetização ativada sem conceder transição gratuita. Primeira confirmação real Asaas ainda não observada.
 - 1.6.0 (19/10/2026): assinatura Individual direciona ao perfil e à recomendação; a ficha é calculada no servidor e ativada somente após confirmação do aluno.
 - 1.5.0 (18/10/2026): calendário de conteúdo oficial da Comunidade, doze publicações iniciais idempotentes, agendamento, selo institucional e engajamento exclusivamente real.
@@ -382,7 +390,7 @@ Contratos principais: `GET /api/convite?code=`, `GET /api/referral/me`, `POST /a
 
 ### Validação local
 
-O build de produção do frontend passou e 291 testes unitários passaram. Os arquivos alterados da API passaram na validação sintática e o diff não contém erro de whitespace. Os cenários integrados de cupom foram atualizados, mas não foram executados porque o checkout possui somente configuração de banco de uso e os próprios testes exigem uma base cujo nome termine em `_test`. Nenhuma migration foi aplicada, nenhum serviço foi reiniciado e a produção não foi alterada.
+O build de produção do frontend passou, 296 testes unitários passaram, os cinco testes isolados de configuração/documentos Asaas passaram e quatro cenários Playwright do checkout passaram em 320, 360 e 390 pixels. Os arquivos alterados da API passaram na validação sintática e o diff não contém erro de whitespace. Os cenários integrados que exigem PostgreSQL não foram executados porque o checkout possui somente configuração de banco de uso e os próprios testes recusam uma base cujo nome não termine em `_test`. Nenhuma migration foi aplicada, nenhum serviço foi reiniciado, nenhuma cobrança foi criada e a produção não foi alterada.
 
 ## Histórico: Pagamentos Asaas — cartão e Pix (17/10/2026, Pix aposentado em 19/10/2026)
 
@@ -404,17 +412,17 @@ O Asaas de produção confirmou por consulta somente leitura um webhook para a U
 
 Na troca do Personal Ilimitado para o Personal 15, alunos existentes não são removidos. Se houver mais de 15 ativos, a conta fica acima do limite e novos vínculos são bloqueados até liberar vagas ou retornar ao Ilimitado. No plano ilimitado, `effective_limit` e `available` são `null` na API e aparecem como **Ilimitado** na interface, nunca como zero. Cupons de período gratuito para profissionais continuam concedendo o Personal 15.
 
-O checkout permite escolher cartão de crédito ou Pix. Para Pix no Asaas, informe CPF ou CNPJ válido do pagador; o documento é enviado ao Asaas para identificar o cliente e não é gravado no cadastro nem nos metadados da cobrança. Clientes Asaas já existentes recebem atualização desse documento antes da cobrança. Cartão mantém assinatura mensal e renovação automática. Pix inicial gera QR Code e copia e cola com validade de 24 horas e não libera o plano antes da confirmação do webhook; o checkout consulta o estado da assinatura e conclui a tela automaticamente quando o provedor confirma. Um Pix vencido pode ser regenerado sem criar outra assinatura; na renovação, o sistema gera nova cobrança cinco dias antes do fim do período pago, avisa o usuário e respeita a carência configurada. Assinatura Pix nunca tenta cobrar cartão.
+Em 17/10/2026, o checkout permitia cartão de crédito ou Pix. O Pix enviava CPF/CNPJ ao Asaas, gerava QR Code/copia e cola e aguardava webhook. Esse fluxo foi aposentado em 19/10/2026; permanece descrito apenas como registro histórico. A regra vigente aceita somente cartão, conforme a seção inicial deste documento.
 
-Contratos: `POST /api/billing/subscribe` aceita `payment_type` igual a `card` ou `pix`; `card_id` é obrigatório somente para cartão e `customer_document` (CPF/CNPJ) é obrigatório/validado no Pix Asaas. Conta ainda pendente pode usar rotas de cobrança, incluindo cadastro de cartão e contratação; isso não libera recursos. `GET /api/billing/me` informa o tipo e o Pix pendente ao titular. `POST /api/billing/pix/regenerate` exige propriedade da assinatura; `POST /api/billing/pix/confirm-test` existe apenas no simulador. A migration aditiva `057_cobranca_pix.sql` identifica o meio de pagamento e guarda somente apresentação/expiração da cobrança Pix. Cartões guardam apenas o token do provedor, nunca número ou CVV. A confirmação real do Asaas atualiza a assinatura; acesso a programas, fichas e demais recursos passa pelo gate server-side de cobrança paga e vigente.
+Contrato histórico: `payment_type=pix`, QR Code e regeneração pertencem à implantação de 17/10/2026. Atualmente `POST /api/billing/subscribe` aceita somente `card`; as duas rotas Pix respondem 410. Conta ainda pendente pode usar todas as rotas de autoatendimento financeiro, mas isso não libera recursos. Cartões guardam apenas o token do provedor, nunca número ou CVV. A confirmação real do Asaas atualiza a assinatura; acesso a programas, fichas e demais recursos passa pelo gate server-side de cobrança paga e vigente.
 
 Uma conta pode cadastrar o meio de pagamento e adquirir um plano sem aprovação administrativa. Quando a contratação é confirmada, o plano fica disponível imediatamente; pagamentos recusados ou pendentes não liberam os recursos pagos. Teste válido e cobertura pelo PRO seguem a mesma regra automática. Suspensão administrativa explícita continua prevalecendo até a reativação.
 
 Contrato transitório: `GET /api/me/unlock-request` informa que o fluxo foi aposentado e expõe apenas eventual suspensão; `POST /api/me/unlock-request` retorna 410 com `UNLOCK_FLOW_RETIRED` ou `ACCESS_SUSPENDED`. O bloqueio comercial usa `ACCESS_REQUIRED`, o escopo do aluno PRO usa `CLIENT_SCOPE` e a suspensão usa `ACCESS_SUSPENDED`. A migration aditiva `058_acesso_comercial_suspensao.sql` cria os campos explícitos, ativa perfis profissionais antigos em análise e cancela solicitações pendentes sem apagar histórico.
 
-Segurança: o webhook Asaas valida token em tempo constante e eventos repetidos são idempotentes. QR Code e copia e cola ficam sob autenticação e vínculo do usuário. O provedor Asaas exige API Key e token de webhook completos; ambiente e prefixo da chave precisam corresponder. Configuração inválida impede a API de iniciar e nunca retorna silenciosamente ao simulador. Segredos ficam somente no `.env` privado da API e não aparecem em endpoint, frontend, documentação ou log.
+Segurança: o webhook Asaas valida token em tempo constante e eventos repetidos são idempotentes. Cartões e assinaturas são consultados e alterados somente pelo próprio usuário autenticado; a remoção confere ownership antes de revelar se o cartão está em uso. O provedor Asaas exige API Key e token de webhook completos; ambiente e prefixo da chave precisam corresponder. Configuração inválida impede a API de iniciar e nunca retorna silenciosamente ao simulador. Segredos ficam somente no `.env` privado da API e não aparecem em endpoint, frontend, documentação ou log.
 
-Ativação: o código pode ser publicado mantendo `BILLING_PROVIDER=simulado`. Para cobrança real, concluir aprovação/prova de vida da conta, chave Pix e tokenização de cartão; cadastrar chave e webhook no Asaas; conferir preços, venda, monetização e carência; aplicar migrations; preencher as quatro variáveis privadas; executar `pm2 restart avagym-api --update-env`; confirmar **Asaas (produção)** no admin e realizar cobrança controlada de baixo valor. O checklist, retorno ao teste e diagnóstico seguro ficam em `docs/sistema/21-asaas-ambientes.md` e `docs/DEPLOY-VPS.md`.
+Ativação vigente: para cobrança real, manter tokenização de cartão, chave de API e webhook no Asaas; conferir preços, venda, monetização e carência; preencher as variáveis privadas; reiniciar a API com o ambiente atualizado; confirmar **Asaas (produção)** no admin e realizar uma cobrança controlada de baixo valor. O checklist, retorno ao teste e diagnóstico seguro ficam em `docs/sistema/21-asaas-ambientes.md` e `docs/DEPLOY-VPS.md`.
 
 Estado desta entrega: publicada na VPS em 17/10/2026 no commit `288793a`. A migration `057_cobranca_pix.sql` foi aplicada após backup validado, o frontend foi recompilado e `avagym-api`/`avagym-web` foram reiniciados. Saúde da API e site retornaram sucesso, a coluna `payment_type` foi confirmada no banco e o build publicado contém o fluxo Pix. O provedor permaneceu em simulador; nenhuma chave Asaas real foi usada e nenhuma cobrança real foi ativada. A confirmação visual autenticada do rótulo no painel administrativo continua sendo uma conferência operacional do administrador.
 

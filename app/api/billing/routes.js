@@ -127,7 +127,7 @@ export function billingRoutes({ json, readBody }) {
     },
     'GET /api/billing/access': async (req, res) => { const u = await auth(req, res); if (!u) return; json(res, 200, await accessSummary(u)) },
     'POST /api/billing/coupon/validate': async (req, res) => {
-      const u = await requireAuth(req, res, json); if (!u) return
+      const u = await auth(req, res); if (!u) return
       const b = await readBody(req)
       const v = await cp.validateCode(u, b.code, null, { audience: ['aluno', 'profissional'].includes(b.audience) && u.roles.includes(b.audience) ? b.audience : undefined })
       if (v.error) return json(res, 200, { valid: false, error: v.error, code: v.code })
@@ -136,7 +136,7 @@ export function billingRoutes({ json, readBody }) {
         partner: v.referrer ? { id: v.referrer, name: v.partner_name } : null })
     },
     'POST /api/billing/coupon/redeem': async (req, res) => {
-      const u = await requireAuth(req, res, json); if (!u) return
+      const u = await auth(req, res); if (!u) return
       // D7: o teste vale para aluno (Individual) e personal (PRO); o publico vem do papel da conta, nunca do preco/plano do corpo
       const b = await readBody(req)
       const audience = b.audience === 'profissional' ? 'profissional' : b.audience === 'aluno' ? 'aluno' : (u.active_context === 'profissional' || !u.roles.includes('aluno') ? 'profissional' : 'aluno')
@@ -152,10 +152,12 @@ export function billingRoutes({ json, readBody }) {
       send(json, res, await core.addCard(u, await readBody(req), ipOf(req)))
     },
     'POST /api/billing/cards/remove': async (req, res) => {
-      const u = await requireAuth(req, res, json); if (!u) return
+      const u = await auth(req, res); if (!u) return
       // BUG-040: aceita id ou card_id (mesmo nome do subscribe/change-card) e explica o erro
       const b = await readBody(req); b.id = b.id || b.card_id; if (!isUuid(b.id)) return json(res, 400, { error: 'Informe o cartão a remover (id do cartão).', code: 'INVALID_INPUT' })
-      const inUse = (await q(`select 1 from subscriptions where payment_method_id=$1 and status in ('ativa','trial','inadimplente','carencia') and not cancel_at_period_end`, [b.id])).rowCount
+      const owned = (await q('select 1 from payment_methods where id=$1 and user_id=$2 and removed_at is null', [b.id, u.id])).rowCount
+      if (!owned) return json(res, 404, { error: 'Cartão não encontrado' })
+      const inUse = (await q(`select 1 from subscriptions where payment_method_id=$1 and user_id=$2 and status in ('ativa','trial','inadimplente','carencia') and not cancel_at_period_end`, [b.id, u.id])).rowCount
       if (inUse) return json(res, 409, { error: 'Este cartão paga uma assinatura ativa. Troque o cartão da assinatura antes de removê-lo.', code: 'CARD_IN_USE' })
       const r = await q('update payment_methods set removed_at=now(), is_default=false, token=$3 where id=$1 and user_id=$2 and removed_at is null returning id', [b.id, u.id, 'removido'])
       if (!r.rowCount) return json(res, 404, { error: 'Cartão não encontrado' })
@@ -163,12 +165,12 @@ export function billingRoutes({ json, readBody }) {
       json(res, 200, { ok: true })
     },
     'POST /api/billing/subscribe': async (req, res) => { const u = await auth(req, res); if (!u) return; const b = await readBody(req); if (!CATALOG.includes(String(b.plan_id || ''))) return json(res, 404, { error: 'Este plano não está disponível para contratação.', code: 'PLAN_UNAVAILABLE' }); send(json, res, await core.subscribe(u, b, ipOf(req))) },
-    'POST /api/billing/change-card': async (req, res) => { const u = await requireAuth(req, res, json); if (!u) return; send(json, res, await core.changeCard(u, await readBody(req), ipOf(req))) },
-    'POST /api/billing/pay-now': async (req, res) => { const u = await requireAuth(req, res, json); if (!u) return; send(json, res, await core.payNow(u, await readBody(req), ipOf(req))) },
+    'POST /api/billing/change-card': async (req, res) => { const u = await auth(req, res); if (!u) return; send(json, res, await core.changeCard(u, await readBody(req), ipOf(req))) },
+    'POST /api/billing/pay-now': async (req, res) => { const u = await auth(req, res); if (!u) return; send(json, res, await core.payNow(u, await readBody(req), ipOf(req))) },
     'POST /api/billing/pix/regenerate': async (req, res) => { const u = await auth(req, res); if (!u) return; json(res, 410, { error: 'Pix não está mais disponível. Use cartão de crédito.', code: 'PAYMENT_METHOD_DISABLED' }) },
     'POST /api/billing/pix/confirm-test': async (req, res) => { const u = await auth(req, res); if (!u) return; json(res, 410, { error: 'Pix não está mais disponível. Use cartão de crédito.', code: 'PAYMENT_METHOD_DISABLED' }) },
-    'POST /api/billing/cancel': async (req, res) => { const u = await requireAuth(req, res, json); if (!u) return; send(json, res, await core.cancel(u, await readBody(req))) },
-    'POST /api/billing/reactivate': async (req, res) => { const u = await requireAuth(req, res, json); if (!u) return; send(json, res, await core.reactivate(u, await readBody(req))) },
+    'POST /api/billing/cancel': async (req, res) => { const u = await auth(req, res); if (!u) return; send(json, res, await core.cancel(u, await readBody(req))) },
+    'POST /api/billing/reactivate': async (req, res) => { const u = await auth(req, res); if (!u) return; send(json, res, await core.reactivate(u, await readBody(req))) },
 
     // ===== webhooks (sem sessao; autenticados por token no cabecalho) =====
     'POST /api/billing/webhook/asaas': async (req, res) => {

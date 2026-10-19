@@ -10,6 +10,7 @@ import './billing.css'
 import ReferralPanel from './Referral.jsx'   // Monetizacao F5
 import { TrialCard, accessChanged } from './Access.jsx'   // Monetizacao F8
 import { PlanGrid, TrialSeal, Faq } from './PlansShowcase.jsx'   // redesenho dos planos
+import { cardPayload, checkoutError, checkoutMask, validateCheckoutCard } from './checkout.js'
 
 export const FEAT = {
   receber_ficha_profissional: 'Treinos do seu personal',
@@ -60,16 +61,28 @@ export function PublicPlans() {
 }
 
 // ===== checkout =====
-function Checkout({ plan, cfg, cards, onClose, onDone }) {
+function CheckoutField({ id, label, value, onChange, error, className = '', ...input }) {
+  return <label className={'bl-f ' + className} htmlFor={id}>{label}
+    <input id={id} className="g-in" value={value} onChange={onChange} aria-invalid={!!error} aria-describedby={error ? id + '-error' : undefined} {...input} />
+    {error && <span className="bl-field-error" id={id + '-error'}>{error}</span>}
+  </label>
+}
+
+export function Checkout({ plan, cfg, cards, onClose, onDone }) {
   const [useCard, setUseCard] = useState(cards[0]?.id || 'novo')
   const [f, setF] = useState({ number: '', holder_name: '', exp: '', cvv: '', cpf: '', postal_code: '', address_number: '', phone: '' })
+  const [fieldErrors, setFieldErrors] = useState({})
   const [coupon, setCoupon] = useState(''), [cv, setCv] = useState(null)
-  const [busy, setBusy] = useState(false), [msg, setMsg] = useState(null)
+  const [busy, setBusy] = useState(false), [msg, setMsg] = useState(null), [errorStage, setErrorStage] = useState(null)
   const [pendingChargeId, setPendingChargeId] = useState(null)
   const paidHandled = useRef(false)
   const newKey = () => crypto.randomUUID?.() || String(Date.now() + Math.random())
   const [idem, setIdem] = useState(newKey)   // BUG-031: uma chave por tentativa (duplo clique nao cobra 2x; nova tentativa usa chave nova)
-  const set = k => e => setF({ ...f, [k]: e.target.value })
+  const set = (key, mask) => e => {
+    const value = mask ? checkoutMask[mask](e.target.value) : e.target.value
+    setF(current => ({ ...current, [key]: value }))
+    if (fieldErrors[key]) setFieldErrors(current => ({ ...current, [key]: undefined }))
+  }
   const price = cv?.valid && cv.benefit === 'desconto' ? Math.round(plan.price_cents * (1 - cv.discount_pct / 100)) : plan.price_cents
   async function checkCoupon() {
     if (!coupon.trim()) return
@@ -83,20 +96,33 @@ function Checkout({ plan, cfg, cards, onClose, onDone }) {
     }
   }
   async function pay(e) {
-    e.preventDefault(); setBusy(true); setMsg(null)
+    e.preventDefault()
+    if (busy || pendingChargeId) return
+    if (useCard === 'novo') {
+      const errors = validateCheckoutCard(f, cfg.requires_holder_info)
+      setFieldErrors(errors)
+      if (Object.keys(errors).length) {
+        setMsg('Revise os campos indicados antes de continuar.')
+        setErrorStage('card')
+        document.getElementById('checkout-' + Object.keys(errors)[0])?.focus()
+        return
+      }
+    }
+    setBusy(true); setMsg(null); setErrorStage(null)
     try {
       let card_id = useCard
       if (useCard === 'novo') {
-        const [mm, yy] = f.exp.split('/').map(s => s.trim())
-        const r = await post('/api/billing/cards', { number: f.number, holder_name: f.holder_name, exp_month: mm, exp_year: yy, cvv: f.cvv,
-          holder: cfg.requires_holder_info ? { cpf: f.cpf, postal_code: f.postal_code, address_number: f.address_number, phone: f.phone } : undefined })
+        const r = await post('/api/billing/cards', cardPayload(f, cfg.requires_holder_info))
         card_id = r.card.id
       }
       const r = await post('/api/billing/subscribe', { plan_id: plan.id, payment_type: 'card', card_id,
         coupon: cv?.valid && cv.benefit === 'desconto' ? coupon.trim() : undefined, idempotency_key: idem })
       if (r.result === 'pendente' && r.charge_id) { setPendingChargeId(r.charge_id); setMsg(null); return }
       onDone(`Assinatura do ${plan.name} ativa. Obrigado!`)
-    } catch (e2) { setMsg(e2.message); setIdem(newKey()) } finally { setBusy(false) }
+    } catch (e2) {
+      const friendly = checkoutError(e2, useCard === 'novo' ? 'card' : 'payment')
+      setMsg(friendly.message); setErrorStage(friendly.stage); setIdem(newKey())
+    } finally { setBusy(false) }
   }
   useEffect(() => {
     if (!pendingChargeId) return
@@ -113,6 +139,7 @@ function Checkout({ plan, cfg, cards, onClose, onDone }) {
         } else if (['recusada', 'cancelada'].includes(charge.status)) {
           setPendingChargeId(null)
           setMsg('O cartão não foi aprovado. Confira os dados ou tente outro cartão.')
+          setErrorStage('payment')
           setIdem(newKey())
         }
       } catch { /* conexão indisponível: a próxima consulta tenta novamente */ }
@@ -122,46 +149,54 @@ function Checkout({ plan, cfg, cards, onClose, onDone }) {
     return () => { active = false; clearInterval(timer) }
   }, [pendingChargeId, plan.audience, plan.id, plan.name])
   const tc = cfg.test_cards
-  return <div className="bl-modal-bg" onClick={onClose}><form className="bl-modal" role="dialog" aria-modal="true" aria-label={'Assinar ' + plan.name} onClick={e => e.stopPropagation()} onSubmit={pay} data-testid="checkout">
-    <div className="bl-row"><h2>Assinar {plan.name}</h2><span className="bl-sp" /><button type="button" className="bl-x" aria-label="Fechar" onClick={onClose}>×</button></div>
-    <p className="bl-sum"><b>{brl(price)}</b> hoje e a cada mês{cv?.valid && cv.benefit === 'desconto' && <> · {cv.discount_pct}% de desconto por {cv.discount_cycles || 1} {(cv.discount_cycles || 1) > 1 ? 'meses' : 'mês'}</>}</p>
+  return <div className="bl-modal-bg" onClick={() => !busy && !pendingChargeId && onClose()}><form className="bl-modal" role="dialog" aria-modal="true" aria-labelledby="checkout-title" onClick={e => e.stopPropagation()} onSubmit={pay} data-testid="checkout">
+    <header className="bl-modal-head"><div><h2 id="checkout-title">Assinar {plan.name}</h2><p className="bl-sum"><b>{brl(price)}</b> por mês{cv?.valid && cv.benefit === 'desconto' && <> · {cv.discount_pct}% de desconto por {cv.discount_cycles || 1} {(cv.discount_cycles || 1) > 1 ? 'meses' : 'mês'}</>}</p></div><button type="button" className="bl-x" aria-label="Fechar" disabled={busy || !!pendingChargeId} onClick={onClose}>×</button></header>
     {pendingChargeId && <p className="bl-info" role="status" data-testid="payment-pending">Pagamento em análise pelo Asaas. Esta tela acompanha a confirmação; o plano só será liberado quando o webhook confirmar o pagamento.</p>}
     {tc && <details className="bl-test" open data-testid="test-cards"><summary>Ambiente de teste — use um cartão de teste</summary>
       <p>Aprovado: <code>{tc.aprova?.[0]}</code>{tc.recusa?.[0] && <> · Recusado: <code>{tc.recusa[0]}</code></>}{tc.recusa_renovacao?.[0] && <> · Recusa na renovação: <code>{tc.recusa_renovacao[0]}</code></>}. Validade futura e qualquer CVV.</p></details>}
-    {!pendingChargeId && cards.length > 0 && <label className="bl-f">Cartão<select className="g-in" value={useCard} onChange={e => setUseCard(e.target.value)} data-testid="card-select">
+    {!pendingChargeId && cards.length > 0 && <label className="bl-f" htmlFor="checkout-card">Cartão<select id="checkout-card" className="g-in" value={useCard} onChange={e => { setUseCard(e.target.value); setMsg(null); setFieldErrors({}) }} data-testid="card-select">
       {cards.map(c => <option key={c.id} value={c.id}>{(c.brand || 'Cartão') + ' final ' + c.last4}</option>)}<option value="novo">Novo cartão</option></select></label>}
-    {!pendingChargeId && useCard === 'novo' && <div className="bl-grid">
-      <label className="bl-f bl-full">Número do cartão<input className="g-in" inputMode="numeric" autoComplete="cc-number" required value={f.number} onChange={set('number')} data-testid="cc-number" /></label>
-      <label className="bl-f bl-full">Nome impresso<input className="g-in" autoComplete="cc-name" required value={f.holder_name} onChange={set('holder_name')} data-testid="cc-name" /></label>
-      <label className="bl-f">Validade (MM/AA)<input className="g-in" inputMode="numeric" autoComplete="cc-exp" placeholder="12/30" required value={f.exp} onChange={set('exp')} data-testid="cc-exp" /></label>
-      <label className="bl-f">CVV<input className="g-in" inputMode="numeric" autoComplete="cc-csc" required value={f.cvv} onChange={set('cvv')} data-testid="cc-cvv" /></label>
+    {!pendingChargeId && useCard === 'novo' && <>
+      <fieldset className="bl-fieldset"><legend>Dados do cartão</legend><div className="bl-grid">
+      <CheckoutField id="checkout-number" label="Número do cartão" className="bl-full" inputMode="numeric" autoComplete="cc-number" required value={f.number} onChange={set('number', 'number')} error={fieldErrors.number} data-testid="cc-number" />
+      <CheckoutField id="checkout-holder_name" label="Nome impresso" className="bl-full" autoComplete="cc-name" required value={f.holder_name} onChange={set('holder_name')} error={fieldErrors.holder_name} data-testid="cc-name" />
+      <CheckoutField id="checkout-exp" label="Validade (MM/AA)" inputMode="numeric" autoComplete="cc-exp" placeholder="12/30" required value={f.exp} onChange={set('exp', 'exp')} error={fieldErrors.exp} data-testid="cc-exp" />
+      <CheckoutField id="checkout-cvv" label="CVV" inputMode="numeric" autoComplete="cc-csc" required value={f.cvv} onChange={set('cvv', 'cvv')} error={fieldErrors.cvv} data-testid="cc-cvv" />
+      </div></fieldset>
       {cfg.requires_holder_info && <>
-        <label className="bl-f">CPF do titular<input className="g-in" inputMode="numeric" required value={f.cpf} onChange={set('cpf')} /></label>
-        <label className="bl-f">Telefone<input className="g-in" inputMode="tel" autoComplete="tel" required value={f.phone} onChange={set('phone')} /></label>
-        <label className="bl-f">CEP<input className="g-in" inputMode="numeric" autoComplete="postal-code" required value={f.postal_code} onChange={set('postal_code')} /></label>
-        <label className="bl-f">Número do endereço<input className="g-in" required value={f.address_number} onChange={set('address_number')} /></label></>}
-    </div>}
-    {!pendingChargeId && <div className="bl-row bl-coupon"><input className="g-in" placeholder="Cupom de desconto (opcional)" value={coupon} onChange={e => { setCoupon(e.target.value); setCv(null) }} data-testid="coupon" /><button type="button" className="g-btn" onClick={checkCoupon}>Aplicar</button></div>}
+        <fieldset className="bl-fieldset"><legend>Dados do titular</legend><div className="bl-grid">
+        <CheckoutField id="checkout-cpf" label="CPF do titular" inputMode="numeric" autoComplete="off" required value={f.cpf} onChange={set('cpf', 'cpf')} error={fieldErrors.cpf} />
+        <CheckoutField id="checkout-phone" label="Telefone" inputMode="tel" autoComplete="tel" required value={f.phone} onChange={set('phone', 'phone')} error={fieldErrors.phone} />
+        <CheckoutField id="checkout-postal_code" label="CEP" inputMode="numeric" autoComplete="postal-code" required value={f.postal_code} onChange={set('postal_code', 'postal_code')} error={fieldErrors.postal_code} />
+        <CheckoutField id="checkout-address_number" label="Número do endereço" autoComplete="address-line2" required value={f.address_number} onChange={set('address_number')} error={fieldErrors.address_number} />
+        </div></fieldset></>}
+    </>}
+    {!pendingChargeId && <fieldset className="bl-fieldset bl-coupon-field"><legend>Cupom opcional</legend><div className="bl-row bl-coupon"><label className="sr-only" htmlFor="checkout-coupon">Cupom de desconto</label><input id="checkout-coupon" className="g-in" placeholder="Código do cupom" value={coupon} onChange={e => { setCoupon(e.target.value); setCv(null) }} data-testid="coupon" /><button type="button" className="g-btn" onClick={checkCoupon} disabled={!coupon.trim()}>Aplicar</button></div></fieldset>}
     {cv && <p className={cv.valid && cv.benefit === 'desconto' ? 'bl-ok' : cv.unavailable ? 'bl-info' : 'bl-err'} data-testid="coupon-msg">{cv.valid ? cv.benefit === 'desconto' ? `Cupom aplicado: ${cv.discount_pct}% off.` : 'Este cupom é de período experimental; ative-o na tela inicial.' : cv.unavailable ? 'Não foi possível aplicar o cupom. Você pode continuar pelo valor integral.' : cv.error}</p>}
-    {msg && <p className="bl-err" role="alert" data-testid="checkout-error">{msg}</p>}
-    {!pendingChargeId && <button className="bl-btn bl-wide" disabled={busy} data-testid="checkout-pay">{busy ? 'Processando…' : 'Pagar ' + brl(price)}</button>}
-    <p className="bl-fine">Pagamento processado por {cfg.label}. Não guardamos o número nem o CVV do cartão. Ao assinar você aceita os <a href="#/legal/assinatura" target="_blank" rel="noopener">Termos de assinatura</a>.</p>
+    {msg && <p className="bl-err bl-checkout-error" role="alert" data-stage={errorStage || undefined} data-testid="checkout-error">{msg}</p>}
+    <p className="bl-fine">Pagamento seguro processado por {cfg.label}. Não guardamos o número nem o CVV do cartão. Ao assinar você aceita os <a href="#/legal/assinatura" target="_blank" rel="noopener">Termos de assinatura</a>.</p>
+    {!pendingChargeId && <footer className="bl-checkout-actions"><button className="bl-btn bl-wide" disabled={busy} aria-busy={busy} data-testid="checkout-pay">{busy ? 'Processando pagamento…' : 'Pagar ' + brl(price)}</button></footer>}
   </form></div>
 }
 
 function NewCard({ cfg, onSaved, onCancel }) {
-  const [f, setF] = useState({ number: '', holder_name: '', exp: '', cvv: '', cpf: '', postal_code: '', address_number: '', phone: '' }), [err, setErr] = useState(null), [busy, setBusy] = useState(false)
-  const set = k => e => setF({ ...f, [k]: e.target.value })
-  async function save(e) { e.preventDefault(); setBusy(true); setErr(null)
-    try { const [mm, yy] = f.exp.split('/'); const r = await post('/api/billing/cards', { number: f.number, holder_name: f.holder_name, exp_month: mm, exp_year: yy, cvv: f.cvv, holder: cfg.requires_holder_info ? { cpf: f.cpf, postal_code: f.postal_code, address_number: f.address_number, phone: f.phone } : undefined }); onSaved(r.card) }
-    catch (e2) { setErr(e2.message) } finally { setBusy(false) } }
+  const [f, setF] = useState({ number: '', holder_name: '', exp: '', cvv: '', cpf: '', postal_code: '', address_number: '', phone: '' }), [err, setErr] = useState(null), [busy, setBusy] = useState(false), [fieldErrors, setFieldErrors] = useState({})
+  const set = (key, mask) => e => { setF(current => ({ ...current, [key]: mask ? checkoutMask[mask](e.target.value) : e.target.value })); if (fieldErrors[key]) setFieldErrors(current => ({ ...current, [key]: undefined })) }
+  async function save(e) {
+    e.preventDefault(); if (busy) return
+    const errors = validateCheckoutCard(f, cfg.requires_holder_info); setFieldErrors(errors)
+    if (Object.keys(errors).length) { setErr('Revise os campos indicados antes de salvar.'); return }
+    setBusy(true); setErr(null)
+    try { const r = await post('/api/billing/cards', cardPayload(f, cfg.requires_holder_info)); onSaved(r.card) }
+    catch (e2) { setErr(checkoutError(e2, 'card').message) } finally { setBusy(false) }
+  }
   return <form className="bl-grid bl-newcard" onSubmit={save} data-testid="new-card">
-    <label className="bl-f bl-full">Número do cartão<input className="g-in" inputMode="numeric" required value={f.number} onChange={set('number')} data-testid="nc-number" /></label>
-    <label className="bl-f bl-full">Nome impresso<input className="g-in" required value={f.holder_name} onChange={set('holder_name')} data-testid="nc-name" /></label>
-    <label className="bl-f">Validade (MM/AA)<input className="g-in" required placeholder="12/30" value={f.exp} onChange={set('exp')} data-testid="nc-exp" /></label>
-    <label className="bl-f">CVV<input className="g-in" required value={f.cvv} onChange={set('cvv')} data-testid="nc-cvv" /></label>
-    {cfg.requires_holder_info && <><label className="bl-f">CPF<input className="g-in" required value={f.cpf} onChange={set('cpf')} /></label><label className="bl-f">Telefone<input className="g-in" required value={f.phone} onChange={set('phone')} /></label>
-      <label className="bl-f">CEP<input className="g-in" required value={f.postal_code} onChange={set('postal_code')} /></label><label className="bl-f">Número<input className="g-in" required value={f.address_number} onChange={set('address_number')} /></label></>}
+    <CheckoutField id="new-card-number" label="Número do cartão" className="bl-full" inputMode="numeric" autoComplete="cc-number" required value={f.number} onChange={set('number', 'number')} error={fieldErrors.number} data-testid="nc-number" />
+    <CheckoutField id="new-card-holder_name" label="Nome impresso" className="bl-full" autoComplete="cc-name" required value={f.holder_name} onChange={set('holder_name')} error={fieldErrors.holder_name} data-testid="nc-name" />
+    <CheckoutField id="new-card-exp" label="Validade (MM/AA)" inputMode="numeric" autoComplete="cc-exp" required placeholder="12/30" value={f.exp} onChange={set('exp', 'exp')} error={fieldErrors.exp} data-testid="nc-exp" />
+    <CheckoutField id="new-card-cvv" label="CVV" inputMode="numeric" autoComplete="cc-csc" required value={f.cvv} onChange={set('cvv', 'cvv')} error={fieldErrors.cvv} data-testid="nc-cvv" />
+    {cfg.requires_holder_info && <><CheckoutField id="new-card-cpf" label="CPF" inputMode="numeric" required value={f.cpf} onChange={set('cpf', 'cpf')} error={fieldErrors.cpf} /><CheckoutField id="new-card-phone" label="Telefone" inputMode="tel" autoComplete="tel" required value={f.phone} onChange={set('phone', 'phone')} error={fieldErrors.phone} />
+      <CheckoutField id="new-card-postal_code" label="CEP" inputMode="numeric" autoComplete="postal-code" required value={f.postal_code} onChange={set('postal_code', 'postal_code')} error={fieldErrors.postal_code} /><CheckoutField id="new-card-address_number" label="Número" autoComplete="address-line2" required value={f.address_number} onChange={set('address_number')} error={fieldErrors.address_number} /></>}
     {err && <p className="bl-err bl-full" role="alert">{err}</p>}
     <div className="bl-row bl-full"><button className="g-btn" disabled={busy} data-testid="nc-save">Salvar cartão</button><button type="button" className="g-btn" onClick={onCancel}>Cancelar</button></div>
   </form>
