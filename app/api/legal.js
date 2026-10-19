@@ -8,12 +8,16 @@ import { currentTerms, acceptTerms } from './lgpd.js'
 export const COMPANY_FIELDS = ['razao_social', 'nome_fantasia', 'cnpj', 'chave_pix', 'endereco', 'email_suporte', 'email_dpo', 'email_financeiro', 'email_moderacao', 'url_cancelamento', 'foro', 'hosting_provider_country', 'doc_version', 'doc_vigencia']
 export const REQUIRED_COMPANY_FIELDS = ['razao_social', 'nome_fantasia', 'cnpj', 'endereco', 'email_suporte', 'email_dpo', 'email_financeiro', 'email_moderacao', 'url_cancelamento', 'foro', 'hosting_provider_country', 'doc_version', 'doc_vigencia']
 const KEY = 'empresa_legal'
-export const DEFAULT_VERSION = '1.0'
+export const DEFAULT_VERSION = '1.1'
 export const ORNY_COMPANY_DEFAULTS = {
-  razao_social: '67.790.913 LUCAS RODRIGUES DA TRINDADE',
-  nome_fantasia: 'ORNY',
+  razao_social: 'ORNYGYM',
+  nome_fantasia: 'ORNYGYM',
   cnpj: '67.790.913/0001-20',
   chave_pix: '67.790.913/0001-20',
+  email_suporte: 'avadesktech@gmail.com',
+  email_dpo: 'avadesktech@gmail.com',
+  email_financeiro: 'avadesktech@gmail.com',
+  email_moderacao: 'avadesktech@gmail.com',
   foro: 'Brasília/DF',
 }
 const onlyDigits = s => String(s || '').replace(/\D/g, '')

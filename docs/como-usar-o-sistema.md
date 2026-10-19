@@ -144,3 +144,8 @@ Administradores usam **Administração → Marketing → Campanha #TáPago**. Pr
 3. No Android, abra a ORNY no Chrome, toque em `⋮` e escolha **Instalar app** ou **Adicionar à tela inicial**. Se aparecer **Instalar a ORNY**, use esse botão.
 4. No iPhone, abra a ORNY no Safari, toque em **Compartilhar**, escolha **Adicionar à Tela de Início** e confirme em **Adicionar**.
 5. Se não quiser instalar agora, escolha **Fazer depois**. As notificações também são opcionais e podem ser ativadas posteriormente em **Perfil → Configurações**.
+# Documentos legais e contato da ORNYGYM
+
+No painel, abra **Sistema → Dados da empresa** para conferir os dados que aparecem nos Termos de Uso, na Política de Privacidade e nos demais documentos. O padrão de identificação é **ORNYGYM** e o contato padrão é `avadesktech@gmail.com` para suporte, privacidade, financeiro e moderação. Salve qualquer ajuste antes de voltar aos documentos.
+
+Quando a versão legal 1.1 for aplicada aos cadastros antigos, será solicitado novo aceite dos documentos. A atualização não altera configurações empresariais diferentes do cadastro antigo identificado pelo sistema.

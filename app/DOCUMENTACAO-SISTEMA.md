@@ -29,6 +29,17 @@ Onde olhar no código: cadastro em `frontend/src/views/Login.jsx`, contrato de c
 1. No cadastro, só abra **Tenho código do meu personal** se recebeu um código do profissional; caso contrário, prossiga normalmente e selecione o plano, cupom ou **Decidir depois**.
 2. Se o aceite mostrar **Aguardando dados da empresa**, o administrador deve abrir **Sistema → Dados da empresa**, preencher os campos indicados e salvar. Depois, a pessoa recarrega a tela, marca os aceites obrigatórios e toca em **Continuar**.
 
+## Identificação e contato nos documentos legais — versão 1.1 (19/10/2026)
+
+Termos de Uso, Política de Privacidade e os demais documentos substituem os marcadores de empresa pelos dados de **Sistema → Dados da empresa**. O padrão legal é **ORNYGYM** como razão social e nome fantasia, com `avadesktech@gmail.com` como contato de suporte, privacidade (DPO), financeiro e moderação. A migration `api/db/migrations/065_identidade_legal_ornygym.sql` atualiza somente a configuração que ainda contém a razão social antiga e muda sua versão documental para 1.1; ao ser aplicada, essa mudança solicita novo aceite aos usuários daquela empresa. Configurações empresariais diferentes não são sobrescritas.
+
+### Como usar
+
+1. Abra **Sistema → Dados da empresa** e confira razão social, nome fantasia e os quatro campos de e-mail.
+2. Salve as informações. Os documentos legais passam a exibir os dados configurados; quando a versão 1.1 for aplicada, usuários deverão aceitar novamente.
+
+Onde olhar no código: valores padrão e versionamento em `api/legal.js`; substituição dos marcadores e formulário administrativo em `frontend/src/views/app/Legal.jsx`; atualização de cadastros antigos em `api/db/migrations/065_identidade_legal_ornygym.sql`.
+
 ## Landing pública e instalação da ORNY — 1.7.2 (19/10/2026)
 
 A landing pública das rotas `/` e `/conheca` usa apresentação clara, com proposta principal, benefícios por perfil, funcionamento, catálogo real de planos, instalação opcional, dúvidas e chamada final. O seletor de perfil altera a mensagem, benefícios e planos exibidos para aluno ou profissional; os links continuam usando o cadastro existente.
@@ -395,7 +406,7 @@ Backup pré-publicação: `/opt/avagym-backups/20261017_223142_pre-asaas-pix`, c
 
 Perfil → Ajuda passa a aparecer como **Ajuda e suporte**. A tela mantém **Rever orientações** e consulta `GET /api/legal/company` para mostrar **Enviar e-mail ao suporte** quando o administrador informou um e-mail válido. O botão usa o aplicativo de e-mail do aparelho (`mailto:`); o sistema não envia a mensagem nem armazena seu conteúdo. Sem e-mail configurado, a tela informa claramente que o contato ainda não foi cadastrado.
 
-No painel administrativo, Sistema → Dados da empresa continua sendo a fonte dos marcadores usados nos documentos legais. Quando o cadastro estiver vazio, o sistema apresenta como base a razão social `67.790.913 LUCAS RODRIGUES DA TRINDADE`, nome fantasia ORNY, CNPJ `67.790.913/0001-20`, foro Brasília/DF e a mesma inscrição como **Chave Pix da empresa**. O botão **Preencher pela Receita** permanece restrito ao administrador, valida o CNPJ e traz somente dados públicos para revisão antes de salvar. A consulta confirmou situação cadastral ativa, mas não forneceu e-mail nem endereço completo; esses dados permanecem sob preenchimento e conferência do administrador.
+No painel administrativo, Sistema → Dados da empresa continua sendo a fonte dos marcadores usados nos documentos legais. Na época desta entrega, o padrão usava uma razão social nominal e o nome fantasia ORNY; essa configuração histórica foi substituída pela versão legal 1.1 descrita acima. O botão **Preencher pela Receita** permanece restrito ao administrador, valida o CNPJ e traz somente dados públicos para revisão antes de salvar.
 
 Onde olhar no código: contato em `frontend/src/views/guided/Profile.jsx`; formulário administrativo e apresentação dos documentos em `frontend/src/views/app/Legal.jsx`; validação, valores-base, consulta externa e persistência por tenant em `api/legal.js`.
 
