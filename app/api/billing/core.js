@@ -16,7 +16,6 @@ const brl = c => (c / 100).toLocaleString('pt-BR', { style: 'currency', currency
 const dBR = d => d ? new Date(d).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '-'
 export const addMonths = (d, n = 1) => { const x = new Date(d); const day = x.getUTCDate(); x.setUTCDate(1); x.setUTCMonth(x.getUTCMonth() + n); const last = new Date(Date.UTC(x.getUTCFullYear(), x.getUTCMonth() + 1, 0)).getUTCDate(); x.setUTCDate(Math.min(day, last)); return x }
 const addDays = (d, n) => new Date(new Date(d).getTime() + n * 864e5)
-const isoDate = d => new Date(d).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })
 
 // ---------- politica por tenant (painel admin) ----------
 export async function policy(tid, c) {
@@ -44,10 +43,7 @@ const MSG = {
   assinatura_ativa: v => ['Assinatura ativa', `Seu acesso ${v.plan} está ativo. Próxima cobrança em ${v.next}.`],
   trial_iniciado: v => ['Período de teste iniciado', `Você tem acesso ao ${v.plan} até ${v.next}. A primeira cobrança só acontece nessa data e você pode cancelar antes, sem custo.`],
   pagamento_confirmado: v => ['Pagamento confirmado', `${v.amount} recebido pelo ${v.plan}. Próxima cobrança em ${v.next}.`],
-  pix_gerado: v => ['Pix disponível', `O Pix de ${v.amount} para o ${v.plan} vence em ${v.until}. Abra sua assinatura para pagar.`],
-  pix_vencido: v => ['Pix vencido', `O Pix de ${v.amount} para o ${v.plan} venceu. Abra sua assinatura para gerar um novo código.`],
-  pix_carencia: v => ['Seu acesso está em carência', `O Pix da renovação venceu. Seu acesso continua até ${v.grace}. Gere um novo Pix para não perder o acesso.`],
-  pix_suspensa: v => ['Assinatura suspensa por falta de pagamento', `O acesso ${v.plan} foi pausado. Seu histórico continua salvo. Gere um novo Pix para reativar.`],
+  pix_desativado: v => ['Atualize a forma de pagamento', `O Pix deixou de ser aceito para o ${v.plan}. Adicione um cartão de crédito para manter ou reativar o acesso.`],
   pagamento_recusado: v => ['Pagamento recusado', v.retry ? `Não conseguimos cobrar ${v.amount} no cartão final ${v.last4}. Vamos tentar de novo em ${v.retry}. Se preferir, troque o cartão agora.` : `Não conseguimos cobrar ${v.amount} no cartão final ${v.last4}. Confira os dados ou use outro cartão.`],
   carencia: v => ['Seu acesso está em carência', `As tentativas de cobrança não deram certo. Seu acesso continua até ${v.grace}. Atualize o cartão para não perder o acesso.`],
   suspensa: v => ['Assinatura suspensa por falta de pagamento', `O acesso ${v.plan} foi pausado. Seu histórico continua salvo. Atualize o cartão para reativar na hora.`],
@@ -111,6 +107,7 @@ export function validateCard(b, provider) {
   }
   return null
 }
+export const normalizePaymentType = value => value == null || value === '' || value === 'card' ? 'card' : null
 export async function addCard(user, b, ip) {
   const provider = getProvider()
   const err = validateCard(b, provider); if (err) return { status: 400, error: err, code: 'CARD_INVALID' }
@@ -138,16 +135,6 @@ export async function addCard(user, b, ip) {
   }
 }
 export const publicCard = c => c && ({ id: c.id, brand: c.brand, last4: c.last4, exp_month: c.exp_month, exp_year: c.exp_year, holder_name: c.holder_name, is_default: c.is_default })
-export const publicPix = c => c && c.payment_type === 'pix' && c.status === 'pendente' ? ({ charge_id: c.id, payload: c.pix_payload,
-  qr_image: c.pix_qr_image ? (c.pix_qr_image.startsWith('data:image/') ? c.pix_qr_image : `data:image/png;base64,${c.pix_qr_image}`) : null, expires_at: c.pix_expires_at, amount_cents: c.amount_cents,
-  expired: !!c.pix_expires_at && new Date(c.pix_expires_at) <= new Date() }) : null
-export async function pendingPix(userId, subscriptionId) {
-  const p = [userId], extra = subscriptionId ? ' and subscription_id=$2' : ''
-  if (subscriptionId) p.push(subscriptionId)
-  const c = (await q(`select * from billing_charges where user_id=$1${extra} and payment_type='pix' and status='pendente' order by created_at desc limit 1`, p)).rows[0]
-  return publicPix(c)
-}
-
 // ---------- cobranca ----------
 async function partnerFor(userId, tid) {
   // RN-CP-018: atribuicao do resgate mais recente de cupom de parceiro (mesmo que o aluno assine depois)
@@ -163,40 +150,27 @@ async function splitFor(sub, provider, tid) {
   return { pct, wallet: p.asaas_wallet_id, split: provider.name === 'asaas' && p.asaas_wallet_id ? [{ walletId: p.asaas_wallet_id, percentualValue: pct }] : null }
 }
 // cria a cobranca (idempotente pela chave) e chama o provedor; aplica o resultado
-export async function chargeNow({ sub, kind, amountCents, discountCents = 0, periodStart, periodEnd, meta = {}, key, ip, attemptIndex = 0, paymentType = sub.payment_type || 'card', pixExpiresAt, customerDocument }) {
+export async function chargeNow({ sub, kind, amountCents, discountCents = 0, periodStart, periodEnd, meta = {}, key, ip, attemptIndex = 0, paymentType = 'card' }) {
+  if (paymentType !== 'card') throw Object.assign(new Error('Somente cartão de crédito está disponível.'), { code: 'PAYMENT_METHOD_DISABLED' })
   const provider = getProvider()
-  const pm = paymentType === 'card' ? await cardOf(meta.payment_method_id || sub.payment_method_id) : null
+  const pm = await cardOf(meta.payment_method_id || sub.payment_method_id)
   const sp = await splitFor({ ...sub, partner_user_id: meta.partner_user_id ?? sub.partner_user_id }, provider, sub.tenant_id)
   const ins = await q(`insert into billing_charges(tenant_id,subscription_id,user_id,provider,kind,amount_cents,discount_cents,attempt,period_start,period_end,split,idempotency_key,meta,description,payment_type,pix_expires_at)
     values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) on conflict (idempotency_key) do nothing returning *`,
-    [sub.tenant_id, sub.id, sub.user_id, provider.name, kind, amountCents, discountCents, attemptIndex + 1, periodStart, periodEnd, sp.pct ? JSON.stringify({ pct: sp.pct, via_split: !!sp.split }) : null, key, JSON.stringify(meta), meta.plan_name || sub.plan_name || null, paymentType, pixExpiresAt || null])
+    [sub.tenant_id, sub.id, sub.user_id, provider.name, kind, amountCents, discountCents, attemptIndex + 1, periodStart, periodEnd, sp.pct ? JSON.stringify({ pct: sp.pct, via_split: !!sp.split }) : null, key, JSON.stringify(meta), meta.plan_name || sub.plan_name || null, 'card', null])
   const charge = ins.rows[0]
   if (!charge) return { duplicate: true, charge: (await q('select * from billing_charges where idempotency_key=$1', [key])).rows[0] }
   let result
-  if (paymentType === 'pix') {
-    const user = (await q('select id,name,email from users where id=$1', [sub.user_id])).rows[0]
-    let cus = await customerId(provider, user)
-    const holder = customerDocument ? { cpfCnpj: String(customerDocument).replace(/\D/g, '') } : null
-    try {
-      if (!cus) { cus = await provider.ensureCustomer(user, holder); await q('insert into billing_customers(user_id,provider,provider_customer_id) values($1,$2,$3) on conflict do nothing', [user.id, provider.name, cus]) }
-      else if (holder && provider.updateCustomer) await provider.updateCustomer(cus, holder)
-      result = await provider.createPix({ customerId: cus, amountCents, charge, split: sp.split, dueDate: isoDate(pixExpiresAt || periodStart || new Date()) })
-    } catch (e) {
-      // Não deixa uma cobrança sem QR marcada como pendente; o cliente pode corrigir os dados e tentar de novo.
-      const failed = await applyChargeResult(charge.id, { status: 'recusada', failure: { code: e.code || 'PIX_CREATION_FAILED', message: 'Não foi possível gerar o Pix.' } }, 'sincrono')
-      return { charge: failed.charge, status: 'recusada', failure: { code: e.code || 'PIX_CREATION_FAILED' } }
-    }
-  } else if (!pm || pm.removed_at) result = { status: 'recusada', failure: { code: 'no_card', message: 'Nenhum cartão válido cadastrado.' } }
+  if (!pm || pm.removed_at) result = { status: 'recusada', failure: { code: 'no_card', message: 'Nenhum cartão válido cadastrado.' } }
   else if (pm.provider !== provider.name) result = { status: 'recusada', failure: { code: 'provider_changed', message: 'Cartão cadastrado em outro ambiente de pagamento. Cadastre o cartão novamente.' } }
   else {
     const cus = (await q('select provider_customer_id from billing_customers where user_id=$1 and provider=$2', [sub.user_id, provider.name])).rows[0]?.provider_customer_id
     result = await provider.charge({ token: pm.token, customerId: cus, amountCents, charge, split: sp.split, remoteIp: ip, attemptIndex })
   }
-  if (result.providerChargeId || result.pix) await q(`update billing_charges set provider_charge_id=coalesce(provider_charge_id,$2), pix_payload=$3, pix_qr_image=$4,
-    pix_expires_at=coalesce($5,pix_expires_at), updated_at=now() where id=$1`, [charge.id, result.providerChargeId || null, result.pix?.payload || null, result.pix?.encodedImage || null, result.pix?.expiresAt || pixExpiresAt || null])
+  if (result.providerChargeId) await q('update billing_charges set provider_charge_id=coalesce(provider_charge_id,$2), updated_at=now() where id=$1', [charge.id, result.providerChargeId])
   if (result.status === 'pendente') {
     const saved = (await q('select * from billing_charges where id=$1', [charge.id])).rows[0]
-    return { charge: saved, pix: publicPix(saved), status: 'pendente' }
+    return { charge: saved, status: 'pendente' }
   }
   const applied = await applyChargeResult(charge.id, result, 'sincrono')
   // o simulador tambem "envia" o webhook equivalente pelo mesmo caminho (idempotente: o efeito ja foi aplicado)
