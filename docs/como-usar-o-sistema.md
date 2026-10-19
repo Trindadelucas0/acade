@@ -4,7 +4,7 @@ Fonte oficial: [documentação do sistema](../app/DOCUMENTACAO-SISTEMA.md). Este
 
 ## Criar conta e concluir os documentos
 
-1. No cadastro de aluno, use **Tenho código do meu personal** apenas se o profissional enviou um código. Sem código, escolha um plano, cupom ou **Decidir depois** e continue; o cadastro não tenta criar vínculo com personal.
+1. Escolha um plano pago e disponível para continuar o cadastro. Se recebeu um código do personal, abra **Tenho código do meu personal** e informe-o. Não existe mais a opção **Decidir depois**; após criar a conta, conclua a contratação por cartão ou Pix. O acesso só começa depois da confirmação do pagamento.
 2. Na tela de documentos, marque os aceites obrigatórios e toque em **Continuar**. Se aparecer **Aguardando dados da empresa**, o administrador deve completar os campos informados em **Sistema → Dados da empresa** e salvar; depois, recarregue a tela para continuar.
 
 ## Aluno: Início, programas e evolução
@@ -83,10 +83,11 @@ Preencha também **Provedor e país da hospedagem**. O sistema não salva a conf
 
 1. Abra **Meu plano**, escolha Individual, Personal 15 ou Personal Ilimitado e selecione **Cartão de crédito** ou **Pix**.
 2. No cartão, cadastre os dados no checkout. O ORNY não guarda número nem CVV; conserva somente o token devolvido pelo provedor.
-3. No Pix, use o QR Code ou copie o código. O plano permanece pendente até a confirmação do pagamento.
-4. Se o Pix vencer, abra novamente a assinatura e use **Gerar novo Pix**. O código anterior deixa de valer.
-5. Assinatura escolhida como Pix recebe uma nova cobrança cinco dias antes da renovação e não tenta usar cartão.
-6. O período já pago continua acessível até o vencimento; depois disso vale a carência configurada.
+3. No Pix com Asaas, informe CPF ou CNPJ válido do pagador, use o QR Code ou copie o código. O documento não fica gravado no cadastro do ORNY; é encaminhado ao Asaas para identificar o cliente.
+4. O plano permanece pendente até a confirmação do pagamento. Mantenha a tela aberta ou volte ao sistema: o ORNY consulta a confirmação e libera automaticamente os recursos pagos.
+5. Se o Pix vencer, abra novamente a assinatura e use **Gerar novo Pix**. O código anterior deixa de valer.
+6. Assinatura escolhida como Pix recebe uma nova cobrança cinco dias antes da renovação e não tenta usar cartão.
+7. O período já pago continua acessível até o vencimento; depois disso vale a carência configurada.
 
 Conta recém-cadastrada pode concluir a compra diretamente. Depois da confirmação, usa o plano imediatamente; Pix ainda pendente não libera recursos pagos. Aluno coberto pelo PRO pago e confirmado usa as fichas e os recursos incluídos disponibilizados pelo personal. Para outras áreas, precisa do Individual pago e confirmado. Não existe pedido de análise ou liberação manual. Uma suspensão administrativa excepcional continua visível até o suporte reativar a conta.
 

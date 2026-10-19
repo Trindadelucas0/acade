@@ -1,4 +1,4 @@
-﻿// Monetizacao F5 (revisado 16/10): indicacao por CODIGO de cupom - sem link. O codigo do painel e um cupom de
+// Monetizacao F5 (revisado 16/10): indicacao por CODIGO de cupom - sem link. O codigo do painel e um cupom de
 // O link publico resolve a oferta do cupom e o cadastro aplica o beneficio no servidor.
 // SOMENTE no banco de TESTE: API=http://localhost:8797 DB_NAME=avagym_test
 import test, { after } from 'node:test'
@@ -21,7 +21,7 @@ async function conta(tag, { intent = 'aluno', phone = newPhone(), coupon } = {})
   await call(null, 'POST', '/api/test/rate-limit/reset')
   const terms = (await call(null, 'GET', '/api/terms')).d.terms
   const email = `ref.${tag}.${uniq()}@e2e.local`
-  const r = await call(null, 'POST', '/api/auth/register', { name: 'Ref ' + tag + ' Silva', email, password: PASS, accept_terms: true, birth_date: '1990-01-01', terms_version: terms?.version, intent, ...(coupon ? { coupon, coupon_audience: intent } : {}),
+  const r = await call(null, 'POST', '/api/auth/register', { name: 'Ref ' + tag + ' Silva', email, password: PASS, accept_terms: true, birth_date: '1990-01-01', terms_version: terms?.version, intent, plan_id: intent === 'profissional' ? 'pro' : 'individual', ...(coupon ? { coupon, coupon_audience: intent } : {}),
     contact: { phone, cep: '01310100', street: 'Avenida Paulista', number: '1000', complement: '', neighborhood: 'Bela Vista', city: 'São Paulo', uf: 'SP' } })
   assert.equal(r.s, 200, JSON.stringify(r.d)); return { tok: r.d.token, id: r.d.user.id, email, phone }
 }

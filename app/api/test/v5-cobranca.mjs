@@ -17,7 +17,7 @@ const login = async email => (await call(null, 'POST', '/api/auth/login', { emai
 async function conta(tag, intent = 'aluno') {
   const terms = (await call(null, 'GET', '/api/terms')).d.terms
   const email = `bill.${tag}.${Date.now()}${Math.random().toString(36).slice(2, 6)}@e2e.local`
-  const r = await call(null, 'POST', '/api/auth/register', { name: 'Cobranca ' + tag, email, password: PASS, accept_terms: true, birth_date: '1990-01-01', terms_version: terms?.version, intent })
+  const r = await call(null, 'POST', '/api/auth/register', { name: 'Cobranca ' + tag, email, password: PASS, accept_terms: true, birth_date: '1990-01-01', terms_version: terms?.version, intent, plan_id: intent === 'profissional' ? 'pro' : 'individual' })
   assert.equal(r.s, 200, JSON.stringify(r.d)); return { tok: r.d.token, id: r.d.user.id, email }
 }
 const card = async (u, number) => { const r = await call(u.tok, 'POST', '/api/billing/cards', { number, holder_name: 'TESTE E2E', exp_month: 12, exp_year: 2030, cvv: '123' }); assert.equal(r.s, 201, JSON.stringify(r.d)); return r.d.card.id }

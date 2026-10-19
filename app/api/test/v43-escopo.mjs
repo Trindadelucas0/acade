@@ -49,7 +49,7 @@ check(f.includes(ids.sys) && f.includes(ids.a) && !f.includes(ids.b), 'R3 person
 await post(adm, '/api/adm/grants', { user_id: pa.id, audience: 'profissional', kind: 'limit', key: 'alunos_ativos', value: 10, days: 30, reason: 'teste' })
 const code = (await q('select share_code from users where id=$1', [pa.id])).rows[0].share_code
 const em = `cod${Date.now()}@lock.test`
-let r = await post(null, '/api/auth/register', { name: 'Aluno Código', email: em, password: 'Codigo-Senha-1', accept_terms: true, birth_date: '1990-01-01', terms_version: terms.version, pro_code: code })
+let r = await post(null, '/api/auth/register', { name: 'Aluno Código', email: em, password: 'Codigo-Senha-1', accept_terms: true, birth_date: '1990-01-01', terms_version: terms.version, plan_id: 'individual', pro_code: code })
 const kt = r.d.token
 check(r.s === 200 && r.d.user.account_type === 'personal_client' && r.d.user.managed_by === pa.id && !r.d.user.must_change_password, 'R7 cadastro com código: aluno do personal, vinculado, sem troca de senha')
 check((await q(`select 1 from coach_students where coach_id=$1 and student_id=$2 and status='ativo'`, [pa.id, r.d.user.id])).rowCount === 1, 'R7 vínculo automático')

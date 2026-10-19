@@ -13,7 +13,7 @@ async function reg(tag) {
   await call('/api/test/rate-limit/reset', { method: 'POST' })
   const terms = (await call('/api/terms')).j.terms
   const email = `madm.${tag}.${Date.now().toString(36)}${++seq}@e2e.local`
-  const r = await call('/api/auth/register', { method: 'POST', body: { name: 'Mon ' + tag + ' Silva', email, password: PASS, accept_terms: true, birth_date: '1990-01-01', terms_version: terms?.version, intent: 'aluno',
+  const r = await call('/api/auth/register', { method: 'POST', body: { name: 'Mon ' + tag + ' Silva', email, password: PASS, accept_terms: true, birth_date: '1990-01-01', terms_version: terms?.version, intent: 'aluno', plan_id: 'individual',
     contact: { phone: '1196' + String(Date.now() % 1e7 + seq).padStart(7, '0').slice(-7), cep: '01310100', street: 'Avenida Paulista', number: '1000', complement: '', neighborhood: 'Bela Vista', city: 'Sao Paulo', uf: 'SP' } } })
   assert.equal(r.s, 200, JSON.stringify(r.j)); return { token: r.j.token, id: r.j.user.id, email }
 }

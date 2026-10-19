@@ -17,7 +17,7 @@ const CT = { phone: '11987654321', cep: '01310100', street: 'Avenida Paulista', 
 async function conta(tag, extra = {}) {
   const terms = (await call(null, 'GET', '/api/terms')).d.terms
   const email = `pc.${tag}.${Date.now()}${Math.random().toString(36).slice(2, 6)}@e2e.local`
-  const r = await call(null, 'POST', '/api/auth/register', { name: 'Plano ' + tag, email, password: PASS, accept_terms: true, birth_date: '1990-01-01', terms_version: terms?.version, intent: 'aluno', ...extra })
+  const r = await call(null, 'POST', '/api/auth/register', { name: 'Plano ' + tag, email, password: PASS, accept_terms: true, birth_date: '1990-01-01', terms_version: terms?.version, intent: 'aluno', plan_id: 'individual', ...extra })
   return { r, tok: r.d.token, id: r.d.user?.id, email }
 }
 after(() => pool.end())

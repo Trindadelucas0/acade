@@ -11,7 +11,7 @@ let seq = 0
 async function conta(intent) {
   await call(null, 'POST', '/api/test/rate-limit/reset')
   const terms = (await call(null, 'GET', '/api/terms')).d.terms
-  const r = await call(null, 'POST', '/api/auth/register', { name: 'Resumo Pro Silva', email: `ps.${Date.now().toString(36)}${++seq}@e2e.local`, password: PASS, accept_terms: true, birth_date: '1990-01-01', terms_version: terms?.version, intent,
+  const r = await call(null, 'POST', '/api/auth/register', { name: 'Resumo Pro Silva', email: `ps.${Date.now().toString(36)}${++seq}@e2e.local`, password: PASS, accept_terms: true, birth_date: '1990-01-01', terms_version: terms?.version, intent, plan_id: intent === 'profissional' ? 'pro' : 'individual',
     contact: { phone: '1192' + String(Date.now() % 1e7 + seq).padStart(7, '0').slice(-7), cep: '01310100', street: 'Avenida Paulista', number: '1', complement: '', neighborhood: 'Bela Vista', city: 'Sao Paulo', uf: 'SP' } })
   assert.equal(r.s, 200, JSON.stringify(r.d)); return r.d.token
 }

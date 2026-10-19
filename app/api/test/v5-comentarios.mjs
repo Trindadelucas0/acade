@@ -13,7 +13,7 @@ async function call(jar, method, path, body) {
 }
 async function account(tag) {
   const jar = {}, terms = (await call(null, 'GET', '/api/terms')).d.terms
-  const r = await call(jar, 'POST', '/api/auth/register', { name: 'Com ' + tag, email: `v5c.${tag}.${Date.now()}${Math.random().toString(36).slice(2, 6)}@e2e.local`, password: PASS, accept_terms: true, birth_date: '1990-01-01', terms_version: terms?.version, intent: 'aluno' })
+  const r = await call(jar, 'POST', '/api/auth/register', { name: 'Com ' + tag, email: `v5c.${tag}.${Date.now()}${Math.random().toString(36).slice(2, 6)}@e2e.local`, password: PASS, accept_terms: true, birth_date: '1990-01-01', terms_version: terms?.version, intent: 'aluno', plan_id: 'individual' })
   assert.equal(r.s, 200, JSON.stringify(r.d)); return { jar, id: r.d.user.id }
 }
 let A, Bu, post, c1, r1

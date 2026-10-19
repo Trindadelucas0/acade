@@ -3,7 +3,7 @@ const B = process.env.API || 'http://localhost:8787'
 export async function run({ adm, p1, p2, stu, sid, P1, get, post, check }) {
   console.log('Fase 3 — LGPD')
   const email = `lgpd${Date.now()}@e2e.local`, terms = (await get(null, '/api/terms')).d.terms
-  const reg = await post(null, '/api/auth/register', { name: 'Titular LGPD', email, password: 'senha-forte-1', accept_terms: true, birth_date: '1990-01-01', terms_version: terms.version })
+  const reg = await post(null, '/api/auth/register', { name: 'Titular LGPD', email, password: 'senha-forte-1', accept_terms: true, birth_date: '1990-01-01', terms_version: terms.version, plan_id: 'individual' })
   const t = reg.d.token, uid = reg.d.user.id
   // V4.1: exportação de dados removida do app → endpoint não existe mais
   check((await get(t, '/api/me/export')).s === 404, 'exportação de dados removida (V4.1)')
@@ -24,7 +24,7 @@ export async function run({ adm, p1, p2, stu, sid, P1, get, post, check }) {
   check((await get(p1, '/api/guided/today')).s === 403, 'conta profissional não registra treino pessoal')
   // V4 F5: identidade única — a mesma conta pode ter os dois papéis (testado numa conta descartável para não mexer nos fixtures)
   { const terms = (await get(null, '/api/terms')).d.terms
-    const reg = await post(null, '/api/auth/register', { name: 'Dupla Smoke', email: `dupla${Date.now()}@e2e.local`, password: 'e2e-Avadesk-2026', accept_terms: true, birth_date: '1990-01-01', terms_version: terms?.version })
+    const reg = await post(null, '/api/auth/register', { name: 'Dupla Smoke', email: `dupla${Date.now()}@e2e.local`, password: 'e2e-Avadesk-2026', accept_terms: true, birth_date: '1990-01-01', terms_version: terms?.version, plan_id: 'individual' })
     check((await post(adm, '/api/adm/users/role', { id: reg.d.user.id, role: 'profissional', on: true })).s === 200, 'V4: aluno também pode ser profissional na mesma conta')
     const roles = (await get(reg.d.token, '/api/auth/me')).d.user.roles
     check(roles.includes('aluno') && roles.includes('profissional'), 'V4: papel de aluno preservado') }

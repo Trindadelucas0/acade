@@ -18,7 +18,7 @@ Onde olhar no código: `api/access.js` (origem paga, allowlist e middleware glob
 
 ## Cadastro e aceite legal — correção 1.7.4 (19/10/2026)
 
-No cadastro de aluno, o código de personal fica fechado por padrão e só é enviado ao servidor depois de a pessoa escolher **Tenho código do meu personal**. Nome, e-mail ou outro preenchimento automático do navegador não podem mais ser interpretados como código nem impedir quem escolheu um plano, cupom ou **Decidir depois**. A confirmação mostra o vínculo somente quando essa opção foi aberta e recebeu um código.
+No cadastro, selecione um plano pago e disponível para continuar; a API também valida plano e perfil antes de criar a conta. Não há opção de decidir depois. Criar a conta não libera o produto: após o cadastro, o checkout abre para concluir cartão ou Pix, e o sistema só libera recursos após confirmação real do pagamento. O código de personal continua opcional e fechado por padrão; só é enviado quando a pessoa escolhe **Tenho código do meu personal**.
 
 O aceite de documentos continua bloqueado quando faltam dados jurídicos obrigatórios da empresa. A tela agora identifica junto ao botão quais campos precisam ser concluídos em **Sistema → Dados da empresa**, em vez de parecer que **Continuar** não responde. O servidor permanece como autoridade e não aceita documentos incompletos.
 
@@ -26,7 +26,7 @@ Onde olhar no código: cadastro em `frontend/src/views/Login.jsx`, contrato de c
 
 ### Como usar
 
-1. No cadastro, só abra **Tenho código do meu personal** se recebeu um código do profissional; caso contrário, prossiga normalmente e selecione o plano, cupom ou **Decidir depois**.
+1. No cadastro, selecione o plano pago que pretende contratar. Se recebeu um código do profissional, abra **Tenho código do meu personal** e informe-o; isso não substitui a confirmação de uma assinatura válida.
 2. Se o aceite mostrar **Aguardando dados da empresa**, o administrador deve abrir **Sistema → Dados da empresa**, preencher os campos indicados e salvar. Depois, a pessoa recarrega a tela, marca os aceites obrigatórios e toca em **Continuar**.
 
 ## Identificação e contato nos documentos legais — versão 1.1 (19/10/2026)
@@ -386,9 +386,9 @@ O Asaas de produção confirmou por consulta somente leitura um webhook para a U
 
 Na troca do Personal Ilimitado para o Personal 15, alunos existentes não são removidos. Se houver mais de 15 ativos, a conta fica acima do limite e novos vínculos são bloqueados até liberar vagas ou retornar ao Ilimitado. No plano ilimitado, `effective_limit` e `available` são `null` na API e aparecem como **Ilimitado** na interface, nunca como zero. Cupons de período gratuito para profissionais continuam concedendo o Personal 15.
 
-O checkout permite escolher cartão de crédito ou Pix. Cartão mantém assinatura mensal e renovação automática. Pix inicial gera QR Code e copia e cola com validade de 24 horas e não libera o plano antes da confirmação do webhook. Um Pix vencido pode ser regenerado sem criar outra assinatura; na renovação, o sistema gera nova cobrança cinco dias antes do fim do período pago, avisa o usuário e respeita a carência configurada. Assinatura Pix nunca tenta cobrar cartão.
+O checkout permite escolher cartão de crédito ou Pix. Para Pix no Asaas, informe CPF ou CNPJ válido do pagador; o documento é enviado ao Asaas para identificar o cliente e não é gravado no cadastro nem nos metadados da cobrança. Clientes Asaas já existentes recebem atualização desse documento antes da cobrança. Cartão mantém assinatura mensal e renovação automática. Pix inicial gera QR Code e copia e cola com validade de 24 horas e não libera o plano antes da confirmação do webhook; o checkout consulta o estado da assinatura e conclui a tela automaticamente quando o provedor confirma. Um Pix vencido pode ser regenerado sem criar outra assinatura; na renovação, o sistema gera nova cobrança cinco dias antes do fim do período pago, avisa o usuário e respeita a carência configurada. Assinatura Pix nunca tenta cobrar cartão.
 
-Contratos: `POST /api/billing/subscribe` aceita `payment_type` igual a `card` ou `pix`; `card_id` é obrigatório somente para cartão. `GET /api/billing/me` informa o tipo e o Pix pendente ao titular. `POST /api/billing/pix/regenerate` exige propriedade da assinatura; `POST /api/billing/pix/confirm-test` existe apenas no simulador. A migration aditiva `057_cobranca_pix.sql` identifica o meio de pagamento e guarda somente apresentação/expiração da cobrança Pix. Cartões guardam apenas o token do provedor, nunca número ou CVV.
+Contratos: `POST /api/billing/subscribe` aceita `payment_type` igual a `card` ou `pix`; `card_id` é obrigatório somente para cartão e `customer_document` (CPF/CNPJ) é obrigatório/validado no Pix Asaas. Conta ainda pendente pode usar rotas de cobrança, incluindo cadastro de cartão e contratação; isso não libera recursos. `GET /api/billing/me` informa o tipo e o Pix pendente ao titular. `POST /api/billing/pix/regenerate` exige propriedade da assinatura; `POST /api/billing/pix/confirm-test` existe apenas no simulador. A migration aditiva `057_cobranca_pix.sql` identifica o meio de pagamento e guarda somente apresentação/expiração da cobrança Pix. Cartões guardam apenas o token do provedor, nunca número ou CVV. A confirmação real do Asaas atualiza a assinatura; acesso a programas, fichas e demais recursos passa pelo gate server-side de cobrança paga e vigente.
 
 Uma conta pode cadastrar o meio de pagamento e adquirir um plano sem aprovação administrativa. Quando a contratação é confirmada, o plano fica disponível imediatamente; pagamentos recusados ou pendentes não liberam os recursos pagos. Teste válido e cobertura pelo PRO seguem a mesma regra automática. Suspensão administrativa explícita continua prevalecendo até a reativação.
 

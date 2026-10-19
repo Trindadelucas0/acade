@@ -14,7 +14,7 @@ const uniq = () => Date.now().toString(36) + (++seq)
 async function conta() {
   await call(null, 'POST', '/api/test/rate-limit/reset')
   const terms = (await call(null, 'GET', '/api/terms')).d.terms
-  const r = await call(null, 'POST', '/api/auth/register', { name: 'Virada Teste Silva', email: `vir.${uniq()}@e2e.local`, password: PASS, accept_terms: true, birth_date: '1990-01-01', terms_version: terms?.version, intent: 'aluno',
+  const r = await call(null, 'POST', '/api/auth/register', { name: 'Virada Teste Silva', email: `vir.${uniq()}@e2e.local`, password: PASS, accept_terms: true, birth_date: '1990-01-01', terms_version: terms?.version, intent: 'aluno', plan_id: 'individual',
     contact: { phone: '1193' + String(Date.now() % 1e7 + seq).padStart(7, '0').slice(-7), cep: '01310100', street: 'Avenida Paulista', number: '1', complement: '', neighborhood: 'Bela Vista', city: 'Sao Paulo', uf: 'SP' } })
   assert.equal(r.s, 200, JSON.stringify(r.d)); return { tok: r.d.token, id: r.d.user.id, tenant: (await pool.query('select tenant_id from users where id=$1', [r.d.user.id])).rows[0].tenant_id }
 }

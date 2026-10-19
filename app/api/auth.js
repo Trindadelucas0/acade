@@ -134,6 +134,13 @@ export function authRoutes({ json, readBody, bridge, clearCookies }) {
       const ct = b.contact && typeof b.contact === 'object' ? parseContact(b.contact, { required: true }) : null
       if (ct) Object.assign(errors, ct.errors)
       if (Object.keys(errors).length) return json(res, 400, { error: Object.values(errors)[0], errors })
+      // Cadastro público só avança para uma contratação real: plano ativo, vendável e
+      // compatível com o perfil. A assinatura ainda fica pendente até o provedor confirmar.
+      const planId = String(b.plan_id || '').trim().slice(0, 60)
+      // O catálogo de teste pode manter as vendas fechadas; fora de DB *_test só plano vendável passa.
+      const testDb = /_test$/.test(process.env.DB_NAME || '')
+      const signupPlan = planId && (await q(`select id from plans where id=$1 and audience=$2 and active ${testDb ? '' : 'and sellable'} and price_cents is not null and not is_free`, [planId, intent])).rows[0]
+      if (!signupPlan) return json(res, 400, { error: 'Escolha um plano disponível para continuar o cadastro.', code: 'PLAN_REQUIRED', errors: { plan_id: 'Escolha um plano disponível' } })
       const t = await q('select id from tenants where slug=$1 and active', [String(b.tenant || process.env.DEFAULT_TENANT || 'avadesk')])
       if (!t.rowCount) return json(res, 400, { error: 'Academia não encontrada' })
       if ((await q('select 1 from users where lower(email)=$1', [email])).rowCount) return json(res, 409, { error: 'Este e-mail já tem conta. Quer entrar ou recuperar a senha?', code: 'EMAIL_EXISTS', errors: { email: 'Este e-mail já tem conta' } })

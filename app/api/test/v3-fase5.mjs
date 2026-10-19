@@ -8,7 +8,7 @@ const adm = await login('admin.e2e@avadesk.local')
 async function raw(label, intent = 'aluno') {
   const terms = (await get(null, '/api/terms')).d.terms
   const email = `${label}${Date.now()}${Math.floor(Math.random() * 1e4)}@e2e.local`
-  const r = await post(null, '/api/auth/register', { name: 'V3 ' + label + ' Silva', email, password: PASS, accept_terms: true, birth_date: '1990-01-01', terms_version: terms?.version, intent })
+  const r = await post(null, '/api/auth/register', { name: 'V3 ' + label + ' Silva', email, password: PASS, accept_terms: true, birth_date: '1990-01-01', terms_version: terms?.version, intent, plan_id: intent === 'profissional' ? 'pro' : 'individual' })
   return { id: r.d.user?.id, email, tok: r.d.token, user: r.d.user, s: r.s }
 }
 

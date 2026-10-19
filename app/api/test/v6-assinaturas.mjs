@@ -20,7 +20,7 @@ const newPhone = () => '1196' + String(Date.now() % 1e7 + (++seq)).padStart(7, '
 async function conta(tag, { intent = 'aluno', ref } = {}) {
   await call(null, 'POST', '/api/test/rate-limit/reset')
   const terms = (await call(null, 'GET', '/api/terms')).d.terms
-  const r = await call(null, 'POST', '/api/auth/register', { name: 'Ass ' + tag, email: `ass.${tag}.${uniq()}@e2e.local`, password: PASS, accept_terms: true, birth_date: '1990-01-01', terms_version: terms?.version, intent, ...(ref ? { ref } : {}),
+  const r = await call(null, 'POST', '/api/auth/register', { name: 'Ass ' + tag, email: `ass.${tag}.${uniq()}@e2e.local`, password: PASS, accept_terms: true, birth_date: '1990-01-01', terms_version: terms?.version, intent, plan_id: intent === 'profissional' ? 'pro' : 'individual', ...(ref ? { ref } : {}),
     contact: { phone: newPhone(), cep: '01310100', street: 'Avenida Paulista', number: '1000', complement: '', neighborhood: 'Bela Vista', city: 'São Paulo', uf: 'SP' } })
   assert.equal(r.s, 200, JSON.stringify(r.d)); return { tok: r.d.token, id: r.d.user.id }
 }
@@ -36,7 +36,7 @@ test('preparacao: precos de teste no banco de teste, teste so por cupom, monetiz
   assert.equal((await call(adm, 'POST', '/api/adm/billing/plans', { id: 'pro', price_cents: 7990, trial_days: 7, sellable: true })).s, 200)
 })
 test('teste so por cupom: plano com trial_days NAO da teste no checkout; cobra na hora', async () => {
-  const p = await conta('semtrial', { intent: 'profissional' }); const c = await card(p, '4242424242424242')
+  const p = await conta('semtrial', { intent: 'profissional', plan_id: 'pro' }); const c = await card(p, '4242424242424242')
   const r = await call(p.tok, 'POST', '/api/billing/subscribe', { plan_id: 'pro', card_id: c })
   assert.equal(r.s, 200, JSON.stringify(r.d)); assert.equal(r.d.result, 'ativa')
   assert.equal((await pool.query(`select count(*)::int n from subscription_events e join subscriptions s on s.id=e.subscription_id where s.user_id=$1 and e.action='trial_plano'`, [p.id])).rows[0].n, 0)
@@ -67,7 +67,7 @@ test('status comercial: sem_assinatura -> em_teste (cupom) -> vencida (fim do te
   assert.equal(await status(u), 'vencida')
 })
 test('conversao de indicacao: assinatura paga gera assinatura+pagamento (simulador = live false); webhook repetido nao duplica', async () => {
-  const p = await conta('indicador', { intent: 'profissional' })
+  const p = await conta('indicador', { intent: 'profissional', plan_id: 'pro' })
   const link = (await call(p.tok, 'GET', '/api/referral/me')).d
   const u = await conta('convertido', { ref: link.code }); const c = await card(u, '4242424242424242')
   assert.equal((await call(u.tok, 'POST', '/api/billing/subscribe', { plan_id: 'individual', card_id: c })).d.result, 'ativa')

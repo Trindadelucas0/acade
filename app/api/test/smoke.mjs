@@ -18,7 +18,7 @@ export async function main() {
   check(terms && terms.version, 'termos de uso versionados publicados')
   check((await post(null, '/api/auth/register', { name: 'Aluno Teste', email, password: 'senha-forte-1' })).s === 400, 'cadastro sem aceite dos termos é recusado')
   check((await post(null, '/api/auth/register', { name: 'Aluno Teste', email, password: 'senha-forte-1', accept_terms: true, birth_date: '1990-01-01', terms_version: 'velha' })).s === 400, 'aceite de versão desatualizada é recusado')
-  const reg = await post(null, '/api/auth/register', { name: 'Aluno Teste', email, password: 'senha-forte-1', accept_terms: true, birth_date: '1990-01-01', terms_version: terms.version })
+  const reg = await post(null, '/api/auth/register', { name: 'Aluno Teste', email, password: 'senha-forte-1', accept_terms: true, birth_date: '1990-01-01', terms_version: terms.version, plan_id: 'individual' })
   check(reg.s === 200 && reg.d.user.status === 'ativo', 'V3 SaaS aberto: cadastro cria conta ativa com login')
   const stu = reg.d.token
   check((await get(stu, '/api/guided/state')).s === 200, 'V3: conta nova acessa os recursos sem aprovacao')

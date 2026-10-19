@@ -97,9 +97,8 @@ function LoginForm() {
   const reg = mode === 'register'
   // Link /convite/CODIGO: guarda a oferta e abre o cadastro com o cupom configurado pelo administrador.
   const [ref, setRef] = useState(() => readRef())
-  const [coupon, setCoupon] = useState(() => readRef()?.coupon || '')
   // Monetizacao F8b: cadastro em 6 etapas (perfil, dados, assinatura, contratar ou cupom, confirmacao, onboarding)
-  const [step, setStep] = useState(1), [choice, setChoice] = useState(() => requestedPlan || (entry.get('inicio') === 'gratis' ? 'depois' : readRef()?.offer?.active && readRef()?.coupon ? 'cupom' : '')), [plans, setPlans] = useState(null), [created, setCreated] = useState(null)
+  const [step, setStep] = useState(1), [choice, setChoice] = useState(() => requestedPlan || ''), [plans, setPlans] = useState(null), [created, setCreated] = useState(null)
   useEffect(() => { if (mode === 'register' && step === 3 && !plans) api('/api/public/plans').then(setPlans).catch(() => setPlans({ plans: [] })) }, [mode, step])
   useEffect(() => {
     if (!plans || !requestedPlan) return
@@ -108,7 +107,7 @@ function LoginForm() {
   }, [plans]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const m = /^#\/convite\/([\w-]+)/.exec(location.hash); if (!m) return
-    api('/api/convite?code=' + encodeURIComponent(m[1])).then(d => { if (d?.type === 'indicacao') { saveRef(d); const r = readRef(); setRef(r); setCoupon(r?.coupon || ''); if (r?.offer?.active && ['aluno', 'profissional'].includes(r.offer.audience)) setIntent(r.offer.audience); setChoice(r?.offer?.active && r?.coupon ? 'cupom' : 'depois'); setMode('register') } }).catch(() => {})
+    api('/api/convite?code=' + encodeURIComponent(m[1])).then(d => { if (d?.type === 'indicacao') { saveRef(d); const r = readRef(); setRef(r); if (r?.offer?.active && ['aluno', 'profissional'].includes(r.offer.audience)) setIntent(r.offer.audience); setChoice(''); setMode('register') } }).catch(() => {})
   }, [])
   const set = k => e => { setF({ ...f, [k]: e.target.value }); setErrs({ ...errs, [k]: undefined }); setMsg('') }
 
@@ -125,15 +124,15 @@ function LoginForm() {
     if (reg && !f.birth_date) e.birth_date = 'Informe sua data de nascimento'
     if (reg) Object.assign(e, validateContact(ct))
     if (reg && f.birth_date && f.birth_date > maxBirth) e.birth_date = 'É preciso ter 18 anos ou mais para criar a conta'
-    if (reg && choice === 'cupom' && coupon.trim().length < 3) e.coupon = 'Informe o cupom ou escolha outra opção'
     return e
   }
-  const stepOf = k => S1.includes(k) ? 1 : k === 'coupon' ? 4 : k === 'terms' ? 5 : 2
+  const stepOf = k => S1.includes(k) ? 1 : k === 'terms' ? 5 : 2
   const validate = () => { const e = errorsOf(); setErrs(e); if (reg && Object.keys(e).length) setStep(Math.min(...Object.keys(e).map(stepOf))); return !Object.keys(e).length }
   const next = () => {
     const e = Object.fromEntries(Object.entries(errorsOf()).filter(([k]) => stepOf(k) === step))
     setErrs(e); setMsg(''); if (Object.keys(e).length) return
-    if (step === 3 && !choice) return setMsg('Escolha uma opção para continuar')
+    if (step === 3 && !choice) return setMsg('Escolha um plano pago para continuar. O acesso começa após a confirmação do pagamento.')
+    if (step === 3 && !plans?.plans?.some(p => p.id === choice && p.audience === intent && p.purchasable)) return setMsg('Este plano não está disponível para contratação. Atualize a página e tente novamente.')
     setStep(step + 1)
   }
   const finish = async () => { setUser(created.u); await pullState(); useUI.getState().toast(`Bem-vindo(a), ${created.u.name}!`); if (created.plan) location.hash = '#/assinatura?plano=' + created.plan }
@@ -144,11 +143,9 @@ function LoginForm() {
     setBusy(true); setMsg('')
     try {
       const proCode = intent === 'aluno' && useProCode ? f.pro_code.trim() : ''
-      const result = reg ? await authRegister(f.name.trim(), f.email.trim(), f.password, terms && agree ? terms.version : undefined, intent, proCode, { accept: agree, birth_date: f.birth_date, health, contact: toApi(ct), coupon: choice === 'cupom' ? coupon.trim() : '' }) : null
+      const result = reg ? await authRegister(f.name.trim(), f.email.trim(), f.password, terms && agree ? terms.version : undefined, intent, proCode, { accept: agree, birth_date: f.birth_date, health, contact: toApi(ct), plan_id: choice }) : null
       const u = reg ? result.user : await authLogin(f.email.trim(), f.password)
-      const cr = result?.coupon_result
-      const trial = cr ? (cr.status < 300 ? { ok: true, ...cr } : { ok: false, t: cr.error, code: cr.code }) : null
-      if (reg) { try { localStorage.removeItem('avagym_ref') } catch { /* */ } setCreated({ u, trial, plan: choice && !['cupom', 'depois'].includes(choice) ? choice : null }); setStep(6); return }
+      if (reg) { try { localStorage.removeItem('avagym_ref') } catch { /* */ } setCreated({ u, plan: choice }); setStep(6); return }
       setUser(u); await pullState()
       useUI.getState().toast(reg ? `Bem-vindo(a), ${u.name}!` : `Bem-vindo(a) de volta, ${u.name}!`)
     } catch (e) {
@@ -195,13 +192,8 @@ function LoginForm() {
   if (reg && step === 6 && created) return <div className="lg-wrap"><Hero /><div className="lg-card" data-testid="signup-onboarding">
     <div className="lg-brand"><Brand /></div><p className="lg-sub" style={{ marginTop: 0 }}>Etapa 6 de 6 · Pronto</p>
     <h1>Conta criada, {created.u.name.split(' ')[0]}!</h1>
-    {created.trial?.ok && <p className="lg-sub" data-testid="onb-trial">Seu acesso de {created.trial.days} dias começou. Você tem acesso até {new Date(created.trial.ends_at).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}.</p>}
-    {created.trial && !created.trial.ok && <p className="lg-msg" role="alert">O cupom não foi aplicado: {created.trial.t} Você pode tentar de novo em Planos e pagamento.</p>}
-    {created.plan && <p className="lg-sub">Agora vamos abrir Planos e pagamento para concluir a assinatura.</p>}
-    <ul className="lg-sub" style={{ textAlign: 'left' }}>{(intent === 'profissional'
-      ? ['Envie seu registro profissional para verificação (Perfil).', 'Monte seus treinos e programas.', 'Convide alunos pelo seu código ou link.']
-      : ['Faça a avaliação inicial para receber um treino sob medida.', 'Siga o treino de hoje na aba Hoje.', 'Entre nos desafios da comunidade.']).map(x => <li key={x}>{x}</li>)}</ul>
-    <button className="lg-btn" onClick={finish} data-testid="onb-start">{created.plan ? 'Ir para o pagamento' : 'Começar'}</button>
+    <p className="lg-sub">A conta ainda não tem acesso aos treinos. Conclua o pagamento do plano selecionado; o acesso será liberado após confirmação.</p>
+    <button className="lg-btn" onClick={finish} data-testid="onb-start">Ir para o pagamento</button>
   </div></div>
   return (
     <div className="lg-wrap">
@@ -209,7 +201,7 @@ function LoginForm() {
       <form className="lg-card" onSubmit={submit} noValidate>
         <div className="lg-brand"><Brand /></div>
         <p className="lg-sub">{reg ? 'Crie sua conta e comece a treinar.' : 'Seu progresso começa aqui'}</p>
-        {reg && step < 6 && <p className="lg-sub" data-testid="signup-step" style={{ marginTop: 0 }}>Etapa {step} de 6 · {['Perfil', 'Seus dados', 'Assinatura', choice === 'cupom' ? 'Cupom' : 'Contratar', 'Confirmação'][step - 1]}</p>}
+        {reg && step < 6 && <p className="lg-sub" data-testid="signup-step" style={{ marginTop: 0 }}>Etapa {step} de 6 · {['Perfil', 'Seus dados', 'Assinatura', 'Pagamento', 'Confirmação'][step - 1]}</p>}
         {reg && step === 1 && <div className="lg-intent" role="radiogroup" aria-label="Como você vai usar">
           {[['aluno', 'Quero treinar', 'Treinos, programas, progresso e desafios'], ['profissional', 'Sou profissional', 'Prescreva para alunos depois da verificação']].map(([k, t, d]) =>
             <button key={k} type="button" role="radio" aria-checked={intent === k} disabled={!!ref?.offer?.active && k !== ref.offer.audience} className={'lg-intent-op' + (intent === k ? ' on' : '')} onClick={() => { setIntent(k); if (k !== requestedProfile) setChoice('') }} data-testid={'intent-' + k}><b>{t}</b><small>{d}</small></button>)}
@@ -222,8 +214,7 @@ function LoginForm() {
         {field('password', 'Senha', showPw ? 'text' : 'password', reg ? 'new-password' : 'current-password')}
         {reg && field('confirm', 'Confirmar senha', showPw ? 'text' : 'password', 'new-password')}
         </>}
-        {reg && (step === 1 || step === 4) && ref && <p className="lg-sub" data-testid="ref-banner">Você chegou pelo convite de <b>{ref.name || 'um amigo'}</b>. {ref.offer?.active ? `A oferta libera ${ref.offer.trial_days} dias de ${ref.offer.audience === 'profissional' ? 'PRO' : 'Individual'}.` : 'O limite ou a validade desta oferta terminou; seu cadastro pode continuar normalmente.'}</p>}
-        {reg && step === 1 && ref?.offer?.active && <label className="lg-field"><span>Cupom do convite</span><div className="lg-input"><input value={coupon} readOnly maxLength={32} autoComplete="off" data-testid="signup-coupon" /></div><small className="lg-hint">Aplicado automaticamente ao concluir o cadastro, sem cobrança automática.</small></label>}
+        {reg && (step === 1 || step === 4) && ref && <p className="lg-sub" data-testid="ref-banner">Você chegou pelo convite de <b>{ref.name || 'um amigo'}</b>. O convite não substitui a contratação: escolha um plano e conclua o pagamento para acessar o sistema.</p>}
         {reg && step === 2 && intent === 'aluno' && <>
           <button type="button" className={'lg-intent-op' + (useProCode ? ' on' : '')} aria-pressed={useProCode} data-testid="pro-code-toggle"
             onClick={() => { setUseProCode(v => { if (v) setF(x => ({ ...x, pro_code: '' })); return !v }); setErrs(x => ({ ...x, pro_code: undefined })); setMsg('') }}>
@@ -238,18 +229,15 @@ function LoginForm() {
               <label><input type="checkbox" checked={health} onChange={e => setHealth(e.target.checked)} data-testid="accept-health" />
                 <span>(Opcional) Autorizo o uso dos meus dados de saúde (dores, lesões, restrições) para adaptar os treinos. Posso retirar quando quiser.</span></label>
             </div>}
-        {reg && step === 3 && <div data-testid="signup-plans" className="lg-intent pl-signup" role="radiogroup" aria-label="Como quer começar">
+        {reg && step === 3 && <div data-testid="signup-plans" className="lg-intent pl-signup" role="radiogroup" aria-label="Escolha um plano">
           {(plans?.plans || []).filter(p => SELLABLE.includes(p.id) && p.audience === intent).map(p => <PlanCard key={p.id} p={p} compact selected={choice === p.id} onSelect={p.purchasable ? () => setChoice(p.id) : undefined} />)}
-          <button type="button" role="radio" aria-checked={choice === 'cupom'} className={'lg-intent-op' + (choice === 'cupom' ? ' on' : '')} onClick={() => setChoice('cupom')} data-testid="signup-choice-cupom"><b>Tenho um cupom ou código de indicação</b><small>O cupom pode dar desconto; o sistema libera após pagamento confirmado</small></button>
-          <button type="button" role="radio" aria-checked={choice === 'depois'} className={'lg-intent-op' + (choice === 'depois' ? ' on' : '')} onClick={() => setChoice('depois')} data-testid="signup-choice-depois"><b>Decidir depois</b><small>Crie a conta agora e escolha o plano em Planos e pagamento</small></button>
+          <p className="lg-sub">É necessário escolher um plano para criar a conta. Cupom de desconto pode ser informado na contratação; o acesso só é liberado após a confirmação do pagamento.</p>
           {!plans && <p className="lg-sub">Carregando planos…</p>}
         </div>}
-        {reg && step === 4 && choice === 'cupom' && <label className={'lg-field' + (errs.coupon ? ' err' : '')}><span>Cupom</span><div className="lg-input"><input value={coupon} onChange={e => { setCoupon(e.target.value.toUpperCase()); setErrs({ ...errs, coupon: undefined }) }} maxLength={32} autoComplete="off" placeholder="Cupom ou código de um amigo" data-testid="signup-coupon" /></div><small className="lg-hint">Código de indicação não substitui o pagamento. Somente cupom de desconto aplicado na contratação reduz o valor.</small>{errs.coupon && <em>{errs.coupon}</em>}</label>}
-        {reg && step === 4 && choice === 'depois' && <p className="lg-sub" data-testid="signup-later">Sem problema. Depois de criar a conta, você escolhe o plano ou ativa um cupom em Perfil › Planos e pagamento.</p>}
-        {reg && step === 4 && choice && !['cupom', 'depois'].includes(choice) && <p className="lg-sub" data-testid="signup-pay-note">Depois de criar a conta, abrimos <b>Planos e pagamento</b> com o plano escolhido para você informar o cartão com segurança. Nada é cobrado antes da sua confirmação.</p>}
+        {reg && step === 4 && choice && <p className="lg-sub" data-testid="signup-pay-note">Depois de criar a conta, abrimos <b>Planos e pagamento</b> com o plano escolhido. Você conclui o pagamento por cartão ou Pix; nada é cobrado sem sua confirmação.</p>}
         {reg && step === 5 && <div className="lg-sub" data-testid="signup-summary" style={{ textAlign: 'left' }}>
           <p><b>{f.name}</b> · {f.email}<br />{intent === 'profissional' ? 'Profissional' : 'Aluno'}{intent === 'aluno' && useProCode && f.pro_code.trim() ? ' · código do personal ' + f.pro_code.trim() : ''}</p>
-          <p>{choice === 'cupom' ? `Cupom ${coupon}: benefício conforme a oferta` : choice === 'depois' ? 'Plano: decidir depois' : `Plano: ${plans?.plans?.find(p => p.id === choice)?.name || choice} (pagamento na próxima tela)`}</p>
+          <p>Plano: {plans?.plans?.find(p => p.id === choice)?.name || choice} (pagamento antes de acessar o sistema)</p>
         </div>}
             {reg && step === 5 && <div className={'lg-terms' + (errs.terms ? ' err' : '')}>
           <label><input type="checkbox" checked={agree} onChange={e => { setAgree(e.target.checked); setErrs({ ...errs, terms: undefined }) }} data-testid="accept-terms" />

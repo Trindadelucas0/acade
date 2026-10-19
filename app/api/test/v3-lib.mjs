@@ -18,7 +18,7 @@ export const login = async email => (await post(null, '/api/auth/login', { email
 export async function signup(adm, label, intent = 'aluno') {
   const terms = (await get(null, '/api/terms')).d.terms
   const email = `${label}${Date.now()}${Math.floor(Math.random() * 1e4)}@e2e.local`
-  const r = await post(null, '/api/auth/register', { name: 'V3 ' + label, email, password: PASS, accept_terms: true, birth_date: '1990-01-01', terms_version: terms?.version, intent })
+  const r = await post(null, '/api/auth/register', { name: 'V3 ' + label, email, password: PASS, accept_terms: true, birth_date: '1990-01-01', terms_version: terms?.version, intent, plan_id: intent === 'profissional' ? 'pro' : 'individual' })
   if (r.s !== 200) throw new Error('cadastro falhou: ' + JSON.stringify(r.d))
   await post(adm, '/api/adm/users/status', { id: r.d.user.id, status: 'ativo' })
   return { id: r.d.user.id, email, tok: r.d.token, user: r.d.user }
