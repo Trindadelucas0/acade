@@ -19,13 +19,14 @@ export default function AdmBilling() {
 }
 
 function Geral() {
-  const [d, e, load] = useGet('/api/adm/billing/overview'), [f, setF] = useState(null), [m, setM] = useState(null)
+  const [d, e, load] = useGet('/api/adm/billing/overview'), [f, setF] = useState(null), [m, setM] = useState(null), [diag, setDiag] = useState(null)
   useEffect(() => { if (d) setF({ monetizacao_ativa: !!d.policy.monetizacao_ativa, carencia_dias: d.policy.cobranca_carencia_dias, retentativas_dias: (d.policy.cobranca_retentativas_dias || []).join(','), experimental_dias: d.policy.experimental_dias, parceiros_comissao_pct: d.policy.parceiros_comissao_pct, aviso_fim_teste_dias: d.policy.aviso_fim_teste_dias }) }, [d])
   if (e) return <p className="bl-err">{e}</p>; if (!d || !f) return <p>Carregando…</p>
   const pv = d.provider
   async function save() { try { await post('/api/adm/billing/settings', { ...f, retentativas_dias: String(f.retentativas_dias).split(',').map(s => +s.trim()).filter(Boolean) }); setM({ ok: true, t: 'Política salva.' }); load() } catch (x) { setM({ ok: false, t: x.message }) } }
   async function reconcile() { try { const r = await post('/api/adm/billing/reconcile'); setM({ ok: true, t: 'Reconciliação concluída: ' + JSON.stringify(r.reconcile) }); load() } catch (x) { setM({ ok: false, t: x.message }) } }
   async function replay(id) { try { const r = await post('/api/adm/billing/webhooks/replay', { id }); setM({ ok: true, t: 'Reprocessado: ' + JSON.stringify(r) }); load() } catch (x) { setM({ ok: false, t: x.message }) } }
+  async function diagnosticar() { try { setDiag(await api('/api/adm/billing/asaas-diagnostico')) } catch (x) { setM({ ok: false, t: x.message }) } }
   return <div className="ag">
     <Msg m={m} />
     <div className="adm-card" data-testid="billing-provider"><h3>Provedor de pagamento</h3>
@@ -47,7 +48,17 @@ function Geral() {
       <p>Assinaturas: {d.subscriptions.map(s => `${s.product} ${s.status}: ${s.n}`).join(' · ') || 'nenhuma'}</p>
       <p>Cobranças (30 dias): {d.charges_30d.map(c => `${c.status}: ${c.n} (${brl(c.total)})`).join(' · ') || 'nenhuma'}</p>
       <p>Cupons ativos: {d.coupons?.ativos ?? 0} · resgates: {d.coupons?.resgates ?? 0} · conversões: {d.coupons?.conversoes ?? 0}</p></div>
-    <div className="adm-card"><h3>Webhooks recentes</h3><div className="adm-tbl-wrap"><table className="adm-table"><thead><tr><th>Recebido</th><th>Provedor</th><th>Evento</th><th>Resultado</th><th></th></tr></thead>
+    <div className="adm-card"><h3>Webhooks recentes</h3>
+      {d.webhook_rejected?.n > 0 && <p className="bl-warn" data-testid="webhook-rejeitado">O Asaas tentou entregar {d.webhook_rejected.n} evento(s) e foi recusado ({d.webhook_rejected.reason === 'token_invalido' ? 'token do webhook diferente do configurado no servidor' : 'webhook sem token no servidor'}); última vez em {dBR(d.webhook_rejected.last_at)}. Confira o token cadastrado em Integrações → Webhooks no painel do Asaas — depois de várias recusas o Asaas interrompe a fila.</p>}
+      {pv.provider === 'asaas' && <p><button className="adm-btn ghost" onClick={diagnosticar} data-testid="asaas-diag">Diagnosticar Asaas</button></p>}
+      {diag && <div className="g-xs" data-testid="asaas-diag-saida">
+        {diag.errors?.map((x, i) => <p key={i} className="bl-err">{x.step}: {x.code} — {x.message}</p>)}
+        {!diag.webhooks?.length && !diag.errors?.length && <p className="bl-warn">Nenhum webhook cadastrado na conta Asaas.</p>}
+        {diag.webhooks?.map(w => <p key={w.id} className={w.interrupted || w.auth_token_matches === false ? 'bl-warn' : 'g-mut'}>
+          {w.name || w.id}: {w.enabled ? 'ativo' : 'desativado'}{w.interrupted ? ' · FILA INTERROMPIDA' : ''}{w.auth_token_matches === false ? ' · token diferente do servidor' : ''} · {w.events?.length || 0} eventos · {w.url}
+        </p>)}
+      </div>}
+      <div className="adm-tbl-wrap"><table className="adm-table"><thead><tr><th>Recebido</th><th>Provedor</th><th>Evento</th><th>Resultado</th><th></th></tr></thead>
       <tbody>{d.webhooks.map(w => <tr key={w.id}><td>{dBR(w.received_at)}</td><td>{w.provider}</td><td>{w.event_type}</td><td>{w.result}{w.error ? ' — ' + w.error : ''}</td><td><button className="adm-btn ghost" onClick={() => replay(w.id)}>Reprocessar</button></td></tr>)}</tbody></table></div></div>
   </div>
 }

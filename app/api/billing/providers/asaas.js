@@ -3,6 +3,12 @@
 // As renovacoes sao agendadas pelo AVAGYM (job de cobranca): cada periodo vira um POST /v3/payments com o token do
 // cartao e externalReference = id da nossa cobranca (permite reconciliar sem cobrar duas vezes).
 export const ASAAS_URLS = { sandbox: 'https://api-sandbox.asaas.com/v3', producao: 'https://api.asaas.com/v3' }
+// Um 403 do Asaas tem causas diferentes (recurso nao liberado, chave restrita por IP, chave revogada) e cada uma
+// pede uma acao diferente de quem opera. Separamos para nao anunciar "aguardando habilitacao" quando o problema e a chave.
+const TOKENIZE_PATH = '/creditCard/tokenizeCreditCard'
+const PERMISSAO_NEGADA = /n[aã]o (?:possui|tem) permiss[aã]o|permission/i
+const ORIGEM_NEGADA = /\bIPs?\b|endere[çc]o de origem|origem n[aã]o autorizada/i
+const CAUSAS_DE_CONTA = new Set(['TOKENIZATION_NOT_ENABLED', 'PROVIDER_AUTH', 'PROVIDER_IP_BLOCKED', 'PROVIDER_FORBIDDEN'])
 export function asaasConfig(env = process.env) {
   const mode = env.ASAAS_ENV === 'producao' ? 'producao' : 'sandbox'
   const key = env.ASAAS_API_KEY || ''
@@ -30,9 +36,14 @@ export function asaas({ env = process.env, fetchImpl = fetch } = {}) {
     const data = await r.json().catch(() => ({}))
     if (!r.ok) {
       const er = data?.errors?.[0] || {}, description = er.description || ('Asaas HTTP ' + r.status)
-      const tokenizationDenied = path === '/creditCard/tokenizeCreditCard' && (r.status === 403 || /n[aã]o (?:possui|tem) permiss[aã]o|permission/i.test(description))
-      const x = new Error(tokenizationDenied ? 'A tokenização de cartão ainda não está habilitada nesta conta Asaas.' : description)
-      x.status = r.status; x.code = tokenizationDenied ? 'TOKENIZATION_NOT_ENABLED' : (er.code || 'PROVIDER_ERROR'); x.inconclusive = r.status >= 500; throw x
+      console.error('[asaas]', method, path, r.status, er.code || 's/codigo', description)   // nunca a chave, o token ou dados do cartao
+      let code = er.code || 'PROVIDER_ERROR', message = description
+      if (r.status === 401 || /invalid_access_token|unauthorized/i.test(code)) { code = 'PROVIDER_AUTH'; message = 'A credencial do Asaas não foi aceita.' }
+      else if (r.status === 403 && ORIGEM_NEGADA.test(description)) { code = 'PROVIDER_IP_BLOCKED'; message = 'O Asaas recusou a origem desta requisição.' }
+      else if (path === TOKENIZE_PATH && PERMISSAO_NEGADA.test(description)) { code = 'TOKENIZATION_NOT_ENABLED'; message = 'A tokenização de cartão ainda não está habilitada nesta conta Asaas.' }
+      else if (r.status === 403) { code = 'PROVIDER_FORBIDDEN'; message = 'O Asaas negou o acesso a este recurso.' }
+      const x = new Error(message)
+      x.status = r.status; x.code = code; x.inconclusive = r.status >= 500; throw x
     }
     return data
   }
@@ -45,11 +56,11 @@ export function asaas({ env = process.env, fetchImpl = fetch } = {}) {
     async tokenize({ customerId, card, holder, remoteIp }) {
       const [mm, yy] = [String(card.expMonth).padStart(2, '0'), String(card.expYear).length === 2 ? '20' + card.expYear : String(card.expYear)]
       try {
-        const r = await call('POST', '/creditCard/tokenizeCreditCard', { customer: customerId, remoteIp,
+        const r = await call('POST', TOKENIZE_PATH, { customer: customerId, remoteIp,
           creditCard: { holderName: card.holderName, number: String(card.number).replace(/\D/g, ''), expiryMonth: mm, expiryYear: yy, ccv: card.cvv },
           creditCardHolderInfo: { name: holder.name, email: holder.email, cpfCnpj: holder.cpfCnpj, postalCode: holder.postalCode, addressNumber: holder.addressNumber, phone: holder.phone } })
         return { token: r.creditCardToken, brand: r.creditCardBrand, last4: r.creditCardNumber }
-      } catch (e) { if (!e.inconclusive && e.code !== 'TOKENIZATION_NOT_ENABLED') e.code = 'CARD_INVALID'; throw e }
+      } catch (e) { if (!e.inconclusive && !CAUSAS_DE_CONTA.has(e.code)) e.code = 'CARD_INVALID'; throw e }
     },
     async charge({ token, customerId, amountCents, charge, split, remoteIp }) {
       try {
@@ -70,6 +81,19 @@ export function asaas({ env = process.env, fetchImpl = fetch } = {}) {
       if (!p) return null
       const map = { CONFIRMED: 'paga', RECEIVED: 'paga', RECEIVED_IN_CASH: 'paga', REFUNDED: 'estornada', REFUND_REQUESTED: 'estornada', CHARGEBACK_REQUESTED: 'estornada', OVERDUE: 'recusada', PENDING: 'pendente', AWAITING_RISK_ANALYSIS: 'pendente' }
       return { status: map[p.status] || 'pendente', providerChargeId: p.id }
+    },
+    // diagnostico somente leitura para o painel admin: mostra se a conta responde e se a fila de webhook
+    // esta interrompida. Nunca devolve a chave, o ASAAS_WEBHOOK_TOKEN nem o authToken cadastrado no Asaas.
+    async diagnostics() {
+      const out = { mode: cfg.mode, account: null, webhooks: [], errors: [] }
+      try { out.account = await call('GET', '/myAccount/status') } catch (e) { out.errors.push({ step: 'conta', code: e.code, message: e.message }) }
+      try {
+        const r = await call('GET', '/webhooks')
+        out.webhooks = (r.data || []).map(w => ({ id: w.id, name: w.name || null, url: w.url, enabled: !!w.enabled, interrupted: !!w.interrupted,
+          send_type: w.sendType || null, events: w.events || [], auth_token_set: !!w.authToken,
+          auth_token_matches: w.authToken == null ? null : String(w.authToken) === String(env.ASAAS_WEBHOOK_TOKEN || '') }))
+      } catch (e) { out.errors.push({ step: 'webhooks', code: e.code, message: e.message }) }
+      return out
     },
     async refund(charge) { await call('POST', `/payments/${encodeURIComponent(charge.provider_charge_id)}/refund`, {}); return { ok: true } },
     async cancelCharge(charge) { if (charge.provider_charge_id) await call('DELETE', `/payments/${encodeURIComponent(charge.provider_charge_id)}`); return { ok: true } }

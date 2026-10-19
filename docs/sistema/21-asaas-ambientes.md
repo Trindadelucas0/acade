@@ -108,9 +108,41 @@ O middleware de acesso permanece fail-closed: somente cobrança real (`provider`
 
 O retorno ao simulador não estorna nem cancela cobranças já existentes no Asaas. Trate essas cobranças no painel do provedor antes da troca, quando necessário.
 
+## Ocorrência de 19/10/2026 — checkout travado e fila de webhook recusada
+
+No mesmo dia da abertura das vendas, o checkout passou a exibir *"O pagamento por cartão ainda aguarda habilitação na conta ORNY do Asaas"* e o Asaas notificou duas vezes que os eventos da fila de produção não estavam sendo recebidos. Uma chave de API nova havia sido criada e aplicada no `.env`.
+
+O que isso ensinou e o que mudou no sistema:
+
+- A mensagem de "aguarda habilitação" vinha de **qualquer** 403 na tokenização. Agora o provedor separa `TOKENIZATION_NOT_ENABLED` (403 com negativa de permissão), `PROVIDER_AUTH` (401, chave inválida ou revogada), `PROVIDER_IP_BLOCKED` (restrição de IP da chave) e `PROVIDER_FORBIDDEN` (403 sem causa declarada). Cada um tem a sua mensagem e manda a equipe para a ação certa.
+- Toda resposta de erro do Asaas passa a aparecer em `pm2 logs acade-api` como `[asaas] <método> <rota> <HTTP> <código> <descrição>`, sem chave, token ou dado de cartão.
+- Entregas de webhook recusadas por token (401) ou por falta de token (503) nunca chegavam a `billing_webhook_events` — o painel parecia normal enquanto o Asaas acumulava falhas. Agora elas contam em `webhook_rejected` na **Visão geral** e saem no log como `[asaas-webhook] entrega recusada`.
+
 ## Diagnóstico seguro
 
 - Se a API não iniciar, consulte a mensagem de configuração: ela identifica a variável ou incompatibilidade, sem exibir o valor.
 - Confira apenas se cada variável está preenchida e se o prefixo corresponde ao ambiente; não use `cat .env`, `pm2 env` ou prints em chamados.
 - No Asaas, confira a entrega do webhook e o código HTTP. No ORNY, confira o evento pelo identificador, status da cobrança e horário, nunca pelo token.
 - Em caso de indisponibilidade do provedor, o sistema retorna erro controlado e não muda para o simulador.
+
+### Script de diagnóstico
+
+```bash
+cd /opt/acade/app/api && node scripts/diagnostico-asaas.mjs
+```
+
+Ele é somente leitura e **não imprime chave, token nem o `authToken` do webhook** — a saída pode ser colada em chamado. Em sequência: configuração local e `problems[]` da partida; IP público de saída da VPS (o que precisa estar liberado se a chave tiver restrição de IP); `GET /myAccount/status` e `GET /finance/balance` para saber se a chave é aceita; `GET /webhooks` com `enabled`, `interrupted`, eventos e se o token cadastrado confere com o `.env`; os últimos eventos registrados no banco; e um bloco **CAUSA PROVÁVEL** cruzando tudo.
+
+Com `--sonda-tokenizacao` ele faz uma única chamada `POST /creditCard/tokenizeCreditCard` com um cartão inválido de propósito, usando um cliente que já existe na conta. Nenhuma cobrança ou cliente é criado. Se a conta não tem o recurso, o Asaas nega a permissão antes de validar o cartão; se reclamar do cartão, a tokenização **está** liberada e a causa do checkout é outra.
+
+O mesmo estado da conta e da fila aparece sem SSH em **Admin → Cobrança → Visão geral → Diagnosticar Asaas** (`GET /api/adm/billing/asaas-diagnostico`).
+
+### Fila de webhook interrompida
+
+O Asaas pausa a fila depois de entregas consecutivas com erro e **exige reativação manual**. Procedimento:
+
+1. Rodar o script acima e olhar `interrupted` e `confere com o .env`.
+2. Se o token divergir, acertar em **Integrações → Webhooks** o mesmo valor do `ASAAS_WEBHOOK_TOKEN` do `.env` (ou trocar os dois e `pm2 restart acade-api --update-env`).
+3. Reativar a fila no painel do Asaas. Os eventos pendentes são reenviados e o `handleWebhook` é idempotente por `(provider, event_id)`, então reenvio não duplica efeito.
+4. Para um evento que ficou com erro, usar **Reprocessar** na Visão geral (`POST /api/adm/billing/webhooks/replay`).
+5. Confirmar `webhook_rejected` zerado e `interrupted: false`.

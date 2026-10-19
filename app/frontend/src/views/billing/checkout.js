@@ -54,6 +54,8 @@ export function cardPayload(form, requiresHolderInfo = false) {
 export function checkoutError(error, stage = 'payment') {
   const code = String(error?.code || '')
   if (code === 'TOKENIZATION_NOT_ENABLED') return { stage: 'provider', message: 'O pagamento por cartão ainda aguarda habilitação na conta ORNY do Asaas. A equipe responsável precisa solicitar ao Asaas a liberação da tokenização.' }
+  if (code === 'PROVIDER_AUTH' || code === 'PROVIDER_IP_BLOCKED') return { stage: 'provider', message: 'O pagamento por cartão está temporariamente indisponível por uma pendência de configuração da conta ORNY no Asaas. A equipe responsável já foi avisada.' }
+  if (code === 'PROVIDER_FORBIDDEN') return { stage: 'provider', message: 'O Asaas recusou o pagamento por cartão por uma pendência de liberação na conta ORNY. A equipe responsável precisa conferir no painel do Asaas.' }
   if (code === 'CARD_INVALID') return { stage: 'card', message: error.message || 'Não foi possível validar o cartão. Confira os dados informados.' }
   if (code === 'CARD_DECLINED') return { stage: 'payment', message: 'O cartão não foi aprovado. Confira os dados ou tente outro cartão.' }
   if (code === 'PLAN_UNAVAILABLE') return { stage: 'plan', message: 'Este plano não está disponível para contratação.' }

@@ -42,6 +42,31 @@ test('cliente Asaas recebe apenas nome e e-mail para tokenizar o cartão', async
   assert.deepEqual(JSON.parse(calls[0].init.body), { name: 'Cliente', email: 'cliente@example.com', externalReference: 'user_1', notificationDisabled: true })
 })
 
+// um 403 na tokenizacao tem causas diferentes e cada uma pede uma acao diferente de quem opera:
+// dizer "aguarda habilitacao" quando a chave e que esta invalida manda a equipe para o chamado errado.
+const tokenizaCom = resposta => {
+  const p = asaas({ env: { ASAAS_ENV: 'producao', ASAAS_API_KEY: '$aact_prod_example', ASAAS_WEBHOOK_TOKEN: token }, fetchImpl: async () => resposta })
+  return p.tokenize({ customerId: 'cus_1', card: { number: '4242424242424242', holderName: 'Cliente', expMonth: '12', expYear: '30', cvv: '123' },
+    holder: { name: 'Cliente', email: 'cliente@example.com' }, remoteIp: '203.0.113.10' })
+}
+const erroAsaas = (status, description, code) => ({ ok: false, status, json: async () => ({ errors: [{ description, ...(code ? { code } : {}) }] }) })
+
+test('chave recusada não vira "aguardando habilitação"', async () => {
+  await assert.rejects(tokenizaCom(erroAsaas(401, 'Token de acesso inválido.', 'invalid_access_token')), e => e.code === 'PROVIDER_AUTH')
+})
+
+test('origem bloqueada por restrição de IP é identificada como tal', async () => {
+  await assert.rejects(tokenizaCom(erroAsaas(403, 'O IP 203.0.113.10 não está autorizado para esta chave de API.')), e => e.code === 'PROVIDER_IP_BLOCKED')
+})
+
+test('403 sem menção a permissão não é confundido com tokenização bloqueada', async () => {
+  await assert.rejects(tokenizaCom(erroAsaas(403, 'Acesso negado.')), e => e.code === 'PROVIDER_FORBIDDEN')
+})
+
+test('erro comum de cartão continua sendo CARD_INVALID', async () => {
+  await assert.rejects(tokenizaCom(erroAsaas(400, 'O número do cartão informado é inválido.')), e => e.code === 'CARD_INVALID')
+})
+
 test('negação de tokenização em produção preserva uma causa acionável', async () => {
   const fetchImpl = async () => ({ ok: false, status: 403, json: async () => ({ errors: [{ description: 'Você não possui permissão para utilizar este recurso. Entre em contato com seu gerente de contas.' }] }) })
   const p = asaas({ env: { ASAAS_ENV: 'producao', ASAAS_API_KEY: '$aact_prod_example', ASAAS_WEBHOOK_TOKEN: token }, fetchImpl })

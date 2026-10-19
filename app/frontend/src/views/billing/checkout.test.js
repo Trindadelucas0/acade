@@ -34,5 +34,10 @@ describe('checkout de cartão', () => {
     expect(checkoutError({ code: 'PROVIDER_UNAVAILABLE' }).stage).toBe('provider')
     expect(checkoutError({ code: 'TOKENIZATION_NOT_ENABLED' })).toEqual({ stage: 'provider', message: 'O pagamento por cartão ainda aguarda habilitação na conta ORNY do Asaas. A equipe responsável precisa solicitar ao Asaas a liberação da tokenização.' })
     expect(checkoutError({ code: 'PERMISSION_DENIED', message: 'Plano incompatível.' }).stage).toBe('plan')
+    // pendência de credencial/liberação é do provedor, nunca "cartão recusado" na cara do aluno
+    expect(checkoutError({ code: 'PROVIDER_AUTH' }).stage).toBe('provider')
+    expect(checkoutError({ code: 'PROVIDER_IP_BLOCKED' }).stage).toBe('provider')
+    expect(checkoutError({ code: 'PROVIDER_FORBIDDEN' }).stage).toBe('provider')
+    expect(checkoutError({ code: 'PROVIDER_AUTH' }).message).not.toMatch(/cartão não foi aprovado/i)
   })
 })

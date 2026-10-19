@@ -131,6 +131,9 @@ export async function addCard(user, b, ip) {
   } catch (e) {
     if (e.code === 'CARD_INVALID') return { status: 400, error: e.message || 'Não foi possível validar o cartão.', code: 'CARD_INVALID' }
     if (e.code === 'TOKENIZATION_NOT_ENABLED') return { status: 503, error: 'O pagamento por cartão ainda aguarda habilitação na conta ORNY do Asaas.', code: 'TOKENIZATION_NOT_ENABLED' }
+    // credencial recusada / origem bloqueada / acesso negado: e configuracao da conta, nao culpa do cartao do aluno
+    if (e.code === 'PROVIDER_AUTH' || e.code === 'PROVIDER_IP_BLOCKED') return { status: 503, error: 'A credencial do Asaas não está válida. A equipe responsável precisa conferir a chave de API.', code: e.code }
+    if (e.code === 'PROVIDER_FORBIDDEN') return { status: 503, error: 'O Asaas negou o acesso ao pagamento por cartão. A equipe responsável precisa conferir, no painel do Asaas, a liberação da tokenização e a restrição de IP da chave.', code: 'PROVIDER_FORBIDDEN' }
     if (e.code === 'PROVIDER_UNAVAILABLE') return { status: 503, error: 'O serviço de pagamento está indisponível. Tente de novo em instantes.', code: 'PROVIDER_UNAVAILABLE' }
     throw e
   }

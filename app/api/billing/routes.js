@@ -19,6 +19,14 @@ const isUuid = s => /^[0-9a-f-]{36}$/i.test(String(s || ''))
 const ipOf = req => clientIp(req)
 const safeEq = (a, b) => { const x = Buffer.from(String(a || '')), y = Buffer.from(String(b || '')); return x.length === y.length && x.length > 0 && crypto.timingSafeEqual(x, y) }
 const send = (json, res, r) => { const { status = 200, ...body } = r; json(res, status, body) }
+// O Asaas pausa a fila depois de varias entregas com erro. Entregas recusadas aqui nunca chegam a
+// billing_webhook_events, entao guardamos um resumo em memoria para o painel admin mostrar o motivo.
+const webhookRejeitado = { n: 0, last_at: null, reason: null }
+const rejeitaWebhook = (json, res, status, reason, error) => {
+  webhookRejeitado.n++; webhookRejeitado.last_at = new Date().toISOString(); webhookRejeitado.reason = reason
+  console.error('[asaas-webhook] entrega recusada:', reason)   // nunca o token recebido
+  json(res, status, { error })
+}
 
 export function providerInfo() {
   const p = getProvider(), name = providerName()
@@ -174,8 +182,8 @@ export function billingRoutes({ json, readBody }) {
 
     // ===== webhooks (sem sessao; autenticados por token no cabecalho) =====
     'POST /api/billing/webhook/asaas': async (req, res) => {
-      if (!process.env.ASAAS_WEBHOOK_TOKEN) return json(res, 503, { error: 'webhook não configurado' })
-      if (!safeEq(req.headers['asaas-access-token'], process.env.ASAAS_WEBHOOK_TOKEN)) return json(res, 401, { error: 'token inválido' })
+      if (!process.env.ASAAS_WEBHOOK_TOKEN) return rejeitaWebhook(json, res, 503, 'sem_token_configurado', 'webhook não configurado')
+      if (!safeEq(req.headers['asaas-access-token'], process.env.ASAAS_WEBHOOK_TOKEN)) return rejeitaWebhook(json, res, 401, 'token_invalido', 'token inválido')
       send(json, res, await core.handleWebhook('asaas', await readBody(req)))
     },
     'POST /api/billing/webhook/simulado': async (req, res) => {
@@ -209,7 +217,7 @@ export function billingRoutes({ json, readBody }) {
           (select count(distinct r.user_id)::int from promotion_redemptions r join sessions s on s.user_id=r.user_id and s.started_at>=r.created_at where r.tenant_id=$1) treinaram,
           (select count(distinct r.user_id)::int from promotion_redemptions r join subscriptions s on s.user_id=r.user_id join plans p on p.id=s.plan_id and not p.is_free where r.tenant_id=$1 and s.started_at>=r.created_at) conversoes
           from promotion_codes pc where pc.tenant_id=$1`, [u.tenant_id])).rows[0]
-      json(res, 200, { provider: providerInfo(), policy: await core.policy(u.tenant_id), subscriptions: st, charges_30d: ch, webhooks: wh, coupons: cps })
+      json(res, 200, { provider: providerInfo(), policy: await core.policy(u.tenant_id), subscriptions: st, charges_30d: ch, webhooks: wh, webhook_rejected: { ...webhookRejeitado }, coupons: cps })
     },
     'POST /api/adm/billing/settings': async (req, res) => {
       const u = await admin(req, res, json); if (!u) return
@@ -359,6 +367,13 @@ export function billingRoutes({ json, readBody }) {
       const after = s ? (await q('select status, suspended_kind, current_period_end, next_retry_at, grace_until, retry_count from subscriptions where id=$1', [s.id])).rows[0] : null
       if (s) await refreshUsage(s.user_id, s.audience).catch(() => {})
       json(res, 200, { tick: t, subscription: after })
+    },
+    // diagnostico do Asaas sem SSH: estado da conta e se a fila de webhook esta interrompida (somente leitura)
+    'GET /api/adm/billing/asaas-diagnostico': async (req, res) => {
+      const u = await admin(req, res, json); if (!u) return
+      const p = getProvider()
+      if (p.name !== 'asaas' || !p.diagnostics) return json(res, 409, { error: 'Disponível só com o provedor Asaas.', code: 'ASAAS_ONLY' })
+      json(res, 200, { ...await p.diagnostics(), webhook_rejected: { ...webhookRejeitado } })
     },
     'POST /api/adm/billing/webhooks/replay': async (req, res) => {
       const u = await admin(req, res, json); if (!u) return
