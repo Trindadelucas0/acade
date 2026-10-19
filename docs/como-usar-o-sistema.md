@@ -93,6 +93,8 @@ Conta recém-cadastrada pode concluir a compra diretamente. Depois da confirmaç
 
 Administrador: os planos Individual, Personal 15 e Personal Ilimitado estão disponíveis para contratação em produção. Para acompanhar uma assinatura, abra **Cobrança, preços e cupons → Visão geral** e confira provedor, situação das cobranças e eventos do webhook. O site está configurado para Asaas em produção e o webhook consta ativo; acompanhe a primeira confirmação real para validar a jornada completa. O procedimento operacional está em `docs/sistema/21-asaas-ambientes.md`.
 
+Versão 1.7.7 publicada em 19/10/2026: no checkout, falha ou falta de permissão para validar o cupom não bloqueia o pagamento integral. Se o aparelho ainda mostrar a mensagem antiga, feche e reabra o ORNY ou atualize a página para carregar o novo frontend; não é necessário apagar os dados do aplicativo.
+
 ## Cupons de indicação personalizados
 
 1. Como administrador, abra **Cobrança, preços e cupons → Cupons e campanhas** e use **Gerar cupom de indicação**.
