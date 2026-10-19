@@ -90,7 +90,7 @@ Preencha também **Provedor e país da hospedagem**. O sistema não salva a conf
 
 Conta recém-cadastrada pode concluir a compra diretamente. Depois da confirmação, usa o plano imediatamente; Pix ainda pendente não libera recursos pagos. Aluno coberto pelo PRO pago e confirmado usa as fichas e os recursos incluídos disponibilizados pelo personal. Para outras áreas, precisa do Individual pago e confirmado. Não existe pedido de análise ou liberação manual. Uma suspensão administrativa excepcional continua visível até o suporte reativar a conta.
 
-Administrador: antes de ativar cobranças reais, abra **Cobrança, preços e cupons → Visão geral**, confira preços, venda dos planos, monetização e carência. Depois da configuração da VPS, confirme **Asaas (produção)** e acompanhe a cobrança controlada e o webhook. O procedimento completo e seguro está em `docs/sistema/21-asaas-ambientes.md`.
+Administrador: os planos Individual, Personal 15 e Personal Ilimitado estão disponíveis para contratação em produção. Para acompanhar uma assinatura, abra **Cobrança, preços e cupons → Visão geral** e confira provedor, situação das cobranças e eventos do webhook. O site está configurado para Asaas em produção e o webhook consta ativo; acompanhe a primeira confirmação real para validar a jornada completa. O procedimento operacional está em `docs/sistema/21-asaas-ambientes.md`.
 
 ## Cupons de indicação personalizados
 
@@ -103,7 +103,7 @@ Administrador: antes de ativar cobranças reais, abra **Cobrança, preços e cup
 
 Não existe período grátis automático nos planos. Benefícios antigos continuam até a data já gravada. A publicação do código e a aplicação da migration 062 no ambiente de uso exigem etapa separada.
 
-Enquanto o parecer de 18/10/2026 estiver vigente, distribua somente para um grupo pequeno por convite e mantenha o provedor em simulador/sandbox. Individual, Personal 15 e Personal Ilimitado permanecem indisponíveis para venda até a homologação. A ativação de cobrança real exige uma autorização e uma homologação separadas.
+Em 19/10/2026, a venda dos três planos foi aberta a pedido do responsável. A liberação do sistema continua condicionada à confirmação do pagamento pelo provedor; plano selecionado ou cobrança pendente não dão acesso. A primeira cobrança real ainda precisa ser acompanhada no Asaas e no painel **Cobrança, preços e cupons → Visão geral**.
 
 
 ### Marca ORNY e aplicativo instalado

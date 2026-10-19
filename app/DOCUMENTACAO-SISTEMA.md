@@ -1,6 +1,6 @@
 # ORNY — Documentação do sistema
 
-Fonte oficial de comportamento. Versão frontend: 1.7.4. Atualização: 19/10/2026.
+Fonte oficial de comportamento. Versão frontend: 1.7.4. Atualização: 19/10/2026 — venda dos três planos aberta na VPS; primeiro pagamento real ainda pendente de confirmação operacional.
 O inventário em `docs/INVENTARIO-FUNCIONAL.md` preserva o levantamento histórico e seus limites de validação; este documento consolida os fluxos atualizados.
 
 ## Bloqueio comercial — somente pagamento confirmado (19/10/2026)
@@ -176,6 +176,7 @@ Conferir que esperar na preparação não cria sessão; campos vazios/negativos 
 O início utiliza `startRemote`, que preserva a autorização existente e a continuidade offline. Nenhuma alteração de permissão ou banco nesta versão.
 
 ## Histórico
+- 19/10/2026 (operação, sem bump do frontend): planos Individual, Personal 15 e Personal Ilimitado abertos para venda na VPS; monetização ativada sem conceder transição gratuita. Primeira confirmação real Asaas ainda não observada.
 - 1.6.0 (19/10/2026): assinatura Individual direciona ao perfil e à recomendação; a ficha é calculada no servidor e ativada somente após confirmação do aluno.
 - 1.5.0 (18/10/2026): calendário de conteúdo oficial da Comunidade, doze publicações iniciais idempotentes, agendamento, selo institucional e engajamento exclusivamente real.
 - 1.4.0 (18/10/2026): catálogo oficial com 18 programas, seis objetivos em três níveis, progressão, arquivamento seguro do seed e acesso completo pelo Individual.
@@ -360,11 +361,17 @@ O build de produção do frontend passou e 291 testes unitários passaram. Os ar
 
 ### Preços oficiais e preparação da produção — 18/10/2026
 
-Os preços oficiais do beta são Individual por R$ 12,90/mês, Personal 15 por R$ 39,90/mês e Personal Ilimitado por R$ 79,90/mês. O Personal 15 permite até 15 alunos ativos; o Personal Ilimitado não impõe limite numérico. A migration 063 registra os dois planos profissionais com a venda fechada (`sellable=false`), para que aplicar o banco ou configurar o provedor não abra cobranças ao público antes da homologação.
+Os preços são Individual por R$ 12,90/mês, Personal 15 por R$ 39,90/mês e Personal Ilimitado por R$ 79,90/mês. O Personal 15 permite até 15 alunos ativos; o Personal Ilimitado não impõe limite numérico. A migration 063 registrou os planos profissionais com venda fechada; a abertura comercial posterior está registrada abaixo.
 
-O webhook de produção é `POST https://ornygym.avadesk.com.br/api/billing/webhook/asaas`, autenticado pelo cabeçalho `asaas-access-token`. API Key e token do webhook são segredos distintos e ficam somente no `.env` privado da VPS. Segredo exposto em chat, chamado, print ou log deve ser revogado e substituído antes do uso. Asaas em produção, plano vendável e monetização pública são três controles separados: a venda só é aberta depois de cobrança real controlada, confirmação do webhook, idempotência, conciliação e estorno.
+O webhook de produção é `POST https://ornygym.avadesk.com.br/api/billing/webhook/asaas`, autenticado pelo cabeçalho `asaas-access-token`. API Key e token do webhook são segredos distintos e ficam somente no `.env` privado da VPS. Segredo exposto em chat, chamado, print ou log deve ser revogado e substituído antes do uso. Asaas em produção, plano vendável e monetização pública são três controles separados. Embora a venda tenha sido aberta em 19/10/2026 a pedido do responsável, isso não equivale à homologação ponta a ponta do primeiro pagamento real.
 
 Estado operacional em 18/10/2026: backup `/opt/avagym-backups/20261018_164911_pre-asaas-production` criado e validado pelo catálogo do `pg_restore`. O banco de produção recebeu os preços anteriores mantendo os planos fora de venda. A migration 063 substitui a oferta profissional por Personal 15 e Personal Ilimitado, também com `sellable=false`. A resposta pública confirmou `purchasable=false` e o webhook sem token respondeu 401. O provedor continua `asaas` em `sandbox` e a monetização continua desligada. A troca para produção não foi feita porque a API Key e o token informados em chat precisam ser revogados e substituídos no painel Asaas; nenhum dos valores expostos foi reutilizado.
+
+### Planos disponíveis para contratação — 19/10/2026
+
+A pedido do responsável, os planos Individual (R$ 12,90/mês), Personal 15 (R$ 39,90/mês) e Personal Ilimitado (R$ 79,90/mês) foram abertos para venda na VPS; `monetizacao_ativa=true`. A consulta pública retornou os três como `purchasable=true`, `test_mode=false`; `/api/health` respondeu HTTP 200. Foi criado e validado o backup `/opt/avagym-backups/20261019_132934_pre-plan-sales/` antes da alteração. Os três planos e a política foram alterados em transação, com auditoria administrativa. Nenhuma migration foi aplicada, nenhuma conta/assinatura foi alterada e nenhuma transição grátis ou cortesia foi concedida.
+
+O Asaas de produção confirmou por consulta somente leitura um webhook para a URL ORNY, ativo, não interrompido, sequencial e com os eventos de cobrança requeridos. Porém, até a ativação não havia evento real Asaas no histórico (há somente um evento do simulador), e não foi feita cobrança real de teste. Portanto, a recepção e processamento real do primeiro pagamento ainda precisam ser acompanhados. A API só libera acesso autenticado do aluno/profissional com cobrança não simulada, paga e confirmada, dentro do período vigente; pagamento pendente, plano escolhido ou pagamento simulado não liberam. Não declarar a jornada de cobrança real homologada até observar a primeira confirmação e o acesso correspondente.
 
 Na troca do Personal Ilimitado para o Personal 15, alunos existentes não são removidos. Se houver mais de 15 ativos, a conta fica acima do limite e novos vínculos são bloqueados até liberar vagas ou retornar ao Ilimitado. No plano ilimitado, `effective_limit` e `available` são `null` na API e aparecem como **Ilimitado** na interface, nunca como zero. Cupons de período gratuito para profissionais continuam concedendo o Personal 15.
 
@@ -398,7 +405,7 @@ Validação desta entrega: build de produção aprovado; 289 testes unitários d
 
 A auditoria funcional, técnica, de segurança, monetização, operação e mercado está registrada em `docs/auditoria-saas/`. Ela avaliou principalmente o corte `1353db7` e as alterações locais de cobrança existentes no início do trabalho; durante a execução, o checkout avançou externamente até `ae28831`, com publicação de PIX documentada no commit `288793a` e provedor mantido em simulador. Os relatórios preservam essa separação e não tratam o avanço posterior como revalidação automática.
 
-Decisão da auditoria: manter somente beta controlado e adiar lançamento comercial amplo até provar o fluxo cadastro → contratação → confirmação → acesso sem liberação manual, validar provedor real e idempotência, estabilizar as fixtures E2E, concluir configuração legal e fechar os itens P1. A auditoria não alterou regra de negócio, funcionalidade, infraestrutura, dados de produção ou configuração de cobrança.
+Decisão registrada pela auditoria em 18/10: manter somente beta controlado até provar o fluxo cadastro → contratação → confirmação → acesso sem liberação manual, validar provedor real e idempotência, estabilizar as fixtures E2E, concluir configuração legal e fechar os itens P1. Em 19/10, o responsável solicitou abertura imediata dos planos e a oferta foi ativada na VPS; a auditoria original permanece como registro histórico, não como estado operacional atual. A primeira cobrança real confirmada continua pendente de observação.
 
 ### Correções posteriores à auditoria — candidato local (18/10/2026)
 

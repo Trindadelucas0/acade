@@ -91,6 +91,14 @@ Qualquer API Key ou token de webhook compartilhado em chat, chamado, print ou lo
 
 A publicação do código, sozinha, não ativa o Asaas. Sem a troca explícita do provedor, o sistema permanece no simulador.
 
+## Ativação comercial executada em 19/10/2026
+
+A pedido do responsável, a venda pública foi aberta na VPS sem executar o script de transição gratuita: Individual (R$ 12,90/mês), Personal 15 (R$ 39,90/mês) e Personal Ilimitado (R$ 79,90/mês) ficaram vendáveis e `monetizacao_ativa=true`. Não foram alteradas contas ou assinaturas, nem concedidos testes/cortesias. Backup PostgreSQL, `.env` protegido, configuração PM2 e commit foram preservados em `/opt/avagym-backups/20261019_132934_pre-plan-sales/`; o catálogo do dump foi validado (`TOC Entries: 1423`).
+
+Verificações: `/api/public/plans` retornou HTTP 200, `test_mode=false` e os três planos como `purchasable=true`; `/api/health` retornou HTTP 200. A API Asaas de produção confirmou, em consulta somente leitura, o webhook ORNY ativo, não interrompido, sequencial e com todos os eventos configurados. O banco ainda não tinha evento real Asaas recebido (somente um evento simulado), e não foi criada cobrança real de teste. Assim, vendas estão abertas, mas a primeira confirmação real e o desbloqueio subsequente ainda precisam ser observados antes de declarar a jornada ponta a ponta homologada.
+
+O middleware de acesso permanece fail-closed: somente cobrança real (`provider` diferente de `simulado`), paga e confirmada, com assinatura vigente, libera as áreas protegidas. Não confundir cadastro/plano escolhido, pagamento pendente ou simulação com pagamento confirmado.
+
 ## Voltar ao modo de teste
 
 1. Fazer backup do `.env` atual sem imprimir seu conteúdo.
