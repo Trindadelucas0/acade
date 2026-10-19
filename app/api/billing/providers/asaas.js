@@ -37,6 +37,10 @@ export function asaas({ env = process.env, fetchImpl = fetch } = {}) {
       const c = await call('POST', '/customers', { name: holder?.name || user.name, email: user.email, cpfCnpj: holder?.cpfCnpj, externalReference: user.id, notificationDisabled: true })
       return c.id
     },
+    async updateCustomer(customerId, holder) {
+      if (!holder?.cpfCnpj) return
+      await call('PUT', '/customers/' + encodeURIComponent(customerId), { cpfCnpj: holder.cpfCnpj })
+    },
     async tokenize({ customerId, card, holder, remoteIp }) {
       const [mm, yy] = [String(card.expMonth).padStart(2, '0'), String(card.expYear).length === 2 ? '20' + card.expYear : String(card.expYear)]
       try {

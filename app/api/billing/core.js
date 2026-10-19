@@ -90,6 +90,11 @@ const luhn = n => { let s = 0, alt = false; for (let i = n.length - 1; i >= 0; i
 export const validCpf = v => { const s = String(v || '').replace(/\D/g, ''); if (s.length !== 11 || /^(\d)\1+$/.test(s)) return false
   const dv = k => { let t = 0; for (let i = 0; i < k; i++) t += +s[i] * (k + 1 - i); const r = (t * 10) % 11; return r === 10 ? 0 : r }
   return dv(9) === +s[9] && dv(10) === +s[10] }
+export const validCnpj = v => { const s = String(v || '').replace(/\D/g, ''); if (s.length !== 14 || /^(\d)\1+$/.test(s)) return false
+  const digit = (base, weights) => { const sum = [...base].reduce((n, d, i) => n + +d * weights[i], 0); const r = sum % 11; return r < 2 ? 0 : 11 - r }
+  const d1 = digit(s.slice(0, 12), [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2])
+  const d2 = digit(s.slice(0, 12) + d1, [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2])
+  return d1 === +s[12] && d2 === +s[13] }
 export function validateCard(b, provider) {
   const n = String(b.number || '').replace(/\D/g, ''), mm = +b.exp_month, yy0 = +b.exp_year, yy = yy0 < 100 ? 2000 + yy0 : yy0
   const now = new Date(), name = String(b.holder_name || '').trim()
@@ -158,7 +163,7 @@ async function splitFor(sub, provider, tid) {
   return { pct, wallet: p.asaas_wallet_id, split: provider.name === 'asaas' && p.asaas_wallet_id ? [{ walletId: p.asaas_wallet_id, percentualValue: pct }] : null }
 }
 // cria a cobranca (idempotente pela chave) e chama o provedor; aplica o resultado
-export async function chargeNow({ sub, kind, amountCents, discountCents = 0, periodStart, periodEnd, meta = {}, key, ip, attemptIndex = 0, paymentType = sub.payment_type || 'card', pixExpiresAt }) {
+export async function chargeNow({ sub, kind, amountCents, discountCents = 0, periodStart, periodEnd, meta = {}, key, ip, attemptIndex = 0, paymentType = sub.payment_type || 'card', pixExpiresAt, customerDocument }) {
   const provider = getProvider()
   const pm = paymentType === 'card' ? await cardOf(meta.payment_method_id || sub.payment_method_id) : null
   const sp = await splitFor({ ...sub, partner_user_id: meta.partner_user_id ?? sub.partner_user_id }, provider, sub.tenant_id)
@@ -171,8 +176,16 @@ export async function chargeNow({ sub, kind, amountCents, discountCents = 0, per
   if (paymentType === 'pix') {
     const user = (await q('select id,name,email from users where id=$1', [sub.user_id])).rows[0]
     let cus = await customerId(provider, user)
-    if (!cus) { cus = await provider.ensureCustomer(user); await q('insert into billing_customers(user_id,provider,provider_customer_id) values($1,$2,$3) on conflict do nothing', [user.id, provider.name, cus]) }
-    result = await provider.createPix({ customerId: cus, amountCents, charge, split: sp.split, dueDate: isoDate(pixExpiresAt || periodStart || new Date()) })
+    const holder = customerDocument ? { cpfCnpj: String(customerDocument).replace(/\D/g, '') } : null
+    try {
+      if (!cus) { cus = await provider.ensureCustomer(user, holder); await q('insert into billing_customers(user_id,provider,provider_customer_id) values($1,$2,$3) on conflict do nothing', [user.id, provider.name, cus]) }
+      else if (holder && provider.updateCustomer) await provider.updateCustomer(cus, holder)
+      result = await provider.createPix({ customerId: cus, amountCents, charge, split: sp.split, dueDate: isoDate(pixExpiresAt || periodStart || new Date()) })
+    } catch (e) {
+      // Não deixa uma cobrança sem QR marcada como pendente; o cliente pode corrigir os dados e tentar de novo.
+      const failed = await applyChargeResult(charge.id, { status: 'recusada', failure: { code: e.code || 'PIX_CREATION_FAILED', message: 'Não foi possível gerar o Pix.' } }, 'sincrono')
+      return { charge: failed.charge, status: 'recusada', failure: { code: e.code || 'PIX_CREATION_FAILED' } }
+    }
   } else if (!pm || pm.removed_at) result = { status: 'recusada', failure: { code: 'no_card', message: 'Nenhum cartão válido cadastrado.' } }
   else if (pm.provider !== provider.name) result = { status: 'recusada', failure: { code: 'provider_changed', message: 'Cartão cadastrado em outro ambiente de pagamento. Cadastre o cartão novamente.' } }
   else {
@@ -332,6 +345,9 @@ export async function subscribe(user, b, ip) {
   const plan = (await q(`select p.*, (select v.id from plan_versions v where v.plan_id=p.id order by v.version desc limit 1) version_id from plans p where p.id=$1`, [String(b.plan_id || '')])).rows[0]
   if (!plan || !plan.active || !plan.sellable || plan.price_cents == null || plan.is_free) return { status: 404, error: 'Este plano não está disponível para contratação.', code: 'PLAN_UNAVAILABLE' }
   if (!user.roles.includes(plan.audience)) return { status: 403, error: plan.audience === 'profissional' ? 'Planos PRO são para contas profissionais.' : 'Este plano é para contas de aluno.', code: 'PERMISSION_DENIED' }
+  const customerDocument = String(b.customer_document || '').replace(/\D/g, '')
+  if (paymentType === 'pix' && provider.name === 'asaas' && !validCpf(customerDocument) && !validCnpj(customerDocument))
+    return { status: 400, error: 'Informe um CPF ou CNPJ válido para gerar o Pix.', code: 'CUSTOMER_DOCUMENT_REQUIRED' }
   const pm = paymentType === 'card' ? (await q('select * from payment_methods where id=$1 and user_id=$2 and removed_at is null', [b.card_id, user.id])).rows[0] : null
   if (paymentType === 'card' && !pm) return { status: 400, error: 'Escolha um cartão.', code: 'CARD_REQUIRED' }
   await ensureSubscription(user.id, plan.audience)
@@ -361,10 +377,11 @@ export async function subscribe(user, b, ip) {
   const now = new Date()
   const pixExpiresAt = paymentType === 'pix' ? addDays(now, 1) : null
   const r = await chargeNow({ sub: { ...sub, plan_name: plan.name }, kind: 'primeira', amountCents: amount, discountCents: plan.price_cents - amount, periodStart: now, periodEnd: addMonths(now, 1),
-    meta, key: `sub:${sub.id}:primeira:${b.idempotency_key ? String(b.idempotency_key).slice(0, 64) : now.getTime()}`, ip, paymentType, pixExpiresAt })
+    meta, key: `sub:${sub.id}:primeira:${b.idempotency_key ? String(b.idempotency_key).slice(0, 64) : now.getTime()}`, ip, paymentType, pixExpiresAt, customerDocument })
   await audit(user.tenant_id, user.id, 'cobranca.contratacao', 'subscription', sub.id, { plan: plan.id, status: r.status })
   if (r.status === 'paga') return { status: 200, result: 'ativa', charge_id: r.charge.id }
   if (r.status === 'pendente') return { status: 202, result: 'pendente', message: paymentType === 'pix' ? 'Pix gerado. O plano será liberado após a confirmação do pagamento.' : 'Pagamento em análise. Avisaremos assim que for confirmado.', pix: r.pix }
+  if (paymentType === 'pix' && r.status === 'recusada') return { status: 502, error: 'Não foi possível gerar o Pix. Confira o CPF/CNPJ e tente novamente.', code: 'PIX_CREATION_FAILED' }
   // BUG-031: reenvio com a mesma chave devolve o resultado real (recusada nao vira sucesso)
   if (r.duplicate) return r.charge.status === 'paga' ? { status: 200, result: 'ativa', charge_id: r.charge.id, duplicate: true } : r.charge.status === 'pendente' ? { status: 202, result: 'pendente', duplicate: true, pix: publicPix(r.charge) } : { status: 402, error: 'Pagamento recusado. Confira os dados do cartão ou use outro cartão.', code: 'CARD_DECLINED', duplicate: true }
   return { status: 402, error: 'Pagamento recusado. Confira os dados do cartão ou use outro cartão.', code: 'CARD_DECLINED' }

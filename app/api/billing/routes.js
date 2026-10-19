@@ -146,7 +146,9 @@ export function billingRoutes({ json, readBody }) {
       send(json, res, r)
     },
     'POST /api/billing/cards': async (req, res) => {
-      const u = await requireAuth(req, res, json); if (!u) return
+      // Conta pendente pode cadastrar o meio de pagamento para concluir a contratação.
+      // A permissão de uso continua dependendo da confirmação do pagamento no access.js.
+      const u = await auth(req, res); if (!u) return
       send(json, res, await core.addCard(u, await readBody(req), ipOf(req)))
     },
     'POST /api/billing/cards/remove': async (req, res) => {
@@ -160,7 +162,7 @@ export function billingRoutes({ json, readBody }) {
       await audit(u.tenant_id, u.id, 'cobranca.cartao_removido', 'payment_method', b.id)
       json(res, 200, { ok: true })
     },
-    'POST /api/billing/subscribe': async (req, res) => { const u = await requireAuth(req, res, json); if (!u) return; const b = await readBody(req); if (!CATALOG.includes(String(b.plan_id || ''))) return json(res, 404, { error: 'Este plano não está disponível para contratação.', code: 'PLAN_UNAVAILABLE' }); send(json, res, await core.subscribe(u, b, ipOf(req))) },
+    'POST /api/billing/subscribe': async (req, res) => { const u = await auth(req, res); if (!u) return; const b = await readBody(req); if (!CATALOG.includes(String(b.plan_id || ''))) return json(res, 404, { error: 'Este plano não está disponível para contratação.', code: 'PLAN_UNAVAILABLE' }); send(json, res, await core.subscribe(u, b, ipOf(req))) },
     'POST /api/billing/change-card': async (req, res) => { const u = await requireAuth(req, res, json); if (!u) return; send(json, res, await core.changeCard(u, await readBody(req), ipOf(req))) },
     'POST /api/billing/pay-now': async (req, res) => { const u = await requireAuth(req, res, json); if (!u) return; send(json, res, await core.payNow(u, await readBody(req), ipOf(req))) },
     'POST /api/billing/pix/regenerate': async (req, res) => {
