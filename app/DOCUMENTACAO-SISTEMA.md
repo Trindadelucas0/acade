@@ -1,6 +1,6 @@
 # ORNY — Documentação do sistema
 
-Fonte oficial de comportamento. Versão frontend/API: 1.7.7. Atualização: 19/10/2026 — checkout mobile com validação por campo e autoatendimento financeiro disponível para conta ainda não liberada.
+Fonte oficial de comportamento. Versão frontend/API: 1.7.9. Atualização: 19/10/2026 — checkout insere a barra da validade após o mês e explica quando a tokenização depende de habilitação da conta Asaas; landing mantém footer completo e responsivo.
 O inventário em `docs/INVENTARIO-FUNCIONAL.md` preserva o levantamento histórico e seus limites de validação; este documento consolida os fluxos atualizados.
 
 ## Bloqueio comercial — somente pagamento confirmado (19/10/2026)
@@ -20,7 +20,7 @@ Onde olhar no código: `api/access.js` (origem paga, allowlist e middleware glob
 
 O checkout aceita somente cartão de crédito. O cupom é opcional; se a validação retornar falta de permissão, ele não é aplicado e a pessoa pode contratar pelo valor integral. O erro de cupom não autoriza nem bloqueia o envio da cobrança. A contratação continua exigindo um plano compatível com o perfil da conta. A API recusa `payment_type=pix`, e as rotas antigas para regenerar ou confirmar Pix respondem HTTP 410; o backend Asaas não cria mais cobranças Pix. `GET /api/billing/me` não retorna QR Code nem copia e cola. Cobranças históricas continuam no histórico, e o webhook ainda reconhece eventos reais de cobranças Pix criadas anteriormente para manter o registro financeiro correto.
 
-O autoatendimento financeiro usa a autenticação que aceita conta pendente nas rotas de consulta, validação/resgate de cupom, cadastro/remoção/troca de cartão, contratação, pagamento de pendência, cancelamento e reativação. Isso não concede acesso ao produto: ownership do cartão e da assinatura continua validado pelo usuário autenticado, e as demais APIs permanecem sob o bloqueio comercial. No celular, o checkout abre em tela cheia, separa dados do cartão e do titular, aplica máscaras sem enviar pontuação ao Asaas, mostra erros junto ao campo e mantém o botão de pagamento alcançável. Toques repetidos durante o processamento são ignorados e a mesma tentativa conserva a chave de idempotência.
+O autoatendimento financeiro usa a autenticação que aceita conta pendente nas rotas de consulta, validação/resgate de cupom, cadastro/remoção/troca de cartão, contratação, pagamento de pendência, cancelamento e reativação. Isso não concede acesso ao produto: ownership do cartão e da assinatura continua validado pelo usuário autenticado, e as demais APIs permanecem sob o bloqueio comercial. No celular, o checkout abre em tela cheia, separa dados do cartão e do titular, aplica máscaras sem enviar pontuação ao Asaas, insere `/` assim que o mês é completado no campo **Validade (MM/AA)**, mostra erros junto ao campo e mantém o botão de pagamento alcançável. Toques repetidos durante o processamento são ignorados e a mesma tentativa conserva a chave de idempotência. Se a API do Asaas recusar a tokenização por falta de habilitação da conta em produção, a tela informa que a ORNY precisa solicitar a liberação ao gerente de contas do Asaas; o comprador não precisa alterar seus dados do cartão. Essa habilitação é uma configuração externa e não é realizada pelo checkout.
 
 Uma assinatura Pix antiga conserva o acesso até o fim do período já pago e não recebe novas cobranças Pix. O job avisa quando a renovação se aproxima. Em **Planos e pagamento → Adicionar cartão**, a migração cancela primeiro as cobranças Pix antigas ainda pendentes no Asaas e só então troca a assinatura para cartão; se o cancelamento remoto falhar, a migração é recusada e pode ser tentada novamente. A cobrança/renovação por cartão não libera acesso enquanto estiver pendente: `applyChargeResult` ativa o plano somente quando o webhook autenticado (`PAYMENT_CONFIRMED` ou `PAYMENT_RECEIVED`) confirmar o pagamento. Repetições são idempotentes.
 
@@ -29,9 +29,12 @@ Onde olhar no código: `api/billing/core.js` (validação do meio, migração de
 ### Como usar
 
 1. Em **Planos e pagamento**, escolha um plano e selecione ou cadastre o cartão; não há QR Code ou opção Pix.
-2. Confira os campos destacados. Se o cupom opcional não puder ser aplicado, continue pelo valor integral. Ao tocar em **Pagar**, aguarde o estado **Processando pagamento**; não é necessário tocar novamente.
+2. Digite a validade com mês e ano; após os dois números do mês, a barra `/` aparece automaticamente. Confira os campos destacados. Se o cupom opcional não puder ser aplicado, continue pelo valor integral. Ao tocar em **Pagar**, aguarde o estado **Processando pagamento**; não é necessário tocar novamente.
 3. Se o Asaas indicar análise, mantenha a tela aberta ou volte depois a **Planos e pagamento**. Só depois do webhook confirmado os recursos do plano aparecem.
 4. Se a assinatura ainda for Pix, adicione um cartão antes da renovação para manter o serviço. O período pago permanece até sua data final; cobranças Pix pendentes antigas são canceladas durante a troca.
+5. Se aparecer que a tokenização da conta Asaas ainda não está habilitada, a equipe responsável pela conta ORNY precisa solicitar a liberação ao gerente de contas do Asaas antes de tentar novamente.
+
+Onde olhar no código desta correção: máscara e tratamento das mensagens em `frontend/src/views/billing/checkout.js`; campos do checkout em `frontend/src/views/billing/Billing.jsx`; identificação da resposta Asaas em `api/billing/providers/asaas.js` e tratamento do cadastro do cartão em `api/billing/core.js`.
 
 ### Validação da versão 1.7.7
 
@@ -68,6 +71,15 @@ Onde olhar no código: valores padrão e versionamento em `api/legal.js`; substi
 ## Landing pública e instalação da ORNY — 1.7.2 (19/10/2026)
 
 A landing pública das rotas `/` e `/conheca` usa apresentação clara, com proposta principal, benefícios por perfil, funcionamento, catálogo real de planos, instalação opcional, dúvidas e chamada final. O seletor de perfil altera a mensagem, benefícios e planos exibidos para aluno ou profissional; os links continuam usando o cadastro existente.
+
+O footer da landing organiza a marca e o slogan **Seu progresso começa aqui**, atalhos das seções públicas, entrada/cadastro e documentos legais em grupos separados. No celular, os grupos são reorganizados sem unir os links, e o botão fixo de início continua fora da área útil do rodapé. O link **Criar conta** respeita o perfil selecionado na landing; nenhum canal social ou contato não configurado é exibido.
+
+### Como usar o footer
+
+1. Em `/` ou `/conheca`, desça até o final da página.
+2. Use **Conheça** para voltar diretamente a Benefícios, Como funciona, Planos, Instalação ou Dúvidas.
+3. Use **Acesso** para entrar ou criar uma conta conforme o perfil selecionado.
+4. Use **Legal** para abrir Termos de Uso, Privacidade ou Assinatura.
 
 ### Instalação no celular
 
@@ -212,6 +224,8 @@ Conferir que esperar na preparação não cria sessão; campos vazios/negativos 
 O início utiliza `startRemote`, que preserva a autorização existente e a continuidade offline. Nenhuma alteração de permissão ou banco nesta versão.
 
 ## Histórico
+- 1.7.9 (19/10/2026): validade insere `/` após o mês; erro de permissão de tokenização Asaas recebe mensagem operacional clara, com encaminhamento para habilitação da conta.
+- 1.7.8 (19/10/2026): footer completo e responsivo na landing pública, com marca, atalhos internos, acesso e documentos legais separados; sem alteração de cadastro, planos ou API.
 - 1.7.7 (19/10/2026): checkout mobile em tela cheia, validação por campo, mensagens por etapa e autenticação uniforme nas operações de autoatendimento financeiro; acesso continua dependente de pagamento real confirmado.
 - 19/10/2026 (operação, sem bump do frontend): planos Individual, Personal 15 e Personal Ilimitado abertos para venda na VPS; monetização ativada sem conceder transição gratuita. Primeira confirmação real Asaas ainda não observada.
 - 1.6.0 (19/10/2026): assinatura Individual direciona ao perfil e à recomendação; a ficha é calculada no servidor e ativada somente após confirmação do aluno.

@@ -41,3 +41,12 @@ test('cliente Asaas recebe apenas nome e e-mail para tokenizar o cartão', async
   assert.equal(calls.length, 1)
   assert.deepEqual(JSON.parse(calls[0].init.body), { name: 'Cliente', email: 'cliente@example.com', externalReference: 'user_1', notificationDisabled: true })
 })
+
+test('negação de tokenização em produção preserva uma causa acionável', async () => {
+  const fetchImpl = async () => ({ ok: false, status: 403, json: async () => ({ errors: [{ description: 'Você não possui permissão para utilizar este recurso. Entre em contato com seu gerente de contas.' }] }) })
+  const p = asaas({ env: { ASAAS_ENV: 'producao', ASAAS_API_KEY: '$aact_prod_example', ASAAS_WEBHOOK_TOKEN: token }, fetchImpl })
+  await assert.rejects(
+    p.tokenize({ customerId: 'cus_1', card: { number: '4242424242424242', holderName: 'Cliente', expMonth: '12', expYear: '30', cvv: '123' }, holder: { name: 'Cliente', email: 'cliente@example.com' }, remoteIp: '203.0.113.10' }),
+    error => error.code === 'TOKENIZATION_NOT_ENABLED' && /não está habilitada/.test(error.message)
+  )
+})

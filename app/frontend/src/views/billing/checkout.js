@@ -4,7 +4,7 @@ export const checkoutMask = {
   number: value => digits(value, 19).replace(/(.{4})/g, '$1 ').trim(),
   exp: value => {
     const valueDigits = digits(value, 4)
-    return valueDigits.length > 2 ? valueDigits.slice(0, 2) + '/' + valueDigits.slice(2) : valueDigits
+    return valueDigits.length >= 2 ? valueDigits.slice(0, 2) + '/' + valueDigits.slice(2) : valueDigits
   },
   cvv: value => digits(value, 4),
   cpf: value => digits(value, 11).replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2'),
@@ -53,6 +53,7 @@ export function cardPayload(form, requiresHolderInfo = false) {
 
 export function checkoutError(error, stage = 'payment') {
   const code = String(error?.code || '')
+  if (code === 'TOKENIZATION_NOT_ENABLED') return { stage: 'provider', message: 'O pagamento por cartão ainda aguarda habilitação na conta ORNY do Asaas. A equipe responsável precisa solicitar ao Asaas a liberação da tokenização.' }
   if (code === 'CARD_INVALID') return { stage: 'card', message: error.message || 'Não foi possível validar o cartão. Confira os dados informados.' }
   if (code === 'CARD_DECLINED') return { stage: 'payment', message: 'O cartão não foi aprovado. Confira os dados ou tente outro cartão.' }
   if (code === 'PLAN_UNAVAILABLE') return { stage: 'plan', message: 'Este plano não está disponível para contratação.' }

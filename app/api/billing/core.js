@@ -130,6 +130,7 @@ export async function addCard(user, b, ip) {
     } catch (e) { await c.query('rollback'); throw e } finally { c.release() }
   } catch (e) {
     if (e.code === 'CARD_INVALID') return { status: 400, error: e.message || 'Não foi possível validar o cartão.', code: 'CARD_INVALID' }
+    if (e.code === 'TOKENIZATION_NOT_ENABLED') return { status: 503, error: 'O pagamento por cartão ainda aguarda habilitação na conta ORNY do Asaas.', code: 'TOKENIZATION_NOT_ENABLED' }
     if (e.code === 'PROVIDER_UNAVAILABLE') return { status: 503, error: 'O serviço de pagamento está indisponível. Tente de novo em instantes.', code: 'PROVIDER_UNAVAILABLE' }
     throw e
   }

@@ -28,7 +28,12 @@ export function asaas({ env = process.env, fetchImpl = fetch } = {}) {
         headers: { access_token: cfg.key, 'Content-Type': 'application/json', 'User-Agent': 'AVAGYM/5.0' }, body: body ? JSON.stringify(body) : undefined })
     } catch (e) { const x = new Error('Asaas indisponivel'); x.code = 'PROVIDER_UNAVAILABLE'; x.inconclusive = true; throw x }
     const data = await r.json().catch(() => ({}))
-    if (!r.ok) { const er = data?.errors?.[0] || {}; const x = new Error(er.description || ('Asaas HTTP ' + r.status)); x.status = r.status; x.code = er.code || 'PROVIDER_ERROR'; x.inconclusive = r.status >= 500; throw x }
+    if (!r.ok) {
+      const er = data?.errors?.[0] || {}, description = er.description || ('Asaas HTTP ' + r.status)
+      const tokenizationDenied = path === '/creditCard/tokenizeCreditCard' && (r.status === 403 || /n[aã]o (?:possui|tem) permiss[aã]o|permission/i.test(description))
+      const x = new Error(tokenizationDenied ? 'A tokenização de cartão ainda não está habilitada nesta conta Asaas.' : description)
+      x.status = r.status; x.code = tokenizationDenied ? 'TOKENIZATION_NOT_ENABLED' : (er.code || 'PROVIDER_ERROR'); x.inconclusive = r.status >= 500; throw x
+    }
     return data
   }
   return {
@@ -44,7 +49,7 @@ export function asaas({ env = process.env, fetchImpl = fetch } = {}) {
           creditCard: { holderName: card.holderName, number: String(card.number).replace(/\D/g, ''), expiryMonth: mm, expiryYear: yy, ccv: card.cvv },
           creditCardHolderInfo: { name: holder.name, email: holder.email, cpfCnpj: holder.cpfCnpj, postalCode: holder.postalCode, addressNumber: holder.addressNumber, phone: holder.phone } })
         return { token: r.creditCardToken, brand: r.creditCardBrand, last4: r.creditCardNumber }
-      } catch (e) { if (!e.inconclusive) e.code = 'CARD_INVALID'; throw e }
+      } catch (e) { if (!e.inconclusive && e.code !== 'TOKENIZATION_NOT_ENABLED') e.code = 'CARD_INVALID'; throw e }
     },
     async charge({ token, customerId, amountCents, charge, split, remoteIp }) {
       try {

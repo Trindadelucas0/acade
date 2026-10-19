@@ -9,6 +9,7 @@ const valid = {
 describe('checkout de cartão', () => {
   it('aplica máscaras sem conservar caracteres não numéricos no payload', () => {
     expect(checkoutMask.number('4242x4242x4242x4242')).toBe('4242 4242 4242 4242')
+    expect(checkoutMask.exp('12')).toBe('12/')
     expect(checkoutMask.exp('1230')).toBe('12/30')
     expect(checkoutMask.cpf('52998224725')).toBe('529.982.247-25')
     expect(checkoutMask.postal_code('38612010')).toBe('38612-010')
@@ -31,6 +32,7 @@ describe('checkout de cartão', () => {
   it('traduz falhas por etapa sem expor detalhes internos', () => {
     expect(checkoutError({ code: 'CARD_DECLINED' })).toEqual({ stage: 'payment', message: 'O cartão não foi aprovado. Confira os dados ou tente outro cartão.' })
     expect(checkoutError({ code: 'PROVIDER_UNAVAILABLE' }).stage).toBe('provider')
+    expect(checkoutError({ code: 'TOKENIZATION_NOT_ENABLED' })).toEqual({ stage: 'provider', message: 'O pagamento por cartão ainda aguarda habilitação na conta ORNY do Asaas. A equipe responsável precisa solicitar ao Asaas a liberação da tokenização.' })
     expect(checkoutError({ code: 'PERMISSION_DENIED', message: 'Plano incompatível.' }).stage).toBe('plan')
   })
 })

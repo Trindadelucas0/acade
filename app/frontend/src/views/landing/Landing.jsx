@@ -112,7 +112,43 @@ export default function Landing() {
     ].map(([q,a]) => <details key={q} className="lp-card"><summary>{q}</summary><p>{a}</p></details>)}</div></div></section>
 
     <section className="lp:py-20"><div data-reveal className="lp-shell lp-card lp:overflow-hidden lp:p-8 lp:text-center md:lp:p-14"><span className="lp-kicker">Seu próximo passo</span><h2 className="lp:mx-auto lp:mt-4 lp:max-w-3xl lp:text-4xl lp:font-black lp:tracking-[-.04em] md:lp:text-5xl">Seu progresso pode começar agora.</h2><p className="lp-copy lp:mx-auto lp:mt-5 lp:max-w-xl">Escolha como você quer usar a ORNY e crie sua conta.</p><div className="lp:mt-8 lp:flex lp:flex-wrap lp:justify-center lp:gap-3"><a href={signupHref('aluno')} className="lp-btn lp-btn-primary">Quero treinar</a><a href={signupHref('profissional')} className="lp-btn lp-btn-ghost">Sou profissional</a></div></div></section>
-    <footer className="lp:border-t lp:border-white/10 lp:py-8"><div className="lp-shell lp:flex lp:flex-wrap lp:items-center lp:justify-between lp:gap-4 lp:text-sm lp:text-[#a4aca5]"><div className="lp:w-24"><Brand /></div><div className="lp:flex lp:flex-wrap lp:gap-4"><a href="#/legal/termos">Termos de Uso</a><a href="#/legal/privacidade">Privacidade</a><a href="#/legal/assinatura">Assinatura</a><a href="#/entrar">Entrar</a></div><span>© {new Date().getFullYear()} ORNY</span></div></footer>
+    <footer className="lp-footer" aria-label="Rodapé da ORNY">
+      <div className="lp-shell">
+        <div className="lp-footer-grid">
+          <div className="lp-footer-brand">
+            <a href="#top" className="lp-footer-logo" aria-label="Voltar ao início da landing ORNY"><Brand /></a>
+            <p>Seu progresso começa aqui.</p>
+          </div>
+
+          <nav className="lp-footer-group" aria-labelledby="lp-footer-conheca">
+            <h2 id="lp-footer-conheca">Conheça</h2>
+            <a href="#beneficios">Benefícios</a>
+            <a href="#como-funciona">Como funciona</a>
+            <a href="#planos">Planos</a>
+            <a href="#instalacao">Instalação</a>
+            <a href="#duvidas">Dúvidas</a>
+          </nav>
+
+          <nav className="lp-footer-group" aria-labelledby="lp-footer-acesso">
+            <h2 id="lp-footer-acesso">Acesso</h2>
+            <a href="#/entrar">Entrar</a>
+            <a href={signupHref(audience)}>Criar conta</a>
+          </nav>
+
+          <nav className="lp-footer-group" aria-labelledby="lp-footer-legal">
+            <h2 id="lp-footer-legal">Legal</h2>
+            <a href="#/legal/termos">Termos de Uso</a>
+            <a href="#/legal/privacidade">Privacidade</a>
+            <a href="#/legal/assinatura">Assinatura</a>
+          </nav>
+        </div>
+
+        <div className="lp-footer-bottom">
+          <span>© {new Date().getFullYear()} ORNY</span>
+          <span>Todos os direitos reservados.</span>
+        </div>
+      </div>
+    </footer>
     <div className="lp-mobile-cta"><a href={signupHref(audience)} className="lp-btn lp-btn-primary">{audience === 'aluno' ? 'Começar a treinar' : 'Começar como profissional'}</a></div>
   </main>
 }
