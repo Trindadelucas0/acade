@@ -1,7 +1,20 @@
 # ORNY — Documentação do sistema
 
-Fonte oficial de comportamento. Versão frontend: 1.7.1. Atualização: 19/10/2026.
+Fonte oficial de comportamento. Versão frontend: 1.7.4. Atualização: 19/10/2026.
 O inventário em `docs/INVENTARIO-FUNCIONAL.md` preserva o levantamento histórico e seus limites de validação; este documento consolida os fluxos atualizados.
+
+## Cadastro e aceite legal — correção 1.7.4 (19/10/2026)
+
+No cadastro de aluno, o código de personal fica fechado por padrão e só é enviado ao servidor depois de a pessoa escolher **Tenho código do meu personal**. Nome, e-mail ou outro preenchimento automático do navegador não podem mais ser interpretados como código nem impedir quem escolheu um plano, cupom ou **Decidir depois**. A confirmação mostra o vínculo somente quando essa opção foi aberta e recebeu um código.
+
+O aceite de documentos continua bloqueado quando faltam dados jurídicos obrigatórios da empresa. A tela agora identifica junto ao botão quais campos precisam ser concluídos em **Sistema → Dados da empresa**, em vez de parecer que **Continuar** não responde. O servidor permanece como autoridade e não aceita documentos incompletos.
+
+Onde olhar no código: cadastro em `frontend/src/views/Login.jsx`, contrato de cadastro em `frontend/src/lib/api.js` e aceite em `frontend/src/views/app/Legal.jsx`/`api/legal.js`.
+
+### Como usar
+
+1. No cadastro, só abra **Tenho código do meu personal** se recebeu um código do profissional; caso contrário, prossiga normalmente e selecione o plano, cupom ou **Decidir depois**.
+2. Se o aceite mostrar **Aguardando dados da empresa**, o administrador deve abrir **Sistema → Dados da empresa**, preencher os campos indicados e salvar. Depois, a pessoa recarrega a tela, marca os aceites obrigatórios e toca em **Continuar**.
 
 ## Landing pública e instalação da ORNY — 1.7.2 (19/10/2026)
 

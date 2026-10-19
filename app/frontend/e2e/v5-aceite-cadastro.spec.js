@@ -39,12 +39,15 @@ test('raiz abre o Login; cadastro em etapas com aceite entra direto, sem gate de
   await expect(page.getByText('É preciso ter 18 anos ou mais para criar a conta')).toBeVisible()
   await page.getByTestId('birth-date').fill('1990-01-01'); await page.getByTestId('accept-health').check()
   await fillContact(page)
+  // O navegador nao pode preencher nome/e-mail no campo de codigo e bloquear quem quer assinar ou decidir depois.
+  await expect(page.getByTestId('pro-code')).toHaveCount(0)
   await page.getByTestId('signup-next').click()
   // etapa 3: assinatura -> decidir depois; etapa 4: explica; etapa 5: confirmar com aceite
   await expect(page.getByTestId('signup-plans')).toBeVisible()
   await page.getByTestId('signup-choice-depois').click(); await page.getByTestId('signup-next').click()
   await expect(page.getByTestId('signup-later')).toBeVisible(); await page.getByTestId('signup-next').click()
   await expect(page.getByTestId('signup-summary')).toContainText(email)
+  await expect(page.getByTestId('signup-summary')).not.toContainText('código do personal')
   await expect(page.locator('a[href="#/legal/termos"]')).toBeVisible()
   await page.locator('form button[type=submit]').click()
   await expect(page.getByText('Aceite os Termos de Uso')).toBeVisible()

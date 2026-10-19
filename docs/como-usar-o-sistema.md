@@ -2,6 +2,11 @@
 
 Fonte oficial: [documentação do sistema](../app/DOCUMENTACAO-SISTEMA.md). Este guia descreve o uso, sem substituir as regras da fonte oficial.
 
+## Criar conta e concluir os documentos
+
+1. No cadastro de aluno, use **Tenho código do meu personal** apenas se o profissional enviou um código. Sem código, escolha um plano, cupom ou **Decidir depois** e continue; o cadastro não tenta criar vínculo com personal.
+2. Na tela de documentos, marque os aceites obrigatórios e toque em **Continuar**. Se aparecer **Aguardando dados da empresa**, o administrador deve completar os campos informados em **Sistema → Dados da empresa** e salvar; depois, recarregue a tela para continuar.
+
 ## Aluno: Início, programas e evolução
 
 1. Em Início, confira Minha semana logo abaixo da data e do seu nome. O cartão acompanha a rolagem; o botão Começar treino ou Continuar treino fica abaixo do treino ativo.

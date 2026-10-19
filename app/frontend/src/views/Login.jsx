@@ -11,7 +11,6 @@ import { useState, useEffect } from 'react'
 import { useTerms, TermsText } from './app/Terms.jsx'
 import { readRef, saveRef } from './billing/Referral.jsx'   // Monetizacao F5
 import { PlanCard, SELLABLE } from './billing/PlansShowcase.jsx'
-import InstallButton from '../components/InstallButton.jsx'
 import './login.css'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
@@ -88,6 +87,7 @@ function LoginForm() {
   const [mode, setMode] = useState(() => location.hash.startsWith('#/cadastro') || /[?&]cadastro=1/.test(location.hash) ? 'register' : 'login')       // 'login' | 'register'
   const [intent, setIntent] = useState(requestedProfile)   // V3: 'Quero treinar' | 'Sou profissional'
   const [f, setF] = useState({ name: '', email: '', password: '', confirm: '', pro_code: '', birth_date: '' })
+  const [useProCode, setUseProCode] = useState(false)
   const [errs, setErrs] = useState({})
   const [ct, setCt] = useState(EMPTY_CONTACT)   // V5: telefone + endereco no cadastro
   const [showPw, setShowPw] = useState(false)
@@ -143,7 +143,8 @@ function LoginForm() {
     if (busy || !validate()) return
     setBusy(true); setMsg('')
     try {
-      const result = reg ? await authRegister(f.name.trim(), f.email.trim(), f.password, terms && agree ? terms.version : undefined, intent, intent === 'aluno' ? f.pro_code.trim() : '', { accept: agree, birth_date: f.birth_date, health, contact: toApi(ct), coupon: choice === 'cupom' ? coupon.trim() : '' }) : null
+      const proCode = intent === 'aluno' && useProCode ? f.pro_code.trim() : ''
+      const result = reg ? await authRegister(f.name.trim(), f.email.trim(), f.password, terms && agree ? terms.version : undefined, intent, proCode, { accept: agree, birth_date: f.birth_date, health, contact: toApi(ct), coupon: choice === 'cupom' ? coupon.trim() : '' }) : null
       const u = reg ? result.user : await authLogin(f.email.trim(), f.password)
       const cr = result?.coupon_result
       const trial = cr ? (cr.status < 300 ? { ok: true, ...cr } : { ok: false, t: cr.error, code: cr.code }) : null
@@ -223,7 +224,13 @@ function LoginForm() {
         </>}
         {reg && (step === 1 || step === 4) && ref && <p className="lg-sub" data-testid="ref-banner">Você chegou pelo convite de <b>{ref.name || 'um amigo'}</b>. {ref.offer?.active ? `A oferta libera ${ref.offer.trial_days} dias de ${ref.offer.audience === 'profissional' ? 'PRO' : 'Individual'}.` : 'O limite ou a validade desta oferta terminou; seu cadastro pode continuar normalmente.'}</p>}
         {reg && step === 1 && ref?.offer?.active && <label className="lg-field"><span>Cupom do convite</span><div className="lg-input"><input value={coupon} readOnly maxLength={32} autoComplete="off" data-testid="signup-coupon" /></div><small className="lg-hint">Aplicado automaticamente ao concluir o cadastro, sem cobrança automática.</small></label>}
-        {reg && step === 2 && intent === 'aluno' && <>{field('pro_code', 'Código do seu personal (opcional)', 'text', 'off', { maxLength: 16, autoCapitalize: 'characters', placeholder: 'Ex.: M6ESAW9W' })}<p className="lg-sub" style={{ marginTop: -4 }} data-testid="pro-code-note">Tem um personal? Com o código dele, sua conta já entra vinculada e coberta pelo plano dele, sem mensalidade.</p></>}
+        {reg && step === 2 && intent === 'aluno' && <>
+          <button type="button" className={'lg-intent-op' + (useProCode ? ' on' : '')} aria-pressed={useProCode} data-testid="pro-code-toggle"
+            onClick={() => { setUseProCode(v => { if (v) setF(x => ({ ...x, pro_code: '' })); return !v }); setErrs(x => ({ ...x, pro_code: undefined })); setMsg('') }}>
+            <b>Tenho código do meu personal</b><small>Use somente se o seu personal enviou um código para vincular sua conta.</small>
+          </button>
+          {useProCode && <>{field('pro_code', 'Código do seu personal', 'text', 'one-time-code', { maxLength: 16, autoCapitalize: 'characters', placeholder: 'Ex.: M6ESAW9W', 'data-testid': 'pro-code' })}<p className="lg-sub" style={{ marginTop: -4 }} data-testid="pro-code-note">Com o código, sua conta entra vinculada e coberta pelo plano dele, sem mensalidade.</p></>}
+        </>}
         {reg && step === 2 && field('birth_date', 'Data de nascimento', 'date', 'bday', { max: maxBirth, min: '1900-01-01', 'aria-required': true, 'data-testid': 'birth-date' })}
         {reg && step === 2 && <fieldset className="lg-contact" data-testid="signup-contact"><legend className="lg-sub">Contato e endereço <small>(privados; você escolhe o que mostrar no perfil)</small></legend>
           <ContactFields value={ct} onChange={v => { setCt(v); setErrs({}) }} errors={errs} cls="lg-in" fieldCls="lg-field" /></fieldset>}
@@ -241,7 +248,7 @@ function LoginForm() {
         {reg && step === 4 && choice === 'depois' && <p className="lg-sub" data-testid="signup-later">Sem problema. Depois de criar a conta, você escolhe o plano ou ativa um cupom em Perfil › Planos e pagamento.</p>}
         {reg && step === 4 && choice && !['cupom', 'depois'].includes(choice) && <p className="lg-sub" data-testid="signup-pay-note">Depois de criar a conta, abrimos <b>Planos e pagamento</b> com o plano escolhido para você informar o cartão com segurança. Nada é cobrado antes da sua confirmação.</p>}
         {reg && step === 5 && <div className="lg-sub" data-testid="signup-summary" style={{ textAlign: 'left' }}>
-          <p><b>{f.name}</b> · {f.email}<br />{intent === 'profissional' ? 'Profissional' : 'Aluno'}{intent === 'aluno' && f.pro_code ? ' · código do personal ' + f.pro_code : ''}</p>
+          <p><b>{f.name}</b> · {f.email}<br />{intent === 'profissional' ? 'Profissional' : 'Aluno'}{intent === 'aluno' && useProCode && f.pro_code.trim() ? ' · código do personal ' + f.pro_code.trim() : ''}</p>
           <p>{choice === 'cupom' ? `Cupom ${coupon}: benefício conforme a oferta` : choice === 'depois' ? 'Plano: decidir depois' : `Plano: ${plans?.plans?.find(p => p.id === choice)?.name || choice} (pagamento na próxima tela)`}</p>
         </div>}
             {reg && step === 5 && <div className={'lg-terms' + (errs.terms ? ' err' : '')}>
@@ -262,7 +269,6 @@ function LoginForm() {
         <button type="button" className="lg-btn ghost" onClick={() => { setMode(reg ? 'login' : 'register'); setStep(1); setErrs({}); setMsg('') }}>
           {reg ? 'Já tenho conta — Entrar' : 'Criar conta'}</button>
         <a className="lg-forgot" href="#/precos" data-testid="see-plans" style={{ display: 'block', textAlign: 'center', marginTop: 12 }}>Conhecer os planos e preços</a>
-        <InstallButton />
       </form>
     </div>
   )

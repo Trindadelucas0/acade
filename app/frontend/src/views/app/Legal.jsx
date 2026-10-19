@@ -94,7 +94,8 @@ export function LegalGate({ onAccepted }) {
   const [ok1, setOk1] = useState(false), [ok2, setOk2] = useState(false), [health, setHealth] = useState(false), [busy, setBusy] = useState(false), [msg, setMsg] = useState(''), [open, setOpen] = useState('termos_uso')
   const req = d.me?.legal_required || ['termos_uso', 'privacidade'], isPro = req.includes('profissional')
   const reaccept = d.me && d.me.legal_missing && d.me.legal_missing.length < req.length
-  const can = ok1 && (!isPro || ok2) && d.me && d.legalConfig?.ready !== false && !busy
+  const legalMissing = d.legalConfig?.ready === false ? d.legalConfig.missing || [] : []
+  const can = ok1 && (!isPro || ok2) && d.me && legalMissing.length === 0 && !busy
   const accept = async () => {
     setBusy(true); setMsg('')
     try { await api('/api/legal/accept', { method: 'POST', body: JSON.stringify({ version: d.me.legal_version, documents: req, health_consent: health }) }); onAccepted() }
@@ -103,7 +104,7 @@ export function LegalGate({ onAccepted }) {
   return <div className="ag g-page" data-testid="terms-gate">
     <h1 className="g-h1">{reaccept ? 'Documentos atualizados' : 'Termos e privacidade'}</h1>
     <p className="g-mut">Para continuar, leia e aceite os documentos abaixo{d.me ? ` (versão ${d.me.legal_version})` : ''}.</p>
-    {d.legalConfig?.ready === false && <p className="g-bad2" data-testid="legal-config-incomplete">Os documentos ainda não foram publicados porque a identificação legal da ORNY está incompleta. A administração precisa concluir Sistema → Dados da empresa.</p>}
+    {legalMissing.length > 0 && <p className="g-bad2" data-testid="legal-config-incomplete">Não é possível continuar ainda. A administração precisa preencher em Sistema → Dados da empresa: <b>{legalMissing.map(k => ({ url_cancelamento: 'Canal/URL de cancelamento', hosting_provider_country: 'Provedor e país da hospedagem' })[k] || k).join(' e ')}</b>.</p>}
     {req.map(k => <div key={k} className="g-card" style={{ marginTop: 8 }}>
       <button className="g-btn ghost g-block" onClick={() => setOpen(open === k ? '' : k)} aria-expanded={open === k}>{open === k ? '▾' : '▸'} {DOCS[k].title}</button>
       {open === k && <div style={{ maxHeight: '45vh', overflow: 'auto' }}><LegalDoc text={DOCS[k].text} map={map} /></div>}
@@ -114,7 +115,7 @@ export function LegalGate({ onAccepted }) {
       <label style={{ display: 'flex', gap: 8 }}><input type="checkbox" checked={health} onChange={e => setHealth(e.target.checked)} data-testid="legal-health" /><span>Autorizo o tratamento dos meus dados de saúde (relatos de dor, avaliação física, IMC e fotos de evolução), inclusive o compartilhamento com o profissional vinculado. <i>(opcional — pode ser revogado em Documentos legais)</i></span></label>
     </div>
     {msg && <p className="g-bad2">{msg}</p>}
-    <button className="g-btn g-block" disabled={!can} onClick={accept} style={{ marginTop: 14 }} data-testid="legal-continue">Continuar</button>
+    <button className="g-btn g-block" disabled={!can} onClick={accept} style={{ marginTop: 14 }} data-testid="legal-continue">{legalMissing.length ? 'Aguardando dados da empresa' : 'Continuar'}</button>
   </div>
 }
 
