@@ -1,33 +1,826 @@
-.orny-landing{--lp-green:#1f9d38;--lp-dark:#12301b;--lp-ink:#172019;--lp-muted:#5d6b60;--lp-line:#dce8df;min-height:100vh;color:var(--lp-ink);background:#f8fbf8;font-family:InterVariable,Inter,sans-serif;overflow-x:clip}.orny-landing *,.orny-landing *:before,.orny-landing *:after{box-sizing:border-box}.orny-landing h1,.orny-landing h2,.orny-landing h3{font-family:MontserratVariable,Montserrat,sans-serif;color:var(--lp-dark)}.lp-shell{width:min(1120px,calc(100% - 40px));margin-inline:auto}.lp-header{position:sticky;top:0;z-index:50;background:rgba(248,251,248,.92);border-bottom:1px solid var(--lp-line);backdrop-filter:blur(16px)}.lp-header-inner{min-height:76px;display:flex;align-items:center;justify-content:space-between;gap:24px}.lp-brand{width:118px;display:block}.lp-nav{display:flex;align-items:center;gap:28px;font-size:14px;font-weight:700}.lp-nav a{color:var(--lp-muted);text-decoration:none}.lp-nav a:hover{color:var(--lp-green)}.lp-btn{min-height:48px;display:inline-flex;align-items:center;justify-content:center;gap:9px;border-radius:12px;padding:0 20px;font-weight:800;text-decoration:none;transition:transform .16s,background .16s,border-color .16s}.lp-btn:active{transform:scale(.98)}.lp-btn:focus-visible,.orny-landing a:focus-visible,.orny-landing button:focus-visible{outline:3px solid rgba(31,157,56,.35);outline-offset:3px}.lp-btn-primary{color:#fff;background:var(--lp-green);box-shadow:0 9px 22px rgba(31,157,56,.18)}.lp-btn-primary:hover{background:#187d2d}.lp-btn-secondary{color:var(--lp-dark);border:1px solid #b9cdbd;background:#fff}.lp-btn-secondary:hover{border-color:var(--lp-green);color:var(--lp-green)}.lp-eyebrow{color:var(--lp-green);text-transform:uppercase;letter-spacing:.14em;font-size:11px;font-weight:850}.lp-copy{color:var(--lp-muted);line-height:1.7}.lp-section{padding:104px 0;border-top:1px solid var(--lp-line)}.lp-hero{background:linear-gradient(115deg,#eef8ef 0%,#f8fbf8 60%,#e8f3e9 100%)}.lp-hero-grid{min-height:660px;display:grid;grid-template-columns:1fr .92fr;align-items:center;gap:56px}.lp-hero-copy{max-width:590px;padding:72px 0}.lp-hero h1{margin:18px 0 0;font-size:clamp(42px,6vw,76px);line-height:.99;letter-spacing:-.06em}.lp-hero h1 em{color:var(--lp-green);font-style:normal}.lp-lead{max-width:520px;margin:26px 0 0;color:var(--lp-muted);font-size:19px;line-height:1.55}.lp-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:30px}.lp-trust{display:flex;flex-wrap:wrap;gap:14px 22px;margin-top:24px;color:#657568;font-size:13px}.lp-hero-image{height:470px;overflow:hidden;border-radius:34px;box-shadow:0 22px 50px rgba(25,69,35,.17)}.lp-hero-image img,.lp-audience-image img,.lp-phone img{width:100%;height:100%;display:block;object-fit:cover}.lp-section-heading{max-width:700px;margin:0 auto;text-align:center}.lp-section-heading h2{margin:14px 0 10px;font-size:clamp(30px,4vw,48px);line-height:1.06;letter-spacing:-.045em}.lp-section-heading .lp-copy{margin:0 auto;max-width:620px}.lp-audience-switch{width:max-content;max-width:100%;display:flex;gap:4px;margin:30px auto 0;padding:4px;border:1px solid var(--lp-line);border-radius:14px;background:#fff}.lp-audience-switch button{min-height:42px;border:0;border-radius:10px;padding:0 18px;color:var(--lp-muted);background:transparent;font-weight:800;cursor:pointer}.lp-audience-switch button.active{color:#fff;background:var(--lp-dark)}.lp-audience-panel{display:grid;grid-template-columns:1fr 1fr;margin-top:32px;overflow:hidden;border:1px solid var(--lp-line);border-radius:28px;background:#fff;box-shadow:0 18px 40px rgba(23,64,31,.07)}.lp-audience-copy{padding:56px}.lp-audience-copy h3{margin:14px 0;font-size:clamp(28px,4vw,44px);line-height:1.05;letter-spacing:-.04em}.lp-benefits,.lp-feature-list{display:grid;gap:12px;padding:0;list-style:none}.lp-benefits{margin:26px 0 30px}.lp-benefits li,.lp-feature-list li{display:flex;gap:10px;align-items:flex-start;font-size:14px}.lp-benefits span,.lp-feature-list span{color:var(--lp-green);font-weight:900}.lp-audience-image{min-height:390px}.lp-how{display:grid;grid-template-columns:.7fr 1.3fr;align-items:center;gap:72px}.lp-phone{width:min(100%,340px);height:500px;margin:auto;overflow:hidden;border-radius:30px;box-shadow:0 20px 45px rgba(17,54,25,.14)}.lp-how h2{margin:14px 0 28px;font-size:clamp(30px,4vw,48px);line-height:1.06;letter-spacing:-.045em}.lp-steps{display:grid;gap:14px}.lp-step{display:flex;gap:18px;padding:20px;border:1px solid var(--lp-line);border-radius:16px;background:#fff}.lp-step>b{color:var(--lp-green);font-size:22px}.lp-step h3{margin:0 0 4px;font-size:17px}.lp-step p{margin:0;font-size:14px}.lp-plans,.lp-install-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin:34px auto 0}.lp-plans{max-width:850px}.lp-plan{display:flex;flex-direction:column;padding:30px;border:1px solid var(--lp-line);border-radius:22px;background:#fff}.lp-plan-featured{border:2px solid var(--lp-green)}.lp-plan-top{display:flex;align-items:center;justify-content:space-between;gap:12px}.lp-plan-badge{padding:6px 9px;border-radius:999px;color:#176b28;background:#e6f5e8;font-size:10px;font-weight:850;text-transform:uppercase}.lp-plan h3{margin:14px 0 0;font-size:24px}.lp-price{margin:16px 0 0;color:var(--lp-green);font-size:34px;font-weight:900;letter-spacing:-.04em}.lp-price small{color:var(--lp-muted);font-size:13px;font-weight:600}.lp-plan .lp-copy{min-height:48px;margin:12px 0 0;font-size:14px}.lp-feature-list{margin:24px 0 28px}.lp-plan .lp-btn{width:100%;margin-top:auto}.lp-status,.lp-install-note{max-width:800px;margin:24px auto 0;padding:14px 16px;border:1px solid #cfe5d2;border-radius:12px;color:#31643b;background:#eff9f0;text-align:center;font-size:13px}.lp-plan-context{margin:28px auto 0;color:var(--lp-muted);text-align:center;font-size:14px}.lp-loading,.lp-empty,.lp-error{margin:36px auto 0;color:var(--lp-muted);text-align:center}.lp-error{color:#a83939}.lp-install{background:#f0f7f1}.lp-install-card{padding:30px;border:1px solid var(--lp-line);border-radius:22px;background:#fff}.lp-install-icon{width:48px;height:48px;display:grid;place-items:center;margin-bottom:22px;border-radius:14px;color:#fff;background:var(--lp-dark);font-size:25px;font-weight:900}.lp-install-card h3{margin:10px 0 8px;font-size:24px}.lp-install-card p{margin:0;font-size:14px}.lp-install-card ol{display:grid;gap:14px;margin:24px 0 0;padding:0;list-style:none}.lp-install-card li{display:flex;gap:12px;color:#405145;font-size:14px;line-height:1.5}.lp-install-card li b{flex:0 0 26px;height:26px;display:grid;place-items:center;border-radius:50%;color:#fff;background:var(--lp-green);font-size:12px}.lp-install-note{margin-top:22px}.lp-faq{display:grid;gap:10px;max-width:760px;margin:32px auto 0}.lp-faq details{border:1px solid var(--lp-line);border-radius:14px;background:#fff}.lp-faq summary{cursor:pointer;padding:19px 48px 19px 20px;position:relative;font-weight:800;list-style:none}.lp-faq summary::-webkit-details-marker{display:none}.lp-faq summary:after{content:'+';position:absolute;right:20px;color:var(--lp-green);font-size:22px}.lp-faq details[open] summary:after{content:'−'}.lp-faq details p{margin:0;padding:0 20px 20px;color:var(--lp-muted);line-height:1.65}.lp-final{padding:88px 0}.lp-final-box{padding:54px;border-radius:28px;color:#fff;background:var(--lp-dark);text-align:center}.lp-final-box h2{margin:14px auto 10px;max-width:700px;color:#fff;font-size:clamp(30px,4vw,48px);letter-spacing:-.045em}.lp-final-box p{max-width:580px;margin:0 auto;color:#c9d9cc}.lp-final-box .lp-actions{justify-content:center}.lp-footer{padding:28px 0;border-top:1px solid var(--lp-line)}.lp-footer-inner{display:flex;align-items:center;justify-content:space-between;gap:18px;color:var(--lp-muted);font-size:13px}.lp-footer-links{display:flex;flex-wrap:wrap;gap:16px}.lp-footer a{color:inherit;text-decoration:none}.lp-mobile-cta{display:none}@media (max-width:760px){.lp-shell{width:min(100% - 28px,1120px)}.lp-nav{display:none}.lp-header-login{min-height:42px;padding:0 14px;font-size:13px}.lp-hero-grid,.lp-audience-panel,.lp-how{grid-template-columns:1fr;gap:0}.lp-hero-grid{min-height:auto}.lp-hero-copy{padding:62px 0 34px}.lp-hero-image{height:300px;border-radius:22px;margin-bottom:28px}.lp-section{padding:70px 0}.lp-audience-copy{padding:32px 24px}.lp-audience-image{min-height:260px}.lp-phone{height:400px;margin-bottom:40px}.lp-plans,.lp-install-grid{grid-template-columns:1fr}.lp-plan{padding:24px}.lp-final{padding:64px 0}.lp-final-box{padding:36px 22px}.lp-footer-inner{align-items:flex-start;flex-direction:column}.lp-mobile-cta{display:flex;position:fixed;z-index:80;left:12px;right:12px;bottom:max(12px,env(safe-area-inset-bottom));padding:0}.lp-mobile-cta .lp-btn{width:100%}.orny-landing{padding-bottom:76px}}@media (max-width:360px){.lp-hero h1{font-size:40px}.lp-actions,.lp-actions .lp-btn{width:100%}.lp-trust{display:grid}.lp-audience-switch{width:100%}.lp-audience-switch button{flex:1;padding:0 8px;font-size:12px}}@media (prefers-reduced-motion:reduce){.orny-landing *{scroll-behavior:auto!important;animation:none!important;transition-duration:.01ms!important}}
+/* Landing pública da ORNY — preto + verde neon, no mesmo visual dos criativos do Meta.
+ *
+ * O escopo vai no <html data-lp>, e não só em .orny-landing, porque três coisas vivem fora
+ * do componente: o fundo de html/body (index.css usa var(--bg), que fica claro quando o
+ * visitante está no tema claro), a cor do overscroll e os overrides de [data-theme="light"]
+ * em views/billing/plans.css, que a grade de planos usa.
+ */
 
+html[data-lp],
+html[data-lp] body {
+  background: #000;
+  color: #fff;
+}
+
+.orny-landing {
+  /* tokens da landing */
+  --lp-green: #20f51b;
+  --lp-green-dim: #19cb16;
+  --lp-ink: #fff;
+  --lp-mut: #b4b9b4;
+  --lp-line: #ffffff1a;
+  --lp-line-2: #ffffff2e;
+  --lp-bg: #000;
+  --lp-card: #0d0d0d;
+  --lp-card-2: #141414;
+
+  /* tokens que plans.css lê — repostos para a grade de planos ficar escura e verde aqui */
+  --acc: #20f51b;
+  --acc-2: #19cb16;
+  --on-acc: #000;
+  --bg: #000;
+  --bg-2: #141414;
+  --surface: #0d0d0d;
+  --label: #fff;
+  --label-2: #b4b9b4;
+  --sep: #ffffff1f;
+  --fill: #ffffff0f;
+
+  position: relative;
+  min-height: 100svh;
+  color: var(--lp-ink);
+  background: var(--lp-bg);
+  font-family: var(--font-body, 'Inter Variable', Inter, system-ui, sans-serif);
+  overflow-x: clip;
+}
+
+.orny-landing h1,
+.orny-landing h2,
+.orny-landing h3 {
+  margin: 0;
+  color: #fff;
+  font-family: var(--font-head, 'Montserrat Variable', Montserrat, system-ui, sans-serif);
+}
+
+/* o logo vem com uma pílula preta de orny.css; aqui o fundo já é preto */
+.orny-landing .orny-brand {
+  padding: 0;
+  background: transparent;
+}
+
+.lp-shell {
+  width: min(1180px, calc(100% - 40px));
+  margin-inline: auto;
+}
+
+.lp-narrow {
+  width: min(760px, calc(100% - 40px));
+}
+
+/* ---------- estados iniciais da animação ----------
+ * data-anim só é marcado antes da primeira pintura quando o movimento está liberado, e é
+ * removido se o GSAP não carregar — assim o conteúdo nunca fica preso invisível.
+ */
+.orny-landing[data-anim] [data-hero],
+.orny-landing[data-anim] [data-reveal],
+.orny-landing[data-anim] [data-card],
+.orny-landing[data-anim] .lp-h1-line > span {
+  opacity: 0;
+}
+
+/* ---------- botões ---------- */
+.lp-btn {
+  min-height: 50px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 22px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-family: var(--font-head, Montserrat, sans-serif);
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -.01em;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background .18s ease, border-color .18s ease, color .18s ease, transform .12s ease;
+}
+
+.lp-btn svg {
+  width: 17px;
+  height: 17px;
+}
+
+.lp-btn-lg {
+  min-height: 58px;
+  padding: 0 30px;
+  font-size: 17px;
+}
+
+.lp-btn-primary {
+  color: #000;
+  background: var(--lp-green);
+}
+
+.lp-btn-primary:hover {
+  background: #4dff48;
+}
+
+.lp-btn-ghost {
+  color: #fff;
+  border-color: var(--lp-line-2);
+  background: #ffffff0a;
+}
+
+.lp-btn-ghost:hover {
+  border-color: var(--lp-green);
+  color: var(--lp-green);
+}
+
+.lp-btn:active {
+  transform: scale(.98);
+}
+
+.orny-landing a:focus-visible,
+.orny-landing button:focus-visible,
+.orny-landing summary:focus-visible {
+  outline: 3px solid var(--lp-green);
+  outline-offset: 3px;
+}
+
+/* ---------- blocos de texto ---------- */
+.lp-kicker {
+  display: inline-block;
+  color: var(--lp-green);
+  font-family: var(--font-head, Montserrat, sans-serif);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+.lp-copy {
+  margin: 0;
+  color: var(--lp-mut);
+  font-size: 16px;
+  line-height: 1.65;
+}
+
+.lp-head {
+  max-width: 720px;
+  margin: 0 auto 44px;
+  text-align: center;
+}
+
+.lp-head h2 {
+  margin: 14px 0 12px;
+  font-size: clamp(30px, 4.6vw, 54px);
+  font-weight: 900;
+  line-height: 1.02;
+  letter-spacing: -.045em;
+  text-transform: uppercase;
+}
+
+.lp-head-left {
+  margin-inline: 0;
+  text-align: left;
+}
+
+.lp-section {
+  position: relative;
+  padding: clamp(72px, 9vw, 132px) 0;
+  border-top: 1px solid var(--lp-line);
+}
+
+.lp-section-alt {
+  background: radial-gradient(120% 90% at 50% 0%, #0f1a0f 0%, #000 62%);
+}
+
+/* ---------- header ---------- */
+.lp-header {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  border-bottom: 1px solid var(--lp-line);
+  background: #000000d9;
+  backdrop-filter: blur(14px);
+}
+
+.lp-header-inner {
+  min-height: 74px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.lp-brand,
+.lp-footer-logo {
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.lp-brand .orny-brand img {
+  width: 118px;
+  height: auto;
+}
+
+.lp-nav {
+  display: flex;
+  align-items: center;
+  gap: 26px;
+}
+
+.lp-nav button {
+  padding: 6px 0;
+  border: 0;
+  color: var(--lp-mut);
+  background: none;
+  font-family: var(--font-body, Inter, sans-serif);
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: color .16s ease;
+}
+
+.lp-nav button:hover {
+  color: var(--lp-green);
+}
+
+.lp-header-cta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lp-header-login,
+.lp-header-signup {
+  min-height: 44px;
+  padding: 0 18px;
+  font-size: 14px;
+}
+
+/* ---------- hero ---------- */
+.lp-hero {
+  position: relative;
+  min-height: min(100svh, 940px);
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  padding: clamp(56px, 8vw, 96px) 0 clamp(64px, 8vw, 104px);
+  isolation: isolate;
+}
+
+.lp-hero-bg {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+}
+
+.lp-hero-bg img,
+.lp-hero-bg video {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  object-position: 72% center;
+}
+
+/* o vídeo é montado por JS e entra por cima da imagem, que fica embaixo para sempre */
+.lp-hero-video {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity .9s ease;
+}
+
+.lp-hero-video.on {
+  opacity: 1;
+}
+
+.lp-hero-shade {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(90deg, #000 6%, #000000d9 38%, #00000026 78%),
+    linear-gradient(0deg, #000 2%, transparent 42%);
+}
+
+.lp-hero-inner {
+  position: relative;
+  max-width: 1180px;
+}
+
+.lp-h1 {
+  margin: 18px 0 0;
+  max-width: 14ch;
+  font-size: clamp(42px, 8.4vw, 96px);
+  font-weight: 900;
+  line-height: .94;
+  letter-spacing: -.045em;
+  text-transform: uppercase;
+}
+
+.lp-h1-line {
+  display: block;
+  overflow: hidden;
+  padding-bottom: .06em;
+}
+
+.lp-h1-line > span {
+  display: block;
+}
+
+.lp-accent {
+  color: var(--lp-green);
+}
+
+.lp-lead {
+  max-width: 48ch;
+  margin: 22px 0 0;
+  color: #d7dbd7;
+  font-size: clamp(16px, 1.8vw, 20px);
+  line-height: 1.55;
+}
+
+.lp-bullets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 26px;
+  margin: 26px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lp-bullets li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-head, Montserrat, sans-serif);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.lp-dot {
+  width: 11px;
+  height: 11px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--lp-green);
+  box-shadow: 0 0 14px #20f51b99;
+}
+
+.lp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 34px;
+}
+
+.lp-trust {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin: 28px 0 0;
+  color: #8d948d;
+  font-size: 13px;
+}
+
+.lp-trust span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lp-trust span::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--lp-green);
+}
+
+/* ---------- alternância de perfil ---------- */
+.lp-switch {
+  width: max-content;
+  max-width: 100%;
+  display: flex;
+  gap: 4px;
+  margin: 0 auto 30px;
+  padding: 5px;
+  border: 1px solid var(--lp-line);
+  border-radius: 999px;
+  background: var(--lp-card);
+}
+
+.lp-switch button {
+  min-height: 44px;
+  padding: 0 24px;
+  border: 0;
+  border-radius: 999px;
+  color: var(--lp-mut);
+  background: transparent;
+  font-family: var(--font-head, Montserrat, sans-serif);
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background .18s ease, color .18s ease;
+}
+
+.lp-switch button.on {
+  color: #000;
+  background: var(--lp-green);
+}
+
+/* ---------- painel do perfil ---------- */
+.lp-panel {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  overflow: hidden;
+  border: 1px solid var(--lp-line);
+  border-radius: 28px;
+  background: var(--lp-card);
+}
+
+.lp-panel-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+  padding: clamp(28px, 4vw, 56px);
+}
+
+.lp-panel-copy h3 {
+  font-size: clamp(24px, 3vw, 38px);
+  font-weight: 850;
+  line-height: 1.08;
+  letter-spacing: -.035em;
+}
+
+.lp-panel-copy .lp-btn {
+  margin-top: 8px;
+}
+
+.lp-panel-img {
+  position: relative;
+  min-height: 380px;
+}
+
+.lp-panel-img img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ---------- cards ---------- */
+.lp-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.lp-grid-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-width: 920px;
+  margin-inline: auto;
+}
+
+.lp-card {
+  padding: 28px;
+  border: 1px solid var(--lp-line);
+  border-radius: 22px;
+  background: var(--lp-card);
+  transition: border-color .2s ease, background .2s ease;
+}
+
+.lp-card:hover {
+  border-color: #20f51b4d;
+  background: var(--lp-card-2);
+}
+
+.lp-card h3 {
+  margin: 16px 0 8px;
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -.02em;
+}
+
+.lp-card .lp-copy {
+  font-size: 15px;
+}
+
+.lp-card-ico {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  color: var(--lp-green);
+  background: #20f51b1f;
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.lp-card-ico svg {
+  width: 22px;
+  height: 22px;
+}
+
+.lp-ol {
+  display: grid;
+  gap: 12px;
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lp-ol li {
+  display: flex;
+  gap: 12px;
+  color: #c7ccc7;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.lp-ol b {
+  width: 24px;
+  height: 24px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #000;
+  background: var(--lp-green);
+  font-size: 12px;
+}
+
+/* ---------- como funciona ---------- */
+.lp-how {
+  display: grid;
+  grid-template-columns: .78fr 1.22fr;
+  align-items: center;
+  gap: clamp(32px, 5vw, 76px);
+}
+
+.lp-phone img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 24px;
+}
+
+.lp-steps {
+  position: relative;
+  display: grid;
+  gap: 14px;
+  padding-left: 30px;
+}
+
+.lp-steps-rail {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 7px;
+  width: 2px;
+  background: var(--lp-line-2);
+}
+
+.lp-steps-rail i {
+  position: absolute;
+  inset: 0;
+  display: block;
+  background: var(--lp-green);
+  box-shadow: 0 0 12px #20f51b80;
+}
+
+.lp-step {
+  position: relative;
+  display: flex;
+  gap: 18px;
+  padding: 20px 22px;
+  border: 1px solid var(--lp-line);
+  border-radius: 18px;
+  background: var(--lp-card);
+}
+
+.lp-step::before {
+  content: '';
+  position: absolute;
+  top: 28px;
+  left: -29px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--lp-green);
+}
+
+.lp-step > b {
+  color: var(--lp-green);
+  font-family: var(--font-head, Montserrat, sans-serif);
+  font-size: 22px;
+  letter-spacing: -.03em;
+}
+
+.lp-step h3 {
+  margin: 0 0 4px;
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.lp-step .lp-copy {
+  font-size: 14px;
+}
+
+/* ---------- planos ---------- */
+.lp-plans {
+  max-width: 980px;
+  margin-inline: auto;
+}
+
+.lp-note,
+.lp-status {
+  max-width: 720px;
+  margin: 20px auto 0;
+  color: #9aa09a;
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.lp-status {
+  padding: 13px 16px;
+  border: 1px solid #20f51b33;
+  border-radius: 14px;
+  color: #cfe9cd;
+  background: #20f51b0f;
+}
+
+.lp-loading,
+.lp-error {
+  margin: 30px 0 0;
+  color: var(--lp-mut);
+  text-align: center;
+}
+
+.lp-error {
+  color: #ff8a8a;
+}
+
+/* grade de planos (views/billing/plans.css) dentro da landing: html[data-lp] tem
+ * especificidade maior que [data-theme="light"], então vence mesmo se o plans.css
+ * for carregado depois, em outro chunk */
+html[data-lp] .pl-card,
+html[data-lp] .pl-faq details {
+  border-color: var(--lp-line, #ffffff1a);
+  background: #0d0d0d;
+}
+
+html[data-lp] .pl-best {
+  border-color: #20f51b66;
+  background: linear-gradient(180deg, #112a10 0%, #0d0d0d 52%);
+}
+
+html[data-lp] .pl-tag,
+html[data-lp] .pl-ico,
+html[data-lp] .pl-seal svg,
+html[data-lp] .pl-faq summary svg,
+html[data-lp] .pl-hero h1 em {
+  color: #20f51b;
+}
+
+html[data-lp] .pl-ico {
+  background: #20f51b1f;
+}
+
+html[data-lp] .pl-seal {
+  border-color: #20f51b33;
+  background: #20f51b0f;
+}
+
+/* plans.css fixa color:#fff!important sobre o verde — fica ~1,6:1 de contraste */
+html[data-lp] .pl-btn {
+  color: #000 !important;
+  border-radius: 999px;
+}
+
+html[data-lp] .pl-btn[aria-disabled='true'] {
+  color: #c7ccc7 !important;
+  background: #ffffff14;
+}
+
+html[data-lp] .pl-btn.pl-sec {
+  color: #fff !important;
+}
+
+/* ---------- dúvidas ---------- */
+.lp-faq {
+  display: grid;
+  gap: 10px;
+}
+
+.lp-faq details {
+  border: 1px solid var(--lp-line);
+  border-radius: 16px;
+  background: var(--lp-card);
+}
+
+.lp-faq summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 19px 22px;
+  color: #fff;
+  font-family: var(--font-head, Montserrat, sans-serif);
+  font-weight: 750;
+  list-style: none;
+  cursor: pointer;
+}
+
+.lp-faq summary::-webkit-details-marker {
+  display: none;
+}
+
+.lp-faq summary svg {
+  width: 17px;
+  height: 17px;
+  flex: none;
+  color: var(--lp-green);
+  transition: transform .2s ease;
+}
+
+.lp-faq details[open] summary svg {
+  transform: rotate(45deg);
+}
+
+.lp-faq details p {
+  margin: 0;
+  padding: 0 22px 20px;
+  color: var(--lp-mut);
+  line-height: 1.65;
+}
+
+/* o bloco <Faq> compartilhado (plans.css) logo abaixo do nosso */
+.lp-narrow .pl-faq {
+  margin-top: 10px;
+}
+
+/* ---------- CTA final ---------- */
+.lp-final {
+  padding: clamp(64px, 8vw, 110px) 0;
+  border-top: 1px solid var(--lp-line);
+}
+
+.lp-final-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: clamp(36px, 6vw, 74px) clamp(24px, 4vw, 56px);
+  border: 1px solid #20f51b33;
+  border-radius: 32px;
+  background: radial-gradient(110% 130% at 50% 0%, #15300f 0%, #070707 64%);
+  text-align: center;
+}
+
+.lp-final-box h2 {
+  max-width: 18ch;
+  font-size: clamp(30px, 5.4vw, 62px);
+  font-weight: 900;
+  line-height: .98;
+  letter-spacing: -.045em;
+  text-transform: uppercase;
+}
+
+.lp-final-box .lp-actions {
+  justify-content: center;
+  margin-top: 14px;
+}
+
+/* ---------- rodapé ---------- */
 .lp-footer {
   padding: 64px 0 0;
-  border-top: 0;
-  color: #d8e6da;
-  background: var(--lp-dark);
+  border-top: 1px solid var(--lp-line);
+  color: #c3c8c3;
+  background: #050505;
 }
 
 .lp-footer-grid {
   display: grid;
   grid-template-columns: minmax(240px, 1.65fr) repeat(3, minmax(120px, 1fr));
   gap: 48px;
-  padding-bottom: 48px;
+  padding-bottom: 44px;
 }
 
 .lp-footer-brand {
   max-width: 260px;
 }
 
-.lp-footer-logo {
-  display: block;
-  width: 136px;
-  border-radius: 8px;
+.lp-footer-logo .orny-brand img {
+  width: 132px;
+  height: auto;
 }
 
 .lp-footer-brand p {
-  margin: 20px 0 0;
-  color: #b8cdbb;
-  font-size: 16px;
+  margin: 18px 0 0;
+  color: #8d948d;
+  font-size: 15px;
   line-height: 1.6;
 }
 
@@ -35,64 +828,143 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 4px;
+  gap: 2px;
 }
 
 .lp-footer-group h2 {
-  margin: 0 0 12px;
+  margin: 0 0 10px;
   color: #fff;
-  font-size: 14px;
-  line-height: 1.4;
-  letter-spacing: .04em;
+  font-size: 13px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
 }
 
-.lp-footer-group a {
-  min-height: 44px;
+.lp-footer-group a,
+.lp-footer-group button {
+  min-height: 40px;
   display: inline-flex;
   align-items: center;
-  color: #c6d8c9;
+  padding: 0;
+  border: 0;
+  color: #9aa09a;
+  background: none;
+  font-family: var(--font-body, Inter, sans-serif);
   font-size: 14px;
-  line-height: 1.4;
+  text-align: left;
   text-decoration: none;
+  cursor: pointer;
   transition: color .16s ease, transform .16s ease;
 }
 
-.lp-footer-group a:hover {
-  color: #fff;
+.lp-footer-group a:hover,
+.lp-footer-group button:hover {
+  color: var(--lp-green);
   transform: translateX(3px);
 }
 
-.lp-footer a:focus-visible {
-  outline-color: rgba(255, 255, 255, .75);
-}
-
 .lp-footer-bottom {
-  min-height: 72px;
+  min-height: 68px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  border-top: 1px solid rgba(255, 255, 255, .13);
-  color: #9fb5a3;
+  border-top: 1px solid var(--lp-line);
+  color: #767c76;
   font-size: 13px;
 }
 
-@media (max-width: 900px) {
-  .lp-footer-grid {
-    grid-template-columns: 1.5fr repeat(3, 1fr);
-    gap: 28px;
+/* ---------- CTA fixo no celular ---------- */
+.lp-mobile-cta {
+  display: none;
+}
+
+/* ---------- responsivo ---------- */
+@media (max-width: 1040px) {
+  .lp-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .lp-nav {
+    display: none;
+  }
+}
+
+@media (max-width: 860px) {
+  .lp-how {
+    grid-template-columns: 1fr;
+  }
+
+  .lp-phone {
+    max-width: 320px;
+    margin-inline: auto;
+  }
+
+  .lp-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .lp-panel-img {
+    order: -1;
+    min-height: 260px;
   }
 }
 
 @media (max-width: 760px) {
-  .lp-footer {
-    padding-top: 44px;
+  .lp-shell,
+  .lp-narrow {
+    width: min(100% - 32px, 1180px);
+  }
+
+  .orny-landing {
+    padding-bottom: 86px;
+  }
+
+  .lp-header-login {
+    display: none;
+  }
+
+  .lp-hero {
+    min-height: auto;
+    padding: 56px 0 72px;
+  }
+
+  .lp-hero-bg img,
+  .lp-hero-bg video {
+    object-position: 68% center;
+  }
+
+  .lp-hero-shade {
+    background:
+      linear-gradient(180deg, #000000e6 0%, #00000099 42%, #000 92%),
+      linear-gradient(90deg, #000000cc 0%, transparent 72%);
+  }
+
+  .lp-h1 {
+    max-width: none;
+  }
+
+  .lp-actions,
+  .lp-actions .lp-btn {
+    width: 100%;
+  }
+
+  .lp-grid,
+  .lp-grid-2 {
+    grid-template-columns: 1fr;
+  }
+
+  .lp-card {
+    padding: 22px;
+  }
+
+  .lp-trust {
+    display: grid;
+    gap: 7px;
   }
 
   .lp-footer-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 34px 24px;
-    padding-bottom: 36px;
+    gap: 30px 20px;
   }
 
   .lp-footer-brand {
@@ -100,31 +972,58 @@
     max-width: none;
   }
 
-  .lp-footer-group:first-of-type {
-    grid-row: span 2;
-  }
-
   .lp-footer-bottom {
     min-height: auto;
     align-items: flex-start;
     flex-direction: column;
-    gap: 8px;
-    padding: 22px 0 24px;
+    gap: 6px;
+    padding: 20px 0 22px;
+  }
+
+  .lp-mobile-cta {
+    position: fixed;
+    z-index: 80;
+    right: 12px;
+    bottom: max(12px, env(safe-area-inset-bottom));
+    left: 12px;
+    display: flex;
+  }
+
+  .lp-mobile-cta .lp-btn {
+    width: 100%;
+    box-shadow: 0 10px 30px #000c;
   }
 }
 
-@media (max-width: 360px) {
-  .lp-footer-grid {
-    grid-template-columns: 1fr;
-    gap: 28px;
+@media (max-width: 380px) {
+  .lp-switch {
+    width: 100%;
   }
 
-  .lp-footer-brand {
-    grid-column: auto;
+  .lp-switch button {
+    flex: 1;
+    padding: 0 10px;
+    font-size: 13px;
   }
 
-  .lp-footer-group:first-of-type {
-    grid-row: auto;
+  .lp-header-signup {
+    padding: 0 14px;
+    font-size: 13px;
   }
 }
 
+/* O GSAP escreve estilo inline, então o bloco global de reduced-motion do index.css não
+ * o alcança; quem controla isso é o gsap.matchMedia no Landing.jsx. Aqui ficam só as
+ * transições de CSS. */
+@media (prefers-reduced-motion: reduce) {
+  .orny-landing *,
+  .orny-landing *::before,
+  .orny-landing *::after {
+    animation: none !important;
+    transition-duration: .01ms !important;
+  }
+
+  .lp-hero-video {
+    display: none;
+  }
+}

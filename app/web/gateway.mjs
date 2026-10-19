@@ -37,10 +37,31 @@ export const SECURITY_HEADERS = {
   'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
 }
 const T = { '.html': 'text/html; charset=utf-8', '.js': 'application/javascript', '.mjs': 'application/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.svg': 'image/svg+xml', '.webp': 'image/webp', '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.woff': 'font/woff', '.webmanifest': 'application/manifest+json', '.txt': 'text/plain', '.mp4': 'video/mp4', '.webm': 'video/webm', '.glb': 'model/gltf-binary', '.wasm': 'application/wasm' }
+// Range: o Safari do iOS so toca <video> quando o servidor responde 206 a um pedido de faixa.
+// Formato aceito: "bytes=inicio-fim", "bytes=inicio-" e "bytes=-ultimosN".
+function range(header, size) {
+  const m = /^bytes=(\d*)-(\d*)$/.exec(String(header || '').trim())
+  if (!m || (!m[1] && !m[2])) return null
+  let start, end
+  if (m[1]) { start = Number(m[1]); end = m[2] ? Number(m[2]) : size - 1 }
+  else { start = size - Number(m[2]); end = size - 1 }
+  if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0) return null
+  if (end > size - 1) end = size - 1
+  if (start > end) return 'invalid'
+  return { start, end }
+}
 function send(req, res, file, cc) {
   fs.stat(file, (e, s) => {
     if (e || !s.isFile()) { res.writeHead(404, { 'Content-Type': 'text/plain' }); return res.end('not found') }
-    res.writeHead(200, { 'Content-Type': T[path.extname(file).toLowerCase()] || 'application/octet-stream', 'Content-Length': s.size, 'Cache-Control': cc })
+    const type = T[path.extname(file).toLowerCase()] || 'application/octet-stream'
+    const r = req.headers.range ? range(req.headers.range, s.size) : null
+    if (r === 'invalid') { res.writeHead(416, { 'Content-Range': `bytes */${s.size}`, 'Accept-Ranges': 'bytes' }); return res.end() }
+    if (r) {
+      res.writeHead(206, { 'Content-Type': type, 'Content-Length': r.end - r.start + 1, 'Content-Range': `bytes ${r.start}-${r.end}/${s.size}`, 'Accept-Ranges': 'bytes', 'Cache-Control': cc })
+      if (req.method === 'HEAD') return res.end()
+      return fs.createReadStream(file, { start: r.start, end: r.end }).pipe(res)
+    }
+    res.writeHead(200, { 'Content-Type': type, 'Content-Length': s.size, 'Accept-Ranges': 'bytes', 'Cache-Control': cc })
     if (req.method === 'HEAD') return res.end()
     fs.createReadStream(file).pipe(res)
   })
@@ -63,7 +84,14 @@ export function handler(req, res) {
   if (/^\/(img|gif)\//.test(u)) { const f = safe(MEDIA, u); return f ? send(req, res, f, 'public, max-age=2592000, immutable') : (res.writeHead(404), res.end()) }
   if (u.startsWith('/assets/')) { const f = safe(DIST, u); return f ? send(req, res, f, 'public, max-age=31536000, immutable') : (res.writeHead(404), res.end()) }
   const f = safe(DIST, u)
-  if (f && u !== '/' && fs.existsSync(f) && fs.statSync(f).isFile()) return send(req, res, f, /^\/(sw\.js|version\.json|manifest\.json|index\.html)$/.test(u) ? 'no-cache, no-store, must-revalidate' : 'no-cache')
+  if (f && u !== '/' && fs.existsSync(f) && fs.statSync(f).isFile()) {
+    // midia estatica de marca/landing: sem hash no nome, mas troca raramente. Com 'no-cache'
+    // o video e as fotos do hero eram rebaixados a cada visita.
+    const cc = /^\/(sw\.js|version\.json|manifest\.json|index\.html)$/.test(u) ? 'no-cache, no-store, must-revalidate'
+      : /^\/(video|landing|brand)\//.test(u) ? 'public, max-age=2592000'
+        : 'no-cache'
+    return send(req, res, f, cc)
+  }
   send(req, res, path.join(DIST, 'index.html'), 'no-cache, no-store, must-revalidate')
 }
 if (process.env.GATEWAY_NO_LISTEN !== '1') http.createServer(handler).listen(PORT, process.env.BIND || '127.0.0.1', () => console.log('avagym gateway :' + PORT + ' -> api :' + API))

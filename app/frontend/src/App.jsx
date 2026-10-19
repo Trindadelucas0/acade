@@ -8,6 +8,7 @@ import { bindUI } from './components/ui.jsx'
 import { ACCENTS } from './lib/format.js'
 import { setLang, useLang } from './lib/i18n.js'
 import { setNav } from './lib/nav.js'
+import { MOBILE } from './lib/mobile.js'
 import { useWakeLock } from './lib/wakelock.js'
 import { startFlow } from './sheets.jsx'
 import Icon from './components/Icon.jsx'
@@ -105,7 +106,10 @@ function Shell() {
   if (loc.pathname === '/precos') return <div id="app" className="vfade"><ErrorBoundary><PublicPlans /></ErrorBoundary></div>
   if (loc.pathname.startsWith('/legal')) return <div id="app" className="vfade"><ErrorBoundary><Routes><Route path="/legal" element={<LegalPage authed={authed} />} /><Route path="/legal/:doc" element={<LegalPage authed={authed} />} /></Routes></ErrorBoundary></div>
   const legacySignup = loc.pathname === '/' && new URLSearchParams(loc.search).get('cadastro') === '1'
-  if ((loc.pathname === '/' && !legacySignup) || loc.pathname === '/conheca') return <Suspense fallback={<div id="app"><BrandLoading /></div>}><Landing /></Suspense>
+  // A landing e a pagina de marketing: nao faz sentido no app nativo (Capacitor), que abre
+  // direto no treino, nem para quem ja esta logado em "/".
+  const wantsLanding = (loc.pathname === '/' && !legacySignup && !authed) || loc.pathname === '/conheca'
+  if (wantsLanding && !MOBILE) return <Suspense fallback={<div id="app"><BrandLoading /></div>}><Landing /></Suspense>
 
   return (
     <>

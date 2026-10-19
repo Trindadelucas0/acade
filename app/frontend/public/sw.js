@@ -33,6 +33,9 @@ self.addEventListener('fetch', e => {
   const url = new URL(e.request.url)
   if (e.request.method !== 'GET' || url.origin !== location.origin) return
   if (url.pathname.startsWith('/api/')) return    // never cache auth/data
+  // Video: o player pede faixas (Range) e cache.put de uma resposta 206 lanca
+  // "Partial response unsupported". Deixa passar direto para a rede/cache HTTP.
+  if (url.pathname.startsWith('/video/') || e.request.headers.has('range')) return
 
   const isMedia = url.pathname.includes('/img/') || url.pathname.includes('/gif/')
   if (isMedia) {

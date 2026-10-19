@@ -11,20 +11,10 @@ import { useState, useEffect } from 'react'
 import { useTerms, TermsText } from './app/Terms.jsx'
 import { readRef, saveRef } from './billing/Referral.jsx'   // Monetizacao F5
 import { PlanCard, SELLABLE } from './billing/PlansShowcase.jsx'
+import useMedia from '../lib/useMedia.js'
 import './login.css'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
-
-const mq = q => typeof window !== 'undefined' && window.matchMedia ? window.matchMedia(q) : null
-function useMedia(q) {
-  const [on, setOn] = useState(() => !!mq(q)?.matches)
-  useEffect(() => {
-    const m = mq(q); if (!m) return
-    const f = () => setOn(m.matches); f()
-    m.addEventListener?.('change', f); return () => m.removeEventListener?.('change', f)
-  }, [q])
-  return on
-}
 
 // Capa do login: no desktop, vídeo de fundo em tela cheia (poster se reduced-motion);
 // no mobile, foto (Pexels License). O vídeo só é renderizado no desktop, então o mobile não o baixa.
