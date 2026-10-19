@@ -19,6 +19,12 @@ Onde olhar no código: landing em `frontend/src/views/landing/Landing.jsx` e `fr
 
 Os cartões públicos e autenticados de planos mantêm seus botões de ação visíveis com texto contrastante no tema claro. A correção é somente visual; não altera preço, venda, pagamento ou liberação de acesso.
 
+## Entrada e cadastro — correção visual 1.7.3 (19/10/2026)
+
+Login, cadastro e recuperação mantêm o mesmo fluxo e os mesmos campos. No tema claro, a camada sobre a imagem de fundo da tela de entrada passou a ser translúcida, preservando a visibilidade da foto sem remover o contraste necessário para o formulário. Não houve alteração de autenticação, validação, dados ou permissões.
+
+Onde olhar no código: `frontend/src/views/Login.jsx` e `frontend/src/styles/orny.css`.
+
 ## #TáPago 2.0 — editor social e campanha de 30 dias — 1.7.0 (19/10/2026)
 
 Depois que o servidor confirma um treino válido, a conclusão apresenta **Treino pago. Evolução garantida.** e abre o editor em **Criar meu card**. A rota `/compartilhar` oferece seis estilos: Treino, Minha foto, Semana, Músculos, Recorde e Sequência. Treino específico é validado pelo servidor; sessão apenas na fila offline ainda não gera card oficial. Recorde só aparece quando supera uma marca anterior comparável e identifica o critério de 1RM estimado; sequência usa dias distintos válidos no fuso do produto. Ausência de volume, músculos ou recorde não produz valor inventado.

@@ -37,12 +37,13 @@ h1,h2,h3,h4,.sec,button,.g-btn{font-family:var(--font-head)}
 .lg-btn.ghost{color:var(--ag-txt);border-color:var(--ag-line)}
 .lg-forgot{color:var(--ag-acc);min-height:44px}.lg-link{min-height:44px}
 .lg-wrap :focus-visible{outline:3px solid var(--ag-focus);outline-offset:3px}
-:root[data-theme="light"] .lg-shade{background:linear-gradient(180deg,#f5f5f533,#f5f5f5dd 40%,#f5f5f5 100%)}
+:root[data-theme="light"] .lg-shade{background:linear-gradient(180deg,rgba(245,245,245,.12),rgba(245,245,245,.48) 42%,rgba(245,245,245,.78) 100%)}
 :root[data-theme="light"] .lg-msg{color:#9f1524;background:#fff0f1;border-color:#bd273b}
 :root[data-theme="light"] .lg-field em{color:#9f1524}
 :root[data-theme="light"] .lg-input input[type=date]{color-scheme:light}
 :root[data-theme="light"] .lg-input input[type=date]::-webkit-calendar-picker-indicator{filter:none}
 @media(min-width:900px){.lg-card,.lg-hero~.lg-card{background:var(--ag-card);border-color:var(--ag-line)}.lg-shade{background:linear-gradient(90deg,#0006,#000a 45%,#000 90%)}}
+@media(min-width:900px){:root[data-theme="light"] .lg-shade{background:linear-gradient(90deg,rgba(245,245,245,.08),rgba(245,245,245,.35) 45%,rgba(245,245,245,.72) 100%)}}
 @media(max-width:360px){.lg-card{padding-left:16px;padding-right:16px}.lg-brand .orny-brand img{width:200px}}
 
 .orny-app-brand{display:flex;justify-content:center;padding:12px 16px 0}.orny-app-brand img{width:120px}
