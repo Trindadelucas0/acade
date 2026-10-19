@@ -11,7 +11,6 @@ export const SIM_CARDS = {
 }
 const outcomeOf = n => Object.entries(SIM_CARDS).find(([, l]) => l.includes(n))?.[0] || null
 export function simulado() {
-  const qrImage = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="220" height="220"><rect width="220" height="220" fill="white"/><rect x="20" y="20" width="180" height="180" fill="none" stroke="black" stroke-width="12"/><text x="110" y="116" text-anchor="middle" font-family="sans-serif" font-size="18">PIX TESTE</text></svg>`).toString('base64')
   return {
     name: 'simulado', test: true, live: false, label: 'Simulador de pagamentos (teste)',
     async ensureCustomer(user) { return 'sim_cus_' + String(user.id).replace(/-/g, '').slice(0, 16) },
@@ -28,10 +27,6 @@ export function simulado() {
       const approve = kind === 'aprova' || (kind === 'recusa_renovacao' && charge.kind === 'primeira' && attemptIndex === 0)
       if (amountCents === 0 || approve) return { status: 'paga', providerChargeId: id }
       return { status: 'recusada', providerChargeId: id, failure: { code: 'card_declined', message: 'Transacao nao autorizada pelo emissor (simulado).' } }
-    },
-    async createPix({ charge }) {
-      return { status: 'pendente', providerChargeId: 'sim_pix_' + charge.id.replace(/-/g, '').slice(0, 20),
-        pix: { payload: 'PIX-SIMULADO-' + charge.id, encodedImage: 'data:image/svg+xml;base64,' + qrImage, expiresAt: new Date(Date.now() + 864e5).toISOString() } }
     },
     async getCharge() { return null },          // simulador e sincrono: nada a reconciliar no provedor
     async refund() { return { ok: true } },

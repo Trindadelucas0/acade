@@ -1,6 +1,6 @@
 # ORNY — Documentação do sistema
 
-Fonte oficial de comportamento. Versão frontend: 1.7.4. Atualização: 19/10/2026 — venda dos três planos aberta na VPS; primeiro pagamento real ainda pendente de confirmação operacional.
+Fonte oficial de comportamento. Versão frontend: 1.7.5. Atualização: 19/10/2026 — venda dos três planos aberta na VPS; checkout somente por cartão e acesso após confirmação do webhook Asaas.
 O inventário em `docs/INVENTARIO-FUNCIONAL.md` preserva o levantamento histórico e seus limites de validação; este documento consolida os fluxos atualizados.
 
 ## Bloqueio comercial — somente pagamento confirmado (19/10/2026)
@@ -16,9 +16,23 @@ Onde olhar no código: `api/access.js` (origem paga, allowlist e middleware glob
 1. Sem cobrança confirmada, a pessoa pode entrar na conta e abrir **Assinatura** para escolher/concluir o pagamento, mas não acessar treinos, progresso ou recursos internos.
 2. Após confirmação real pelo provedor e período vigente, o acesso é liberado automaticamente. Se o pagamento estiver pendente, deve aguardar a confirmação ou regularizar a cobrança.
 
+## Cobrança somente por cartão — remoção do Pix (19/10/2026)
+
+O checkout aceita somente cartão de crédito. A API recusa `payment_type=pix`, e as rotas antigas para regenerar ou confirmar Pix respondem HTTP 410; o backend Asaas não cria mais cobranças Pix. `GET /api/billing/me` não retorna QR Code nem copia e cola. Cobranças históricas continuam no histórico, e o webhook ainda reconhece eventos reais de cobranças Pix criadas anteriormente para manter o registro financeiro correto.
+
+Uma assinatura Pix antiga conserva o acesso até o fim do período já pago e não recebe novas cobranças Pix. O job avisa quando a renovação se aproxima. Em **Planos e pagamento → Adicionar cartão**, a migração cancela primeiro as cobranças Pix antigas ainda pendentes no Asaas e só então troca a assinatura para cartão; se o cancelamento remoto falhar, a migração é recusada e pode ser tentada novamente. A cobrança/renovação por cartão não libera acesso enquanto estiver pendente: `applyChargeResult` ativa o plano somente quando o webhook autenticado (`PAYMENT_CONFIRMED` ou `PAYMENT_RECEIVED`) confirmar o pagamento. Repetições são idempotentes.
+
+Onde olhar no código: `api/billing/core.js` (validação do meio, migração de legado e ativação por webhook), `api/billing/routes.js` (contrato e rotas aposentadas), `api/billing/providers/asaas.js` (cartão), `frontend/src/views/billing/Billing.jsx` (checkout/assinatura) e `api/access.js` (gate de acesso).
+
+### Como usar
+
+1. Em **Planos e pagamento**, escolha um plano e selecione ou cadastre o cartão; não há QR Code ou opção Pix.
+2. Se o Asaas indicar análise, aguarde a atualização. Só depois do webhook confirmado os recursos do plano aparecem.
+3. Se a assinatura ainda for Pix, adicione um cartão antes da renovação para manter o serviço. O período pago permanece até sua data final; cobranças Pix pendentes antigas são canceladas durante a troca.
+
 ## Cadastro e aceite legal — correção 1.7.4 (19/10/2026)
 
-No cadastro, selecione um plano pago e disponível para continuar; a API também valida plano e perfil antes de criar a conta. Não há opção de decidir depois. Criar a conta não libera o produto: após o cadastro, o checkout abre para concluir cartão ou Pix, e o sistema só libera recursos após confirmação real do pagamento. O código de personal continua opcional e fechado por padrão; só é enviado quando a pessoa escolhe **Tenho código do meu personal**.
+No cadastro, selecione um plano pago e disponível para continuar; a API também valida plano e perfil antes de criar a conta. Não há opção de decidir depois. Criar a conta não libera o produto: após o cadastro, o checkout abre para concluir por cartão de crédito, e o sistema só libera recursos após confirmação real do pagamento. O código de personal continua opcional e fechado por padrão; só é enviado quando a pessoa escolhe **Tenho código do meu personal**.
 
 O aceite de documentos continua bloqueado quando faltam dados jurídicos obrigatórios da empresa. A tela agora identifica junto ao botão quais campos precisam ser concluídos em **Sistema → Dados da empresa**, em vez de parecer que **Continuar** não responde. O servidor permanece como autoridade e não aceita documentos incompletos.
 
@@ -368,7 +382,9 @@ Contratos principais: `GET /api/convite?code=`, `GET /api/referral/me`, `POST /a
 
 O build de produção do frontend passou e 291 testes unitários passaram. Os arquivos alterados da API passaram na validação sintática e o diff não contém erro de whitespace. Os cenários integrados de cupom foram atualizados, mas não foram executados porque o checkout possui somente configuração de banco de uso e os próprios testes exigem uma base cujo nome termine em `_test`. Nenhuma migration foi aplicada, nenhum serviço foi reiniciado e a produção não foi alterada.
 
-## Pagamentos Asaas — cartão e Pix preparados para produção (17/10/2026)
+## Histórico: Pagamentos Asaas — cartão e Pix (17/10/2026, Pix aposentado em 19/10/2026)
+
+As informações desta seção registram a implantação histórica. O fluxo Pix descrito abaixo foi removido em 19/10/2026; a regra vigente é **Cobrança somente por cartão — remoção do Pix** no início deste documento. Os registros antigos e seus eventos confirmados permanecem preservados.
 
 ### Preços oficiais e preparação da produção — 18/10/2026
 

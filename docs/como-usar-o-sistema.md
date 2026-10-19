@@ -4,7 +4,7 @@ Fonte oficial: [documentação do sistema](../app/DOCUMENTACAO-SISTEMA.md). Este
 
 ## Criar conta e concluir os documentos
 
-1. Escolha um plano pago e disponível para continuar o cadastro. Se recebeu um código do personal, abra **Tenho código do meu personal** e informe-o. Não existe mais a opção **Decidir depois**; após criar a conta, conclua a contratação por cartão ou Pix. O acesso só começa depois da confirmação do pagamento.
+1. Escolha um plano pago e disponível para continuar o cadastro. Se recebeu um código do personal, abra **Tenho código do meu personal** e informe-o. Não existe mais a opção **Decidir depois**; após criar a conta, conclua a contratação por cartão de crédito. O acesso só começa depois da confirmação do pagamento.
 2. Na tela de documentos, marque os aceites obrigatórios e toque em **Continuar**. Se aparecer **Aguardando dados da empresa**, o administrador deve completar os campos informados em **Sistema → Dados da empresa** e salvar; depois, recarregue a tela para continuar.
 
 ## Aluno: Início, programas e evolução
@@ -79,17 +79,15 @@ Em Sistema → Dados da empresa, confira a identificação da ORNY, a chave Pix 
 
 Preencha também **Provedor e país da hospedagem**. O sistema não salva a configuração legal enquanto faltar um campo obrigatório; isso evita que usuários aceitem documentos com marcadores em aberto. No sandbox, use informações fictícias claramente identificadas. Em produção, informe exclusivamente os dados jurídicos e operacionais reais.
 
-## Assinatura por cartão ou Pix
+## Assinatura somente por cartão de crédito
 
-1. Abra **Meu plano**, escolha Individual, Personal 15 ou Personal Ilimitado e selecione **Cartão de crédito** ou **Pix**.
-2. No cartão, cadastre os dados no checkout. O ORNY não guarda número nem CVV; conserva somente o token devolvido pelo provedor.
-3. No Pix com Asaas, informe CPF ou CNPJ válido do pagador, use o QR Code ou copie o código. O documento não fica gravado no cadastro do ORNY; é encaminhado ao Asaas para identificar o cliente.
-4. O plano permanece pendente até a confirmação do pagamento. Mantenha a tela aberta ou volte ao sistema: o ORNY consulta a confirmação e libera automaticamente os recursos pagos.
-5. Se o Pix vencer, abra novamente a assinatura e use **Gerar novo Pix**. O código anterior deixa de valer.
-6. Assinatura escolhida como Pix recebe uma nova cobrança cinco dias antes da renovação e não tenta usar cartão.
-7. O período já pago continua acessível até o vencimento; depois disso vale a carência configurada.
+1. Abra **Meu plano**, escolha Individual, Personal 15 ou Personal Ilimitado e cadastre ou selecione um **cartão de crédito**.
+2. O ORNY encaminha o cartão ao provedor de pagamento e conserva somente o token devolvido; número e CVV não ficam armazenados no sistema.
+3. Se a cobrança ficar em análise, aguarde: o plano não é liberado pela tela de checkout nem pelo cadastro do cartão. O webhook autenticado do Asaas confirma a cobrança e então o acesso é ativado.
+4. A renovação é cobrada no cartão salvo. Se a cobrança for recusada, abra **Planos e pagamento**, atualize o cartão ou use **Pagar agora**.
+5. Assinaturas antigas de Pix continuam até o fim do período já pago. Para manter ou reativar o serviço, abra a assinatura e use **Adicionar cartão**; cobranças Pix pendentes antigas serão canceladas pelo Asaas durante essa migração. O histórico de cobranças permanece disponível.
 
-Conta recém-cadastrada pode concluir a compra diretamente. Depois da confirmação, usa o plano imediatamente; Pix ainda pendente não libera recursos pagos. Aluno coberto pelo PRO pago e confirmado usa as fichas e os recursos incluídos disponibilizados pelo personal. Para outras áreas, precisa do Individual pago e confirmado. Não existe pedido de análise ou liberação manual. Uma suspensão administrativa excepcional continua visível até o suporte reativar a conta.
+Conta recém-cadastrada pode concluir a compra diretamente. Depois da confirmação do Asaas, usa o plano imediatamente; uma cobrança pendente não libera recursos pagos. Aluno coberto pelo PRO pago e confirmado usa as fichas e os recursos incluídos disponibilizados pelo personal. Para outras áreas, precisa do Individual pago e confirmado. Não existe pedido de análise ou liberação manual. Uma suspensão administrativa excepcional continua visível até o suporte reativar a conta.
 
 Administrador: os planos Individual, Personal 15 e Personal Ilimitado estão disponíveis para contratação em produção. Para acompanhar uma assinatura, abra **Cobrança, preços e cupons → Visão geral** e confira provedor, situação das cobranças e eventos do webhook. O site está configurado para Asaas em produção e o webhook consta ativo; acompanhe a primeira confirmação real para validar a jornada completa. O procedimento operacional está em `docs/sistema/21-asaas-ambientes.md`.
 

@@ -25,7 +25,7 @@ export function providerInfo() {
   return { provider: p.name, configured: name, label: p.label, test: !!p.test, live: !!p.live, mode: p.mode || (p.name === 'simulado' ? 'simulado' : null),
     fallback_reason: p.fallbackReason || null, warnings: p.warnings || [], requires_holder_info: p.name === 'asaas',
     webhook_token_set: p.name === 'asaas' ? !!process.env.ASAAS_WEBHOOK_TOKEN : !!process.env.SIM_WEBHOOK_TOKEN,
-    payment_types: ['card', 'pix'] }
+    payment_types: ['card'] }
 }
 const pubPlan = p => ({ id: p.id, audience: p.audience, product: p.product, name: p.name, description: p.description, price_cents: p.price_cents, currency: p.currency,
   billing_interval: p.billing_interval, trial_days: p.trial_days, benefits: (p.benefits || []).filter(x => x.state !== 'indisponivel'), limits: p.limits || {}, features: p.features || {}, is_free: p.is_free })
@@ -82,7 +82,7 @@ export function billingRoutes({ json, readBody }) {
       suspended_kind: s.suspended_kind, price_cents: s.price_cents, discount_pct: s.discount_pct, discount_cycles_left: s.discount_cycles_left,
       current_period_start: s.current_period_start, current_period_end: s.current_period_end, trial_ends_at: s.trial_ends_at, grace_until: s.grace_until,
       next_retry_at: s.next_retry_at, retry_count: s.retry_count, cancel_at_period_end: s.cancel_at_period_end, provider: s.provider, card: core.publicCard(card),
-      payment_type: s.payment_type || 'card', pending_pix: await core.pendingPix(u.id, s.id),
+      payment_type: s.payment_type || 'card',
       limits: e?.limits || {}, over_limit: e?.over_limit || false }
   }
   return {
@@ -165,16 +165,8 @@ export function billingRoutes({ json, readBody }) {
     'POST /api/billing/subscribe': async (req, res) => { const u = await auth(req, res); if (!u) return; const b = await readBody(req); if (!CATALOG.includes(String(b.plan_id || ''))) return json(res, 404, { error: 'Este plano não está disponível para contratação.', code: 'PLAN_UNAVAILABLE' }); send(json, res, await core.subscribe(u, b, ipOf(req))) },
     'POST /api/billing/change-card': async (req, res) => { const u = await requireAuth(req, res, json); if (!u) return; send(json, res, await core.changeCard(u, await readBody(req), ipOf(req))) },
     'POST /api/billing/pay-now': async (req, res) => { const u = await requireAuth(req, res, json); if (!u) return; send(json, res, await core.payNow(u, await readBody(req), ipOf(req))) },
-    'POST /api/billing/pix/regenerate': async (req, res) => {
-      const u = await requireAuth(req, res, json); if (!u) return
-      const b = await readBody(req); if (!isUuid(b.charge_id)) return json(res, 400, { error: 'Cobrança Pix inválida.', code: 'INVALID_INPUT' })
-      send(json, res, await core.regeneratePix(u, b.charge_id))
-    },
-    'POST /api/billing/pix/confirm-test': async (req, res) => {
-      const u = await requireAuth(req, res, json); if (!u) return
-      const b = await readBody(req); if (!isUuid(b.charge_id)) return json(res, 400, { error: 'Cobrança Pix inválida.', code: 'INVALID_INPUT' })
-      send(json, res, await core.confirmSimulatedPix(u, b.charge_id))
-    },
+    'POST /api/billing/pix/regenerate': async (req, res) => { const u = await auth(req, res); if (!u) return; json(res, 410, { error: 'Pix não está mais disponível. Use cartão de crédito.', code: 'PAYMENT_METHOD_DISABLED' }) },
+    'POST /api/billing/pix/confirm-test': async (req, res) => { const u = await auth(req, res); if (!u) return; json(res, 410, { error: 'Pix não está mais disponível. Use cartão de crédito.', code: 'PAYMENT_METHOD_DISABLED' }) },
     'POST /api/billing/cancel': async (req, res) => { const u = await requireAuth(req, res, json); if (!u) return; send(json, res, await core.cancel(u, await readBody(req))) },
     'POST /api/billing/reactivate': async (req, res) => { const u = await requireAuth(req, res, json); if (!u) return; send(json, res, await core.reactivate(u, await readBody(req))) },
 

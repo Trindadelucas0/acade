@@ -234,7 +234,7 @@ function LoginForm() {
           <p className="lg-sub">É necessário escolher um plano para criar a conta. Cupom de desconto pode ser informado na contratação; o acesso só é liberado após a confirmação do pagamento.</p>
           {!plans && <p className="lg-sub">Carregando planos…</p>}
         </div>}
-        {reg && step === 4 && choice && <p className="lg-sub" data-testid="signup-pay-note">Depois de criar a conta, abrimos <b>Planos e pagamento</b> com o plano escolhido. Você conclui o pagamento por cartão ou Pix; nada é cobrado sem sua confirmação.</p>}
+        {reg && step === 4 && choice && <p className="lg-sub" data-testid="signup-pay-note">Depois de criar a conta, abrimos <b>Planos e pagamento</b> com o plano escolhido. Você conclui o pagamento por cartão; nada é cobrado sem sua confirmação.</p>}
         {reg && step === 5 && <div className="lg-sub" data-testid="signup-summary" style={{ textAlign: 'left' }}>
           <p><b>{f.name}</b> · {f.email}<br />{intent === 'profissional' ? 'Profissional' : 'Aluno'}{intent === 'aluno' && useProCode && f.pro_code.trim() ? ' · código do personal ' + f.pro_code.trim() : ''}</p>
           <p>Plano: {plans?.plans?.find(p => p.id === choice)?.name || choice} (pagamento antes de acessar o sistema)</p>

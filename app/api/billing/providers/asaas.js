@@ -37,10 +37,6 @@ export function asaas({ env = process.env, fetchImpl = fetch } = {}) {
       const c = await call('POST', '/customers', { name: holder?.name || user.name, email: user.email, cpfCnpj: holder?.cpfCnpj, externalReference: user.id, notificationDisabled: true })
       return c.id
     },
-    async updateCustomer(customerId, holder) {
-      if (!holder?.cpfCnpj) return
-      await call('PUT', '/customers/' + encodeURIComponent(customerId), { cpfCnpj: holder.cpfCnpj })
-    },
     async tokenize({ customerId, card, holder, remoteIp }) {
       const [mm, yy] = [String(card.expMonth).padStart(2, '0'), String(card.expYear).length === 2 ? '20' + card.expYear : String(card.expYear)]
       try {
@@ -55,19 +51,12 @@ export function asaas({ env = process.env, fetchImpl = fetch } = {}) {
         const p = await call('POST', '/payments', { customer: customerId, billingType: 'CREDIT_CARD', value: brl(amountCents), dueDate: today(),
           description: 'AVAGYM - ' + (charge.description || 'assinatura'), externalReference: charge.id, creditCardToken: token, remoteIp,
           ...(split?.length ? { split } : {}) })
-        const paid = ['CONFIRMED', 'RECEIVED'].includes(p.status)
-        return { status: paid ? 'paga' : 'pendente', providerChargeId: p.id }
+        // Mesmo se a resposta síncrona vier como confirmada, só o webhook autenticado libera o plano.
+        return { status: 'pendente', providerChargeId: p.id }
       } catch (e) {
         if (e.inconclusive) return { status: 'pendente', providerChargeId: null, inconclusive: true }
         return { status: 'recusada', providerChargeId: null, failure: { code: e.code, message: e.message } }
       }
-    },
-    async createPix({ customerId, amountCents, charge, split, dueDate }) {
-      const p = await call('POST', '/payments', { customer: customerId, billingType: 'PIX', value: brl(amountCents), dueDate,
-        description: 'AVAGYM - ' + (charge.description || 'assinatura'), externalReference: charge.id, ...(split?.length ? { split } : {}) })
-      const qr = await call('GET', `/payments/${encodeURIComponent(p.id)}/pixQrCode`)
-      return { status: ['CONFIRMED', 'RECEIVED'].includes(p.status) ? 'paga' : 'pendente', providerChargeId: p.id,
-        pix: { payload: qr.payload, encodedImage: qr.encodedImage, expiresAt: qr.expirationDate || null } }
     },
     // reconciliacao: consulta pela nossa referencia (evita cobranca duplicada depois de timeout)
     async getCharge(charge) {

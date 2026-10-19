@@ -196,6 +196,10 @@ export async function applyChargeResult(chargeId, result, source) {
     await c.query('begin')
     charge = (await c.query('select * from billing_charges where id=$1 for update', [chargeId])).rows[0]
     if (!charge) { await c.query('rollback'); return { ignored: 'cobranca desconhecida' } }
+    if (result.status === 'paga' && charge.provider === 'asaas' && source !== 'webhook') {
+      await c.query('rollback')
+      return { charge, noop: true, ignored: 'asaas_requires_webhook' }
+    }
     const ok = { pendente: ['paga', 'recusada', 'cancelada'], recusada: ['paga'], paga: ['estornada'] }[charge.status] || []
     if (!ok.includes(result.status)) { await c.query('rollback'); return { charge, noop: true } }
     charge = (await c.query(`update billing_charges set status=$2, paid_at=case when $2='paga' then now() else paid_at end, failure_code=$3, failure_message=$4,
@@ -243,14 +247,14 @@ export async function applyChargeResult(chargeId, result, source) {
     } else if (result.status === 'recusada') {
       const fresh = !!charge.meta?.activate_plan || charge.kind === 'manual' || !!charge.meta?.manual   // contratacao nova ou pagamento manual: so avisa, nao mexe nas retentativas
       const vars = { amount: brl(charge.amount_cents), last4: pm?.last4 || '----', plan: sub.plan_name }
-      if (fresh) after.push(() => notifyBilling(sub.user_id, charge.payment_type === 'pix' ? 'pix_vencido' : 'pagamento_recusado', vars, charge.id))
+      if (fresh) after.push(() => notifyBilling(sub.user_id, charge.payment_type === 'pix' ? 'pix_desativado' : 'pagamento_recusado', vars, charge.id))
       else if (charge.payment_type === 'pix' && ['ativa', 'trial', 'inadimplente'].includes(sub.status)) {
         const grace = addDays(new Date(), pol.carencia_dias)
         const nextStatus = pol.carencia_dias > 0 ? 'carencia' : 'suspensa'
         await c.query(`update subscriptions set status=$2, suspended_kind=case when $2='suspensa' then 'financeiro' else null end,
           retry_count=0, next_retry_at=null, grace_until=$3, updated_at=now() where id=$1`, [sub.id, nextStatus, pol.carencia_dias > 0 ? grace : null])
         await ev('status', { from: sub.status, to: nextStatus })
-        after.push(() => notifyBilling(sub.user_id, pol.carencia_dias > 0 ? 'pix_carencia' : 'pix_suspensa', { ...vars, grace: dBR(grace) }, charge.id))
+        after.push(() => notifyBilling(sub.user_id, 'pix_desativado', vars, charge.id))
       }
       else if (['ativa', 'trial', 'inadimplente'].includes(sub.status)) {
         const n = sub.retry_count + 1, days = pol.retentativas_dias
@@ -297,7 +301,7 @@ export async function handleWebhook(provider, body) {
     const st = EVENT_STATUS[type], pay = body.payment || {}
     if (st) {
       const ref = /^[0-9a-f-]{36}$/i.test(pay.externalReference || '') ? pay.externalReference : null
-      const ch = (await q(`select id from billing_charges where (provider=$1 and provider_charge_id=$2) or id=$3 limit 1`, [provider, pay.id || '', ref])).rows[0]
+      const ch = (await q(`select id from billing_charges where provider=$1 and (provider_charge_id=$2 or id=$3) limit 1`, [provider, pay.id || '', ref])).rows[0]
       if (ch) { const r = await applyChargeResult(ch.id, { status: st, providerChargeId: pay.id }, 'webhook'); outcome = r.noop ? 'sem_mudanca' : 'aplicado' }
       else outcome = 'cobranca_desconhecida'
     }
@@ -313,22 +317,18 @@ export async function handleWebhook(provider, body) {
 
 // ---------- contratacao, troca de cartao, cancelamento ----------
 export async function subscribe(user, b, ip) {
-  const provider = getProvider()
-  const paymentType = b.payment_type === 'pix' ? 'pix' : b.payment_type === 'card' || !b.payment_type ? 'card' : null
-  if (!paymentType) return { status: 400, error: 'Forma de pagamento inválida.', code: 'PAYMENT_TYPE_INVALID' }
+  const paymentType = normalizePaymentType(b.payment_type)
+  if (!paymentType) return { status: 400, error: 'Aceitamos somente cartão de crédito.', code: 'PAYMENT_METHOD_DISABLED' }
   const plan = (await q(`select p.*, (select v.id from plan_versions v where v.plan_id=p.id order by v.version desc limit 1) version_id from plans p where p.id=$1`, [String(b.plan_id || '')])).rows[0]
   if (!plan || !plan.active || !plan.sellable || plan.price_cents == null || plan.is_free) return { status: 404, error: 'Este plano não está disponível para contratação.', code: 'PLAN_UNAVAILABLE' }
   if (!user.roles.includes(plan.audience)) return { status: 403, error: plan.audience === 'profissional' ? 'Planos PRO são para contas profissionais.' : 'Este plano é para contas de aluno.', code: 'PERMISSION_DENIED' }
-  const customerDocument = String(b.customer_document || '').replace(/\D/g, '')
-  if (paymentType === 'pix' && provider.name === 'asaas' && !validCpf(customerDocument) && !validCnpj(customerDocument))
-    return { status: 400, error: 'Informe um CPF ou CNPJ válido para gerar o Pix.', code: 'CUSTOMER_DOCUMENT_REQUIRED' }
-  const pm = paymentType === 'card' ? (await q('select * from payment_methods where id=$1 and user_id=$2 and removed_at is null', [b.card_id, user.id])).rows[0] : null
+  const pm = (await q('select * from payment_methods where id=$1 and user_id=$2 and removed_at is null', [b.card_id, user.id])).rows[0]
   if (paymentType === 'card' && !pm) return { status: 400, error: 'Escolha um cartão.', code: 'CARD_REQUIRED' }
   await ensureSubscription(user.id, plan.audience)
   const sub = await openSub(user.id, plan.audience)
   if (!sub.is_free && OPEN_PAID.includes(sub.status) && sub.provider) {
     if (sub.plan_id === plan.id) return { status: 409, error: 'Você já tem este plano.', code: 'ALREADY_SUBSCRIBED' }
-    return changePlan(user, sub, plan, ip)
+    return changePlan(user, sub, plan, pm)
   }
   // cupom de desconto (opcional)
   let disc = null
@@ -349,20 +349,29 @@ export async function subscribe(user, b, ip) {
   }
   const amount = disc ? Math.round(plan.price_cents * (1 - disc.campaign.discount_pct / 100)) : plan.price_cents
   const now = new Date()
-  const pixExpiresAt = paymentType === 'pix' ? addDays(now, 1) : null
   const r = await chargeNow({ sub: { ...sub, plan_name: plan.name }, kind: 'primeira', amountCents: amount, discountCents: plan.price_cents - amount, periodStart: now, periodEnd: addMonths(now, 1),
-    meta, key: `sub:${sub.id}:primeira:${b.idempotency_key ? String(b.idempotency_key).slice(0, 64) : now.getTime()}`, ip, paymentType, pixExpiresAt, customerDocument })
+    meta, key: `sub:${sub.id}:primeira:${b.idempotency_key ? String(b.idempotency_key).slice(0, 64) : now.getTime()}`, ip, paymentType })
   await audit(user.tenant_id, user.id, 'cobranca.contratacao', 'subscription', sub.id, { plan: plan.id, status: r.status })
   if (r.status === 'paga') return { status: 200, result: 'ativa', charge_id: r.charge.id }
-  if (r.status === 'pendente') return { status: 202, result: 'pendente', message: paymentType === 'pix' ? 'Pix gerado. O plano será liberado após a confirmação do pagamento.' : 'Pagamento em análise. Avisaremos assim que for confirmado.', pix: r.pix }
-  if (paymentType === 'pix' && r.status === 'recusada') return { status: 502, error: 'Não foi possível gerar o Pix. Confira o CPF/CNPJ e tente novamente.', code: 'PIX_CREATION_FAILED' }
+  if (r.status === 'pendente') return { status: 202, result: 'pendente', charge_id: r.charge.id, message: 'Pagamento em análise. O acesso será liberado após a confirmação do Asaas.' }
   // BUG-031: reenvio com a mesma chave devolve o resultado real (recusada nao vira sucesso)
-  if (r.duplicate) return r.charge.status === 'paga' ? { status: 200, result: 'ativa', charge_id: r.charge.id, duplicate: true } : r.charge.status === 'pendente' ? { status: 202, result: 'pendente', duplicate: true, pix: publicPix(r.charge) } : { status: 402, error: 'Pagamento recusado. Confira os dados do cartão ou use outro cartão.', code: 'CARD_DECLINED', duplicate: true }
+  if (r.duplicate) return r.charge.status === 'paga' ? { status: 200, result: 'ativa', charge_id: r.charge.id, duplicate: true } : r.charge.status === 'pendente' ? { status: 202, result: 'pendente', charge_id: r.charge.id, duplicate: true, message: 'Pagamento em análise. O acesso será liberado após a confirmação do Asaas.' } : { status: 402, error: 'Pagamento recusado. Confira os dados do cartão ou use outro cartão.', code: 'CARD_DECLINED', duplicate: true }
   return { status: 402, error: 'Pagamento recusado. Confira os dados do cartão ou use outro cartão.', code: 'CARD_DECLINED' }
 }
 // troca entre planos pagos da mesma area: vale ja, o novo preco entra na proxima cobranca (sem pro-rata nesta versao)
-async function changePlan(user, sub, plan) {
-  await q(`update subscriptions set plan_id=$2, plan_version_id=$3, price_cents=$4, updated_at=now() where id=$1`, [sub.id, plan.id, plan.version_id, plan.price_cents])
+async function changePlan(user, sub, plan, pm) {
+  if (sub.payment_type === 'pix') {
+    const provider = getProvider()
+    if (!pm || pm.provider !== provider.name) return { status: 409, error: 'Cadastre um cartão neste ambiente de pagamento antes de continuar.', code: 'CARD_PROVIDER_MISMATCH' }
+    const oldPix = (await q(`select * from billing_charges where subscription_id=$1 and payment_type='pix' and status='pendente' order by created_at desc`, [sub.id])).rows
+    for (const charge of oldPix) {
+      try { await provider.cancelCharge(charge) } catch { return { status: 503, error: 'Não foi possível cancelar uma cobrança Pix antiga. Tente novamente ou fale com o suporte.', code: 'LEGACY_PIX_CANCEL_FAILED' } }
+      await applyChargeResult(charge.id, { status: 'cancelada', providerChargeId: charge.provider_charge_id }, 'migracao_cartao')
+    }
+    await q(`update subscriptions set plan_id=$2, plan_version_id=$3, price_cents=$4, payment_method_id=$5, payment_type='card', updated_at=now() where id=$1`, [sub.id, plan.id, plan.version_id, plan.price_cents, pm.id])
+  } else {
+    await q(`update subscriptions set plan_id=$2, plan_version_id=$3, price_cents=$4, updated_at=now() where id=$1`, [sub.id, plan.id, plan.version_id, plan.price_cents])
+  }
   await q(`insert into subscription_events(subscription_id,action,from_plan,to_plan,actor_id) values($1,'troca_plano',$2,$3,$4)`, [sub.id, sub.plan_id, plan.id, user.id])
   await audit(user.tenant_id, user.id, 'cobranca.troca_plano', 'subscription', sub.id, { from: sub.plan_id, to: plan.id })
   const e = await refreshUsage(user.id, plan.audience)
@@ -373,54 +382,35 @@ export async function changeCard(user, b, ip) {
   const s = await paidSub(user, b.audience); if (!s) return { status: 404, error: 'Nenhuma assinatura paga nesta área.', code: 'NO_SUBSCRIPTION' }
   const pm = (await q('select * from payment_methods where id=$1 and user_id=$2 and removed_at is null', [b.card_id, user.id])).rows[0]
   if (!pm) return { status: 400, error: 'Escolha um cartão.', code: 'CARD_REQUIRED' }
-  await q('update subscriptions set payment_method_id=$2, updated_at=now() where id=$1', [s.id, pm.id])
+  const provider = getProvider()
+  if (pm.provider !== provider.name) return { status: 409, error: 'Cadastre um cartão neste ambiente de pagamento antes de continuar.', code: 'CARD_PROVIDER_MISMATCH' }
+  const oldPix = (await q(`select * from billing_charges where subscription_id=$1 and payment_type='pix' and status='pendente' order by created_at desc`, [s.id])).rows
+  for (const charge of oldPix) {
+    try { await provider.cancelCharge(charge) } catch { return { status: 503, error: 'Não foi possível cancelar uma cobrança Pix antiga. Tente novamente ou fale com o suporte.', code: 'LEGACY_PIX_CANCEL_FAILED' } }
+    await applyChargeResult(charge.id, { status: 'cancelada', providerChargeId: charge.provider_charge_id }, 'migracao_cartao')
+  }
+  const migratedExpiredPix = s.payment_type === 'pix' && new Date(s.current_period_end) <= new Date()
+  await q(`update subscriptions set payment_method_id=$2, payment_type='card',
+    status=case when $3 and status='ativa' then 'suspensa' else status end,
+    suspended_kind=case when $3 and status='ativa' then 'financeiro' else suspended_kind end, updated_at=now() where id=$1`, [s.id, pm.id, migratedExpiredPix])
   await q(`insert into subscription_events(subscription_id,action,data,actor_id) values($1,'cartao_trocado',$2,$3)`, [s.id, JSON.stringify({ last4: pm.last4 }), user.id])
   await audit(user.tenant_id, user.id, 'cobranca.cartao_trocado', 'subscription', s.id, { last4: pm.last4 })
   await notifyBilling(user.id, 'cartao_atualizado', { last4: pm.last4 }, s.id + ':' + pm.id)
   // pendencia financeira: tenta cobrar na hora com o cartao novo
-  if (['inadimplente', 'carencia'].includes(s.status) || (s.status === 'suspensa' && s.suspended_kind === 'financeiro')) return { status: 200, ...(await payNow(user, b, ip)), card_changed: true }
+  if (migratedExpiredPix || ['inadimplente', 'carencia'].includes(s.status) || (s.status === 'suspensa' && s.suspended_kind === 'financeiro')) return { status: 200, ...(await payNow(user, b, ip)), card_changed: true }
   return { status: 200, card_changed: true }
 }
 export async function payNow(user, b, ip) {
   const s = await paidSub(user, b.audience); if (!s) return { status: 404, error: 'Nenhuma assinatura paga nesta área.', code: 'NO_SUBSCRIPTION' }
+  if (s.payment_type === 'pix') return { status: 409, error: 'Adicione um cartão de crédito para reativar a cobrança.', code: 'CARD_REQUIRED' }
   const owes = ['inadimplente', 'carencia'].includes(s.status) || (s.status === 'suspensa' && s.suspended_kind === 'financeiro')
   if (!owes) return { status: 409, error: 'Não há pagamento pendente.', code: 'NOTHING_DUE' }
   const now = new Date()
   const last = (await q(`select period_start, period_end from billing_charges where subscription_id=$1 and status='recusada' order by created_at desc limit 1`, [s.id])).rows[0]
   const ps = s.status === 'suspensa' || !last ? now : last.period_start, pe = s.status === 'suspensa' || !last ? addMonths(now, 1) : last.period_end
   const amount = s.discount_cycles_left > 0 && s.discount_pct ? Math.round(s.price_cents * (1 - s.discount_pct / 100)) : s.price_cents
-  if (s.payment_type === 'pix') {
-    const open = await pendingPix(user.id, s.id)
-    if (open && !open.expired) return { status: 202, result: 'pendente', pix: open }
-    if (open?.expired) return regeneratePix(user, open.charge_id)
-    const r = await chargeNow({ sub: s, kind: 'manual', amountCents: amount, discountCents: s.price_cents - amount, periodStart: ps, periodEnd: pe,
-      key: `sub:${s.id}:pix-manual:${now.getTime()}`, paymentType: 'pix', pixExpiresAt: addDays(now, 1), meta: { manual: true } })
-    return { status: 202, result: 'pendente', pix: r.pix }
-  }
   const r = await chargeNow({ sub: s, kind: 'retentativa', amountCents: amount, discountCents: s.price_cents - amount, periodStart: ps, periodEnd: pe, key: `sub:${s.id}:manual:${now.getTime()}`, ip, attemptIndex: s.retry_count + 1, meta: { manual: true } })
   return r.status === 'paga' ? { status: 200, result: 'ativa' } : r.status === 'pendente' ? { status: 202, result: 'pendente' } : { status: 402, error: 'Pagamento recusado. Tente outro cartão.', code: 'CARD_DECLINED' }
-}
-export async function regeneratePix(user, chargeId) {
-  const old = (await q(`select c.*, s.plan_id, s.plan_version_id, s.price_cents subscription_price, s.partner_user_id, p.name plan_name
-    from billing_charges c join subscriptions s on s.id=c.subscription_id join plans p on p.id=s.plan_id
-    where c.id=$1 and c.user_id=$2 and c.payment_type='pix' and c.status='pendente'`, [chargeId, user.id])).rows[0]
-  if (!old) return { status: 404, error: 'Pix pendente não encontrado.', code: 'PIX_NOT_FOUND' }
-  if (old.pix_expires_at && new Date(old.pix_expires_at) > new Date()) return { status: 409, error: 'Este Pix ainda está válido.', code: 'PIX_STILL_VALID', pix: publicPix(old) }
-  await getProvider().cancelCharge(old).catch(() => {})
-  await applyChargeResult(old.id, { status: 'cancelada', providerChargeId: old.provider_charge_id }, 'regeneracao_pix')
-  const sub = await openSub(user.id, (await q('select audience from subscriptions where id=$1', [old.subscription_id])).rows[0].audience)
-  const expiry = addDays(new Date(), 1)
-  const r = await chargeNow({ sub: { ...sub, plan_name: old.plan_name }, kind: old.kind, amountCents: old.amount_cents, discountCents: old.discount_cents,
-    periodStart: old.period_start, periodEnd: old.period_end, meta: old.meta || {}, key: `sub:${old.subscription_id}:pix-regen:${Date.now()}`,
-    paymentType: 'pix', pixExpiresAt: expiry })
-  return { status: 202, result: 'pendente', pix: r.pix }
-}
-export async function confirmSimulatedPix(user, chargeId) {
-  if (getProvider().name !== 'simulado') return { status: 404, error: 'Endereço não encontrado', code: 'NOT_FOUND' }
-  const c = (await q(`select id,provider_charge_id from billing_charges where id=$1 and user_id=$2 and payment_type='pix' and status='pendente'`, [chargeId, user.id])).rows[0]
-  if (!c) return { status: 404, error: 'Pix pendente não encontrado.', code: 'PIX_NOT_FOUND' }
-  await applyChargeResult(c.id, { status: 'paga', providerChargeId: c.provider_charge_id }, 'simulador_pix')
-  return { status: 200, result: 'ativa' }
 }
 export async function cancel(user, b) {
   const s = await paidSub(user, b.audience); if (!s) return { status: 404, error: 'Nenhuma assinatura paga nesta área.', code: 'NO_SUBSCRIPTION' }
@@ -468,15 +458,9 @@ export async function tick({ only } = {}) {
       const base = `select s.*, p.name plan_name from subscriptions s join plans p on p.id=s.plan_id where s.provider is not null and not p.is_free`
       // 1) fim do periodo com cancelamento agendado
       for (const s of await sel(base + ` and s.status in ('ativa','trial','inadimplente') and s.cancel_at_period_end and s.current_period_end <= now()`)) { await endSubscription(s, 'fim_periodo_cancelado'); out.encerradas++ }
-      // 2) Pix: gera a renovacao cinco dias antes; pagamento continua pendente ate webhook/reconciliacao.
-      for (const s of await sel(base + ` and s.payment_type='pix' and s.status in ('ativa','trial') and not s.cancel_at_period_end and s.current_period_end <= now()+interval '5 days'`)) {
-        const amount = s.discount_cycles_left > 0 && s.discount_pct ? Math.round(s.price_cents * (1 - s.discount_pct / 100)) : s.price_cents
-        const ps = new Date(s.current_period_end)
-        const r = await chargeNow({ sub: s, kind: s.status === 'trial' ? 'primeira' : 'renovacao', amountCents: amount, discountCents: s.price_cents - amount, periodStart: ps, periodEnd: addMonths(ps, 1),
-          key: `sub:${s.id}:periodo:${ps.toISOString()}`, paymentType: 'pix', pixExpiresAt: ps })
-        if (!r.duplicate) await notifyBilling(s.user_id, 'pix_gerado', { amount: brl(amount), plan: s.plan_name, until: dBR(ps) }, r.charge.id)
-        out.renovadas++
-      }
+      // Assinaturas Pix legadas não geram novas cobranças. Avise uma vez para migração para cartão.
+      for (const s of await sel(base + ` and s.payment_type='pix' and s.status in ('ativa','trial') and not s.cancel_at_period_end and s.current_period_end <= now()+interval '5 days'`))
+        await notifyBilling(s.user_id, 'pix_desativado', { plan: s.plan_name }, `legacy-pix:${s.id}:${new Date(s.current_period_end).toISOString()}`)
       // 3) Cartao: renovacao no vencimento e retentativas automaticas.
       for (const s of await sel(base + ` and s.payment_type='card' and s.status in ('ativa','trial') and not s.cancel_at_period_end and s.current_period_end <= now()`)) {
         const amount = s.discount_cycles_left > 0 && s.discount_pct ? Math.round(s.price_cents * (1 - s.discount_pct / 100)) : s.price_cents

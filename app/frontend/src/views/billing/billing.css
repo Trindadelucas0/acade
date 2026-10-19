@@ -54,8 +54,6 @@
 .bl-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.bl-actions .bl-btn{width:auto}
 .bl-danger{color:#ff6b5f}
 .bl-cardpick{display:grid;gap:8px;margin-top:12px}
-.bl-paytypes{display:flex;gap:14px;flex-wrap:wrap;border:1px solid var(--sep,#ffffff1a);border-radius:12px;padding:12px;margin:12px 0}.bl-paytypes legend{padding:0 6px;font-size:13px;font-weight:700}.bl-paytypes label{display:flex;align-items:center;gap:7px;min-height:36px}
-.bl-pix{display:grid;gap:12px;justify-items:stretch;margin-top:14px;padding:14px;border:1px solid var(--sep,#ffffff1a);border-radius:14px;background:var(--fill,#ffffff08)}.bl-pix img{display:block;max-width:100%;height:auto;margin:auto;background:#fff;border-radius:10px;padding:8px}.bl-pix textarea{font-family:ui-monospace,monospace;overflow-wrap:anywhere;resize:vertical}
 .bl-cardrow{padding:8px 0;border-top:1px solid var(--sep,#ffffff12)}
 .bl-coupon input{flex:1;min-width:160px}
 .bl-modal-bg{position:fixed;inset:0;background:#000a;display:flex;align-items:flex-end;justify-content:center;z-index:1000}

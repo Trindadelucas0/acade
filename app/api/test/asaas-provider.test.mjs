@@ -17,29 +17,27 @@ test('provedor Asaas incompleto falha fechado e não cai no simulador', () => {
   assert.throws(() => getProvider({ BILLING_PROVIDER: 'asaas', ASAAS_ENV: 'producao' }), /ASAAS_API_KEY ausente/)
 })
 
-test('Pix cria cobrança e busca QR Code sem expor a chave', async () => {
+test('provedor Asaas deixa até resposta CONFIRMED pendente para aguardar o webhook', async () => {
   const calls = []
   const fetchImpl = async (url, init) => {
     calls.push({ url, init })
-    return { ok: true, json: async () => url.endsWith('/pixQrCode') ? { payload: 'pix-copia-cola', encodedImage: 'abc', expirationDate: '2026-10-18T12:00:00Z' } : { id: 'pay_1', status: 'PENDING' } }
+    return { ok: true, json: async () => ({ id: 'pay_1', status: 'CONFIRMED' }) }
   }
   const p = asaas({ env: { ASAAS_ENV: 'producao', ASAAS_API_KEY: '$aact_prod_example', ASAAS_WEBHOOK_TOKEN: token }, fetchImpl })
-  const r = await p.createPix({ customerId: 'cus_1', amountCents: 1990, charge: { id: '00000000-0000-0000-0000-000000000001', description: 'Individual' }, dueDate: '2026-10-18' })
+  const r = await p.charge({ customerId: 'cus_1', token: 'tok_1', amountCents: 1990, charge: { id: '00000000-0000-0000-0000-000000000001', description: 'Individual' } })
   assert.equal(r.status, 'pendente')
-  assert.equal(r.pix.payload, 'pix-copia-cola')
-  assert.equal(calls.length, 2)
-  assert.equal(JSON.parse(calls[0].init.body).billingType, 'PIX')
+  assert.equal(calls.length, 1)
+  assert.equal(JSON.parse(calls[0].init.body).billingType, 'CREDIT_CARD')
   assert.equal(calls[0].init.headers.access_token, '$aact_prod_example')
+  assert.equal('createPix' in p, false)
+  assert.equal('updateCustomer' in p, false)
 })
 
-test('cliente Asaas novo recebe CPF/CNPJ e cliente existente pode ter o documento corrigido', async () => {
+test('cliente Asaas recebe apenas nome e e-mail para tokenizar o cartão', async () => {
   const calls = []
   const fetchImpl = async (url, init) => { calls.push({ url, init }); return { ok: true, json: async () => ({ id: 'cus_1' }) } }
   const p = asaas({ env: { ASAAS_ENV: 'producao', ASAAS_API_KEY: '$aact_prod_example', ASAAS_WEBHOOK_TOKEN: token }, fetchImpl })
-  await p.ensureCustomer({ id: 'user_1', name: 'Cliente', email: 'cliente@example.com' }, { cpfCnpj: '52998224725' })
-  await p.updateCustomer('cus_1', { cpfCnpj: '11222333000181' })
-  assert.equal(JSON.parse(calls[0].init.body).cpfCnpj, '52998224725')
-  assert.equal(calls[1].init.method, 'PUT')
-  assert.equal(calls[1].url.endsWith('/customers/cus_1'), true)
-  assert.equal(JSON.parse(calls[1].init.body).cpfCnpj, '11222333000181')
+  await p.ensureCustomer({ id: 'user_1', name: 'Cliente', email: 'cliente@example.com' })
+  assert.equal(calls.length, 1)
+  assert.deepEqual(JSON.parse(calls[0].init.body), { name: 'Cliente', email: 'cliente@example.com', externalReference: 'user_1', notificationDisabled: true })
 })
