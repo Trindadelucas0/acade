@@ -72,6 +72,13 @@ const FAQ_LANDING = [
   ['Como funcionam as notificações?', 'Você escolhe se quer ativar. A ORNY explica antes de pedir a permissão do aparelho, e isso nunca bloqueia o seu acesso.'],
 ]
 
+// Vídeo de fundo no hero. Desligado porque o único material disponível hoje é o
+// /video/landing-hero.* gerado a partir do login-bg (academia de garagem, luz azul
+// virada para verde): ao lado da foto do hero ele fica visivelmente pior e derruba o
+// contraste do título. O caminho está pronto — basta trocar para true quando existir
+// um b-roll decente (preto/verde, 6-8s, lado esquerdo escuro para o texto respirar).
+const HERO_VIDEO = false
+
 // Âncora interna: o app usa HashRouter, então <a href="#secao"> troca a rota e desmonta a landing.
 const goTo = id => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 const toTop = () => window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -121,7 +128,7 @@ export default function Landing() {
 
     <section className="lp-hero" ref={heroRef} data-testid="landing-hero">
       <div className="lp-hero-bg">
-        <img src="/landing/hero-orny.webp" alt="" width="1672" height="941" fetchpriority="high" decoding="async" className="lp-hero-still" />
+        <img src="/landing/hero-orny.webp" alt="" width="1672" height="941" fetchPriority="high" decoding="async" className="lp-hero-still" />
       </div>
       <div className="lp-hero-shade" aria-hidden="true" />
       <div className="lp-shell lp-hero-inner">
@@ -361,9 +368,15 @@ function useGsap(root, heroRef, deps) {
             split = new SplitText(lines, { type: 'words' })
             tl.from(split.words, { yPercent: 115, duration: dur, stagger: .06 })
           }
-          tl.add(rise('[data-hero]', { from: { y: 26 }, to: { y: 0, duration: dur * .75, stagger: .08 } }), '-=.45')
+          // tl.fromTo direto: um gsap.fromTo solto e depois tl.add() deixa o tween preso no
+          // estado inicial, porque ele ja comecou a rodar fora da timeline
+          tl.fromTo('[data-hero]', { opacity: 0, y: 26 }, { opacity: 1, y: 0, duration: dur * .75, stagger: .08 }, '-=.45')
           tl.from('.lp-dot', { scale: 0, duration: .5, stagger: .07, ease: 'back.out(2.2)' }, '-=.5')
           tl.from('.lp-hero-still', { scale: 1.12, duration: 1.8, ease: 'power2.out' }, 0)
+          // deriva lenta e continua: o hero nunca fica parado, sem custo de rede
+          gsap.to('.lp-hero-still', { scale: 1.07, xPercent: -1.5, duration: 16, ease: 'sine.inOut', repeat: -1, yoyo: true, delay: 1.8 })
+          // o fundo do hero acompanha a rolagem (parallax curto)
+          gsap.to('.lp-hero-bg', { yPercent: 12, ease: 'none', scrollTrigger: { trigger: '.lp-hero', start: 'top top', end: 'bottom top', scrub: .5 } })
 
           // um único batch em vez de um ScrollTrigger por elemento (Android fraco agradece)
           ScrollTrigger.batch('[data-reveal]', {
@@ -403,6 +416,7 @@ function useGsap(root, heroRef, deps) {
 // conexão e o aparelho aguentam, e entra com fade por cima da imagem (que fica embaixo para sempre).
 function useHeroVideo(heroRef) {
   useEffect(() => {
+    if (!HERO_VIDEO) return
     const host = heroRef.current?.querySelector('.lp-hero-bg')
     if (!host) return
     const c = navigator.connection || {}
@@ -418,7 +432,8 @@ function useHeroVideo(heroRef) {
       v.className = 'lp-hero-video'
       Object.assign(v, { muted: true, loop: true, autoplay: true, playsInline: true, preload: 'none', disableRemotePlayback: true })
       v.setAttribute('muted', ''); v.setAttribute('playsinline', ''); v.setAttribute('aria-hidden', 'true')
-      for (const [src, type] of [['/video/landing-hero.webm', 'video/webm'], ['/video/landing-hero.mp4', 'video/mp4']]) {
+      // mp4 primeiro: nesta codificacao ficou menor que o webm e toca em todo lugar
+      for (const [src, type] of [['/video/landing-hero.mp4', 'video/mp4'], ['/video/landing-hero.webm', 'video/webm']]) {
         const s = document.createElement('source'); s.src = src; s.type = type; v.appendChild(s)
       }
       v.addEventListener('playing', () => v.classList.add('on'), { once: true })
@@ -426,13 +441,15 @@ function useHeroVideo(heroRef) {
       v.load()
       v.play().catch(() => { v?.remove(); v = null })   // autoplay recusado: fica só a imagem
     }
-    const start = () => { idle = (window.requestIdleCallback || setTimeout)(mount, 300) }
+    // requestIdleCallback recebe { timeout }, nao um numero: passar 300 direto lanca TypeError
+    const ric = window.requestIdleCallback
+    const start = () => { idle = ric ? ric(mount, { timeout: 1200 }) : setTimeout(mount, 300) }
     if (document.readyState === 'complete') start()
     else window.addEventListener('load', start, { once: true })
 
     return () => {
       window.removeEventListener('load', start)
-      if (idle) (window.cancelIdleCallback || clearTimeout)(idle)
+      if (idle) (ric ? window.cancelIdleCallback : clearTimeout)(idle)
       if (v) { v.pause(); v.removeAttribute('src'); v.load(); v.remove() }
     }
   }, [heroRef])

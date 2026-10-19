@@ -2,7 +2,8 @@
 
 Origem do escopo: PRD funcional V5.0 (16/10/2026).
 Código analisado: repositório `Trindadelucas0/acade` (`f:\academia\acade`).
-Versão do código no momento da análise: frontend 1.2.7, api 1.2.4, V4.4 em homologação (commit `52a5540`). Revisão em 16/10/2026 sobre a V4.4 local não commitada (ver seção 10).
+Versão do código no momento da análise: frontend 1.2.7, api 1.2.4, V4.4 em homologação (commit `52a5540`).
+ Revisão em 16/10/2026 sobre a V4.4 local não commitada (ver seção 10).
 
 Este anexo é apoio à implementação. O plano para leitura do usuário fica no chat.
 Ele NÃO autoriza implementação: aguarda autorização explícita.

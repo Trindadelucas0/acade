@@ -44,12 +44,18 @@ html[data-lp] body {
   overflow-x: clip;
 }
 
-.orny-landing h1,
-.orny-landing h2,
-.orny-landing h3 {
+/* html[data-lp] (0,2,1) vence :root[data-theme="light"] h1 (0,1,1) do index.css, que pinta
+ * os títulos de var(--navy) — escuro — quando o visitante está no tema claro. */
+html[data-lp] .orny-landing h1,
+html[data-lp] .orny-landing h2,
+html[data-lp] .orny-landing h3 {
   margin: 0;
   color: #fff;
   font-family: var(--font-head, 'Montserrat Variable', Montserrat, system-ui, sans-serif);
+}
+
+html[data-lp] .orny-landing .lp-accent {
+  color: var(--lp-green);
 }
 
 /* o logo vem com uma pílula preta de orny.css; aqui o fundo já é preto */
