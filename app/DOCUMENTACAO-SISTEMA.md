@@ -3,6 +3,19 @@
 Fonte oficial de comportamento. Versão frontend: 1.7.4. Atualização: 19/10/2026.
 O inventário em `docs/INVENTARIO-FUNCIONAL.md` preserva o levantamento histórico e seus limites de validação; este documento consolida os fluxos atualizados.
 
+## Bloqueio comercial — somente pagamento confirmado (19/10/2026)
+
+O acesso às áreas e operações autenticadas do aluno ou profissional exige uma assinatura não gratuita, vigente e com cobrança marcada como paga e confirmada. Plano selecionado, teste/cupom gratuito, cortesia, cobrança pendente ou cobrança simulada não liberam o sistema. A configuração `monetizacao_ativa` não desliga essa proteção; administradores mantêm a isenção operacional. O checkout, a consulta/regularização da assinatura, gestão da conta e documentos legais continuam disponíveis sem pagamento.
+
+A confirmação do provedor é a autoridade: cobrança pendente ou recusada não libera acesso; cobranças `simulado` não contam. O middleware de API aplica o bloqueio no servidor (HTTP 402 `ACCESS_REQUIRED`), preservando os dados. A interface de assinatura apresenta planos e pagamento, mas não substitui a validação de servidor.
+
+Onde olhar no código: `api/access.js` (origem paga, allowlist e middleware global), `api/server.js` (aplicação do middleware), `frontend/src/views/billing/Access.jsx` (mensagem de bloqueio) e `frontend/src/views/billing/Premium.jsx` (cadeados).
+
+### Como usar
+
+1. Sem cobrança confirmada, a pessoa pode entrar na conta e abrir **Assinatura** para escolher/concluir o pagamento, mas não acessar treinos, progresso ou recursos internos.
+2. Após confirmação real pelo provedor e período vigente, o acesso é liberado automaticamente. Se o pagamento estiver pendente, deve aguardar a confirmação ou regularizar a cobrança.
+
 ## Cadastro e aceite legal — correção 1.7.4 (19/10/2026)
 
 No cadastro de aluno, o código de personal fica fechado por padrão e só é enviado ao servidor depois de a pessoa escolher **Tenho código do meu personal**. Nome, e-mail ou outro preenchimento automático do navegador não podem mais ser interpretados como código nem impedir quem escolheu um plano, cupom ou **Decidir depois**. A confirmação mostra o vínculo somente quando essa opção foi aberta e recebeu um código.
@@ -89,11 +102,11 @@ O catálogo público possui 18 programas oficiais: ganho de massa, emagrecimento
 
 Os programas antigos com origem `seed` são arquivados, nunca apagados. Eles deixam de aceitar novas adesões e somem das recomendações e do catálogo, mas o aluno que já começou continua usando a revisão vinculada até concluir ou trocar; sessões, cargas e histórico permanecem. Preferências antigas de reabilitação passam para mobilidade. O sincronizador idempotente fica em `api/db/official-programs.js`; a estrutura e a transição ficam na migration 059.
 
-Com monetização ativa, iniciar um programa oficial exige `catalogo_completo` no servidor. O Individual confirmado, o teste válido e a concessão vigente fornecem esse direito. Pagamento pendente, assinatura cancelada ou conta sem o recurso continuam bloqueados. Cobertura pelo PRO mantém fichas e recursos do personal, mas não concede o catálogo Individual. Administradores permanecem isentos conforme o motor central.
+Iniciar um programa oficial exige `catalogo_completo` no servidor, além do bloqueio comercial vigente: somente assinatura paga confirmada libera o uso em produção. Teste ou concessão não substituem o pagamento. Cobertura pelo PRO mantém fichas e recursos do personal somente quando o plano PRO está pago e confirmado. Administradores permanecem isentos conforme o motor central.
 
 ### Criação orientada da ficha — 1.6.0 (19/10/2026)
 
-Depois da confirmação do Individual, teste ou concessão, o atalho principal **Encontrar minha ficha** abre a recomendação. Se ainda não houver perfil, o aluno responde objetivo, nível, local, frequência, duração, equipamentos e restrições. A primeira recomendação apresenta **Ativar treino recomendado** e só cria a ficha depois da confirmação explícita do aluno.
+Depois da confirmação do Individual, o atalho principal **Encontrar minha ficha** abre a recomendação. Se ainda não houver perfil, o aluno responde objetivo, nível, local, frequência, duração, equipamentos e restrições. A primeira recomendação apresenta **Ativar treino recomendado** e só cria a ficha depois da confirmação explícita do aluno.
 
 A rota `POST /api/guided/start-recommended` não recebe identificador de aluno nem confia em um programa escolhido pelo navegador: usa a conta autenticada, relê o próprio perfil, recalcula a melhor opção entre programas publicados e compatíveis e aplica o mesmo direito `catalogo_completo` do início manual. Perfil incompleto e ausência de programa compatível não criam vínculo. Uma ficha do personal ativa continua com prioridade e não é substituída; programas anteriores são desvinculados para o histórico antes de uma troca confirmada.
 
@@ -114,9 +127,9 @@ O catálogo passou na validação estrutural com 18 combinações únicas e sem 
 
 - Início mantém a data, o cumprimento e as notificações no cabeçalho. Minha semana é o primeiro cartão, com rolagem normal. Abaixo ficam treino ativo, ação para começar/continuar, sequência de dias, volume, tempo, recordes recentes e mapa do próximo treino.
 - O mapa usa os exercícios e as séries da próxima sessão do programa ativo ou da ficha do personal, que tem prioridade. Na ficha, a sequência sugere um dia; o aluno ainda pode escolher outro em Treinos. Preparar este treino abre exatamente o dia exibido e mantém a confirmação de pesos antes de iniciar. Repetições do mesmo exercício em blocos diferentes somam as séries.
-- Com monetização ativa e sem origem válida de acesso, Treinos, Comunidade, Progresso e páginas premium mostram cadeado e acesso à assinatura. Músculos trabalhados tem bloqueio explícito. Conta não ativa vê a situação cadastral. Administradores continuam isentos; teste, concessão vigente e cobertura pelo personal continuam sendo reconhecidos pelo servidor. Monetização desligada preserva o comportamento anterior.
-- A interface aguarda a consulta de acesso antes de montar conteúdo premium. Falha inicial oferece Tentar novamente. Respostas atrasadas de outra conta ou anteriores a uma atualização de acesso são ignoradas. A confirmação de acesso e a faixa de teste são vinculadas à conta atual.
-- Após assinatura ou teste elegível, o agradecimento informa o plano e os atalhos permitidos para aquele público, recursos e contexto. O pagamento confirmado libera o uso imediatamente, sem análise administrativa. O agradecimento aguarda a saída de Treinar e o registro de exibição só é enviado depois de aparecer; fechar ou usar um atalho também confirma a apresentação. Não repete após registro bem-sucedido; falha de rede pode levar a nova tentativa em outra entrada. O modal permite teclado, mantém o foco e fecha com Escape.
+- Sem origem paga válida, Treinos, Comunidade, Progresso e páginas premium mostram cadeado e acesso à assinatura. Músculos trabalhados tem bloqueio explícito. Conta sem pagamento confirmado vê a situação cadastral. Administradores continuam isentos; teste e concessão não liberam recursos em produção. Cobertura pelo personal só vale quando houver plano PRO pago e confirmado. Monetização desligada não desativa o bloqueio em produção.
+- A interface aguarda a consulta de acesso antes de montar conteúdo premium. Falha inicial oferece Tentar novamente. Respostas atrasadas de outra conta ou anteriores a uma atualização de acesso são ignoradas. A confirmação de acesso é vinculada à conta atual.
+- Após assinatura confirmada, o agradecimento informa o plano e os atalhos permitidos para aquele público, recursos e contexto. O pagamento confirmado libera o uso imediatamente, sem análise administrativa. O agradecimento aguarda a saída de Treinar e o registro de exibição só é enviado depois de aparecer; fechar ou usar um atalho também confirma a apresentação. Não repete após registro bem-sucedido; falha de rede pode levar a nova tentativa em outra entrada. O modal permite teclado, mantém o foco e fecha com Escape.
 - Programas permite combinar Objetivo, Nível e Local, com Limpar filtros, ausência de resultados e nova tentativa após falha. O catálogo oficial e sua transição estão descritos na seção acima; a antiga auditoria de 21 programas de seed foi substituída pela coleção editorial de 18 combinações.
 - Progresso mantém resumo, histórico, recordes e acesso a Estatísticas detalhadas. Estatísticas oferece 7/30/90/180/365 dias ou Tudo, volume e frequência semanais, tempo, cargas e 1RM estimado, distribuição muscular e calendário. Erros permitem Tentar novamente. O aluno coberto pelo PRO usa fichas, comunidade e desafios do personal; recursos fora desse escopo exigem plano Individual.
 - Notificações internas e push de treino permanecem em português. O lembrete local do aplicativo instalado usa texto português com o nome original do treino. Títulos/observações escritos pelos usuários não são traduzidos nem regravados. A permissão e a entrega física de notificações dependem do aparelho.
@@ -196,7 +209,7 @@ Público: alunos independentes, alunos de personal e profissionais/personal. Aca
 - Composição: `frontend/src/views/admin/AdminApp.jsx`; formulários existentes são reaproveitados. `?tab=alunos|liberacoes|verificacoes|moderacao|desafios|termos|visao` redirecionam para o grupo/aba equivalente. O administrador que acessa `#/admin/programas` é direcionado ao novo menu; o acesso do profissional continua independente.
 
 ### Conta e acesso
-O acesso de uso vem do plano: assinatura paga confirmada, teste válido, concessão vigente ou cobertura pelo PRO. Não existe aprovação manual para começar a usar. `users.access_suspended_at` registra somente suspensão administrativa excepcional, com responsável e motivo; a suspensão prevalece sobre o plano sem apagar assinatura ou dados. A aba Suspensões de acesso permite suspender e reativar. Pedidos antigos de liberação ficam apenas no histórico e a migration 058 encerra os pendentes como cancelados.
+O acesso de uso vem de assinatura paga confirmada e vigente ou cobertura pelo PRO pago e confirmado. Não existe aprovação manual para começar a usar. `users.access_suspended_at` registra somente suspensão administrativa excepcional, com responsável e motivo; a suspensão prevalece sobre o plano sem apagar assinatura ou dados. A aba Suspensões de acesso permite suspender e reativar. Pedidos antigos de liberação ficam apenas no histórico e a migration 058 encerra os pendentes como cancelados.
 
 Aluno coberto pelo PRO acessa fichas, comunidade e desafios disponibilizados pelo personal. Programas e áreas fora desse escopo apresentam a contratação do Individual. Ao adquirir acesso Individual próprio, o aluno passa a usar esses recursos sem análise. A verificação profissional permanece cadastral e informativa: não impede convidar alunos, criar fichas ou publicar; limites do plano, moderação e suspensão continuam sendo aplicados pelo servidor.
 
@@ -263,7 +276,7 @@ A reorganização preserva identidade, dados e regras. Ocultar um recurso no men
 - Ranking: posição e classificação primeiro; Como pontua recolhido. Privacidade continua em painel próprio.
 - Perfil (/perfil): identificação e contexto, Conta, Preferências, Meu plano, Privacidade e segurança, Notificações, Ajuda e Sair. Subpáginas: ?secao=dados|preferencias|privacidade|ajuda. Código e convites em Conta; senha, aparelhos e pedidos de dados em Privacidade e segurança; reiniciar tour em Ajuda. O fluxo de solicitação de liberação foi retirado.
 - Notificações (/avisos): Não lidas/Todas; marcar todas como lidas preservado.
-- Meu plano (/planos): assinatura, pagamento, recursos atuais e catálogo. Pagamento confirmado ou teste válido libera o uso automaticamente.
+- Meu plano (/planos): assinatura, pagamento, recursos atuais e catálogo. Somente pagamento confirmado libera o uso automaticamente em produção.
 - Entrada: login, cadastro e recuperação em etapas distintas, mantendo endpoints, troca obrigatória de senha e termos.
 
 ### Profissional: mapa e compatibilidade

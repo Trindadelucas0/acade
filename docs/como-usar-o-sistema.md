@@ -14,8 +14,8 @@ Fonte oficial: [documentação do sistema](../app/DOCUMENTACAO-SISTEMA.md). Este
 3. Antes de iniciar uma nova sessão, confira os pesos e toque em Confirmar pesos e iniciar treino. Só então o cronômetro começa. Finalize as séries e conclua o treino para atualizar o progresso.
 4. Em Programas, combine Objetivo, Nível e Local. O catálogo oficial oferece ganho de massa, emagrecimento, força, condicionamento, mobilidade e bem-estar e treino em casa nos níveis Iniciante, Intermediário e Avançado. Os cartões mostram semanas, frequência, duração e equipamentos. Abra o programa para conferir Como evoluir.
 5. Em Progresso, abra Estatísticas detalhadas e escolha o período. Volume, frequência, tempo e cargas usam treinos válidos; semanas vazias entram como zero. A consistência usa sua meta atual e inclui semanas parciais no período. A primeira carga é a base; recorde exige superar uma marca anterior.
-6. Se aparecer cadeado no catálogo, use Ver planos para contratar o Individual ou ativar um cupom elegível. Pagamento confirmado, teste válido ou concessão vigente libera os programas oficiais. A cobertura pelo personal mantém as fichas e recursos do PRO, mas o catálogo oficial completo exige Individual próprio.
-7. Após ativar um plano ou teste, use **Encontrar minha ficha**. Se necessário, responda objetivo, nível, local, equipamentos e disponibilidade. Confira a opção **Mais indicado** e toque em **Ativar treino recomendado**; a ficha só passa para Meu treino depois da sua confirmação.
+6. Se aparecer cadeado no catálogo ou em outra área interna, abra **Ver planos**, escolha o plano e conclua o pagamento. Em produção, somente uma cobrança real confirmada libera o sistema; plano escolhido, teste, cortesia ou pagamento pendente não liberam. A cobertura pelo personal exige plano PRO pago e confirmado, e mantém as fichas e recursos incluídos para o aluno.
+7. Depois da confirmação do pagamento, use **Encontrar minha ficha**. Se necessário, responda objetivo, nível, local, equipamentos e disponibilidade. Confira a opção **Mais indicado** e toque em **Ativar treino recomendado**; a ficha só passa para Meu treino depois da sua confirmação.
 8. Abra o sino para consultar as notificações em português. Mensagens escritas pelo seu profissional mantêm a redação original. Se uma consulta falhar, use Tentar novamente.
 
 Se já existir uma ficha do personal, ela continua como treino ativo e não é trocada automaticamente. Para usar um programa oficial, faça a troca pelo treino ativo; a ficha anterior e as sessões permanecem no histórico.
@@ -27,7 +27,7 @@ As fichas antigas de teste não aparecem para novas adesões após a migration 0
 1. Entre com uma conta administradora e abra Visão geral.
 2. Escolha Últimos 7, 30 ou 90 dias. Cadastros e treinos mudam conforme o período. Vínculos, assinaturas e vagas mostram a situação atual.
 3. Use Atenção necessária para abrir contas, verificação profissional, solicitações de vagas ou atendimentos. Os atalhos de atendimentos abrem a fila para consulta e filtro existentes.
-4. Em Pessoas → Contas, o acesso acompanha automaticamente pagamento, teste, concessão ou cobertura pelo personal.
+4. Em Pessoas → Contas, o acesso acompanha automaticamente pagamento confirmado e vigente, ou cobertura por um personal com PRO pago. Testes e concessões não liberam as áreas internas em produção.
 5. Use Suspensões de acesso somente em caso excepcional. Para suspender, informe o motivo; para devolver o uso, clique em Reativar. Nenhum dado ou pagamento é apagado.
 6. Em Profissionais e verificação, os registros profissionais são cadastrais e não bloqueiam o uso do PRO. Vagas extras continuam exigindo motivo e validade.
 7. Em Assinaturas, gerencie plano, pagamento e recursos. Em Limites de acompanhamento, defina quantos profissionais podem atender o aluno.
@@ -88,7 +88,7 @@ Preencha também **Provedor e país da hospedagem**. O sistema não salva a conf
 5. Assinatura escolhida como Pix recebe uma nova cobrança cinco dias antes da renovação e não tenta usar cartão.
 6. O período já pago continua acessível até o vencimento; depois disso vale a carência configurada.
 
-Conta recém-cadastrada pode concluir a compra diretamente. Depois da confirmação, usa o plano imediatamente; Pix ainda pendente não libera recursos pagos. Aluno coberto pelo PRO usa fichas, comunidade e desafios do personal e contrata o Individual para as outras áreas. Não existe pedido de análise ou liberação manual. Uma suspensão administrativa excepcional continua visível até o suporte reativar a conta.
+Conta recém-cadastrada pode concluir a compra diretamente. Depois da confirmação, usa o plano imediatamente; Pix ainda pendente não libera recursos pagos. Aluno coberto pelo PRO pago e confirmado usa as fichas e os recursos incluídos disponibilizados pelo personal. Para outras áreas, precisa do Individual pago e confirmado. Não existe pedido de análise ou liberação manual. Uma suspensão administrativa excepcional continua visível até o suporte reativar a conta.
 
 Administrador: antes de ativar cobranças reais, abra **Cobrança, preços e cupons → Visão geral**, confira preços, venda dos planos, monetização e carência. Depois da configuração da VPS, confirme **Asaas (produção)** e acompanhe a cobrança controlada e o webhook. O procedimento completo e seguro está em `docs/sistema/21-asaas-ambientes.md`.
 
@@ -99,7 +99,7 @@ Administrador: antes de ativar cobranças reais, abra **Cobrança, preços e cup
 3. Gere e copie o código ou o link. Somente um cadastro novo que efetivamente receber o acesso consome uma vaga; abrir o link não consome.
 4. Acompanhe usados/limite na lista. Pause, reative ou encerre a oferta sem apagar os usos anteriores.
 5. A pessoa responsável abre o painel de indicação para copiar o próprio código/link e acompanhar nomes, datas e situações. Telefone e e-mail dos indicados não são mostrados.
-6. Quem abre o link vê os dias e o público da oferta. Cupom válido é aplicado pelo servidor na conclusão do cadastro. Se estiver pausado, vencido ou esgotado, a conta ainda é criada normalmente, sem o período gratuito.
+6. Quem abre o link vê o público da oferta. Código de indicação pode ser aplicado no cadastro para registrar a indicação, mas não substitui o pagamento. Cupons de desconto devem ser informados na contratação. Se estiver pausado, vencido ou esgotado, a conta ainda é criada normalmente, sem registrar a indicação.
 
 Não existe período grátis automático nos planos. Benefícios antigos continuam até a data já gravada. A publicação do código e a aplicação da migration 062 no ambiente de uso exigem etapa separada.
 

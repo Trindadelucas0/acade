@@ -160,7 +160,7 @@ function Shell() {
           ) : (
             <Routes>
               <Route path="/pro/treino" element={user?.admin ? <Builder /> : <Navigate to="/hoje" replace />} />
-              <Route path="/hoje" element={<Gate title="Início" free><Today /></Gate>} />
+              <Route path="/hoje" element={<Gate title="Início"><Today /></Gate>} />
               <Route path="/treinos" element={<Gate title="Treinos"><Treinos /></Gate>} />
               <Route path="/comunidade" element={<Gate title="Comunidade"><Comunidade /></Gate>} />
               <Route path="/acompanhamento" element={<Gate title="Acompanhamento"><Acompanhamento /></Gate>} />
@@ -181,9 +181,9 @@ function Shell() {
               <Route path="/programa/:id" element={<ScopeGate title="Programa"><Gate title="Programa"><ProgramDetail /></Gate></ScopeGate>} />
               <Route path="/meu-programa" element={<ScopeGate title="Meu programa"><Gate title="Meu programa"><MyProgram /></Gate></ScopeGate>} />
               <Route path="/treinar" element={<Gate title="Treinos"><Train /></Gate>} />
-              <Route path="/concluido" element={<Done />} />
-          <Route path="/compartilhar" element={<ShareCard />} />
-              <Route path="/progresso" element={<Gate title="Progresso" free><Progress /></Gate>} />
+              <Route path="/concluido" element={<Gate title="Treinos"><Done /></Gate>} />
+          <Route path="/compartilhar" element={<Gate title="Progresso"><ShareCard /></Gate>} />
+              <Route path="/progresso" element={<Gate title="Progresso"><Progress /></Gate>} />
               <Route path="/estatisticas" element={<Gate title="Estatísticas"><Estatisticas /></Gate>} />
               <Route path="/perfil" element={<Profile />} /><Route path="/perfil/social" element={<SocialProfile />} /><Route path="/u/:id" element={<SocialPublic />} />
               <Route path="/perfil/equipamentos" element={<ScopeGate title="Equipamentos"><MyEquipment /></ScopeGate>} />
@@ -195,7 +195,7 @@ function Shell() {
               <Route path="/home" element={<Navigate to="/hoje" replace />} />{/* QA: /home abria o historico vazio para aluno novo */}
               <Route path="/plan" element={<Navigate to="/treinos?aba=historico" replace />} />
               <Route path="/plan/r/:id" element={<Navigate to="/treinos?aba=historico" replace />} />
-              <Route path="/workout" element={S.active ? <Workout /> : <Navigate to="/treinos" replace />} />
+              <Route path="/workout" element={<Gate title="Treinos">{S.active ? <Workout /> : <Navigate to="/treinos" replace />}</Gate>} />
               <Route path="/stats" element={<Gate title="Estatísticas"><Stats /></Gate>} />
               <Route path="/history" element={<Gate title="Histórico"><History /></Gate>} />
               <Route path="/library" element={(isProAccount(user) || isAdminAccount(user)) ? <ScopeGate title="Biblioteca"><Library /></ScopeGate> : <Navigate to="/treinos" replace />} />

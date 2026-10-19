@@ -1,13 +1,13 @@
 // AVAGYM - Monetizacao F3: motor central de acesso (decisoes do Lucas D1-D9, 16/10/2026).
-// Origens de acesso (podem coexistir): propria (assinatura paga), teste por cupom (trial_grants), concessao (entitlement_grants
-// key='acesso', ex.: transicao D1 ou cortesia do admin) e personal (aluno vinculado a um personal com acesso - D4).
-// Com 'monetizacao_ativa' DESLIGADA nada e bloqueado (comportamento atual). Ligada: tudo que nao esta na lista
+// Acesso comercial: somente assinatura paga e confirmada, do proprio usuario ou do personal que cobre o aluno.
+// Cupom, teste, cortesia, plano apenas escolhido e cobranca pendente nao liberam as areas internas.
+// O acesso pago e sempre obrigatorio para aluno/profissional. O simulador nunca representa pagamento real.
 // ALWAYS_ALLOWED exige acesso (negar por padrao: rota nova nasce protegida). Regras SO no backend.
 import { q } from './db/pool.js'
 import { resolve } from './entitlements.js'
 import { welcomeResources } from './welcome-features.js'
 
-export const PAID_STATUSES = ['ativa', 'trial', 'inadimplente', 'carencia']
+export const PAID_STATUSES = ['ativa', 'inadimplente', 'carencia']
 const db = c => c || { query: (t, p) => q(t, p) }
 
 // D3: sem acesso ficam so login, assinatura/pagamento, perfil, configuracoes, LGPD e gestao da conta
@@ -17,35 +17,23 @@ export const ALWAYS_ALLOWED = [
   /^[A-Z]+ \/api\/me\/(avatar|contact|context|delete-request|delete-request\/cancel|export-request|theme|tours|tours\/reset|subscriptions|capacities|social|onboarding\/skip|invites|coaches|unlock-request|requests)$/,
   /^[A-Z]+ \/api\/billing\//, /^GET \/api\/plans?$/, /^GET \/api\/public\//, /^[A-Z]+ \/api\/terms(\/accept)?$/, /^[A-Z]+ \/api\/legal\//,
   /^[A-Z]+ \/api\/(config|health|cep|activity)$/, /^GET \/api\/media(\/pub|\/private)?$/, /^[A-Z]+ \/api\/notification-prefs$/, /^[A-Z]+ \/api\/notifications(\/read)?$/,
-  /^[A-Z]+ \/api\/tapago\//,
-  /^[A-Z]+ \/api\/push\/(public-key|subscribe|unsubscribe)$/, /^[A-Z]+ \/api\/social\/(profile|handle-check)$/, /^[A-Z]+ \/api\/data$/,
+  /^[A-Z]+ \/api\/push\/(public-key|subscribe|unsubscribe)$/, /^[A-Z]+ \/api\/social\/(profile|handle-check)$/,
   /^[A-Z]+ \/api\/access\//, /^GET \/api\/referral\/me$/, /^[A-Z]+ \/api\/invites\/(view|accept|decline)$/, /^POST \/api\/guided\/onboarding$/,
   /^[A-Z]+ \/api\/pro\/(verification|verification\/document|profile|partner)$/, /^[A-Z]+ \/api\/verification\/document$/, /^GET \/api\/convite$/
 ]
 export const isAlwaysAllowed = key => ALWAYS_ALLOWED.some(r => r.test(key))
 
-let flagCache = new Map()
-export async function monetizationOn(tenantId) {
-  const hit = flagCache.get(tenantId)
-  if (hit && hit.at > Date.now() - 5000) return hit.on
-  const on = (await q(`select value from app_settings where tenant_id=$1 and key='monetizacao_ativa'`, [tenantId])).rows[0]?.value === true
-  flagCache.set(tenantId, { on, at: Date.now() })
-  return on
-}
-export const clearMonetizationCache = () => { flagCache = new Map() }
+export async function monetizationOn() { return true }
+export const clearMonetizationCache = () => {}
 
 // origens proprias de um publico (sem a origem "personal", para nao recursar)
 async function ownSources(c, userId, audience) {
   const out = []
   const sub = (await c.query(`select s.id, s.plan_id, s.status, s.current_period_end, p.name plan_name from subscriptions s join plans p on p.id=s.plan_id
-      where s.user_id=$1 and s.audience=$2 and s.status = any($3) and not p.is_free order by s.started_at desc limit 1`, [userId, audience, PAID_STATUSES])).rows[0]
+      where s.user_id=$1 and s.audience=$2 and s.status = any($3) and not p.is_free and s.current_period_end>now()
+      and exists (select 1 from billing_charges ch where ch.subscription_id=s.id and ch.status='paga' and ch.amount_cents>0 and ch.paid_at is not null
+        and ch.provider<>'simulado') order by s.started_at desc limit 1`, [userId, audience, PAID_STATUSES])).rows[0]
   if (sub) out.push({ kind: 'propria', id: sub.id, plan_id: sub.plan_id, plan_name: sub.plan_name, status: sub.status, until: sub.current_period_end })
-  const t = (await c.query(`select t.id, t.plan_id, t.starts_at, t.ends_at, t.source, p.name plan_name from trial_grants t join plans p on p.id=t.plan_id
-      where t.user_id=$1 and t.audience=$2 and t.revoked_at is null and t.starts_at<=now() and t.ends_at>now() limit 1`, [userId, audience])).rows[0]
-  if (t) out.push({ kind: 'teste', id: t.id, plan_id: t.plan_id, plan_name: t.plan_name, starts_at: t.starts_at, until: t.ends_at, source: t.source })
-  const g = (await c.query(`select id, reason, expires_at from entitlement_grants where user_id=$1 and audience=$2 and kind='feature' and key='acesso' and revoked_at is null
-      and starts_at<=now() and (expires_at is null or expires_at>now()) order by expires_at desc nulls first limit 1`, [userId, audience])).rows[0]
-  if (g) out.push({ kind: 'concessao', reason: g.reason, until: g.expires_at })
   return out
 }
 
@@ -78,18 +66,16 @@ export async function commercialStatus(c, userId, audience, sources) {
   if (s && s.status === 'suspensa' && s.suspended_kind !== 'financeiro') return 'suspensa'
   const pend = (await c.query(`select 1 from billing_charges ch join subscriptions s on s.id=ch.subscription_id where s.user_id=$1 and s.audience=$2 and ch.status='pendente' and ch.meta ? 'activate_plan' limit 1`, [userId, audience])).rowCount
   if (pend) return 'pendente'
-  if (s && !s.is_free && s.status === 'ativa') return 'ativa'
-  if (s && !s.is_free && ['inadimplente', 'carencia'].includes(s.status)) return 'tolerancia'
-  if (sources.some(x => x.kind === 'teste') || (s && !s.is_free && s.status === 'trial')) return 'em_teste'
+  if (sources.some(x => x.kind === 'propria') && s && !s.is_free && s.status === 'ativa') return 'ativa'
+  if (sources.some(x => x.kind === 'propria') && s && !s.is_free && ['inadimplente', 'carencia'].includes(s.status)) return 'tolerancia'
   if (sources.some(x => x.kind === 'personal')) return 'patrocinada'
-  if (sources.some(x => x.kind === 'concessao')) return 'cortesia'
   if (s && !s.is_free && s.status === 'suspensa') return 'vencida'
   if (s && !s.is_free && s.status === 'cancelada') return 'cancelada'
   if ((await c.query('select 1 from trial_grants where user_id=$1 and audience=$2', [userId, audience])).rowCount) return 'vencida'
   return 'sem_assinatura'
 }
 
-const NO_ACCESS_MSG = 'Seu acesso aos recursos do ORNY terminou. Seus dados continuam salvos e voltam assim que você assinar. Você ainda pode acessar sua conta, perfil, configurações, privacidade e a tela de assinatura.'
+const NO_ACCESS_MSG = 'O acesso ao ORNY é liberado somente após a confirmação do pagamento. Você ainda pode acessar sua conta e a tela de assinatura para concluir ou acompanhar o pagamento.'
 
 // middleware global (server.js), depois da autenticacao. Admin nunca e cobrado.
 export async function monetizationGate(key, user, res, json) {
@@ -126,7 +112,7 @@ export async function pendingWelcome(user) {
   return { ...pending, resources }
 }
 
-// GET /api/access/me: o que a tela de assinatura/teste mostra (origens, fim do teste, elegibilidade ao teste)
+// GET /api/access/me: resumo do acesso comercial para a tela de assinatura.
 const readJson = req => new Promise(r => { let d = ''; req.on('data', c => { d += c; if (d.length > 4096) req.destroy() }); req.on('end', () => { try { r(JSON.parse(d || '{}')) } catch { r({}) } }); req.on('error', () => r({})) })
 export function accessRoutes({ json, requireAuth, readBody }) {
   return {
@@ -153,10 +139,7 @@ export function accessRoutes({ json, requireAuth, readBody }) {
     'GET /api/access/me': async (req, res) => {
       const u = await requireAuth(req, res, json, { allowPending: true }); if (!u) return
       const acc = await accessOf(u)
-      const t = (await q(`select audience, plan_id, starts_at, ends_at, revoked_at, source from trial_grants where user_id=$1`, [u.id])).rows[0] || null
-      const used = !!t || (await q(`select 1 from promotion_redemptions where user_id=$1 and benefit='trial'`, [u.id])).rowCount > 0
-      const now = Date.now()
-      json(res, 200, { ...acc, trial: t ? { ...t, active: !t.revoked_at && new Date(t.ends_at).getTime() > now, remaining_ms: Math.max(0, new Date(t.ends_at).getTime() - now) } : null, trial_eligible: !used })
+      json(res, 200, acc)
     }
   }
 }

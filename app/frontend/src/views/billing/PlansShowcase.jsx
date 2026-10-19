@@ -31,7 +31,7 @@ export function Price({ p }) {
   return <div className="pl-price" data-testid={'price-' + p.id}><span className="pl-cur">R$</span><b>{int}</b><span className="pl-dec">,{dec}</span><span className="pl-per">/mês</span></div>
 }
 export function TrialSeal({ compact }) {
-  return <div className={'pl-seal' + (compact ? ' pl-seal-c' : '')} data-testid="trial-seal"><Icon name="sparkles" /><span><b>Período gratuito</b> com cupom{compact ? '' : ' · sem cartão e sem cobrança automática'}</span></div>
+  return <div className={'pl-seal' + (compact ? ' pl-seal-c' : '')} data-testid="trial-seal"><Icon name="sparkles" /><span><b>Pagamento confirmado</b> libera seu plano{compact ? '' : ' · cupons válidos podem dar desconto na contratação'}</span></div>
 }
 export function PlanCard({ p, cta, current, selected, onSelect, compact }) {
   const best = p.id === 'pro'
@@ -66,8 +66,8 @@ export function PlanGrid({ plans, cta, current = {}, initialAud = 'aluno', lockA
   </div>
 }
 const FAQ = [
-  ['Como funciona o período gratuito?', 'Alguns cupons liberam o plano por um período definido na oferta. O período gratuito é único por pessoa.'],
-  ['Preciso de cartão para testar?', 'Não. O teste com cupom não pede cartão e não vira cobrança automática. Você assina só se quiser.'],
+  ['Quando o acesso é liberado?', 'Depois que o pagamento do plano for confirmado pelo provedor. Até lá, sua conta e a tela de assinatura continuam disponíveis.'],
+  ['Cupom libera o acesso?', 'Não. Cupons podem conceder desconto na contratação, mas somente o pagamento confirmado libera o sistema.'],
   ['Posso cancelar quando quiser?', 'Sim. O cancelamento é feito no app e o acesso continua até o fim do período já pago.'],
   ['O que acontece com meus dados se eu não assinar?', 'Nada se perde: treinos, histórico e progresso ficam guardados e voltam quando você assinar.'],
   ['Sou aluno de um personal PRO. Preciso pagar?', 'Não para os treinos dele: o plano PRO do seu personal cobre as fichas e os programas que ele libera para você.']

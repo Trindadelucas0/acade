@@ -41,7 +41,7 @@ export function PremiumLoading() {
   return <div className="ag" role="status" data-testid="premium-loading"><p className="g-mut">{error ? 'Não foi possível conferir seu acesso.' : 'Conferindo seu acesso…'}</p>{error && <button className="g-btn" onClick={() => usePremiumStore.getState().load()}>Tentar novamente</button>}</div>
 }
 
-export const PREMIUM_TEXT = 'Este recurso faz parte dos planos Individual e PRO. Seus dados continuam guardados e voltam assim que você assinar ou ativar um cupom válido.'
+export const PREMIUM_TEXT = 'Este recurso é liberado após a confirmação do pagamento do plano Individual ou PRO. Seus dados continuam guardados enquanto o pagamento estiver pendente.'
 // cartao de cadeado: preview (opcional) aparece desfocado por tras, sem interacao
 export function PremiumLock({ title, desc, feature, preview, compact, cta = 'Ver planos' }) {
   return <section className={'pm-lock' + (compact ? ' pm-compact' : '') + (preview ? ' pm-has-preview' : '')} data-testid="premium-lock" data-feature={feature || title}>
@@ -51,7 +51,7 @@ export function PremiumLock({ title, desc, feature, preview, compact, cta = 'Ver
       <div className="pm-txt"><b>{title}</b>{!compact && <p>{desc || PREMIUM_TEXT}</p>}</div>
       <div className="pm-actions">
         <a className="pm-btn" href="#/assinatura?acesso=bloqueado" data-testid="premium-cta"><Icon name="crown" /> {cta}</a>
-        {!compact && <a className="pm-link" href="#/assinatura" data-testid="premium-coupon">Tenho um cupom</a>}
+        {!compact && <a className="pm-link" href="#/assinatura" data-testid="premium-payment">Acompanhar pagamento</a>}
       </div>
     </div>
   </section>
