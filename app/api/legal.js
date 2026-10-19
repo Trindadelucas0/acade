@@ -5,9 +5,17 @@ import { q } from './db/pool.js'
 import { requireAuth, requireRole, audit } from './auth.js'
 import { currentTerms, acceptTerms } from './lgpd.js'
 
-export const COMPANY_FIELDS = ['razao_social', 'nome_fantasia', 'cnpj', 'endereco', 'email_suporte', 'email_dpo', 'email_financeiro', 'email_moderacao', 'url_cancelamento', 'foro', 'doc_version', 'doc_vigencia']
+export const COMPANY_FIELDS = ['razao_social', 'nome_fantasia', 'cnpj', 'chave_pix', 'endereco', 'email_suporte', 'email_dpo', 'email_financeiro', 'email_moderacao', 'url_cancelamento', 'foro', 'hosting_provider_country', 'doc_version', 'doc_vigencia']
+export const REQUIRED_COMPANY_FIELDS = ['razao_social', 'nome_fantasia', 'cnpj', 'endereco', 'email_suporte', 'email_dpo', 'email_financeiro', 'email_moderacao', 'url_cancelamento', 'foro', 'hosting_provider_country', 'doc_version', 'doc_vigencia']
 const KEY = 'empresa_legal'
 export const DEFAULT_VERSION = '1.0'
+export const ORNY_COMPANY_DEFAULTS = {
+  razao_social: '67.790.913 LUCAS RODRIGUES DA TRINDADE',
+  nome_fantasia: 'ORNY',
+  cnpj: '67.790.913/0001-20',
+  chave_pix: '67.790.913/0001-20',
+  foro: 'Brasília/DF',
+}
 const onlyDigits = s => String(s || '').replace(/\D/g, '')
 export function validCNPJ(v) {
   const c = onlyDigits(v); if (c.length !== 14 || /^(\d)\1+$/.test(c)) return false
@@ -16,6 +24,11 @@ export function validCNPJ(v) {
 }
 export const fmtCNPJ = v => onlyDigits(v).replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5')
 const validEmail = e => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e)
+export const companyReadiness = company => {
+  const missing = REQUIRED_COMPANY_FIELDS.filter(k => !String(company?.[k] || '').trim())
+  return { ready: missing.length === 0, missing }
+}
+const enforceLegalReadiness = () => process.env.REQUIRE_LEGAL_CONFIG === 'true' || process.env.NODE_ENV === 'production'
 const ip = req => clientIp(req)
 
 async function defaultTenant() { return (await q('select id from tenants where slug=$1', [process.env.DEFAULT_TENANT || 'avadesk'])).rows[0]?.id || null }
@@ -23,7 +36,7 @@ export async function getCompany(tenantId) {
   const tid = tenantId || await defaultTenant(); if (!tid) return {}
   const r = await q('select value from app_settings where tenant_id=$1 and key=$2', [tid, KEY])
   const v = r.rows[0]?.value || {}, out = {}
-  for (const k of COMPANY_FIELDS) out[k] = v[k] ?? ''
+  for (const k of COMPANY_FIELDS) out[k] = String(v[k] ?? '').trim() || ORNY_COMPANY_DEFAULTS[k] || ''
   if (!out.doc_version) out.doc_version = DEFAULT_VERSION
   return out
 }
@@ -61,7 +74,9 @@ export async function acceptBaseDocs(userId, req) {
 // consentimento de saude (opcional, separado; so quando a pessoa respondeu) com versao, data, IP e user-agent.
 export async function acceptAtSignup(userId, { professional = false, health = null } = {}, req) {
   const u = (await q('select id, tenant_id from users where id=$1', [userId])).rows[0]; if (!u) throw new Error('conta nao encontrada')
-  const version = (await getCompany(u.tenant_id)).doc_version
+  const company = await getCompany(u.tenant_id), readiness = companyReadiness(company)
+  if (enforceLegalReadiness() && !readiness.ready) { const e = new Error('O cadastro está temporariamente indisponível enquanto a identificação legal é concluída.'); e.status = 400; e.code = 'LEGAL_CONFIG_INCOMPLETE'; throw e }
+  const version = company.doc_version
   for (const d of ['termos_uso', 'privacidade', 'maioridade', ...(professional ? ['profissional'] : [])]) await record(u, d, version, req)
   if (typeof health === 'boolean') await record(u, 'consentimento_saude', version, req, health)
   return version
@@ -74,7 +89,7 @@ async function record(u, document, version, req, granted = true) {
 export function legalRoutes({ json, readBody }) {
   return {
     // público: só campos legais + preços dos planos (para os documentos)
-    'GET /api/legal/company': async (req, res) => json(res, 200, { company: await getCompany(), plans: await planPrices() }),
+    'GET /api/legal/company': async (req, res) => { const company = await getCompany(); json(res, 200, { company, legal_config: companyReadiness(company), plans: await planPrices() }) },
     // perfil do profissional logado (Termo do Profissional)
     'GET /api/legal/me': async (req, res) => {
       const u = await requireAuth(req, res, json, { allowPending: true }); if (!u) return
@@ -84,6 +99,8 @@ export function legalRoutes({ json, readBody }) {
     },
     'POST /api/legal/accept': async (req, res) => {
       const u = await requireAuth(req, res, json, { allowPending: true }); if (!u) return
+      const readiness = companyReadiness(await getCompany(u.tenant_id))
+      if (enforceLegalReadiness() && !readiness.ready) return json(res, 409, { error: 'Os documentos ainda não foram publicados porque a identificação legal está incompleta.', code: 'LEGAL_CONFIG_INCOMPLETE' })
       const b = await readBody(req), st = await legalStatus(u.id)
       if (String(b.version || '') !== st.legal_version) return json(res, 409, { error: 'Os documentos foram atualizados. Leia a versão atual.', version: st.legal_version })
       const docs = Array.isArray(b.documents) ? b.documents : []
@@ -114,11 +131,13 @@ export function legalRoutes({ json, readBody }) {
       const b = await readBody(req), v = {}, errors = {}
       for (const k of COMPANY_FIELDS) v[k] = String(b[k] ?? '').trim().slice(0, k === 'endereco' ? 400 : 200)
       if (v.cnpj) { if (!validCNPJ(v.cnpj)) errors.cnpj = 'CNPJ inválido (dígitos verificadores não conferem)'; else v.cnpj = fmtCNPJ(v.cnpj) }
+      if (v.chave_pix && onlyDigits(v.chave_pix).length === 14) { if (!validCNPJ(v.chave_pix)) errors.chave_pix = 'Chave Pix CNPJ inválida'; else v.chave_pix = fmtCNPJ(v.chave_pix) }
       for (const k of ['email_suporte', 'email_dpo', 'email_financeiro', 'email_moderacao']) if (v[k] && !validEmail(v[k])) errors[k] = 'E-mail inválido'
       if (v.url_cancelamento && !/^(https?:\/\/\S+|\/\S*|[^\s@]+@[^\s@]+\.[^\s@]+)$/.test(v.url_cancelamento) && v.url_cancelamento.length < 5) errors.url_cancelamento = 'Informe uma URL, caminho do app ou e-mail'
       if (v.doc_vigencia && !/^\d{4}-\d{2}-\d{2}$/.test(v.doc_vigencia)) errors.doc_vigencia = 'Data inválida'
       if (!v.doc_version) v.doc_version = DEFAULT_VERSION
       if (!/^[\w.\-]{1,20}$/.test(v.doc_version)) errors.doc_version = 'Versão: letras, números, ponto ou hífen'
+      for (const k of REQUIRED_COMPANY_FIELDS) if (!v[k]) errors[k] ||= 'Campo obrigatório para publicar documentos legais completos'
       if (Object.keys(errors).length) return json(res, 400, { error: 'Corrija os campos destacados', errors })
       const before = await getCompany(u.tenant_id)
       await q(`insert into app_settings(tenant_id,key,value,updated_by,updated_at) values($1,$2,$3,$4,now()) on conflict (tenant_id,key) do update set value=excluded.value, updated_by=excluded.updated_by, updated_at=now()`, [u.tenant_id, KEY, JSON.stringify(v), u.id])
@@ -140,7 +159,7 @@ export function legalRoutes({ json, readBody }) {
       const d = await r.json().catch(() => ({}))
       const end = [[d.descricao_tipo_de_logradouro, d.logradouro].filter(Boolean).join(' '), d.numero, d.complemento, d.bairro, [d.municipio, d.uf].filter(Boolean).join('/'), d.cep && ('CEP ' + String(d.cep).replace(/^(\d{5})(\d{3})$/, '$1-$2'))].filter(x => x && String(x).trim()).join(', ')
       await audit(u.tenant_id, u.id, 'empresa.cnpj.consulta', 'cnpj', fmtCNPJ(c))
-      json(res, 200, { cnpj: fmtCNPJ(c), razao_social: d.razao_social || '', nome_fantasia: d.nome_fantasia || '', endereco: end, situacao: d.descricao_situacao_cadastral || '', foro: d.municipio ? `${d.municipio}/${d.uf}` : '' })
+      json(res, 200, { cnpj: fmtCNPJ(c), chave_pix: fmtCNPJ(c), razao_social: d.razao_social || '', nome_fantasia: d.nome_fantasia || '', endereco: end, situacao: d.descricao_situacao_cadastral || '', foro: d.municipio ? `${d.municipio}/${d.uf}` : '' })
     },
   }
 }

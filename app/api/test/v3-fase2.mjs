@@ -26,7 +26,7 @@ check(r.s === 200 && (await get(pro.tok, '/api/auth/me')).d.user.context === 'al
 await post(pro.tok, '/api/me/context', { context: 'profissional' })
 
 r = await post(pro.tok, '/api/pro/plans', { title: 'Ficha teste', student_id: stu.id, exercises: [{ exercise_id: 'x' }] })
-check(r.s === 403 && r.d.code === 'PERMISSION_DENIED', 'não verificado não envia prescrição (PERMISSION_DENIED, backend)')
+check(r.s === 403 && r.d.code === 'PERMISSION_DENIED', 'sem vínculo ativo não envia prescrição; verificação cadastral não é usada como bloqueio')
 
 const REG = String(Date.now()).slice(-6) + '-G' // registro unico por execucao (unicidade da 024)
 console.log('Verificação profissional')

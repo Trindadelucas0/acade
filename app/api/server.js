@@ -13,6 +13,7 @@ import { sessionsV4Routes, forgottenSweep } from './sessions-v4.js';
 import { editorialRoutes } from './programs-editorial.js';
 import { proRoutes } from './pro.js';
 import { communityRoutes } from './community.js';
+import { communityEditorialRoutes } from './community-editorial.js';
 import { socialRoutes } from './social.js';
 import { rankingRoutes } from './ranking.js';
 import { lgpdRoutes, termsStatus } from './lgpd.js';
@@ -396,7 +397,7 @@ Object.assign(routes, authRoutes({ json, readBody, bridge: pgBridge, clearCookie
 Object.assign(routes, guidedRoutes({ json, readBody }));
 Object.assign(routes, activeTrainingRoutes({ json, readBody }));
 Object.assign(routes, accountRoutes({ json, readBody }));
-Object.assign(routes, tourRoutes({ json, readBody }));  // V4.3: guided tours  // V4.2: aluno do personal, liberação, exportação LGPD por e-mail  // V4.1: treino ativo único + tema
+Object.assign(routes, tourRoutes({ json, readBody }));  // V4.3: guided tours  // V4.2: aluno do personal, suspensão excepcional e exportação LGPD por e-mail  // V4.1: treino ativo único + tema
 Object.assign(routes, sessionsV4Routes({ json, readBody }));
 Object.assign(routes, editorialRoutes({ json, readBody }));  // V4 F3: fluxo editorial de programas
 // V4: treino esquecido — varredura a cada 5 min; lembrete a cada SESSION_REMINDER_MIN (padrão 60) até finalizar/corrigir/descartar
@@ -405,6 +406,7 @@ if (process.env.SESSION_SWEEP !== 'off') setInterval(() => {
 }, 5 * 60 * 1000).unref();
 Object.assign(routes, proRoutes({ json, readBody }));
 Object.assign(routes, communityRoutes({ json, readBody }));  // feed, curtidas, comentários, denúncias, moderação
+Object.assign(routes, communityEditorialRoutes({ json, readBody }));  // calendário oficial da Comunidade
 Object.assign(routes, socialRoutes({ json, readBody }));  // V5 E1: perfil social, foto, seguidores, cartões #TáPago
 Object.assign(routes, lgpdRoutes({ json, readBody, legacyState: readState, legacyErase: uid => { eraseStatePg(uid).catch(() => {}); try { fs.unlinkSync(stateFile(uid)) } catch {} db.users = db.users.filter(x => x.id !== uid); saveDb() } }));
 Object.assign(routes, legalRoutes({ json, readBody }));  // dados da empresa + aceite dos documentos legais
@@ -531,7 +533,7 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname.startsWith('/api/adm/') && !(gu && Array.isArray(gu.roles) && gu.roles.includes('admin'))) return json(res, 403, { error: 'Somente administradores', code: 'PERMISSION_DENIED' });
     if (!(await entitlementGate(key, gu, res, json))) return;
     if (!(await accessGate(key, gu, res, json))) return;
-    if (!(await monetizationGate(key, gu, res, json))) return;   // Monetizacao F3: sem assinatura/teste/personal -> 402 (so com monetizacao_ativa)   // V4.2: conta não liberada vê tudo, mas ações ficam travadas
+    if (!(await monetizationGate(key, gu, res, json))) return;   // Sem assinatura, teste ou cobertura pelo personal: 402 quando a monetizacao esta ativa.
     await handler(req, res);
   }
   catch (e) {

@@ -48,6 +48,7 @@ body:has(.ag),html:has(.ag){background:var(--ag-bg)!important}
 /* program cards */
 .ag .g-pcard{display:block;width:100%;text-align:left;background:var(--ag-card);border:1px solid var(--ag-line);border-radius:22px;overflow:hidden;color:inherit;cursor:pointer;padding:0}
 .ag .g-pcard+.g-pcard{margin-top:14px}
+.ag .g-recommended-action{margin:14px 0 20px}
 .ag .g-cover{position:relative;height:150px;background:radial-gradient(120% 120% at 80% 0%,#1d4b63 0%,#0e2439 45%,#0a1119 100%);overflow:hidden}
 .ag .g-cover img{position:absolute;right:12px;top:12px;height:calc(100% - 24px);width:auto;max-width:46%;object-fit:cover;border-radius:16px;background:#fff}
 .ag .g-cover.g-lg{height:220px;border-radius:24px;margin:0 0 16px}

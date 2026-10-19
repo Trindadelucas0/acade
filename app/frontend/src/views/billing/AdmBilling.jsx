@@ -39,7 +39,7 @@ function Geral() {
       <div className="adm-row2">
         <label className="adm-field">Carência (dias)<input className="adm-in" type="number" value={f.carencia_dias} onChange={e => setF({ ...f, carencia_dias: e.target.value })} /></label>
         <label className="adm-field">Retentativas (dias, separados por vírgula)<input className="adm-in" value={f.retentativas_dias} onChange={e => setF({ ...f, retentativas_dias: e.target.value })} /></label>
-        <label className="adm-field">Teste experimental por cupom (dias)<input className="adm-in" type="number" value={f.experimental_dias} onChange={e => setF({ ...f, experimental_dias: e.target.value })} /></label>
+        <label className="adm-field">Duração padrão para cupons antigos (dias)<input className="adm-in" type="number" value={f.experimental_dias} onChange={e => setF({ ...f, experimental_dias: e.target.value })} /></label>
         <label className="adm-field">Comissão padrão de parceiros (%)<input className="adm-in" type="number" value={f.parceiros_comissao_pct} onChange={e => setF({ ...f, parceiros_comissao_pct: e.target.value })} /></label>
         <label className="adm-field">Aviso de fim do teste (dias antes)<input className="adm-in" type="number" value={f.aviso_fim_teste_dias} onChange={e => setF({ ...f, aviso_fim_teste_dias: e.target.value })} /></label>
       </div><button className="adm-btn" onClick={save} data-testid="pol-save">Salvar política</button></div>
@@ -53,14 +53,14 @@ function Geral() {
 }
 
 function PlanRow({ p, onSaved }) {
-  const [f, setF] = useState({ name: p.name, description: p.description || '', price: p.price_cents == null ? '' : (p.price_cents / 100).toFixed(2), trial_days: p.trial_days ?? '', sellable: !!p.sellable, active: !!p.active, features: { ...(p.features || {}) }, alunos: p.limits?.alunos_ativos ?? '' })
+  const [f, setF] = useState({ name: p.name, description: p.description || '', price: p.price_cents == null ? '' : (p.price_cents / 100).toFixed(2), sellable: !!p.sellable, active: !!p.active, features: { ...(p.features || {}) }, alunos: p.limits?.alunos_ativos ?? '', unlimited: p.audience === 'profissional' && p.limits?.alunos_ativos == null })
   const [m, setM] = useState(null)
   const featKeys = p.audience === 'aluno' ? ['catalogo_completo'] : ['prescrever', 'convidar_alunos', 'construtor_treino', 'fichas_publicas']
   async function save() {
     try {
-      const body = { id: p.id, name: f.name, description: f.description, trial_days: f.trial_days === '' ? null : +f.trial_days, sellable: f.sellable, active: f.active, features: f.features }
+      const body = { id: p.id, name: f.name, description: f.description, sellable: f.sellable, active: f.active, features: f.features }
       if (!p.is_free) body.price_cents = f.price === '' ? null : Math.round(+String(f.price).replace(',', '.') * 100)
-      if (p.audience === 'profissional') body.limits = { ...(p.limits || {}), alunos_ativos: +f.alunos }
+      if (p.audience === 'profissional') body.limits = { ...(p.limits || {}), alunos_ativos: f.unlimited ? null : +f.alunos }
       await post('/api/adm/billing/plans', body); setM({ ok: true, t: 'Plano salvo.' }); onSaved()
     } catch (x) { setM({ ok: false, t: x.message }) }
   }
@@ -69,8 +69,7 @@ function PlanRow({ p, onSaved }) {
     <div className="adm-row2">
       <label className="adm-field">Nome<input className="adm-in" value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></label>
       {!p.is_free && <label className="adm-field">Preço mensal (R$)<input className="adm-in" inputMode="decimal" placeholder="a definir" value={f.price} onChange={e => setF({ ...f, price: e.target.value })} data-testid={'price-' + p.id} /></label>}
-      {!p.is_free && <label className="adm-field">Dias de teste do plano<input className="adm-in" type="number" value={f.trial_days} onChange={e => setF({ ...f, trial_days: e.target.value })} data-testid={'trial-' + p.id} /></label>}
-      {p.audience === 'profissional' && <label className="adm-field">Alunos ativos (limite)<input className="adm-in" type="number" value={f.alunos} onChange={e => setF({ ...f, alunos: e.target.value })} /></label>}
+      {p.audience === 'profissional' && <><label className="adm-field">Alunos ativos (limite)<input className="adm-in" type="number" min="1" max="10000" disabled={f.unlimited} value={f.alunos} onChange={e => setF({ ...f, alunos: e.target.value })} /></label><label className="adm-field"><span>Capacidade</span><span><input type="checkbox" checked={f.unlimited} onChange={e => setF({ ...f, unlimited: e.target.checked })} /> Alunos ilimitados</span></label></>}
     </div>
     <label className="adm-field">Descrição<input className="adm-in" value={f.description} onChange={e => setF({ ...f, description: e.target.value })} /></label>
     <div className="g-row" style={{ flexWrap: 'wrap', gap: 12, margin: '8px 0' }}>
@@ -87,16 +86,34 @@ export function Planos() {
   const [d, e, load] = useGet('/api/adm/billing/plans')
   if (e) return <p className="bl-err">{e}</p>; if (!d) return <p>Carregando…</p>
   return <div className="ag"><p className="adm-sub">Mudanças de recursos ou limites criam uma nova versão: quem já assina continua na versão contratada. Para vender, defina preço maior que zero e marque "À venda".</p>
-    {d.plans.filter(p => ['aluno_free', 'profissional_free', 'individual', 'pro'].includes(p.id)).map(p => <PlanRow key={p.id + p.version + (p.updated_at || '')} p={p} onSaved={load} />)}</div>
+    {d.plans.filter(p => ['aluno_free', 'profissional_free', 'individual', 'pro', 'pro_ilimitado'].includes(p.id)).map(p => <PlanRow key={p.id + p.version + (p.updated_at || '')} p={p} onSaved={load} />)}</div>
 }
 
 export function Cupons() {
   const [d, e, load] = useGet('/api/adm/billing/campaigns'), [pt] = useGet('/api/adm/billing/partners'), [m, setM] = useState(null)
   const [c, setC] = useState({ name: '', kind: 'oficial', benefit: 'desconto', discount_pct: 20, discount_cycles: 1, trial_days: '', partner_user_id: '', applies_to: '' })
   const [k, setK] = useState({ campaign_id: '', code: '', max_redemptions: '' })
+  const [r, setR] = useState({ owner_user_id: '', audience: 'aluno', trial_days: 7, max_redemptions: 10, ends_at: '', code: '' })
   if (e) return <p className="bl-err">{e}</p>; if (!d) return <p>Carregando…</p>
   const run = async (fn, t) => { try { await fn(); setM({ ok: true, t }); load() } catch (x) { setM({ ok: false, t: x.message }) } }
+  const makeReferral = async () => { try { const out = await post('/api/adm/billing/referral-coupons', r); setM({ ok: true, t: `Cupom ${out.code.code} criado. Código e link já podem ser copiados abaixo.` }); setR({ owner_user_id: '', audience: 'aluno', trial_days: 7, max_redemptions: 10, ends_at: '', code: '' }); load() } catch (x) { setM({ ok: false, t: x.message }) } }
+  const linkOf = code => `${location.origin}${location.pathname}#/convite/${encodeURIComponent(code)}`
+  const copy = async value => {
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error('clipboard indisponível')
+      await navigator.clipboard.writeText(value)
+      setM({ ok: true, t: 'Copiado.' })
+    } catch { setM({ ok: false, t: 'Não foi possível copiar automaticamente.' }) }
+  }
   return <div className="ag"><Msg m={m} />
+    <div className="adm-card" data-testid="referral-coupon-create"><h3>Gerar cupom de indicação</h3><p className="adm-sub">Crie um código e um link para uma pessoa distribuir. Somente benefícios concedidos consomem o limite.</p><div className="adm-row2">
+      <label className="adm-field">Pessoa responsável<select className="adm-in" value={r.owner_user_id} onChange={e => setR({ ...r, owner_user_id: e.target.value })} data-testid="ref-owner"><option value="">Escolha uma conta</option>{(d.owners || []).map(o => <option key={o.id} value={o.id}>{o.name} ({o.email})</option>)}</select></label>
+      <label className="adm-field">Público<select className="adm-in" value={r.audience} onChange={e => setR({ ...r, audience: e.target.value })} data-testid="ref-audience"><option value="aluno">Aluno — Individual</option><option value="profissional">Profissional — PRO</option></select></label>
+      <label className="adm-field">Dias de acesso<input className="adm-in" type="number" min="1" max="90" value={r.trial_days} onChange={e => setR({ ...r, trial_days: e.target.value })} data-testid="ref-days" /></label>
+      <label className="adm-field">Quantidade de cadastros beneficiados<input className="adm-in" type="number" min="1" value={r.max_redemptions} onChange={e => setR({ ...r, max_redemptions: e.target.value })} data-testid="ref-limit" /></label>
+      <label className="adm-field">Validade (opcional)<input className="adm-in" type="datetime-local" value={r.ends_at} onChange={e => setR({ ...r, ends_at: e.target.value })} data-testid="ref-ends" /></label>
+      <label className="adm-field">Código personalizado (opcional)<input className="adm-in" value={r.code} onChange={e => setR({ ...r, code: e.target.value.toUpperCase() })} maxLength="32" placeholder="Gerado automaticamente" data-testid="ref-code" /></label>
+    </div><button className="adm-btn" onClick={makeReferral} data-testid="ref-create">Gerar cupom e link</button></div>
     <div className="adm-card"><h3>Nova campanha</h3><div className="adm-row2">
       <label className="adm-field">Nome<input className="adm-in" value={c.name} onChange={e => setC({ ...c, name: e.target.value })} data-testid="camp-name" /></label>
       <label className="adm-field">Tipo<select className="adm-in" value={c.kind} onChange={e => setC({ ...c, kind: e.target.value })}><option value="oficial">Oficial</option><option value="parceiro">Parceiro</option></select></label>
@@ -114,8 +131,8 @@ export function Cupons() {
     </div><button className="adm-btn" data-testid="code-save" onClick={() => run(() => post('/api/adm/billing/codes', k), 'Cupom criado.')}>Criar cupom</button></div>
     <div className="adm-card"><h3>Campanhas</h3><div className="adm-tbl-wrap"><table className="adm-table"><thead><tr><th>Nome</th><th>Tipo</th><th>Benefício</th><th>Status</th><th>Resgates</th></tr></thead>
       <tbody>{d.campaigns.map(x => <tr key={x.id}><td>{x.name}</td><td>{x.kind}{x.partner_name ? ' · ' + x.partner_name : ''}</td><td>{x.benefit === 'desconto' ? `${+x.discount_pct}% × ${x.discount_cycles}` : `${x.trial_days || 'padrão'} dias`}</td><td>{x.status}</td><td>{x.resgates}</td></tr>)}</tbody></table></div></div>
-    <div className="adm-card"><h3>Cupons</h3><div className="adm-tbl-wrap"><table className="adm-table"><thead><tr><th>Código</th><th>Campanha</th><th>Status</th><th>Resgates</th><th>Conversões</th><th></th></tr></thead>
-      <tbody>{d.codes.map(x => <tr key={x.id}><td><code>{x.code}</code></td><td>{x.campaign_name}</td><td>{x.status}</td><td>{x.resgates}{x.max_redemptions ? ' / ' + x.max_redemptions : ''}</td><td>{x.conversoes}</td>
+    <div className="adm-card"><h3>Cupons</h3><div className="adm-tbl-wrap"><table className="adm-table"><thead><tr><th>Código / link</th><th>Responsável</th><th>Benefício</th><th>Status</th><th>Usos</th><th>Conversões</th><th></th></tr></thead>
+      <tbody>{d.codes.map(x => <tr key={x.id}><td><code>{x.code}</code>{x.kind === 'indicacao' && <div className="g-row" style={{ gap: 4, marginTop: 4 }}><button className="adm-btn ghost" onClick={() => copy(x.code)}>Copiar código</button><button className="adm-btn ghost" onClick={() => copy(linkOf(x.code))}>Copiar link</button></div>}</td><td>{x.owner_name || x.partner_name || '—'}</td><td>{x.benefit === 'trial' ? `${x.trial_days} dias · ${x.eligible_audience === 'profissional' ? 'PRO' : x.eligible_audience === 'aluno' ? 'Individual' : 'público do cadastro'}` : `${+x.discount_pct}%`}</td><td>{x.status}</td><td>{x.redemptions_count}{x.max_redemptions ? ' / ' + x.max_redemptions : ''}</td><td>{x.conversoes}</td>
         <td>{x.status === 'ativo' ? <button className="adm-btn ghost" onClick={() => run(() => post('/api/adm/billing/codes/status', { id: x.id, status: 'pausado' }), 'Cupom pausado.')}>Pausar</button> : x.status === 'pausado' ? <button className="adm-btn ghost" onClick={() => run(() => post('/api/adm/billing/codes/status', { id: x.id, status: 'ativo' }), 'Cupom reativado.')}>Reativar</button> : null}</td></tr>)}</tbody></table></div></div>
   </div>
 }

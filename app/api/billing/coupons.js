@@ -2,7 +2,7 @@
 // Cupom de teste concede direito temporario (entitlement_grants catalogo_completo) com prazo contado no SERVIDOR,
 // um por conta para sempre, sem acumular, sem cobranca automatica e sem criar vinculo com o parceiro.
 import crypto from 'node:crypto'
-import { q, pool } from '../db/pool.js'
+import { q, pool, transaction } from '../db/pool.js'
 import { audit } from '../auth.js'
 import { notifyBilling } from './core.js'
 import { refreshUsage } from '../entitlements.js'
@@ -17,7 +17,7 @@ export const validFormat = s => /^[A-Z0-9_-]{3,32}$/.test(s)
 const invalid = { error: MSG.invalido, code: 'COUPON_INVALID' }, ended = { error: MSG.terminou, code: 'COUPON_ENDED' }
 
 // RN-CP-009 (+ Monetizacao F4): existe, campanha ativa, janela, limite, elegibilidade (perfil/plano), autoindicacao e historico.
-// opts.audience: publico do teste pedido ('aluno' -> Individual, 'profissional' -> PRO). Teste = 168h, unico por titular.
+// opts.audience: publico do teste pedido ('aluno' -> Individual, 'profissional' -> PRO). Duracao vem da campanha.
 export const TRIAL_PLAN = { aluno: 'individual', profissional: 'pro' }
 export async function validateCode(user, raw, c, opts = {}) {
   c = c || { query: q }
@@ -56,12 +56,13 @@ export async function validateCode(user, raw, c, opts = {}) {
     if ((await c.query(`select 1 from trial_grants where user_id=$1 union all select 1 from promotion_redemptions where user_id=$1 and benefit='trial'`, [user.id])).rowCount) return { error: MSG.ja_usou, code: 'TRIAL_ALREADY_USED' }
     const sub = (await c.query(`select p.is_free from subscriptions s join plans p on p.id=s.plan_id where s.user_id=$1 and s.audience=$2 and s.status in ('ativa','trial','inadimplente','carencia') limit 1`, [user.id, audience])).rows[0]
     if (sub && !sub.is_free) return { error: 'Você já tem uma assinatura ativa. O período experimental é para quem ainda não assina.', code: 'ALREADY_SUBSCRIBED' }
-    return { ok: true, code: row, campaign: cp, trial: true, audience, plan_id: plan, referrer, partner_name: cp.kind === 'parceiro' ? row.partner_name : (row.kind === 'indicacao' ? row.owner_name : null) }
+    const fallback = (await c.query(`select value from app_settings where tenant_id=$1 and key='experimental_dias'`, [user.tenant_id])).rows[0]?.value
+    const trialDays = Number(cp.trial_days ?? fallback)
+    if (!Number.isInteger(trialDays) || trialDays < 1 || trialDays > 90) return { error: 'A duração deste cupom não está configurada.', code: 'COUPON_INVALID' }
+    return { ok: true, code: row, campaign: cp, trial: true, trial_days: trialDays, audience, plan_id: plan, referrer, partner_name: cp.kind === 'parceiro' ? row.partner_name : (row.kind === 'indicacao' ? row.owner_name : null) }
   } else if ((await c.query(`select 1 from promotion_redemptions where user_id=$1 and code_id=$2`, [user.id, row.id])).rowCount) return { error: 'Você já usou este cupom.', code: 'COUPON_ALREADY_USED' }
   return { ok: true, code: row, campaign: cp, partner_name: cp.kind === 'parceiro' ? row.partner_name : null }
 }
-export const TRIAL_HOURS = 168
-
 // identidade do titular (D6): e-mail normalizado + telefone normalizado + CPF (opcional). HMAC com segredo do servidor.
 const SALT = () => process.env.IDENTITY_SALT || process.env.JWT_SECRET || 'avagym-dev'
 const h = v => crypto.createHmac('sha256', SALT()).update(String(v)).digest('hex')
@@ -83,7 +84,7 @@ export async function fraudSignal(tenantId, userId, kind, score, data) {
   await q(`insert into fraud_signals(tenant_id,user_id,kind,score,data) values($1,$2,$3,$4,$5)`, [tenantId, userId, kind, score, JSON.stringify(data || {})]).catch(e => console.error('fraud_signal', e.message))
 }
 
-// RN-CP-010 + Monetizacao F4: resgate atomico. Trava codigo e campanha; teste de 168h unico por titular garantido por
+// RN-CP-010 + Monetizacao F4: resgate atomico. Trava codigo e campanha; período único por titular garantido por
 // indices unicos (trial_grants.user_id e trial_identities (tenant,kind,hash)); indicacao (D2) tambem concede o teste
 // e registra o primeiro indicador (referral_attributions.user_id unico: nunca sobrescreve).
 export async function redeemTrial(user, raw, opts = {}) {
@@ -103,8 +104,9 @@ export async function redeemTrial(user, raw, opts = {}) {
     if (v.error) { await c.query('rollback'); return { status: v.code === 'COUPON_INVALID' ? 404 : 409, ...v } }
     if (!v.trial) { await c.query('rollback'); return { status: 400, error: 'Este é um cupom de desconto: use-o ao contratar um plano.', code: 'COUPON_WRONG_KIND' } }
     const source = v.code.kind === 'indicacao' ? 'cupom_indicacao' : 'cupom_teste'
+    const trialHours = v.trial_days * 24
     const tg = (await c.query(`insert into trial_grants(tenant_id,user_id,audience,plan_id,source,code_id,starts_at,ends_at)
-        values($1,$2,$3,$4,$5,$6,now(),now()+interval '${TRIAL_HOURS} hours') returning id, starts_at, ends_at`, [user.tenant_id, user.id, v.audience, v.plan_id, source, v.code.id])).rows[0]
+        values($1,$2,$3,$4,$5,$6,now(),now()+($7::int * interval '1 hour')) returning id, starts_at, ends_at`, [user.tenant_id, user.id, v.audience, v.plan_id, source, v.code.id, trialHours])).rows[0]
     for (const [kind, hash] of await identityKeys(c, user)) {
       const r = await c.query(`insert into trial_identities(tenant_id,kind,value_hash,trial_id) values($1,$2,$3,$4) on conflict do nothing`, [user.tenant_id, kind, hash, tg.id])
       if (!r.rowCount) { conflictIdentity = kind; break }
@@ -125,12 +127,12 @@ export async function redeemTrial(user, raw, opts = {}) {
       if (att) await c.query(`insert into referral_conversions(tenant_id,attribution_id,kind) values($1,$2,'teste') on conflict do nothing`, [user.tenant_id, att])
     }
     await c.query(`insert into attribution_events(tenant_id,campaign_id,code_id,partner_user_id,user_id,event,data) values($1,$2,$3,$4,$5,'resgate',$6)`,
-      [user.tenant_id, v.campaign.id, v.code.id, v.referrer || null, user.id, JSON.stringify({ benefit: 'trial', hours: TRIAL_HOURS, audience: v.audience, ends_at: tg.ends_at, attributed })])
+      [user.tenant_id, v.campaign.id, v.code.id, v.referrer || null, user.id, JSON.stringify({ benefit: 'trial', hours: trialHours, audience: v.audience, ends_at: tg.ends_at, attributed })])
     await c.query('commit')
-    await audit(user.tenant_id, user.id, 'cupom.resgate', 'trial_grant', tg.id, { campaign: v.campaign.id, code: v.code.id, audience: v.audience, plan: v.plan_id, hours: TRIAL_HOURS, source })
+    await audit(user.tenant_id, user.id, 'cupom.resgate', 'trial_grant', tg.id, { campaign: v.campaign.id, code: v.code.id, audience: v.audience, plan: v.plan_id, hours: trialHours, source })
     await refreshUsage(user.id, v.audience).catch(() => {})
     await notifyBilling(user.id, 'teste_cupom_ativo', { until: new Date(tg.ends_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) }, 'trial' + tg.id + ':inicio')
-    return { status: 201, ends_at: tg.ends_at, starts_at: tg.starts_at, days: TRIAL_HOURS / 24, hours: TRIAL_HOURS, audience: v.audience, plan_id: v.plan_id, redemption_id: r.rows[0].id,
+    return { status: 201, ends_at: tg.ends_at, starts_at: tg.starts_at, days: v.trial_days, hours: trialHours, audience: v.audience, plan_id: v.plan_id, redemption_id: r.rows[0].id,
       partner: v.referrer ? { id: v.referrer, name: v.partner_name } : null }
   } catch (e) {
     await c.query('rollback').catch(() => {})
@@ -187,7 +189,7 @@ export async function createCode(admin, b) {
   }
   if (kind === 'indicacao' && !owner) return { status: 400, error: 'Cupom de indicação precisa de um usuário responsável.', code: 'OWNER_REQUIRED' }
   const aud = ['aluno', 'profissional'].includes(b.eligible_audience) ? b.eligible_audience : null
-  const plans = Array.isArray(b.eligible_plans) ? b.eligible_plans.filter(x => ['individual', 'pro'].includes(x)) : []
+  const plans = Array.isArray(b.eligible_plans) ? b.eligible_plans.filter(x => ['individual', 'pro', 'pro_ilimitado'].includes(x)) : []
   try {
     const r = await q(`insert into promotion_codes(tenant_id,campaign_id,code,code_norm,max_redemptions,starts_at,ends_at,kind,owner_user_id,eligible_audience,eligible_plans,channel,notes,created_by)
         values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) returning *`,
@@ -196,6 +198,46 @@ export async function createCode(admin, b) {
     await audit(admin.tenant_id, admin.id, 'cupom.criado', 'promotion_code', r.rows[0].id, { campaign: cp.id, kind, owner })
     return { status: 201, code: r.rows[0] }
   } catch (e) { if (e.code === '23505') return { status: 409, error: 'Já existe um cupom com este código (maiúsculas e minúsculas são iguais).', code: 'COUPON_DUPLICATE' }; throw e }
+}
+
+const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+const generatedCode = () => Array.from(crypto.randomBytes(8), b => CODE_ALPHABET[b % CODE_ALPHABET.length]).join('')
+
+// Fluxo direto do admin: campanha + cupom de indicacao em uma unica transacao.
+export async function createReferralCoupon(admin, b) {
+  const audience = ['aluno', 'profissional'].includes(b.audience) ? b.audience : null
+  const days = Math.round(+b.trial_days), max = Math.round(+b.max_redemptions), ends = dt(b.ends_at)
+  if (!audience) return { status: 400, error: 'Escolha se o cupom é para Aluno ou Profissional.' }
+  if (!Number.isInteger(days) || days < 1 || days > 90) return { status: 400, error: 'Informe de 1 a 90 dias de acesso.' }
+  if (!Number.isInteger(max) || max < 1) return { status: 400, error: 'Informe quantos cadastros podem receber o benefício.' }
+  if (ends === undefined || (ends && ends <= new Date())) return { status: 400, error: 'A validade precisa estar no futuro.' }
+  const owner = (await q(`select id, name from users where id::text=$1 and tenant_id=$2 and disabled_at is null`, [String(b.owner_user_id || ''), admin.tenant_id])).rows[0]
+  if (!owner) return { status: 400, error: 'Escolha uma conta responsável desta organização.' }
+  const requested = b.code ? normCode(b.code) : null
+  if (requested && !validFormat(requested)) return { status: 400, error: 'Código com 3 a 32 letras, números, hífen ou sublinhado.' }
+  try {
+    return await transaction(async c => {
+      let code = requested
+      for (let attempt = 0; !code && attempt < 8; attempt++) {
+        const candidate = generatedCode()
+        if (!(await c.query('select 1 from promotion_codes where tenant_id=$1 and code_norm=$2', [admin.tenant_id, candidate])).rowCount) code = candidate
+      }
+      if (!code) throw new Error('Não foi possível gerar um código único.')
+      const plan = audience === 'aluno' ? 'individual' : 'pro'
+      const campaign = (await c.query(`insert into campaigns(tenant_id,name,kind,benefit,trial_days,applies_to,status,ends_at,max_redemptions,notes,created_by)
+          values($1,$2,'oficial','trial',$3,$4,'ativa',$5,$6,$7,$8) returning *`,
+        [admin.tenant_id, `Indicação · ${owner.name} · ${code}`, days, [plan], ends, max, 'Cupom personalizado com link de indicação.', admin.id])).rows[0]
+      const coupon = (await c.query(`insert into promotion_codes(tenant_id,campaign_id,code,code_norm,kind,owner_user_id,eligible_audience,eligible_plans,max_redemptions,ends_at,channel,notes,created_by)
+          values($1,$2,$3,$3,'indicacao',$4,$5,$6,$7,$8,'link_indicacao','Gerado pelo administrador',$9) returning *`,
+        [admin.tenant_id, campaign.id, code, owner.id, audience, [plan], max, ends, admin.id])).rows[0]
+      await c.query(`insert into coupon_changes(tenant_id,code_id,actor_id,action,after) values($1,$2,$3,'criado',$4)`, [admin.tenant_id, coupon.id, admin.id, JSON.stringify(coupon)])
+      await audit(admin.tenant_id, admin.id, 'cupom.criado', 'promotion_code', coupon.id, { campaign: campaign.id, kind: 'indicacao', owner: owner.id, audience, days, max })
+      return { status: 201, campaign, code: coupon }
+    })
+  } catch (e) {
+    if (e.code === '23505') return { status: 409, error: 'Já existe um cupom com este código.', code: 'COUPON_DUPLICATE' }
+    throw e
+  }
 }
 // RN-CP-016: suspender/revogar impede novos resgates; beneficios ja concedidos continuam
 export async function setCodeStatus(admin, b) {
@@ -209,12 +251,12 @@ export async function setCodeStatus(admin, b) {
   return { status: 200, code: r.rows[0] }
 }
 // resultados agregados (sem dados pessoais) - usados pelo admin e pelo parceiro
-export const STATS_SQL = `select pc.id, pc.code, pc.status, pc.max_redemptions, pc.redemptions_count, pc.starts_at, pc.ends_at,
+export const STATS_SQL = `select pc.id, pc.code, pc.status, pc.max_redemptions, pc.redemptions_count, pc.starts_at, pc.ends_at, pc.owner_user_id, pc.eligible_audience, pc.eligible_plans,
     cp.id campaign_id, cp.name campaign_name, cp.kind, cp.benefit, cp.trial_days, cp.discount_pct, cp.discount_cycles, cp.status campaign_status, cp.ends_at campaign_ends_at,
-    cp.partner_user_id, pu.name partner_name,
+    cp.partner_user_id, pu.name partner_name, ou.name owner_name,
     (select count(*)::int from promotion_redemptions r where r.code_id=pc.id) resgates,
     (select count(distinct r.user_id)::int from promotion_redemptions r join sessions s on s.user_id=r.user_id and s.started_at >= r.created_at where r.code_id=pc.id) treinaram,
     (select count(distinct r.user_id)::int from promotion_redemptions r join coach_students cs on cs.student_id=r.user_id and cs.coach_id=cp.partner_user_id and cs.since >= r.created_at where r.code_id=pc.id) vinculos,
     (select count(distinct r.user_id)::int from promotion_redemptions r join subscriptions s on s.user_id=r.user_id join plans p on p.id=s.plan_id and not p.is_free
        where r.code_id=pc.id and s.started_at >= r.created_at) conversoes
-  from promotion_codes pc join campaigns cp on cp.id=pc.campaign_id left join users pu on pu.id=cp.partner_user_id`
+  from promotion_codes pc join campaigns cp on cp.id=pc.campaign_id left join users pu on pu.id=cp.partner_user_id left join users ou on ou.id=pc.owner_user_id`

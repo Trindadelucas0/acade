@@ -56,8 +56,8 @@ export function ProEdit({ u, pro, onChanged }) {
     <F l="Apresentação"><textarea className="adm-in" rows={3} value={f.bio} onChange={set('bio')} /></F>
     <F l="Especialidades (separadas por vírgula)"><input className="adm-in" value={f.specialties} onChange={set('specialties')} /></F>
     <div className="g-row" style={{ gap: 8 }}>
-      <F l="Situação"><select className="adm-in" value={f.state} onChange={set('state')} data-testid="pe-state"><option value="ativo">Ativo</option><option value="em_analise">Em análise</option><option value="suspenso">Suspenso</option><option value="encerrado">Desativado</option></select></F></div>
-    <label className="g-row" style={{ gap: 8, minHeight: 44 }}><input type="checkbox" checked={f.can_publish} onChange={set('can_publish')} /> Pode publicar na comunidade</label>
+      <F l="Situação"><select className="adm-in" value={f.state === 'em_analise' ? 'ativo' : f.state} onChange={set('state')} data-testid="pe-state"><option value="ativo">Ativo</option><option value="suspenso">Suspenso</option><option value="encerrado">Desativado</option></select></F></div>
+    <p className="g-mut g-xs">A verificação profissional é informativa. Um personal ativo pode usar alunos, fichas e publicações conforme o plano.</p>
     {msg && <p className="g-sm" role="status">{msg}</p>}
     <Save busy={busy} onClick={() => run(async () => { await C.proProfile({ user_id: u.id, display_name: f.display_name, bio: f.bio, specialties: f.specialties }); await C.updPro({ user_id: u.id, state: f.state, can_publish: f.can_publish }); onChanged && onChanged() })} data-testid="pe-save" />
     <h3 style={{ marginTop: 16 }}>Habilitações</h3>
@@ -228,6 +228,66 @@ function CommentRow({ x, reload, confirmDel }) {
     <select className="adm-in" value={st} onChange={e => setSt(e.target.value)} aria-label="Visibilidade"><option value="visivel">Visível</option><option value="oculto">Oculto</option></select>
     <button className="adm-btn ghost" onClick={async () => { try { await C.updComment({ id: x.id, body: b, status: st }); reload() } catch (e) { notifyError(e) } }}>Salvar</button>
     <button className="adm-btn danger" onClick={() => confirmDel({ title: 'Excluir comentário', text: 'O comentário será removido.', onConfirm: async () => { await C.delComment({ id: x.id, confirm: 'EXCLUIR' }); reload() } })}>Excluir</button></div>
+}
+
+// ---------- comunidade: calendario editorial oficial ----------
+const OFFICIAL_CATS = [['treinamento', 'Treinamento'], ['tecnica', 'Técnica de execução'], ['educacao', 'Educação e orientação geral'], ['motivacao', 'Motivação'], ['comunicados', 'Comunicados']]
+const localDateTime = value => {
+  const d = value ? new Date(value) : new Date(Date.now() + 3600000)
+  if (Number.isNaN(d.getTime())) return ''
+  const pad = n => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+const officialState = { publicado: 'Publicado', agendado: 'Agendado', cancelado: 'Cancelado' }
+
+export function ConteudoOficial({ DataTable, Drawer }) {
+  const [state, setState] = useState(''), [d, err, reload] = useLoad(() => C.officialPosts(state), [state])
+  const [selected, setSelected] = useState(null), [creating, setCreating] = useState(false), [busy, setBusy] = useState(false), [msg, setMsg] = useState('')
+  const rows = d?.posts || [], post = selected && rows.find(x => x.id === selected)
+  const cols = [
+    { k: 'title', l: 'Título' },
+    { k: 'state', l: 'Situação', r: r => officialState[r.state] || r.state },
+    { k: 'publish_at', l: 'Publicação', r: r => fmt(r.publish_at), sv: r => r.publish_at },
+    { k: 'likes', l: 'Curtidas' }, { k: 'comments', l: 'Comentários' }
+  ]
+  const seed = async () => {
+    if (!await ask('Carregar o calendário inicial com 12 publicações oficiais? Três ficam publicadas e nove agendadas. A ação não cria curtidas nem comentários.')) return
+    setBusy(true); setMsg('')
+    try { const r = await C.seedOfficialPosts(); setMsg(r.created ? `${r.created} publicações adicionadas. ${r.existing} já existiam.` : 'O calendário inicial já estava carregado; nada foi duplicado.'); reload() }
+    catch (e) { setMsg(e.message) } finally { setBusy(false) }
+  }
+  return <>
+    <div className="adm-card" style={{ marginBottom: 12 }}>
+      <h3>Equipe ORNY · Perfil oficial</h3>
+      <p className="g-mut g-sm">Planeje conteúdo institucional sem criar perfis ou interações artificiais. Curtidas e comentários continuam vindo apenas de usuários reais.</p>
+      {msg && <p className="g-sm" role="status">{msg}</p>}
+      <div className="adm-tools"><button className="adm-btn" onClick={() => setCreating(true)} data-testid="official-new">+ Novo conteúdo</button><button className="adm-btn ghost" disabled={busy} onClick={seed} data-testid="official-seed">{busy ? 'Carregando…' : 'Carregar calendário inicial'}</button></div>
+    </div>
+    {err ? <><p className="g-warn" role="alert">{err}</p><button className="adm-btn ghost" onClick={reload}>Tentar novamente</button></>
+      : !d ? <p className="g-mut">Carregando calendário…</p>
+        : <DataTable name="conteudo-oficial" cols={cols} rows={rows} onRow={r => setSelected(r.id)} empty={state ? 'Nenhum conteúdo nesta situação.' : 'Ainda não há conteúdo oficial.'} filters={<select className="adm-in" value={state} onChange={e => setState(e.target.value)} aria-label="Situação"><option value="">Todas as situações</option><option value="publicado">Publicados</option><option value="agendado">Agendados</option><option value="cancelado">Cancelados</option></select>} />}
+    {(creating || post) && <Drawer title={post?.title || 'Novo conteúdo oficial'} onClose={() => { setCreating(false); setSelected(null) }}><OfficialPostForm post={post} onDone={() => { setCreating(false); setSelected(null); reload() }} /></Drawer>}
+  </>
+}
+
+function OfficialPostForm({ post, onDone }) {
+  const { f, set, errs, msg, busy, run } = useForm({ title: post?.title || '', body: post?.body || '', category: post?.category || 'treinamento', publish_at: localDateTime(post?.publish_at) })
+  const canceled = post?.state === 'cancelado'
+  const save = () => run(async () => { await C.saveOfficialPost({ id: post?.id, ...f, publish_at: new Date(f.publish_at).toISOString() }); onDone() }, post ? 'Conteúdo atualizado.' : 'Conteúdo criado.')
+  return <div data-testid="official-form">
+    <p className="g-xs g-mut">Autoria exibida: <b>Equipe ORNY — Perfil oficial</b>.</p>
+    <F l="Título" err={errs.title}><input className="adm-in" value={f.title} onChange={set('title')} maxLength={140} disabled={canceled} data-testid="official-title" /></F>
+    <F l="Assunto" err={errs.category}><select className="adm-in" value={f.category} onChange={set('category')} disabled={canceled}>{OFFICIAL_CATS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></F>
+    <F l="Conteúdo" err={errs.body}><textarea className="adm-in" rows={8} value={f.body} onChange={set('body')} maxLength={5000} disabled={canceled} data-testid="official-body" /></F>
+    <F l="Data e hora da publicação" err={errs.publish_at}><input className="adm-in" type="datetime-local" value={f.publish_at} onChange={set('publish_at')} disabled={canceled} data-testid="official-date" /></F>
+    {post && <p className="g-xs g-mut">Situação: {officialState[post.state] || post.state} · {post.likes} curtida(s) real(is) · {post.comments} comentário(s) real(is).</p>}
+    {msg && <p className={Object.keys(errs).length ? 'g-warn g-sm' : 'g-sm'} role="status">{msg}</p>}
+    {!canceled && <div className="adm-tools"><Save busy={busy} onClick={save}>{post ? 'Salvar alterações' : 'Criar conteúdo'}</Save>
+      {post?.state === 'agendado' && <button className="adm-btn ghost" disabled={busy} onClick={() => run(async () => { await C.publishOfficialPost(post.id); onDone() }, 'Publicado agora.')}>Publicar agora</button>}
+      {post && <button className="adm-btn danger" disabled={busy} onClick={async () => { if (await ask('Cancelar este conteúdo oficial? Ele deixará de aparecer no feed e permanecerá no histórico.')) run(async () => { await C.cancelOfficialPost(post.id); onDone() }, 'Conteúdo cancelado.') }}>Cancelar conteúdo</button>}
+    </div>}
+    {canceled && <p className="g-mut g-sm">Conteúdo cancelado: permanece disponível apenas para consulta e auditoria.</p>}
+  </div>
 }
 
 // ---------- exercícios ----------

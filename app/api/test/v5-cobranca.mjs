@@ -18,14 +18,14 @@ async function conta(tag, intent = 'aluno') {
   const terms = (await call(null, 'GET', '/api/terms')).d.terms
   const email = `bill.${tag}.${Date.now()}${Math.random().toString(36).slice(2, 6)}@e2e.local`
   const r = await call(null, 'POST', '/api/auth/register', { name: 'Cobranca ' + tag, email, password: PASS, accept_terms: true, birth_date: '1990-01-01', terms_version: terms?.version, intent })
-  assert.equal(r.s, 200, JSON.stringify(r.d)); await pool.query('update users set access_unlocked_at=now() where id=$1', [r.d.user.id]); return { tok: r.d.token, id: r.d.user.id, email }
+  assert.equal(r.s, 200, JSON.stringify(r.d)); return { tok: r.d.token, id: r.d.user.id, email }
 }
 const card = async (u, number) => { const r = await call(u.tok, 'POST', '/api/billing/cards', { number, holder_name: 'TESTE E2E', exp_month: 12, exp_year: 2030, cvv: '123' }); assert.equal(r.s, 201, JSON.stringify(r.d)); return r.d.card.id }
 const subOf = async (u, aud = 'aluno') => (await call(u.tok, 'GET', '/api/billing/me')).d.subscriptions[aud]
 let adm
 after(async () => { if (adm) await call(adm, 'POST', '/api/adm/billing/settings', { teste_so_cupom: true }); await pool.end() })   // F6: legado do 'teste do plano' coberto aqui; padrao volta a 'so cupom'
 
-test('preparacao: precos de teste (Individual R$ 29,90 sem teste; PRO R$ 79,90 com 7 dias)', async () => {
+test('preparacao: precos de teste sem periodo gratuito automatico nos planos', async () => {
   adm = await login('admin.e2e@avadesk.local'); assert.ok(adm)
   assert.equal((await call(adm, 'POST', '/api/adm/billing/settings', { carencia_dias: 7, retentativas_dias: [1, 3], monetizacao_ativa: false, teste_so_cupom: false })).s, 200)
   assert.equal((await call(adm, 'POST', '/api/adm/billing/plans', { id: 'individual', price_cents: 2990, trial_days: null, sellable: true })).s, 200)
@@ -69,6 +69,7 @@ test('contratacao aprovada: ativa, cobranca paga, notificacao in-app + e-mail, a
   const u = await conta('ok'); const c = await card(u, '4242424242424242')
   const r = await call(u.tok, 'POST', '/api/billing/subscribe', { plan_id: 'individual', card_id: c, idempotency_key: 'k1' }); assert.equal(r.s, 200, JSON.stringify(r.d)); assert.equal(r.d.result, 'ativa')
   const s = await subOf(u); assert.equal(s.plan_id, 'individual'); assert.equal(s.status, 'ativa'); assert.equal(s.card.last4, '4242')
+  const access = await call(u.tok, 'GET', '/api/me/unlock-request'); assert.equal(access.d.state, 'comercial'); assert.equal(access.d.suspended, false)
   assert.equal((await call(u.tok, 'POST', '/api/billing/subscribe', { plan_id: 'individual', card_id: c, idempotency_key: 'k1' })).d.code, 'ALREADY_SUBSCRIBED')
   const ch = await pool.query(`select status, amount_cents from billing_charges where user_id=$1`, [u.id]); assert.deepEqual(ch.rows, [{ status: 'paga', amount_cents: 2990 }])
   assert.ok((await pool.query(`select 1 from notifications where user_id=$1 and kind='billing'`, [u.id])).rowCount)
@@ -114,12 +115,9 @@ test('cupom de desconto percentual configurado no admin', async () => {
   assert.equal((await call(u.tok, 'POST', '/api/billing/subscribe', { plan_id: 'individual', card_id: c, coupon: code })).d.result, 'ativa')
   const ch = await pool.query(`select amount_cents, discount_cents from billing_charges where user_id=$1`, [u.id]); assert.deepEqual(ch.rows, [{ amount_cents: 1495, discount_cents: 1495 }])
 })
-test('PRO com teste de 7 dias: trial sem cobranca; fim do teste cobra', async () => {
+test('PRO nao concede teste automatico: cobra no checkout', async () => {
   const u = await conta('pro', 'profissional'); const c = await card(u, '4242424242424242')
-  const r = await call(u.tok, 'POST', '/api/billing/subscribe', { plan_id: 'pro', card_id: c }); assert.equal(r.d.result, 'trial', JSON.stringify(r.d))
-  assert.equal((await pool.query('select count(*)::int n from billing_charges where user_id=$1', [u.id])).rows[0].n, 0)
-  const sid = (await subOf(u, 'profissional')).id
-  await call(adm, 'POST', '/api/adm/billing/simulate', { action: 'vencer_periodo', subscription_id: sid })
+  const r = await call(u.tok, 'POST', '/api/billing/subscribe', { plan_id: 'pro', card_id: c }); assert.equal(r.d.result, 'ativa', JSON.stringify(r.d))
   assert.equal((await subOf(u, 'profissional')).status, 'ativa')
   assert.equal((await pool.query(`select count(*)::int n from billing_charges where user_id=$1 and status='paga' and amount_cents=7990`, [u.id])).rows[0].n, 1)
 })

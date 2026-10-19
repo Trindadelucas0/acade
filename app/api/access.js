@@ -1,5 +1,5 @@
 // AVAGYM - Monetizacao F3: motor central de acesso (decisoes do Lucas D1-D9, 16/10/2026).
-// Origens de acesso (podem coexistir): propria (assinatura paga), teste (trial_grants, 168h), concessao (entitlement_grants
+// Origens de acesso (podem coexistir): propria (assinatura paga), teste por cupom (trial_grants), concessao (entitlement_grants
 // key='acesso', ex.: transicao D1 ou cortesia do admin) e personal (aluno vinculado a um personal com acesso - D4).
 // Com 'monetizacao_ativa' DESLIGADA nada e bloqueado (comportamento atual). Ligada: tudo que nao esta na lista
 // ALWAYS_ALLOWED exige acesso (negar por padrao: rota nova nasce protegida). Regras SO no backend.
@@ -18,7 +18,7 @@ export const ALWAYS_ALLOWED = [
   /^[A-Z]+ \/api\/billing\//, /^GET \/api\/plans?$/, /^GET \/api\/public\//, /^[A-Z]+ \/api\/terms(\/accept)?$/, /^[A-Z]+ \/api\/legal\//,
   /^[A-Z]+ \/api\/(config|health|cep|activity)$/, /^GET \/api\/media(\/pub|\/private)?$/, /^[A-Z]+ \/api\/notification-prefs$/, /^[A-Z]+ \/api\/notifications(\/read)?$/,
   /^[A-Z]+ \/api\/push\/(public-key|subscribe|unsubscribe)$/, /^[A-Z]+ \/api\/social\/(profile|handle-check)$/, /^[A-Z]+ \/api\/data$/,
-  /^[A-Z]+ \/api\/access\//, /^[A-Z]+ \/api\/invites\/(view|accept|decline)$/, /^POST \/api\/guided\/onboarding$/,
+  /^[A-Z]+ \/api\/access\//, /^GET \/api\/referral\/me$/, /^[A-Z]+ \/api\/invites\/(view|accept|decline)$/, /^POST \/api\/guided\/onboarding$/,
   /^[A-Z]+ \/api\/pro\/(verification|verification\/document|profile|partner)$/, /^[A-Z]+ \/api\/verification\/document$/, /^GET \/api\/convite$/
 ]
 export const isAlwaysAllowed = key => ALWAYS_ALLOWED.some(r => r.test(key))
@@ -120,10 +120,8 @@ export async function pendingWelcome(user) {
   const pending = cands.find(c => !seen.has(c.key))
   if (!pending) return null
   const e = await resolve(user.id, pending.audience)
-  const scoped = user.account_type === 'personal_client' && !user.access_unlocked_at
-  const professional = pending.audience === 'profissional' ? (await q('select verification_status, can_publish from professional_profiles where user_id=$1 and tenant_id=$2', [user.id, user.tenant_id])).rows[0] : null
-  const resources = welcomeResources(pending.audience, e?.active ? e.features : {}, scoped, professional?.verification_status === 'verificado')
-    .filter(path => path !== '/pro/programas' || professional?.can_publish)
+  const scoped = user.account_type === 'personal_client' && !user.own_student_access
+  const resources = welcomeResources(pending.audience, e?.active ? e.features : {}, scoped, true)
   return { ...pending, resources }
 }
 

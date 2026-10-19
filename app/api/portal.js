@@ -45,8 +45,6 @@ async function publishProblems(u, plan) {
   const p = []
   const st = await proState(u.id)
   if (!st || st.state !== 'ativo') p.push('Seu perfil profissional não está ativo')
-  // V4 F5: a exigência é a verificação profissional atual (não mais professional_qualifications antigas)
-  if (!st || st.verification_status !== 'verificado') p.push('Seu cadastro profissional ainda não foi verificado')
   if (!(await isLinked(u.id, plan.student_id))) p.push('Não há vínculo ativo com este aluno')
   if (!plan.title || plan.title.length < 2) p.push('Dê um nome ao treino')
   if (!plan.goal) p.push('Informe o objetivo')
@@ -71,7 +69,7 @@ export function portalRoutes({ json, readBody }) {
             join users x on x.id=s.user_id where s.status='done' order by s.started_at desc limit 8`, [u.id]),
         q(`select count(*)::int n from pro_requests where professional_id=$1 and status = any($2)`, [u.id, OPEN])])
       const lim = await capacitySummary(u.id)
-      json(res, 200, { name: st?.display_name || u.name, state: st?.state || 'em_analise', can_publish: !!st?.can_publish, limit: lim,
+      json(res, 200, { name: st?.display_name || u.name, state: st?.state || 'ativo', can_publish: !!st && st.state === 'ativo' && !st.publication_suspended_at, limit: lim,
         kpis: { students: stu.rows[0].n, capacity: lim.effective_limit, available: lim.available, sem_prescricao: noplan.rows[0].n,
           em_andamento: live.rows[0].n, mensagens: th.rows[0].n, ocorrencias: occ.rows[0].n, propostas: pr.rows[0].n, solicitacoes: rq.rows[0].n },
         activity: act.rows })
@@ -196,8 +194,6 @@ export function portalRoutes({ json, readBody }) {
       if (!p) return json(res, 404, { error: 'Prescrição não encontrada' })
       if (p.owner_id !== u.id) return json(res, 403, { error: 'Somente o responsável disponibiliza esta prescrição' })
       if (p.status !== 'rascunho') return json(res, 409, { error: p.status === 'ativo' ? 'Esta prescrição já está disponível para o aluno' : 'Prescrição arquivada' })
-      // V3: profissional não verificado não envia prescrição (pode treinar como aluno)
-      if (!has(u, 'admin') && (await proState(u.id))?.verification_status !== 'verificado') return json(res, 403, { error: 'Seu cadastro profissional ainda não foi verificado. Você não pode enviar treinos aos alunos.', code: 'PERMISSION_DENIED' })
       const probs = await publishProblems(u, p); if (probs.length) return json(res, 400, { error: probs[0], problems: probs })
       const r = await q(`update pro_plans set status='ativo', published_at=now(), published_version=version, updated_at=now() where id=$1 and status='rascunho' returning id, version`, [p.id])
       if (!r.rowCount) return json(res, 409, { error: 'A prescrição mudou enquanto você publicava. Atualize e tente de novo.' })

@@ -20,7 +20,7 @@ export function ProgressLocked() {
   return <div className="ag" data-testid="progress-locked">
     <span className="g-eyebrow">Progresso</span>
     <h1>Seu progresso</h1>
-    <p className="g-mut" style={{ marginTop: 6 }}>Assine ou ative o teste de 7 dias para acompanhar sua evolução.</p>
+    <p className="g-mut" style={{ marginTop: 6 }}>Assine ou ative um cupom válido para acompanhar sua evolução.</p>
     <h2>Músculos trabalhados</h2>
     <PremiumLock title="Músculos trabalhados" feature="musculos" desc="Veja no mapa do corpo, frente e costas, quais músculos você treinou e quanto." preview={<BodyMap load={DEMO} body={body} />} />
     <h2>Estatísticas</h2>

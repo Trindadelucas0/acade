@@ -46,7 +46,15 @@ export async function revokeRequestToken(req) {
   q('delete from revoked_tokens where expires_at < now()').catch(() => {})
 }
 async function loadUser(id) {
-  const r = await q(`select u.id,u.name,u.email,u.tenant_id,u.disabled_at,u.status,u.active_context,u.token_version,u.account_type,u.must_change_password,u.managed_by,u.access_unlocked_at,(select m.access_unlocked_at from users m where m.id=u.managed_by) coach_unlocked_at,(select pp.verification_status from professional_profiles pp where pp.user_id=u.id) verification,t.slug tenant_slug,t.name tenant_name,
+  const r = await q(`select u.id,u.name,u.email,u.tenant_id,u.disabled_at,u.status,u.active_context,u.token_version,u.account_type,u.must_change_password,u.managed_by,u.access_unlocked_at,
+      u.access_suspended_at,u.access_suspension_reason,
+      exists(select 1 from subscriptions s join plans p on p.id=s.plan_id where s.user_id=u.id and s.audience='aluno' and not p.is_free and s.status in ('ativa','trial','inadimplente','carencia'))
+        or exists(select 1 from trial_grants g where g.user_id=u.id and g.audience='aluno' and g.revoked_at is null and g.starts_at<=now() and g.ends_at>now())
+        or exists(select 1 from entitlement_grants g where g.user_id=u.id and g.audience='aluno' and g.kind='feature' and g.key='acesso' and g.revoked_at is null and g.starts_at<=now() and (g.expires_at is null or g.expires_at>now())) own_student_access,
+      exists(select 1 from subscriptions s join plans p on p.id=s.plan_id where s.user_id=u.managed_by and s.audience='profissional' and not p.is_free and s.status in ('ativa','trial','inadimplente','carencia'))
+        or exists(select 1 from trial_grants g where g.user_id=u.managed_by and g.audience='profissional' and g.revoked_at is null and g.starts_at<=now() and g.ends_at>now())
+        or exists(select 1 from entitlement_grants g where g.user_id=u.managed_by and g.audience='profissional' and g.kind='feature' and g.key='acesso' and g.revoked_at is null and g.starts_at<=now() and (g.expires_at is null or g.expires_at>now())) coach_has_access,
+      (select pp.verification_status from professional_profiles pp where pp.user_id=u.id) verification,t.slug tenant_slug,t.name tenant_name,
       coalesce(array_agg(ur.role_id) filter (where ur.role_id is not null),'{}') roles
     from users u join tenants t on t.id=u.tenant_id left join user_roles ur on ur.user_id=u.id and ur.tenant_id=u.tenant_id
     where u.id=$1 group by u.id,t.slug,t.name`, [id])
@@ -55,7 +63,7 @@ async function loadUser(id) {
   return u
 }
 // Middlewares estilo "guard": retornam o usuário ou respondem 401/403 e retornam null.
-// Conta "pendente" entra no app, mas as funcionalidades ficam travadas até a liberação (APP FLOW / decisão 4).
+// A conta nasce ativa. Acesso aos recursos depende do plano; suspensao administrativa e um controle separado.
 export async function requireAuth(req, res, json, opts) {
   const u = await authUser(req)
   if (!u) { json(res, 401, { error: 'Não autenticado' }); return null }
@@ -87,16 +95,20 @@ const sign = u => jwt.sign({ sub: u.id, tid: u.tenant_id, roles: u.roles, tv: u.
 export const pub = u => ({ id: u.id, name: u.name, email: u.email, roles: u.roles, admin: u.roles.includes('admin'), pro: u.roles.includes('profissional'), status: u.status,
   capacities: u.roles.filter(r => r === 'aluno' || r === 'profissional'), context: contextOf(u), verification: u.verification || null,
   tenant: { id: u.tenant_id, slug: u.tenant_slug, name: u.tenant_name },
-  // V4.2: tipo de conta. Aluno do personal fica restrito (fichas, comunidade e desafios do personal) até a liberação do admin
+  // Aluno coberto pelo personal fica no escopo do PRO ate adquirir acesso Individual proprio.
   account_type: u.account_type || 'normal', must_change_password: !!u.must_change_password,
-  client_locked: u.account_type === 'personal_client' && !u.access_unlocked_at, access_locked: !u.access_unlocked_at, coach_pending: u.account_type === 'personal_client' && !u.access_unlocked_at && !u.coach_unlocked_at, managed_by: u.managed_by || null })
+  client_locked: u.account_type === 'personal_client' && !u.own_student_access,
+  access_locked: !!u.access_suspended_at, access_suspended: !!u.access_suspended_at,
+  access_suspension_reason: u.access_suspension_reason || null,
+  coach_pending: u.account_type === 'personal_client' && !u.own_student_access && !u.coach_has_access,
+  managed_by: u.managed_by || null })
 
 export function authRoutes({ json, readBody, bridge, clearCookies }) {
-  const login = async (res, id) => {
+  const login = async (res, id, payload = {}) => {
     const u = await loadUser(id)
     const tok = sign(u)
     const extra = bridge ? bridge(u) : []
-    json(res, 200, { user: { ...pub(u), ...(await termsStatus(u.id)) }, token: tok }, { 'Set-Cookie': [tokenCookie(tok), ...extra] })
+    json(res, 200, { user: { ...pub(u), ...(await termsStatus(u.id)) }, token: tok, ...payload }, { 'Set-Cookie': [tokenCookie(tok), ...extra] })
   }
 
   return {
@@ -148,9 +160,16 @@ export function authRoutes({ json, readBody, bridge, clearCookies }) {
         return u
       })
       if (!u) return json(res, 409, { error: 'Este e-mail já tem conta. Quer entrar ou recuperar a senha?', code: 'EMAIL_EXISTS', errors: { email: 'Este e-mail já tem conta' } })
-      // Monetizacao F5: link de indicacao (primeiro indicador; nunca sobrescreve). Falha aqui nunca impede o cadastro.
-      if (b.ref) await (await import('./referral.js')).attributeSignup(u.rows[0].id, t.rows[0].id, b.ref).catch(e => console.error('indicacao', e.message))
-      await login(res, u.rows[0].id)
+      // Cupom do link ou digitado: o servidor aplica depois de criar a conta. Falha nao desfaz o cadastro.
+      let couponResult = null
+      if (b.coupon) {
+        try {
+          const account = await loadUser(u.rows[0].id)
+          const audience = b.coupon_audience === 'profissional' ? 'profissional' : 'aluno'
+          couponResult = await (await import('./billing/coupons.js')).redeemTrial(account, b.coupon, { audience })
+        } catch (e) { console.error('cupom cadastro', e.message); couponResult = { status: 500, error: 'A conta foi criada, mas não foi possível aplicar o cupom agora.', code: 'COUPON_APPLY_FAILED' } }
+      }
+      await login(res, u.rows[0].id, { coupon_result: couponResult })
     },
     'POST /api/auth/login': async (req, res) => {
       const b = await readBody(req)

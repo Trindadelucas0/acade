@@ -48,7 +48,7 @@ export function PublicPlans() {
   return <div className="bl-page" data-testid="public-plans">
     <header className="pl-hero"><a href="#/" className="bl-logo"><Brand /></a>
       <h1>Treine com método.<br /><em>Evolua de verdade.</em></h1>
-      <p>Um plano para quem treina, outro para quem prescreve. Experimente 7 dias com cupom, sem cartão.</p>
+      <p>Um plano para quem treina, outro para quem prescreve. Cupons podem liberar um período definido, sem cartão.</p>
       <TrialSeal /></header>
     {err ? <p className="bl-err">{err}</p> : !d ? <p className="bl-load">Carregando planos…</p> : <>
       <PlansCompare plans={d.plans} testMode={d.test_mode} cta={cta} />
@@ -84,7 +84,7 @@ function Checkout({ plan, cfg, cards, onClose, onDone }) {
       }
       const r = await post('/api/billing/subscribe', { plan_id: plan.id, payment_type: paymentType, card_id, coupon: cv?.valid && cv.benefit === 'desconto' ? coupon.trim() : undefined, idempotency_key: idem })
       if (r.pix) { setPix(r.pix); setMsg(null); return }
-      onDone(r.result === 'trial' ? `Pronto! Seu teste do ${plan.name} vai até ${dBR(r.trial_ends_at)}. A primeira cobrança só acontece depois.` : r.result === 'pendente' ? r.message : `Assinatura do ${plan.name} ativa. Obrigado!`)
+      onDone(r.result === 'pendente' ? r.message : `Assinatura do ${plan.name} ativa. Obrigado!`)
     } catch (e2) { setMsg(e2.message); setIdem(newKey()) } finally { setBusy(false) }
   }
   const tc = cfg.test_cards
@@ -94,7 +94,7 @@ function Checkout({ plan, cfg, cards, onClose, onDone }) {
   </div></div>
   return <div className="bl-modal-bg" onClick={onClose}><form className="bl-modal" role="dialog" aria-modal="true" aria-label={'Assinar ' + plan.name} onClick={e => e.stopPropagation()} onSubmit={pay} data-testid="checkout">
     <div className="bl-row"><h2>Assinar {plan.name}</h2><span className="bl-sp" /><button type="button" className="bl-x" aria-label="Fechar" onClick={onClose}>×</button></div>
-    <p className="bl-sum">{plan.trial_days > 0 ? <>{plan.trial_days} dias grátis, depois <b>{brl(price)}/mês</b></> : <><b>{brl(price)}</b> hoje e a cada mês</>}{cv?.valid && cv.benefit === 'desconto' && <> · {cv.discount_pct}% de desconto por {cv.discount_cycles || 1} {(cv.discount_cycles || 1) > 1 ? 'meses' : 'mês'}</>}</p>
+    <p className="bl-sum"><b>{brl(price)}</b> hoje e a cada mês{cv?.valid && cv.benefit === 'desconto' && <> · {cv.discount_pct}% de desconto por {cv.discount_cycles || 1} {(cv.discount_cycles || 1) > 1 ? 'meses' : 'mês'}</>}</p>
     <fieldset className="bl-paytypes"><legend>Forma de pagamento</legend><label><input type="radio" name="payment-type" value="card" checked={paymentType === 'card'} onChange={() => setPaymentType('card')} /> Cartão de crédito</label><label><input type="radio" name="payment-type" value="pix" checked={paymentType === 'pix'} onChange={() => setPaymentType('pix')} /> Pix</label></fieldset>
     {paymentType === 'pix' && <p className="bl-info">O plano será liberado após a confirmação do Pix. Na renovação, um novo Pix será gerado cinco dias antes do vencimento.</p>}
     {paymentType === 'card' && tc && <details className="bl-test" open data-testid="test-cards"><summary>Ambiente de teste — use um cartão de teste</summary>
@@ -115,7 +115,7 @@ function Checkout({ plan, cfg, cards, onClose, onDone }) {
     <div className="bl-row bl-coupon"><input className="g-in" placeholder="Cupom de desconto (opcional)" value={coupon} onChange={e => { setCoupon(e.target.value); setCv(null) }} data-testid="coupon" /><button type="button" className="g-btn" onClick={checkCoupon}>Aplicar</button></div>
     {cv && <p className={cv.valid && cv.benefit === 'desconto' ? 'bl-ok' : 'bl-err'} data-testid="coupon-msg">{cv.valid ? cv.benefit === 'desconto' ? `Cupom aplicado: ${cv.discount_pct}% off.` : 'Este cupom é de período experimental; ative-o na tela inicial.' : cv.error}</p>}
     {msg && <p className="bl-err" role="alert" data-testid="checkout-error">{msg}</p>}
-    <button className="bl-btn bl-wide" disabled={busy} data-testid="checkout-pay">{busy ? 'Processando…' : paymentType === 'pix' ? 'Gerar Pix de ' + brl(price) : plan.trial_days > 0 ? 'Começar teste grátis' : 'Pagar ' + brl(price)}</button>
+    <button className="bl-btn bl-wide" disabled={busy} data-testid="checkout-pay">{busy ? 'Processando…' : paymentType === 'pix' ? 'Gerar Pix de ' + brl(price) : 'Pagar ' + brl(price)}</button>
     <p className="bl-fine">Pagamento processado por {cfg.label}. Não guardamos o número nem o CVV do cartão. Ao assinar você aceita os <a href="#/legal/assinatura" target="_blank" rel="noopener">Termos de assinatura</a>.</p>
   </form></div>
 }

@@ -29,8 +29,8 @@ export function providerInfo() {
 }
 const pubPlan = p => ({ id: p.id, audience: p.audience, product: p.product, name: p.name, description: p.description, price_cents: p.price_cents, currency: p.currency,
   billing_interval: p.billing_interval, trial_days: p.trial_days, benefits: (p.benefits || []).filter(x => x.state !== 'indisponivel'), limits: p.limits || {}, features: p.features || {}, is_free: p.is_free })
-// catalogo com 3 planos (049): Gratis (aluno_free/profissional_free), Individual e PRO
-export const CATALOG = ['aluno_free', 'profissional_free', 'individual', 'pro']
+// Catalogo: gratuitos, Individual e os dois planos Personal.
+export const CATALOG = ['aluno_free', 'profissional_free', 'individual', 'pro', 'pro_ilimitado']
 const CATALOG_SQL = CATALOG.map(x => "'" + x + "'").join(',')
 const PLANS_SQL = `select p.*, v.limits, v.features, v.version from plans p left join lateral (select limits, features, version from plan_versions where plan_id=p.id order by version desc limit 1) v on true`
 
@@ -113,8 +113,8 @@ export function billingRoutes({ json, readBody }) {
     },
     'GET /api/billing/plans': async (req, res) => {
       const u = await auth(req, res); if (!u) return
-      const r = await q(PLANS_SQL + ` where p.active and (p.sellable or p.is_free) and p.id in (${CATALOG_SQL}) order by p.audience, p.sort`)
-      json(res, 200, { plans: r.rows.filter(p => p.is_free || p.price_cents != null).map(pubPlan) })
+      const r = await q(PLANS_SQL + ` where p.active and p.id in (${CATALOG_SQL}) order by p.audience, p.sort`)
+      json(res, 200, { plans: r.rows.filter(p => p.is_free || p.price_cents != null).map(p => ({ ...pubPlan(p), purchasable: !p.is_free && !!p.sellable && p.price_cents != null })) })
     },
     'GET /api/billing/me': async (req, res) => {
       const u = await auth(req, res); if (!u) return
@@ -131,7 +131,7 @@ export function billingRoutes({ json, readBody }) {
       const b = await readBody(req)
       const v = await cp.validateCode(u, b.code, null, { audience: ['aluno', 'profissional'].includes(b.audience) && u.roles.includes(b.audience) ? b.audience : undefined })
       if (v.error) return json(res, 200, { valid: false, error: v.error, code: v.code })
-      json(res, 200, { valid: true, code: v.code.code, coupon_kind: v.code.kind, benefit: v.trial ? 'trial' : v.campaign.benefit, trial_days: v.trial ? cp.TRIAL_HOURS / 24 : null, trial_hours: v.trial ? cp.TRIAL_HOURS : null, plan_id: v.plan_id || null,
+      json(res, 200, { valid: true, code: v.code.code, coupon_kind: v.code.kind, benefit: v.trial ? 'trial' : v.campaign.benefit, trial_days: v.trial ? v.trial_days : null, trial_hours: v.trial ? v.trial_days * 24 : null, plan_id: v.plan_id || null,
         discount_pct: v.campaign.discount_pct, discount_cycles: v.campaign.discount_cycles, applies_to: v.campaign.applies_to, kind: v.campaign.kind,
         partner: v.referrer ? { id: v.referrer, name: v.partner_name } : null })
     },
@@ -254,16 +254,16 @@ export function billingRoutes({ json, readBody }) {
       const name = String(b.name ?? cur?.name ?? '').trim().slice(0, 80); if (name.length < 3) return json(res, 400, { error: 'Dê um nome ao plano.' })
       const price = b.price_cents === null || b.price_cents === '' ? null : b.price_cents !== undefined ? Math.round(+b.price_cents) : cur?.price_cents ?? null
       if (price != null && !(price >= 0 && price <= 10000000)) return json(res, 400, { error: 'Preço inválido.' })
-      const trial = b.trial_days === null || b.trial_days === '' ? null : b.trial_days !== undefined ? Math.round(+b.trial_days) : cur?.trial_days ?? null
-      if (trial != null && !(trial >= 0 && trial <= 90)) return json(res, 400, { error: 'Teste do plano entre 0 e 90 dias.' })
+      const trial = null
       const isFree = cur ? cur.is_free : false
       const sellable = b.sellable !== undefined ? !!b.sellable : !!cur?.sellable
       if (sellable && !isFree && (price == null || price <= 0)) return json(res, 400, { error: 'Defina um preço maior que zero antes de habilitar a venda.', code: 'PRICE_REQUIRED' })
       const STATES = ['disponivel', 'implementado_desabilitado', 'planejado', 'indisponivel']
       const benefits = Array.isArray(b.benefits) ? b.benefits.slice(0, 30).map(x => ({ key: String(x.key || '').slice(0, 40), label: String(x.label || '').slice(0, 120), state: STATES.includes(x.state) ? x.state : 'planejado' })).filter(x => x.label) : cur?.benefits || []
       const limits = b.limits !== undefined ? b.limits : cur?.limits || {}
-      if (audience === 'profissional' && !(Number.isInteger(+limits.alunos_ativos) && +limits.alunos_ativos >= 1 && +limits.alunos_ativos <= 10000)) return json(res, 400, { error: 'Planos PRO precisam de limite de alunos ativos (número; nunca ilimitado).', code: 'LIMIT_REQUIRED' })
-      const cleanLimits = audience === 'profissional' ? { ...limits, alunos_ativos: +limits.alunos_ativos } : {}
+      const unlimited = audience === 'profissional' && (limits.alunos_ativos === null || limits.alunos_ativos === '')
+      if (audience === 'profissional' && !unlimited && !(Number.isInteger(+limits.alunos_ativos) && +limits.alunos_ativos >= 1 && +limits.alunos_ativos <= 10000)) return json(res, 400, { error: 'Informe um limite entre 1 e 10.000 alunos ou marque o plano como ilimitado.', code: 'LIMIT_REQUIRED' })
+      const cleanLimits = audience === 'profissional' ? { ...limits, alunos_ativos: unlimited ? null : +limits.alunos_ativos } : {}
       const features = b.features !== undefined ? Object.fromEntries(Object.entries(b.features || {}).map(([k, v]) => [String(k).slice(0, 40), v === true])) : cur?.features || (audience === 'aluno' ? { catalogo_completo: true } : { prescrever: true, convidar_alunos: true, construtor_treino: true })
       if (!cur) await q(`insert into plans(id,audience,name,description,is_free,is_placeholder,price_cents,price_status,sort,product,sellable,trial_days,benefits,active) values($1,$2,$3,$4,false,false,$5,$6,$7,$8,$9,$10,$11,$12)`,
         [id, audience, name, String(b.description || '').slice(0, 400), price, price == null ? 'TBD' : 'definido', +b.sort || 50, product, sellable, trial, JSON.stringify(benefits), b.active !== false])
@@ -282,10 +282,12 @@ export function billingRoutes({ json, readBody }) {
       const u = await admin(req, res, json); if (!u) return
       const camps = (await q(`select c.*, pu.name partner_name, (select count(*)::int from promotion_redemptions r where r.campaign_id=c.id) resgates from campaigns c left join users pu on pu.id=c.partner_user_id where c.tenant_id=$1 order by c.created_at desc`, [u.tenant_id])).rows
       const codes = (await q(cp.STATS_SQL + ` where pc.tenant_id=$1 order by pc.created_at desc limit 500`, [u.tenant_id])).rows
-      json(res, 200, { campaigns: camps, codes })
+      const owners = (await q(`select id, name, email from users where tenant_id=$1 and disabled_at is null order by name, email limit 1000`, [u.tenant_id])).rows
+      json(res, 200, { campaigns: camps, codes, owners })
     },
     'POST /api/adm/billing/campaigns': async (req, res) => { const u = await admin(req, res, json); if (!u) return; send(json, res, await cp.saveCampaign(u, await readBody(req))) },
     'POST /api/adm/billing/codes': async (req, res) => { const u = await admin(req, res, json); if (!u) return; send(json, res, await cp.createCode(u, await readBody(req))) },
+    'POST /api/adm/billing/referral-coupons': async (req, res) => { const u = await admin(req, res, json); if (!u) return; send(json, res, await cp.createReferralCoupon(u, await readBody(req))) },
     'POST /api/adm/billing/codes/status': async (req, res) => { const u = await admin(req, res, json); if (!u) return; send(json, res, await cp.setCodeStatus(u, await readBody(req))) },
     'GET /api/adm/billing/redemptions': async (req, res) => {
       const u = await admin(req, res, json); if (!u) return

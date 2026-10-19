@@ -13,11 +13,11 @@ check((await get(a.tok, '/api/guided/state')).s === 200 && (await get(a.tok, '/a
 console.log('Profissional Free — convites')
 const unv = await signup(adm, 'v3f4unv', 'profissional')
 r = await post(unv.tok, '/api/pro/invites', {})
-check(r.s === 403 && r.d.code === 'PERMISSION_DENIED', 'profissional não verificado não convida (PERMISSION_DENIED)')
+check(r.s === 201, 'profissional usa os recursos do plano sem aprovação cadastral prévia')
 check((await post(a.tok, '/api/pro/invites', {})).d.code === 'PERMISSION_DENIED', 'aluno não cria convite')
 const pro = await verifiedPro(adm, 'v3f4pro')
 r = (await get(pro.tok, '/api/pro/invites')).d
-check(r.active === 0 && r.limit === 2 && r.plan === 'Grátis', 'profissional verificado no Free: 0/2 alunos')
+check(r.active === 0 && r.limit === 2 && r.plan === 'Grátis', 'profissional no Free: 0/2 alunos')
 r = await post(pro.tok, '/api/pro/invites', { message: 'Bora treinar' }); const inv1 = r.d
 check(r.s === 201 && /^[A-Z0-9]{8}$/.test(inv1.code) && inv1.link.endsWith('/#/convite/' + inv1.code), 'convite aberto com código e link')
 r = await get(a.tok, '/api/invites/view?code=' + inv1.code)

@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
 import fs from 'node:fs'
 import path from 'node:path'
 
@@ -46,7 +47,7 @@ const noReplacementChar = () => ({
 })
 
 export default defineConfig({
-  plugins: [react(), devMedia(), buildStamp(), noReplacementChar()],
+  plugins: [react(), tailwindcss(), devMedia(), buildStamp(), noReplacementChar()],
   define: { __BUILD_ID__: JSON.stringify(BUILD_ID) },
   // V4 · F1: specs do Playwright (e2e/) não rodam no vitest
   test: { exclude: ['test-artifacts/**', 'e2e-results/**', '.cache/**', 'e2e/**', 'node_modules/**', 'android/**', 'ios/**'] },
@@ -56,7 +57,7 @@ export default defineConfig({
     watch: { ignored: ['**/test-artifacts/**', '**/e2e-results/**', '**/.cache/**'] },
     proxy: {
       '/api': {
-        target: 'http://localhost:8787',
+        target: process.env.VITE_API_PROXY || 'http://localhost:8787',
         changeOrigin: true
       }
     }

@@ -1,5 +1,4 @@
 // V3 · Meu plano: assinatura por área (aluno/profissional), uso × limites, OVER_LIMIT e cards de planos com preço do admin.
-import { UnlockRequest } from './V42.jsx'
 import Icon from '../../components/Icon.jsx'
 import { V, SUB_PT, AUD_PT, METRIC_PT, FEAT_PT } from '../../lib/v3.js'
 import { Load, Err, Empty, useLoad } from '../app/kit.jsx'
@@ -24,7 +23,6 @@ export default function Plans() {
         {s.grants?.length > 0 && <p className="g-xs g-mut" style={{ marginTop: 8 }}>Concessão temporária ativa até {new Date(s.grants[0].expires_at).toLocaleDateString('pt-BR')}.</p>}
         <div className="g-chips" style={{ marginTop: 10 }}>{Object.entries(s.features).filter(([, v]) => v).map(([k]) => <span key={k} className="g-chip">{FEAT_PT[k] || k}</span>)}</div>
       </div>)}
-    <div className="org-section"><UnlockRequest /></div>
     <section className="org-section" data-testid="plans-catalog"><h2 className="g-h2" style={{ marginBottom: 14 }}>Planos</h2>
       {err2 ? <Err msg={err2} /> : !cat ? <Load /> : <PlanGrid plans={cat.plans} initialAud={mine?.subscriptions?.profissional ? 'profissional' : 'aluno'}
         current={Object.fromEntries(Object.entries(mine?.subscriptions || {}).map(([a, s]) => [a, s.plan_id]))}

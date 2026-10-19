@@ -22,7 +22,7 @@ export function CoachLockNote() {
   const [at, setAt] = useState(null)
   useEffect(() => { AT.get().then(setAt).catch(() => {}) }, [])
   if (!at?.locked_to_pro) return null
-  return <p className="g-note" style={{ margin: '10px 0' }} role="note" data-testid="coach-lock">Você treina com a ficha de <b>{at.pro_plan?.owner_name}</b>. Só um treino fica ativo por vez: os programas do sistema podem ser consultados, mas não iniciados enquanto ela estiver ativa. {at.can_detach ? 'Para trocar, desvincule a ficha no seu treino ativo.' : 'Sua conta é coberta pelo personal; para usar o sistema, solicite a liberação.'}</p>
+  return <p className="g-note" style={{ margin: '10px 0' }} role="note" data-testid="coach-lock">Você treina com a ficha de <b>{at.pro_plan?.owner_name}</b>. Só um treino fica ativo por vez: os programas do sistema podem ser consultados, mas não iniciados enquanto ela estiver ativa. {at.can_detach ? 'Para trocar, desvincule a ficha no seu treino ativo.' : 'Sua conta é coberta pelo personal; para usar os programas do sistema, contrate o plano Individual.'}</p>
 }
 
 export default function ActiveTrainingBanner({ at, compact, onChange }) {

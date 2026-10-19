@@ -1,8 +1,7 @@
-// AVAGYM V4.2 — tipos de conta e liberação de acesso.
-// • Usuário normal / profissional: cadastro aberto; conta NOVA entra "não liberada" — vê todas as telas, mas ações ficam travadas
-//   (bloqueio central no backend: accessGate) até o admin liberar. Contas que já existiam foram liberadas pela migration 032.
+// ORNY — tipos de conta, acesso comercial e suspensão administrativa.
+// • Usuário normal / profissional: cadastro aberto; pagamento, teste ou concessao liberam o uso conforme o plano.
 // • Aluno do personal: criado pelo personal com link de definição de senha por e-mail;
-//   incluso no plano do personal: só fichas, comunidade e desafios DO personal. O resto pede "Solicitar liberação" ao admin.
+//   incluso no plano do personal: só fichas, comunidade e desafios DO personal. O restante exige plano Individual.
 // • Pagamento: ponto de extensão PAYMENT (sem gateway hoje).
 import { clientIp } from './clientip.js'   // BUG-044
 import crypto from 'node:crypto'
@@ -10,7 +9,7 @@ import bcrypt from 'bcryptjs'
 import { q, transaction } from './db/pool.js'
 import { allowPasswordEmail, queuePasswordLink } from './password-email.js'
 import { requireAuth, requireRole, audit } from './auth.js'
-import { notify, notifyAdmins, getSettings } from './pro.js'
+import { notify, getSettings } from './pro.js'
 import { capacitySummary } from './entitlements.js'
 import { enqueueEmail, mailConfigured } from './mailer.js'
 import { buildExport } from './lgpd.js'
@@ -18,8 +17,8 @@ import { buildExport } from './lgpd.js'
 const isUuid = s => /^[0-9a-f-]{36}$/i.test(String(s || ''))
 const txt = (s, n = 300) => String(s ?? '').trim().slice(0, n)
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-export const isLocked = u => !!u && !u.roles?.includes('admin') && !u.access_unlocked_at
-export const isScopedClient = u => !!u && u.account_type === 'personal_client' && !u.access_unlocked_at
+export const isLocked = u => !!u && !u.roles?.includes('admin') && !!u.access_suspended_at
+export const isScopedClient = u => !!u && u.account_type === 'personal_client' && !u.own_student_access
 export const coachOf = u => isScopedClient(u) ? u.managed_by : null
 
 // ---- ponto de extensão de pagamento (futuro): devolver { required:true, checkout_url } quando houver gateway ----
@@ -28,10 +27,10 @@ export const PAYMENT = {
   async forProfessional(/* user */) { return null }      // personal: conta paga no futuro (hoje: plano/assentos atuais)
 }
 
-// ações permitidas para QUALQUER conta não liberada (conta, termos, LGPD, preferências, questionário)
+// ações permitidas durante suspensão (conta, termos, LGPD, preferências e regularização comercial)
 const ALLOW_LOCKED = [ /^(POST|DELETE) \/api\/me\/(social|avatar)$/,/^POST \/api\/auth\//, /^POST \/api\/terms/, /^POST \/api\/legal\/(accept|health-consent)$/, /^POST \/api\/me\/(theme|context|unlock-request|export-request|delete-request|delete-request\/cancel|capacities|tours|tours\/reset)$/,
   /^POST \/api\/notifications\/read$/, /^POST \/api\/notification-prefs$/, /^POST \/api\/guided\/onboarding$/, /^POST \/api\/me\/onboarding\/skip$/, /^PUT \/api\/data$/,
-  // A conta pode pagar e adquirir o plano antes da liberação administrativa; o cadeado continua valendo para as ações de uso.
+  // Conta suspensa ainda pode regularizar pagamento e administrar a propria conta; a suspensao continua prevalecendo no uso.
   /^POST \/api\/billing\/(cards|subscribe|coupon\/(validate|redeem)|pay-now|change-card|pix\/(regenerate|confirm-test))$/,
   /^POST \/api\/logout(\/all)?$/, /^POST \/api\/activity$/, /^POST \/api\/push\//, /^POST \/api\/me\/trophies\/show$/, /^POST \/api\/pro\/verification(\/document)?$/]
 // ações do aluno do personal DENTRO do escopo do plano do personal (fichas, atendimento, comunidade, desafios do personal)
@@ -41,15 +40,16 @@ const CLIENT_SCOPE = [/^POST \/api\/guided\/sessions/, /^POST \/api\/active-trai
 const CLIENT_GET_BLOCK = [/^GET \/api\/guided\/(programs|program|recommendations)$/, /^GET \/api\/ranking/, /^GET \/api\/groups?$/]
 
 // R6: aluno coberto pelo personal cujo personal NÃO está em dia (e sem mensalidade própria) → só visualiza
-export const coachPending = u => isScopedClient(u) && !u.coach_unlocked_at
+export const coachPending = u => isScopedClient(u) && !u.coach_has_access
 export async function accessGate(key, user, res, json) {
   if (!user || user.roles?.includes('admin')) return true
-  if (coachPending(user) && !key.startsWith('GET ') && !ALLOW_LOCKED.some(r => r.test(key))) { json(res, 403, { error: 'A mensalidade do seu personal está pendente. Enquanto isso você só visualiza as telas. Você pode solicitar a liberação pagando a sua própria mensalidade.', code: 'ACCESS_LOCKED', reason: 'COACH_PENDING' }); return false }
-  if (isScopedClient(user) && CLIENT_GET_BLOCK.some(r => r.test(key))) { json(res, 403, { error: 'Esta área não faz parte do plano do seu personal. Você pode solicitar a liberação.', code: 'CLIENT_SCOPE' }); return false }
+  if (isLocked(user) && !ALLOW_LOCKED.some(r => r.test(key))) { json(res, 403, { error: user.access_suspension_reason || 'Esta conta está suspensa. Fale com o suporte para revisar a situação.', code: 'ACCESS_SUSPENDED' }); return false }
+  if (coachPending(user) && !key.startsWith('GET ') && !ALLOW_LOCKED.some(r => r.test(key))) { json(res, 402, { error: 'O plano PRO do seu personal não está ativo. Você pode contratar o plano Individual para continuar usando outras áreas.', code: 'ACCESS_REQUIRED', reason: 'COACH_PENDING' }); return false }
+  if (isScopedClient(user) && CLIENT_GET_BLOCK.some(r => r.test(key))) { json(res, 402, { error: 'Esta área não faz parte do plano do seu personal. Contrate o plano Individual para acessá-la.', code: 'CLIENT_SCOPE' }); return false }
   if (key.startsWith('GET ') || !isLocked(user)) return true
   if (ALLOW_LOCKED.some(r => r.test(key))) return true
   if (isScopedClient(user) && CLIENT_SCOPE.some(r => r.test(key))) return true
-  json(res, 403, { error: 'Sua conta ainda não foi liberada para esta ação. Toque em "Solicitar liberação".', code: 'ACCESS_LOCKED' })
+  json(res, 403, { error: user.access_suspension_reason || 'Esta conta está suspensa. Fale com o suporte para revisar a situação.', code: 'ACCESS_SUSPENDED' })
   return false
 }
 // teste local: contas @E2E_AUTO_UNLOCK_DOMAIN nascem liberadas (NUNCA em produção)
@@ -61,12 +61,14 @@ const tempPassword = () => { const A = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqr
 
 async function setAccess(actor, uid, unlocked, note) {
   return transaction(async () => {
-    await q(`update users set access_unlocked_at=${unlocked ? 'coalesce(access_unlocked_at, now())' : 'null'}, access_unlocked_by=$2 where id=$1`, [uid, actor.id])
+    await q(`update users set access_suspended_at=case when $2 then null else now() end,
+      access_suspended_by=case when $2 then null else $3 end,
+      access_suspension_reason=case when $2 then null else $4 end where id=$1`, [uid, unlocked, actor.id, txt(note, 300) || null])
     await q('insert into access_events(user_id,action,actor_id,note) values($1,$2,$3,$4)', [uid, unlocked ? 'liberada' : 'bloqueada', actor.id, txt(note, 300) || null])
     // QA AD-27: liberar a conta (botao, lote ou aprovacao) encerra os pedidos pendentes - sai da fila e do filtro 'pendente'
-    if (unlocked) await q(`update unlock_requests set status='aprovada', decided_by=$2, decided_at=now(), decision_note=coalesce(decision_note, $3) where user_id=$1 and status='pendente'`, [uid, actor.id, txt(note, 300) || 'conta liberada'])
+    if (unlocked) await q(`update unlock_requests set status='cancelada', decided_by=$2, decided_at=now(), decision_note=coalesce(decision_note, $3) where user_id=$1 and status='pendente'`, [uid, actor.id, 'fluxo de liberacao manual encerrado'])
     await audit(actor.tenant_id, actor.id, unlocked ? 'acesso.liberado' : 'acesso.bloqueado', 'user', uid, { note: txt(note, 300) || null })
-    await notify(uid, 'liberacao', unlocked ? 'Sua conta foi liberada. Você já pode utilizar os recursos disponíveis.' : 'Liberação da conta revogada', unlocked ? null : (txt(note, 200) || ''), '/perfil')
+    await notify(uid, 'liberacao', unlocked ? 'Suspensão removida' : 'Conta suspensa', unlocked ? 'Seu acesso voltou a seguir o plano vigente.' : (txt(note, 200) || 'Fale com o suporte para revisar a situação.'), '/perfil')
   })
 }
 
@@ -77,8 +79,6 @@ export function accountRoutes({ json, readBody }) {
     'POST /api/pro/clients': async (req, res) => {
       const u = await requireRole('profissional')(req, res, json); if (!u) return
       const b = await readBody(req), name = txt(b.name, 80), email = txt(b.email, 160).toLowerCase()
-      const v = (await q('select verification_status from professional_profiles where user_id=$1', [u.id])).rows[0]
-      if (!u.roles.includes('admin') && v?.verification_status !== 'verificado') return json(res, 403, { error: 'Seu cadastro profissional ainda não foi verificado.', code: 'PERMISSION_DENIED' })
       const errors = {}
       if (name.length < 2) errors.name = 'Informe o nome do aluno'
       if (!EMAIL_RE.test(email)) errors.email = 'E-mail inválido'
@@ -125,32 +125,25 @@ export function accountRoutes({ json, readBody }) {
         q('select created_at, access_unlocked_at from users where id=$1', [u.id]),
         q('select action from access_events where user_id=$1 order by created_at desc limit 1', [u.id]).catch(() => ({ rows: [] })),
         getSettings(u.tenant_id)])
-      const requests = rq.rows, locked = isLocked(u), last = requests[0]
-      const state = !locked ? 'liberada' : last?.status === 'pendente' ? 'pendente' : ev.rows[0]?.action === 'bloqueada' ? 'suspensa' : last?.status === 'recusada' ? 'recusada' : 'sem_pedido'
-      json(res, 200, { locked, scoped_client: isScopedClient(u), requests, state, account_created_at: acc.rows[0]?.created_at || null, unlocked_at: acc.rows[0]?.access_unlocked_at || null, sla_text: String(st.liberacao_prazo_texto || '').trim() || null })
+      const requests = rq.rows
+      json(res, 200, { retired: true, locked: isLocked(u), suspended: isLocked(u), scoped_client: isScopedClient(u), requests, state: isLocked(u) ? 'suspensa' : 'comercial', account_created_at: acc.rows[0]?.created_at || null, unlocked_at: acc.rows[0]?.access_unlocked_at || null, sla_text: String(st.liberacao_prazo_texto || '').trim() || null })
     },
     'POST /api/me/unlock-request': async (req, res) => {
       const u = await requireAuth(req, res, json, { allowPending: true }); if (!u) return
-      if (!isLocked(u)) return json(res, 409, { error: 'Sua conta já está liberada.' })
-      const b = await readBody(req)
-      const pay = await PAYMENT.forUnlock(u); if (pay?.required) return json(res, 402, { error: 'Pagamento necessário', code: 'PAYMENT_REQUIRED', ...pay })
-      const r = await q(`insert into unlock_requests(tenant_id,user_id,coach_id,reason) values($1,$2,$3,$4) on conflict do nothing returning id`, [u.tenant_id, u.id, u.managed_by || null, txt(b.reason, 500) || null])
-      if (!r.rowCount) return json(res, 409, { error: 'Você já tem um pedido de liberação em análise.', code: 'ALREADY_REQUESTED' })
-      await audit(u.tenant_id, u.id, 'liberacao.solicitada', 'unlock_request', r.rows[0].id)
-      await notifyAdmins(u.tenant_id, 'liberacao', 'Pedido de liberação de conta', u.name, '/admin/painel?tab=liberacoes')
-      json(res, 201, { id: r.rows[0].id, status: 'pendente' })
+      json(res, 410, { error: isLocked(u) ? 'Esta conta está suspensa. Fale com o suporte para revisar a situação.' : 'A liberação manual não é mais necessária. Escolha um plano para acessar os recursos.', code: isLocked(u) ? 'ACCESS_SUSPENDED' : 'UNLOCK_FLOW_RETIRED', action: isLocked(u) ? 'support' : 'subscription' })
     },
-    // ---------- admin: liberar / bloquear ----------
+    // ---------- admin: suspender / reativar ----------
     'GET /api/adm/access': async (req, res) => {
       const u = await admin(req, res, json); if (!u) return
       const [reqs, locked] = await Promise.all([
         q(`select r.*, round((extract(epoch from (coalesce(r.decided_at, now()) - r.created_at)) / 3600.0)::numeric, 1)::float wait_hours, x.name, x.email, x.account_type, c.name coach_name from unlock_requests r join users x on x.id=r.user_id left join users c on c.id=r.coach_id where r.tenant_id=$1 order by (r.status='pendente') desc, r.created_at desc limit 200`, [u.tenant_id]),
-        q(`select id,name,email,account_type,created_at,(select name from users c where c.id=x.managed_by) coach_name,
-            exists(select 1 from access_events e where e.user_id=x.id and e.action='bloqueada') was_blocked
-          from users x where tenant_id=$1 and access_unlocked_at is null and disabled_at is null order by created_at desc limit 300`, [u.tenant_id])])
-      const unlocked = await q(`select id,name,email,account_type,created_at,access_unlocked_at,(select name from users c where c.id=x.managed_by) coach_name
-          from users x where tenant_id=$1 and access_unlocked_at is not null and disabled_at is null order by access_unlocked_at desc limit 300`, [u.tenant_id])
-      json(res, 200, { requests: reqs.rows, locked_users: locked.rows, unlocked_users: unlocked.rows })
+        q(`select id,name,email,account_type,created_at,access_suspended_at,access_suspension_reason,(select name from users c where c.id=x.managed_by) coach_name
+          from users x where tenant_id=$1 and access_suspended_at is not null and disabled_at is null order by access_suspended_at desc limit 300`, [u.tenant_id])])
+      const active = await q(`select id,name,email,account_type,created_at,(select name from users c where c.id=x.managed_by) coach_name
+          from users x where tenant_id=$1 and access_suspended_at is null and disabled_at is null
+          and not exists(select 1 from user_roles r where r.user_id=x.id and r.tenant_id=$1 and r.role_id='admin')
+          order by created_at desc limit 300`, [u.tenant_id])
+      json(res, 200, { requests: reqs.rows, locked_users: locked.rows, unlocked_users: active.rows })
     },
     'POST /api/adm/access/decide': async (req, res) => {
       const u = await admin(req, res, json); if (!u) return
@@ -170,6 +163,7 @@ export function accountRoutes({ json, readBody }) {
     'POST /api/adm/access/set': async (req, res) => {
       const u = await admin(req, res, json); if (!u) return
       const b = await readBody(req)
+      if (!b.unlocked && txt(b.note, 300).length < 3) return json(res, 400, { error: 'Informe o motivo da suspensão. Ele será mostrado para a pessoa.', code: 'REASON_REQUIRED' })
       const x = isUuid(b.user_id) ? (await q('select id from users where id=$1 and tenant_id=$2', [b.user_id, u.tenant_id])).rows[0]
         : typeof b.email === 'string' && b.email.includes('@') ? (await q('select id from users where lower(email)=lower($1) and tenant_id=$2', [b.email.trim(), u.tenant_id])).rows[0] : null
       if (!x) return json(res, 404, { error: 'Usuário não encontrado' })
@@ -214,7 +208,7 @@ export function accountRoutes({ json, readBody }) {
 export async function attachByProCode(uid, tenantId, code) {
   const c = String(code || '').trim().toUpperCase(); if (!c) return null
   const pro = (await q(`select u.id from users u join user_roles r on r.user_id=u.id and r.role_id='profissional'
-      join professional_profiles pp on pp.user_id=u.id where upper(u.share_code)=$1 and u.tenant_id=$2 and u.status='ativo' and pp.verification_status='verificado'`, [c, tenantId])).rows[0]
+      join professional_profiles pp on pp.user_id=u.id where upper(u.share_code)=$1 and u.tenant_id=$2 and u.status='ativo' and pp.state='ativo'`, [c, tenantId])).rows[0]
   if (!pro) return { error: 'Código de personal não encontrado. Confira com o seu personal.' }
   const cap = await capacitySummary(pro.id)
   if (cap.available != null && cap.available <= 0) return { error: 'Esse personal está sem vagas no momento. Fale com ele.' }

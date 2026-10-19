@@ -1,5 +1,5 @@
 import { useNavigationAccess } from '../../components/NavigationAccess.jsx'
-import { UnlockRequest, ExportRequest } from '../v3/V42.jsx'
+import { ExportRequest } from '../v3/V42.jsx'
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import Icon from '../../components/Icon.jsx'
@@ -15,6 +15,7 @@ import ReferralPanel from '../billing/Referral.jsx'
 import './guided.css'
 import { askText, ask, notify, notifyError } from '../../lib/dialog.js'
 import { api } from '../../lib/api.js'
+import { openDeviceSetup } from '../../components/DeviceSetupFlow.jsx'
 
 export default function Profile() {
   const nav = useNavigate(), [sp] = useSearchParams()
@@ -25,7 +26,7 @@ export default function Profile() {
   useEffect(() => { if (!proAcc && section === 'preferencias' && can('perguntas')) G.state().then(setSt).catch(() => {}) }, [proAcc, section])
   const p = st?.profile
   const Li = ({ icon, t, s, to, onClick, testid }) => <button className="g-li" onClick={onClick || (() => nav(to))} data-testid={testid}><span className="g-ico"><Icon name={icon} /></span><span><b>{t}</b>{s && <><br /><span className="g-mut g-xs">{s}</span></>}</span><span className="g-chev"><Icon name="play" /></span></button>
-  const titles = { preferencias: 'Preferências', privacidade: 'Privacidade e segurança', ajuda: 'Ajuda', dados: 'Conta', indicacoes: 'Indicações' }
+  const titles = { preferencias: 'Preferências', privacidade: 'Privacidade e segurança', ajuda: 'Ajuda e suporte', dados: 'Conta', indicacoes: 'Indicações' }
   return <div className="ag" data-testid="profile">
     {section !== 'conta' && <button className="g-link org-back" onClick={() => nav('/perfil')}>← Perfil</button>}
     <span className="g-eyebrow">Perfil</span><h1>{titles[section] || user?.name || 'Visitante'}</h1>
@@ -40,7 +41,7 @@ export default function Profile() {
         {user && <Li icon="sparkles" t="Meu plano" s="Acesso, recursos e limites" to="/planos" testid="my-plan" />}
         {user && <Li icon="lock" t="Privacidade e segurança" s="Senha, aparelhos e seus dados" to="/perfil?secao=privacidade" testid="profile-security" />}
         <Li icon="bell" t="Notificações" to="/avisos" />
-        <Li icon="list" t="Ajuda" s="Rever as dicas de uso" to="/perfil?secao=ajuda" />
+        <Li icon="chat" t="Ajuda e suporte" s="Orientações e contato por e-mail" to="/perfil?secao=ajuda" />
       </div>
       {user && user.status === 'ativo' && <ReferralPanel compact />}
       {user?.admin && <div className="org-list"><Li icon="shield" t="Painel administrativo" to="/admin/painel" testid="admin-area" /></div>}
@@ -55,8 +56,28 @@ export default function Profile() {
       <div className="g-card g-list org-list"><Li icon="gear" t="Idioma e configurações do treino" s="Unidades, descanso, som e lembretes" to="/settings" /></div>
     </>}
     {section === 'privacidade' && user && <><MeusDados /><Seguranca /></>}
-    {section === 'ajuda' && <><p className="g-mut">Reveja as dicas da área que você está usando.</p><button className="g-btn" data-testid="tour-restart" onClick={() => dispatchEvent(new Event('avagym:tour-restart'))}>Rever orientações</button></>}
+    {section === 'ajuda' && <Support />}
   </div>
+}
+
+function Support() {
+  const [company, setCompany] = useState(null)
+  useEffect(() => { let live = true; api('/api/legal/company').then(r => { if (live) setCompany(r.company || {}) }).catch(() => { if (live) setCompany({}) }); return () => { live = false } }, [])
+  const candidate = String(company?.email_suporte || '').trim()
+  const email = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(candidate) ? candidate : ''
+  const subject = encodeURIComponent('Suporte ORNY')
+  return <>
+    <p className="g-mut">Reveja as orientações ou fale com o suporte quando precisar de ajuda.</p>
+    <div className="g-card g-list" data-testid="support-options">
+      {company === null ? <p className="g-mut g-sm" style={{ padding: 12 }}>Carregando contato…</p> : email ? <a className="g-li" href={`mailto:${email}?subject=${subject}`} data-testid="support-email">
+        <span className="g-ico"><Icon name="chat" /></span><span><b>Enviar e-mail ao suporte</b><br /><span className="g-mut g-xs">{email}</span></span><span className="g-chev"><Icon name="play" /></span>
+      </a> : <div className="g-li" style={{ display: 'block' }} data-testid="support-unavailable"><b>Contato de suporte</b><br /><span className="g-mut g-xs">O e-mail ainda não foi informado pela administração.</span></div>}
+    </div>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+      <button className="g-btn" data-testid="device-setup-open" onClick={openDeviceSetup}>Instalar no celular e notificações</button>
+      <button className="g-btn" data-testid="tour-restart" onClick={() => dispatchEvent(new Event('avagym:tour-restart'))}>Rever orientações</button>
+    </div>
+  </>
 }
 function MyCodePanel() {
   const [code, setCode] = useState('')
@@ -82,7 +103,6 @@ function MeusDados() {
   useEffect(() => { load() }, [])
   const open = (req || []).find(r => r.kind === 'exclusao' && r.status === 'pendente')
   return <>
-    <div id="liberacao"><UnlockRequest /></div>
     <h2>Meus dados</h2>
     <div className="g-card" style={{ marginBottom: 10 }}><ExportRequest /></div>
     <div className="g-card g-list" data-testid="meus-dados">

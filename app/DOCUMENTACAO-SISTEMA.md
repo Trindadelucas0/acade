@@ -1,7 +1,52 @@
 # ORNY — Documentação do sistema
 
-Fonte oficial de comportamento. Versão frontend: 1.2.8. Atualização: 17/10/2026.
+Fonte oficial de comportamento. Versão frontend: 1.6.0. Atualização: 19/10/2026.
 O inventário em `docs/INVENTARIO-FUNCIONAL.md` preserva o levantamento histórico e seus limites de validação; este documento consolida os fluxos atualizados.
+
+## Conteúdo oficial da Comunidade — 1.5.0 (18/10/2026)
+
+A administração dispõe de **Comunidade → Publicações e moderação → Conteúdo oficial** para criar, editar, agendar, publicar imediatamente ou cancelar publicações institucionais. A autoria pública é sempre **Equipe ORNY — Perfil oficial**; não são criados nomes de pessoas, contas sociais, curtidas ou comentários artificiais. Os contadores do feed continuam refletindo somente ações reais de usuários autenticados.
+
+O botão **Carregar calendário inicial** registra doze conteúdos editoriais idempotentes: três ficam publicados e nove são programados ao longo das quatro semanas seguintes. Repetir a ação informa que o calendário já existe e não duplica registros. Conteúdo agendado não aparece no feed nem aceita interação antes de `publish_at`; cancelamento remove o conteúdo do feed sem apagar seu histórico. Respostas feitas por uma conta administrativa aparecem como **Equipe ORNY — Perfil oficial**, deixando explícito que são respostas institucionais reais.
+
+As rotas `GET /api/adm/community/editorial` e `POST /api/adm/community/editorial/{seed|save|publish|cancel}` exigem administrador autenticado e filtram leitura e alteração pelo `tenant_id` da sessão. A migration aditiva `061_conteudo_oficial_comunidade.sql` acrescenta `official`, `publish_at`, `official_key` e `canceled_at` em `posts`; a chave editorial por comunidade garante a idempotência. Criação, edição, agendamento, publicação, cancelamento e carga inicial são registrados em `audit_log` com o administrador responsável.
+
+### Como usar
+
+1. Abra **Administração → Comunidade → Publicações e moderação → Conteúdo oficial**.
+2. Use **Carregar calendário inicial** uma vez para preparar os doze conteúdos ou **Novo conteúdo** para escrever outro.
+3. Preencha Título, Assunto, Conteúdo e Data e hora da publicação. Uma data futura agenda; uma data atual ou passada publica imediatamente.
+4. Abra um item agendado para alterar a data, usar **Publicar agora** ou **Cancelar conteúdo**.
+5. Confira o resultado em **Ver comunidade**. Publicações e respostas oficiais mostram o selo **Perfil oficial**; curtidas e comentários começam em zero.
+
+### Validação desta versão
+
+O teste isolado `api/test/community-editorial.test.mjs` cobre os doze itens únicos, idempotência, ausência de gravação em curtidas/comentários, bloqueio para usuário comum e filtro obrigatório pela comunidade autenticada. O build do frontend valida a integração da nova aba. A migration não foi aplicada ao banco de uso e a funcionalidade não foi publicada nesta entrega local.
+
+## Catálogo oficial de treinos — 18/10/2026
+
+O catálogo público possui 18 programas oficiais: ganho de massa, emagrecimento, força, condicionamento, mobilidade e bem-estar e treino em casa, cada um nos níveis Iniciante, Intermediário e Avançado. Os cartões informam objetivo, semanas, frequência, duração, local, nível e equipamentos. O detalhe acrescenta a orientação de progressão. Mobilidade é conteúdo geral de bem-estar e não substitui avaliação, diagnóstico ou tratamento clínico; Reabilitação/Fisioterapia não é uma categoria pública.
+
+Os programas antigos com origem `seed` são arquivados, nunca apagados. Eles deixam de aceitar novas adesões e somem das recomendações e do catálogo, mas o aluno que já começou continua usando a revisão vinculada até concluir ou trocar; sessões, cargas e histórico permanecem. Preferências antigas de reabilitação passam para mobilidade. O sincronizador idempotente fica em `api/db/official-programs.js`; a estrutura e a transição ficam na migration 059.
+
+Com monetização ativa, iniciar um programa oficial exige `catalogo_completo` no servidor. O Individual confirmado, o teste válido e a concessão vigente fornecem esse direito. Pagamento pendente, assinatura cancelada ou conta sem o recurso continuam bloqueados. Cobertura pelo PRO mantém fichas e recursos do personal, mas não concede o catálogo Individual. Administradores permanecem isentos conforme o motor central.
+
+### Criação orientada da ficha — 1.6.0 (19/10/2026)
+
+Depois da confirmação do Individual, teste ou concessão, o atalho principal **Encontrar minha ficha** abre a recomendação. Se ainda não houver perfil, o aluno responde objetivo, nível, local, frequência, duração, equipamentos e restrições. A primeira recomendação apresenta **Ativar treino recomendado** e só cria a ficha depois da confirmação explícita do aluno.
+
+A rota `POST /api/guided/start-recommended` não recebe identificador de aluno nem confia em um programa escolhido pelo navegador: usa a conta autenticada, relê o próprio perfil, recalcula a melhor opção entre programas publicados e compatíveis e aplica o mesmo direito `catalogo_completo` do início manual. Perfil incompleto e ausência de programa compatível não criam vínculo. Uma ficha do personal ativa continua com prioridade e não é substituída; programas anteriores são desvinculados para o histórico antes de uma troca confirmada.
+
+### Como usar
+
+1. Abra Treinos → Explorar programas.
+2. Combine Objetivo, Nível e Local ou abra Recomendados para você.
+3. Confira frequência, duração, equipamentos e Como evoluir.
+4. Em Recomendados, confira a opção marcada como Mais indicado e toque em Ativar treino recomendado. Confirme para criar a ficha e abrir Meu treino. Para escolher outra opção, abra seu detalhe e use Começar programa. Se o catálogo estiver bloqueado, abra Meu plano e contrate o Individual.
+
+### Validação local
+
+O catálogo passou na validação estrutural com 18 combinações únicas e sem exercício ausente ou prescrição incompleta. A migration 059 foi aplicada na base isolada `orny_catalog_test_20261018` e a carga foi repetida: permaneceram 18 programas publicados, sem duplicação, todos com revisão e treinos materializados, e Individual com `catalogo_completo`. Uma segunda base isolada simulou o seed anterior e confirmou 18 oficiais publicados mais os 21 antigos arquivados. Passaram 289 testes unitários do frontend, 6 testes direcionados da API, o build e 26 cenários de navegador em 320/390/768/1280px, temas claro/escuro e papéis aluno/profissional/admin. Banco de uso, publicação e produção não foram alterados.
 
 ## Acesso premium, Início e Progresso — conclusão de 17/10/2026
 
@@ -11,9 +56,9 @@ O inventário em `docs/INVENTARIO-FUNCIONAL.md` preserva o levantamento históri
 - O mapa usa os exercícios e as séries da próxima sessão do programa ativo ou da ficha do personal, que tem prioridade. Na ficha, a sequência sugere um dia; o aluno ainda pode escolher outro em Treinos. Preparar este treino abre exatamente o dia exibido e mantém a confirmação de pesos antes de iniciar. Repetições do mesmo exercício em blocos diferentes somam as séries.
 - Com monetização ativa e sem origem válida de acesso, Treinos, Comunidade, Progresso e páginas premium mostram cadeado e acesso à assinatura. Músculos trabalhados tem bloqueio explícito. Conta não ativa vê a situação cadastral. Administradores continuam isentos; teste, concessão vigente e cobertura pelo personal continuam sendo reconhecidos pelo servidor. Monetização desligada preserva o comportamento anterior.
 - A interface aguarda a consulta de acesso antes de montar conteúdo premium. Falha inicial oferece Tentar novamente. Respostas atrasadas de outra conta ou anteriores a uma atualização de acesso são ignoradas. A confirmação de acesso e a faixa de teste são vinculadas à conta atual.
-- Após assinatura ou teste elegível, o agradecimento informa o plano e os atalhos permitidos para aquele público, recursos e contexto. Recursos restritos ao aluno de personal e publicação por profissional sem verificação/liberação não são anunciados. O agradecimento aguarda a saída de Treinar e o registro de exibição só é enviado depois de aparecer; fechar ou usar um atalho também confirma a apresentação. Não repete após registro bem-sucedido; falha de rede pode levar a nova tentativa em outra entrada. O modal permite teclado, mantém o foco e fecha com Escape.
-- Programas permite combinar Objetivo, Nível e Local, com Limpar filtros, ausência de resultados e nova tentativa após falha. A auditoria somente leitura do catálogo local encontrou 21 programas com revisões publicadas, cobrindo os sete objetivos existentes, sem exercícios ausentes ou prescrições incompletas nos critérios conferidos. Nenhum programa foi duplicado, nenhum seed foi executado e nenhuma revisão publicada foi reescrita.
-- Progresso mantém resumo, histórico, recordes e acesso a Estatísticas detalhadas. Estatísticas oferece 7/30/90/180/365 dias ou Tudo, volume e frequência semanais, tempo, cargas e 1RM estimado, distribuição muscular e calendário. Erros permitem Tentar novamente. O aluno de personal sem liberação própria não recebe o mapa nem a distribuição muscular nessas novas respostas.
+- Após assinatura ou teste elegível, o agradecimento informa o plano e os atalhos permitidos para aquele público, recursos e contexto. O pagamento confirmado libera o uso imediatamente, sem análise administrativa. O agradecimento aguarda a saída de Treinar e o registro de exibição só é enviado depois de aparecer; fechar ou usar um atalho também confirma a apresentação. Não repete após registro bem-sucedido; falha de rede pode levar a nova tentativa em outra entrada. O modal permite teclado, mantém o foco e fecha com Escape.
+- Programas permite combinar Objetivo, Nível e Local, com Limpar filtros, ausência de resultados e nova tentativa após falha. O catálogo oficial e sua transição estão descritos na seção acima; a antiga auditoria de 21 programas de seed foi substituída pela coleção editorial de 18 combinações.
+- Progresso mantém resumo, histórico, recordes e acesso a Estatísticas detalhadas. Estatísticas oferece 7/30/90/180/365 dias ou Tudo, volume e frequência semanais, tempo, cargas e 1RM estimado, distribuição muscular e calendário. Erros permitem Tentar novamente. O aluno coberto pelo PRO usa fichas, comunidade e desafios do personal; recursos fora desse escopo exigem plano Individual.
 - Notificações internas e push de treino permanecem em português. O lembrete local do aplicativo instalado usa texto português com o nome original do treino. Títulos/observações escritos pelos usuários não são traduzidos nem regravados. A permissão e a entrega física de notificações dependem do aparelho.
 
 ### Regras dos indicadores e mapa do código
@@ -58,6 +103,9 @@ Conferir que esperar na preparação não cria sessão; campos vazios/negativos 
 O início utiliza `startRemote`, que preserva a autorização existente e a continuidade offline. Nenhuma alteração de permissão ou banco nesta versão.
 
 ## Histórico
+- 1.6.0 (19/10/2026): assinatura Individual direciona ao perfil e à recomendação; a ficha é calculada no servidor e ativada somente após confirmação do aluno.
+- 1.5.0 (18/10/2026): calendário de conteúdo oficial da Comunidade, doze publicações iniciais idempotentes, agendamento, selo institucional e engajamento exclusivamente real.
+- 1.4.0 (18/10/2026): catálogo oficial com 18 programas, seis objetivos em três níveis, progressão, arquivamento seguro do seed e acesso completo pelo Individual.
 - 1.2.7 (15/10/2026): revisão da linguagem portuguesa da interface e do catálogo inicial; registros existentes e publicação não alterados.
 - 1.2.5 (15/10/2026): confirmação das cargas antes de iniciar nova sessão e cronômetro.
 
@@ -80,7 +128,7 @@ Público: alunos independentes, alunos de personal e profissionais/personal. Aca
 
 ### Mapa da navegação e do código
 - Visão geral: Visão geral (`#/admin/painel`), em `frontend/src/views/admin/ManagementDashboard.jsx`.
-- Pessoas: Contas (Contas, Pendências, Liberação das ações); Profissionais e verificação (Perfis e habilitações, Verificação profissional); Vínculos e convites (Vínculos, Convites).
+- Pessoas: Contas (Contas, Pendências, Suspensões de acesso); Profissionais e verificação (Perfis e habilitações, Verificação profissional); Vínculos e convites (Vínculos, Convites).
 - Planos e capacidade: Assinaturas, Limites de acompanhamento, Solicitações de vagas (Pedidos de vagas e Histórico).
 - Treinos: Programas guiados, Modelos de treino, Biblioteca e mídia.
 - Comunidade: Publicações e moderação (Publicações e comentários, Moderação), Grupos e desafios (Grupos, Desafios), Ranking.
@@ -88,7 +136,9 @@ Público: alunos independentes, alunos de personal e profissionais/personal. Aca
 - Composição: `frontend/src/views/admin/AdminApp.jsx`; formulários existentes são reaproveitados. `?tab=alunos|liberacoes|verificacoes|moderacao|desafios|termos|visao` redirecionam para o grupo/aba equivalente. O administrador que acessa `#/admin/programas` é direcionado ao novo menu; o acesso do profissional continua independente.
 
 ### Conta e acesso
-Situação cadastral (`users.status`) e liberação de ações (`users.access_unlocked_at`) são controles distintos. Ativar uma conta não destrava as ações. Usuários mostra ambos; Liberação das ações permite aprovar, recusar, liberar e travar conforme as regras existentes. Administradores são isentos do cadeado de ações. Pendências reúne cadastro pendente OU ações travadas; conta com as duas condições conta uma vez. As listas existentes de usuários/convites mantêm o limite de 200 registros mais recentes; os indicadores agregam todos os registros elegíveis.
+O acesso de uso vem do plano: assinatura paga confirmada, teste válido, concessão vigente ou cobertura pelo PRO. Não existe aprovação manual para começar a usar. `users.access_suspended_at` registra somente suspensão administrativa excepcional, com responsável e motivo; a suspensão prevalece sobre o plano sem apagar assinatura ou dados. A aba Suspensões de acesso permite suspender e reativar. Pedidos antigos de liberação ficam apenas no histórico e a migration 058 encerra os pendentes como cancelados.
+
+Aluno coberto pelo PRO acessa fichas, comunidade e desafios disponibilizados pelo personal. Programas e áreas fora desse escopo apresentam a contratação do Individual. Ao adquirir acesso Individual próprio, o aluno passa a usar esses recursos sem análise. A verificação profissional permanece cadastral e informativa: não impede convidar alunos, criar fichas ou publicar; limites do plano, moderação e suspensão continuam sendo aplicados pelo servidor.
 
 ### Planos e capacidade
 Limites de acompanhamento (antigos planos de acesso) controlam quantos profissionais podem acompanhar o aluno. Assinaturas controlam recursos e limites por área. A tela informa gestão sem cobrança automática; situações de assinatura são cadastrais, não prova de pagamento.
@@ -104,12 +154,12 @@ Resposta: `period`, `timezone`, `generated_at`, `start_date`, `end_date` (últim
 - `series.signups` e `series.sessions`: `{day: YYYY-MM-DD, n}` por dia, incluindo zeros. O período inclui hoje e os N-1 dias anteriores; o anterior tem N dias completos imediatamente anteriores. Datas obedecem ao fuso configurado; inválido/ausente usa America/Sao_Paulo. O dia atual pode estar incompleto. Os números são apurados por consulta, não por snapshots históricos.
 - Sessões usam `countsInMetrics` em `api/metrics.js`: apenas status done, sem anulação, sem correção manual de tempo e sem origem legado. A mesma regra serve para ranking e métricas atuais.
 - `subscriptions`: distribuição atual por plano, área e situação; não mede receita.
-- `pending`: contas a liberar, verificações pendentes, solicitações de vagas abertas, ocorrências não encerradas e mensagens aguardando com prazo vencido. Os atalhos abrem as áreas responsáveis; o resumo de atrasos não impõe filtro novo na fila existente.
+- `pending`: contas cadastralmente pendentes ou suspensas, verificações cadastrais pendentes, solicitações de vagas abertas, ocorrências não encerradas e mensagens aguardando com prazo vencido. Os atalhos abrem as áreas responsáveis; o resumo de atrasos não impõe filtro novo na fila existente.
 - `GET /api/adm/management/invites`: consulta administrativa de convites da comunidade; pendente vencido é exibido expirado sem alterar o registro.
 `GET /api/adm/kpis` permanece disponível com os campos anteriores; `capacity` usa a regra atual e acrescenta `finite_used` e `unlimited`.
 
 ### Guia do administrador
-Abra Visão geral; escolha 7, 30 ou 90 dias. Os gráficos de cadastros e treinos acompanham o período; estoques e capacidade são identificados como situação atual. Clique nos indicadores/atalhos para abrir a área responsável. Em Usuários, confira separadamente a situação e as ações; para destravar use Liberação das ações. Para vagas extras, use concessão com motivo e validade; para alterar recursos e plano, use Assinaturas. Consulte pedidos antigos em Histórico. Guia detalhado em `../docs/como-usar-o-sistema.md`.
+Abra Visão geral; escolha 7, 30 ou 90 dias. Os gráficos de cadastros e treinos acompanham o período; estoques e capacidade são identificados como situação atual. Em Contas, use Suspensões de acesso somente para fraude, abuso ou violação, informando o motivo; Reativar devolve o acesso ao plano vigente. Para vagas extras, use concessão com motivo e validade; para alterar recursos e plano, use Assinaturas. Guia detalhado em `../docs/como-usar-o-sistema.md`.
 
 ### Validação desta entrega
 Implementação local. Testes de API: `api/test/management.integration.mjs`, exclusivos da base `avagym_management_test_20261015`. Testes de navegador: `frontend/e2e/management.spec.js`, com fixtures geradas na mesma base e API separada em 8791; não apontar para dados reais. Nenhuma migration nova é necessária para o painel, mas o banco precisa estar alinhado ao esquema atual do repositório. Aplicação das migrations existentes em ambiente de uso e publicação são etapas separadas.
@@ -151,9 +201,9 @@ A reorganização preserva identidade, dados e regras. Ocultar um recurso no men
 - Comunidade: Publicações, Grupos, Desafios e Ranking conforme acesso. Grupos e desafios mantêm a seleção de Comunidade na navegação; links diretos restritos mostram a explicação existente.
 - Desafios: Meu progresso/Resumo, Regras e Classificação/Progresso separam consulta e participação das ferramentas de Gestão. Comprovação e gestão continuam dependendo de fase, participação e permissão.
 - Ranking: posição e classificação primeiro; Como pontua recolhido. Privacidade continua em painel próprio.
-- Perfil (/perfil): identificação e contexto, Conta, Preferências, Meu plano, Privacidade e segurança, Notificações, Ajuda e Sair. Subpáginas: ?secao=dados|preferencias|privacidade|ajuda. Código e convites em Conta; senha, aparelhos e pedidos de dados em Privacidade e segurança; reiniciar tour em Ajuda. O link antigo ?liberacao=1 abre privacidade com solicitação de acesso.
+- Perfil (/perfil): identificação e contexto, Conta, Preferências, Meu plano, Privacidade e segurança, Notificações, Ajuda e Sair. Subpáginas: ?secao=dados|preferencias|privacidade|ajuda. Código e convites em Conta; senha, aparelhos e pedidos de dados em Privacidade e segurança; reiniciar tour em Ajuda. O fluxo de solicitação de liberação foi retirado.
 - Notificações (/avisos): Não lidas/Todas; marcar todas como lidas preservado.
-- Meu plano (/planos): assinatura/recursos atuais e solicitação de liberação; catálogo adicional recolhido. Sem contratação ou pagamento automático.
+- Meu plano (/planos): assinatura, pagamento, recursos atuais e catálogo. Pagamento confirmado ou teste válido libera o uso automaticamente.
 - Entrada: login, cadastro e recuperação em etapas distintas, mantendo endpoints, troca obrigatória de senha e termos.
 
 ### Profissional: mapa e compatibilidade
@@ -167,7 +217,7 @@ A reorganização preserva identidade, dados e regras. Ocultar um recurso no men
 - Mais: Comunidade, Perfil profissional, Verificação, Meu plano e vagas, Minha conta e preferências. Rotas anteriores do portal e programas públicos preservadas com seleção correta do menu.
 
 ### Administração e mobile
-Os grupos atuais são Visão geral, Pessoas, Planos e capacidade, Treinos, Comunidade, Operação e Sistema. Esta organização substitui os rótulos Gestão, Planos e limites, Treinos e conteúdo e Administração descritos no histórico acima. Pessoas → Contas reúne Contas/Pendências/Liberação das ações. Preserva formulários e redirecionamentos existentes. Visão geral mostra pendências e indicadores; análises detalhadas abrem sob demanda, sem repetir atalhos no rodapé.
+Os grupos atuais são Visão geral, Pessoas, Planos e capacidade, Treinos, Comunidade, Operação e Sistema. Pessoas → Contas reúne Contas, Pendências e Suspensões de acesso. Visão geral mostra pendências e indicadores; análises detalhadas abrem sob demanda, sem repetir atalhos no rodapé.
 No celular, tabelas mostram três campos por registro; Ver mais campos expande os demais. Ordenação em seletor, busca, paginação e CSV preservados. Detalhes também abrem por teclado. Desktop mantém tabelas.
 
 ### Contratos e código
@@ -211,13 +261,47 @@ Validação pública: HTTP 200 no site, API /api/health e manifesto ORNY; login 
 
 Compatibilidade CSP: a publicação externalizou o script de abertura em `dist/orny-boot.js` e removeu onclick inline do HTML gerado, preservando a política de segurança. A mesma correção está salva no código local (`frontend/index.html` e `frontend/public/orny-boot.js`) e precisa integrar o próximo push; o checkout da VPS permaneceu limpo no commit publicado. Até esse push, novo build na VPS precisa preservar essa transformação. Não usar o script antigo /opt/acade-deploy.sh: seus caminhos /opt/acade estão desatualizados; runtime atual fica em /opt/avagym-runtime.
 
+## Cupons personalizados com link de indicação — 1.6.0 (19/10/2026)
+
+Nenhum plano inicia período gratuito automaticamente. Em **Cobrança, preços e cupons → Cupons e campanhas**, o administrador usa **Gerar cupom de indicação**, escolhe qualquer conta do mesmo ambiente como responsável, define um único público — **Aluno — Individual** ou **Profissional — PRO** —, de 1 a 90 dias de acesso, limite positivo de beneficiados e validade opcional. O sistema gera código e link `#/convite/CODIGO`; o código digitado e o link usam a mesma regra.
+
+O link público mostra somente o primeiro nome do responsável, público, dias, validade e disponibilidade. Ao concluir o cadastro, o servidor relê e trava o código e a campanha, valida público, validade, limite, autoindicação e identidade já beneficiada e só então concede o período. Clique, conta existente e cadastro que não recebe o benefício não consomem vaga. No último uso, o bloqueio transacional impede ultrapassar o limite. Cupom pausado, vencido ou esgotado não impede criar a conta; o cadastro termina sem benefício e informa o motivo.
+
+A conta responsável consulta seu próprio código, link, dias, público e usados/limite mesmo sem assinatura ativa. Ela vê nome, identificador público, data e situação dos indicados, nunca telefone ou e-mail. O administrador pode copiar código/link e pausar, reativar ou encerrar a distribuição. Períodos já concedidos conservam a data de encerramento gravada.
+
+Contratos principais: `GET /api/convite?code=`, `GET /api/referral/me`, `POST /api/auth/register` com `coupon`, e `POST /api/adm/billing/referral-coupons`. A migration aditiva `062_cupons_indicacao_personalizados.sql` remove `trial_days` dos planos e pausa somente a campanha automática histórica e seus códigos ainda ativos; não apaga campanhas, resgates ou concessões. Esta implementação e a migration estão preparadas localmente; banco de uso, VPS e produção não foram alterados.
+
+### Como usar
+
+1. Abra **Administração → Cobrança, preços e cupons → Cupons e campanhas** e clique em **Gerar cupom de indicação**.
+2. Selecione a pessoa responsável, o público, os dias, o limite e, se necessário, a validade e um código personalizado.
+3. Clique em **Gerar cupom e link** e copie o formato que será distribuído.
+4. Acompanhe usados/limite na lista; use Pausar ou Reativar sem apagar o histórico.
+5. A pessoa responsável abre seu painel de indicação para copiar o próprio link e acompanhar resultados sem dados de contato.
+
+### Validação local
+
+O build de produção do frontend passou e 291 testes unitários passaram. Os arquivos alterados da API passaram na validação sintática e o diff não contém erro de whitespace. Os cenários integrados de cupom foram atualizados, mas não foram executados porque o checkout possui somente configuração de banco de uso e os próprios testes exigem uma base cujo nome termine em `_test`. Nenhuma migration foi aplicada, nenhum serviço foi reiniciado e a produção não foi alterada.
+
 ## Pagamentos Asaas — cartão e Pix preparados para produção (17/10/2026)
+
+### Preços oficiais e preparação da produção — 18/10/2026
+
+Os preços oficiais do beta são Individual por R$ 12,90/mês, Personal 15 por R$ 39,90/mês e Personal Ilimitado por R$ 79,90/mês. O Personal 15 permite até 15 alunos ativos; o Personal Ilimitado não impõe limite numérico. A migration 063 registra os dois planos profissionais com a venda fechada (`sellable=false`), para que aplicar o banco ou configurar o provedor não abra cobranças ao público antes da homologação.
+
+O webhook de produção é `POST https://ornygym.avadesk.com.br/api/billing/webhook/asaas`, autenticado pelo cabeçalho `asaas-access-token`. API Key e token do webhook são segredos distintos e ficam somente no `.env` privado da VPS. Segredo exposto em chat, chamado, print ou log deve ser revogado e substituído antes do uso. Asaas em produção, plano vendável e monetização pública são três controles separados: a venda só é aberta depois de cobrança real controlada, confirmação do webhook, idempotência, conciliação e estorno.
+
+Estado operacional em 18/10/2026: backup `/opt/avagym-backups/20261018_164911_pre-asaas-production` criado e validado pelo catálogo do `pg_restore`. O banco de produção recebeu os preços anteriores mantendo os planos fora de venda. A migration 063 substitui a oferta profissional por Personal 15 e Personal Ilimitado, também com `sellable=false`. A resposta pública confirmou `purchasable=false` e o webhook sem token respondeu 401. O provedor continua `asaas` em `sandbox` e a monetização continua desligada. A troca para produção não foi feita porque a API Key e o token informados em chat precisam ser revogados e substituídos no painel Asaas; nenhum dos valores expostos foi reutilizado.
+
+Na troca do Personal Ilimitado para o Personal 15, alunos existentes não são removidos. Se houver mais de 15 ativos, a conta fica acima do limite e novos vínculos são bloqueados até liberar vagas ou retornar ao Ilimitado. No plano ilimitado, `effective_limit` e `available` são `null` na API e aparecem como **Ilimitado** na interface, nunca como zero. Cupons de período gratuito para profissionais continuam concedendo o Personal 15.
 
 O checkout permite escolher cartão de crédito ou Pix. Cartão mantém assinatura mensal e renovação automática. Pix inicial gera QR Code e copia e cola com validade de 24 horas e não libera o plano antes da confirmação do webhook. Um Pix vencido pode ser regenerado sem criar outra assinatura; na renovação, o sistema gera nova cobrança cinco dias antes do fim do período pago, avisa o usuário e respeita a carência configurada. Assinatura Pix nunca tenta cobrar cartão.
 
 Contratos: `POST /api/billing/subscribe` aceita `payment_type` igual a `card` ou `pix`; `card_id` é obrigatório somente para cartão. `GET /api/billing/me` informa o tipo e o Pix pendente ao titular. `POST /api/billing/pix/regenerate` exige propriedade da assinatura; `POST /api/billing/pix/confirm-test` existe apenas no simulador. A migration aditiva `057_cobranca_pix.sql` identifica o meio de pagamento e guarda somente apresentação/expiração da cobrança Pix. Cartões guardam apenas o token do provedor, nunca número ou CVV.
 
-Uma conta ainda não liberada administrativamente pode cadastrar o meio de pagamento e adquirir um plano. Quando o pagamento da contratação é confirmado, a própria conta é liberada automaticamente para usar o plano pago; pagamentos recusados ou pendentes não liberam acesso. A liberação administrativa continua separada para contas que não pagaram.
+Uma conta pode cadastrar o meio de pagamento e adquirir um plano sem aprovação administrativa. Quando a contratação é confirmada, o plano fica disponível imediatamente; pagamentos recusados ou pendentes não liberam os recursos pagos. Teste válido e cobertura pelo PRO seguem a mesma regra automática. Suspensão administrativa explícita continua prevalecendo até a reativação.
+
+Contrato transitório: `GET /api/me/unlock-request` informa que o fluxo foi aposentado e expõe apenas eventual suspensão; `POST /api/me/unlock-request` retorna 410 com `UNLOCK_FLOW_RETIRED` ou `ACCESS_SUSPENDED`. O bloqueio comercial usa `ACCESS_REQUIRED`, o escopo do aluno PRO usa `CLIENT_SCOPE` e a suspensão usa `ACCESS_SUSPENDED`. A migration aditiva `058_acesso_comercial_suspensao.sql` cria os campos explícitos, ativa perfis profissionais antigos em análise e cancela solicitações pendentes sem apagar histórico.
 
 Segurança: o webhook Asaas valida token em tempo constante e eventos repetidos são idempotentes. QR Code e copia e cola ficam sob autenticação e vínculo do usuário. O provedor Asaas exige API Key e token de webhook completos; ambiente e prefixo da chave precisam corresponder. Configuração inválida impede a API de iniciar e nunca retorna silenciosamente ao simulador. Segredos ficam somente no `.env` privado da API e não aparecem em endpoint, frontend, documentação ou log.
 
@@ -242,3 +326,15 @@ Validação desta entrega: build de produção aprovado; 289 testes unitários d
 A auditoria funcional, técnica, de segurança, monetização, operação e mercado está registrada em `docs/auditoria-saas/`. Ela avaliou principalmente o corte `1353db7` e as alterações locais de cobrança existentes no início do trabalho; durante a execução, o checkout avançou externamente até `ae28831`, com publicação de PIX documentada no commit `288793a` e provedor mantido em simulador. Os relatórios preservam essa separação e não tratam o avanço posterior como revalidação automática.
 
 Decisão da auditoria: manter somente beta controlado e adiar lançamento comercial amplo até provar o fluxo cadastro → contratação → confirmação → acesso sem liberação manual, validar provedor real e idempotência, estabilizar as fixtures E2E, concluir configuração legal e fechar os itens P1. A auditoria não alterou regra de negócio, funcionalidade, infraestrutura, dados de produção ou configuração de cobrança.
+
+### Correções posteriores à auditoria — candidato local (18/10/2026)
+
+O candidato local permite contratação pelas rotas de cobrança mesmo quando existe suspensão de acesso, sem liberar as demais ações. Conta nova segue o plano comercial e não depende mais da antiga fila manual; suspensão administrativa continua separada, explícita e auditável. As suites do simulador passaram 14/14 em cobrança e 7/7 em assinatura.
+
+A migration `058_acesso_comercial_suspensao.sql` teve o backfill reescrito com CTE para ser aceito pelo PostgreSQL e foi validada junto de todas as migrations em banco novo isolado. As fixtures locais agora registram `legal_acceptances` para administrador e profissionais. Dados legais obrigatórios, incluindo provedor e país da hospedagem, são validados antes de salvar; em produção, cadastro e aceite ficam bloqueados enquanto a identificação legal estiver incompleta. Desenvolvimento pode manter `REQUIRE_LEGAL_CONFIG=false`, mas `NODE_ENV=production` sempre exige completude.
+
+Dependências do frontend/mobile foram atualizadas na linha compatível do Capacitor 7, Vitest foi atualizado e `@capacitor/assets` deixou de ser dependência permanente (continua disponível sob demanda conforme `docs/MOBILE.md`). O `npm audit` passou sem vulnerabilidades. Cobrança permanece em `BILLING_PROVIDER=simulado` e `ASAAS_ENV=sandbox`; nenhuma cobrança real ou publicação foi feita nesta correção.
+
+### Parecer de distribuição e viabilidade — revalidação de 18/10/2026
+
+O parecer vigente autoriza somente **beta controlado por convite no sandbox**. A venda pública ampla continua condicionada à definição dos preços, retirada do estado “Em breve” do PRO, homologação ponta a ponta do Asaas, dados legais reais completos, backup/restore testado e jornada E2E de cadastro e assinatura aprovada. O estudo financeiro não promete lucro: apresenta cenários de receita e exige validação com clientes pagantes. Detalhes e critérios em `docs/auditoria-saas/14-DECISAO-DISTRIBUICAO-E-VIABILIDADE.md`.

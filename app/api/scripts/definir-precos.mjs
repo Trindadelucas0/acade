@@ -1,8 +1,11 @@
 // Define preco e venda dos planos pagos com as MESMAS regras e a MESMA auditoria do painel admin
 // (POST /api/adm/billing/plans -> audit 'plano.editado'). Usado em 16/10/2026 a pedido do Lucas:
-// Individual R$ 29,90/mes e PRO R$ 79,90/mes, ambos "A venda". Nao liga a monetizacao nem a cobranca real.
-// Uso: node scripts/definir-precos.mjs individual=2990 pro=7990            (simulacao: so mostra)
-//      node scripts/definir-precos.mjs individual=2990 pro=7990 --apply --confirm PRECOS --backup-ok
+// Os precos oficiais do beta sao Individual R$ 12,90/mes e PRO R$ 49,90/mes.
+// Este script continua sendo uma ferramenta administrativa e, ao aplicar,
+// abre a venda. A migration 060 apenas define os valores e mantem sellable=false
+// ate a homologacao controlada do Asaas.
+// Uso: node scripts/definir-precos.mjs individual=1290 pro=4990            (simulacao: so mostra)
+//      node scripts/definir-precos.mjs individual=1290 pro=4990 --apply --confirm PRECOS --backup-ok
 import '../env.js'
 import { q, pool } from '../db/pool.js'
 import { audit } from '../auth.js'

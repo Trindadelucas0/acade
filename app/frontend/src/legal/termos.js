@@ -34,7 +34,7 @@ O ORNY é uma plataforma digital de treinos, acompanhamento físico e interaçã
 
 3.3. Cada pessoa deve manter uma única conta pessoal, sem compartilhá-la com terceiros.
 
-3.4. O período de teste de 7 dias é concedido somente por cupom (de teste ou de indicação), uma única vez por pessoa, ainda que com outra conta, e-mail ou telefone. Quem se cadastra por indicação tem nome, @, data do cadastro e status (teste ou assinante) visíveis para quem indicou; telefone e e-mail não são exibidos (ver Política de Privacidade, item 5.1).
+3.4. O período gratuito é concedido somente por cupom válido, pela duração e para o plano informados na oferta, uma única vez por pessoa, ainda que com outra conta, e-mail ou telefone. Quem se cadastra por indicação tem nome, @, data do cadastro e status (em período gratuito ou assinante) visíveis para quem indicou; telefone e e-mail não são exibidos (ver Política de Privacidade, item 5.1).
 
 ## 4. Tipos de conta
 

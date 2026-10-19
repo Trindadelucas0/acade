@@ -28,7 +28,7 @@ export async function managementData(c, tenantId, period) {
     count(*) filter(where u.status='ativo')::int active,
     count(*) filter(where u.account_type='personal_client' and exists(select 1 from user_roles r where r.user_id=u.id and r.tenant_id=$1 and r.role_id='aluno'))::int personal_students,
     count(*) filter(where u.account_type<>'personal_client' and exists(select 1 from user_roles r where r.user_id=u.id and r.tenant_id=$1 and r.role_id='aluno'))::int independent_students,
-    count(*) filter(where u.status='pendente' or (u.access_unlocked_at is null and not exists(select 1 from user_roles r where r.user_id=u.id and r.tenant_id=$1 and r.role_id='admin')))::int awaiting_access
+    count(*) filter(where u.status='pendente' or u.access_suspended_at is not null)::int awaiting_access
     from users u where u.tenant_id=$1 and u.disabled_at is null`))[0]
   const signups = await query(`select (created_at at time zone $2)::date::text as "day", count(*)::int n from users where tenant_id=$1 and disabled_at is null and $4::date is not null and created_at >= ($3::date::timestamp at time zone $2) and created_at < ($5::date::timestamp at time zone $2) group by 1 order by 1`, params)
   const sessions = await query(`select (s.started_at at time zone $2)::date::text as "day", count(*)::int n from sessions s where s.tenant_id=$1 and ${countsInMetrics('s')} and $4::date is not null and s.started_at >= ($3::date::timestamp at time zone $2) and s.started_at < ($5::date::timestamp at time zone $2) group by 1 order by 1`, params)

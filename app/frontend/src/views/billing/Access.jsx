@@ -1,6 +1,6 @@
 // Monetizacao F8: estado de acesso do usuario. AccessHost (global): 402 ACCESS_REQUIRED -> cadeado na tela (lote 7; antes redirecionava);
 // faixa discreta de "teste ativo" com tempo restante. TrialCard: cartao na tela de assinatura (teste ativo,
-// teste encerrado com dados preservados, ou campo para ativar cupom de 7 dias).
+// teste encerrado com dados preservados, ou campo para ativar cupom personalizado).
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { api } from '../../lib/api.js'
@@ -60,7 +60,7 @@ export function TrialCard({ onChange }) {
   const t = a.trial
   async function redeem() {
     setBusy(true); setMsg(null)
-    try { await api('/api/billing/coupon/redeem', { method: 'POST', body: JSON.stringify({ code: code.trim() }) }); setMsg({ ok: true, t: 'Seu teste de 7 dias começou!' }); setCode(''); await load(); onChange?.(); accessChanged() }
+    try { const r = await api('/api/billing/coupon/redeem', { method: 'POST', body: JSON.stringify({ code: code.trim() }) }); setMsg({ ok: true, t: `Seu acesso de ${r.days} dias começou!` }); setCode(''); await load(); onChange?.(); accessChanged() }
     catch (e) { setMsg({ ok: false, t: e.message }) } finally { setBusy(false) }
   }
   return <section className="bl-sub" data-testid="trial-card">
@@ -72,8 +72,8 @@ export function TrialCard({ onChange }) {
     {!t && a.trial_eligible && <div style={{ marginTop: 8 }}>
       <label className="adm-field">Tem um cupom de teste ou de indicação?
         <span style={{ display: 'flex', gap: 6 }}><input className="adm-in" value={code} onChange={e => setCode(e.target.value.toUpperCase())} placeholder="CUPOM" data-testid="trial-coupon" maxLength={40} />
-          <button className="adm-btn" disabled={busy || code.trim().length < 3} onClick={redeem} data-testid="trial-redeem">Ativar 7 dias</button></span></label>
-      <p className="g-xs g-mut">O teste é único por pessoa e dura 7 dias corridos (168 horas).</p>
+          <button className="adm-btn" disabled={busy || code.trim().length < 3} onClick={redeem} data-testid="trial-redeem">Ativar cupom</button></span></label>
+      <p className="g-xs g-mut">A duração e o plano liberado dependem do cupom. O período gratuito é único por pessoa.</p>
     </div>}
     {msg && <p className={msg.ok ? 'bl-ok' : 'bl-err'} role="status">{msg.t}</p>}
   </section>

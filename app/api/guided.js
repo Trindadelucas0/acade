@@ -17,18 +17,18 @@ export async function requireTrainee(req, res, json) {
   return u
 }
 
-const GOALS = ['hypertrophy', 'weight_loss', 'strength', 'conditioning', 'mobility', 'home', 'rehab']
+const GOALS = ['hypertrophy', 'weight_loss', 'strength', 'conditioning', 'mobility', 'home']
 const LEVELS = ['beginner', 'intermediate', 'advanced']
 const LOCS = ['gym', 'home', 'home_noequip']
 const RESTR = ['knee', 'lumbar', 'shoulder', 'other']
 const STATUS = ['rascunho', 'revisao', 'publicado', 'arquivado']
-const GOAL_PT = { hypertrophy: 'ganhar massa', weight_loss: 'emagrecer', strength: 'ganhar força', conditioning: 'melhorar o condicionamento', mobility: 'mobilidade', home: 'treinar em casa', rehab: 'reabilitação' }
+const GOAL_PT = { hypertrophy: 'ganhar massa', weight_loss: 'emagrecer', strength: 'ganhar força', conditioning: 'melhorar o condicionamento', mobility: 'mobilidade e bem-estar', home: 'treinar em casa' }
 const LEVEL_PT = { beginner: 'iniciante', intermediate: 'intermediário', advanced: 'avançado' }
 const LOC_PT = { gym: 'academia', home: 'em casa', home_noequip: 'sem equipamento' }
 const RESTR_PT = { knee: 'joelho', lumbar: 'lombar', shoulder: 'ombro', other: 'outra' }
 const RESTR_NA = { knee: 'no joelho', lumbar: 'na lombar', shoulder: 'no ombro' }
 const RESTR_TAG = { knee: 'joelho', lumbar: 'lombar', shoulder: 'ombro' }
-const RELATED = { weight_loss: ['conditioning'], conditioning: ['weight_loss'], home: [], hypertrophy: ['strength'], strength: ['hypertrophy'], mobility: ['rehab'], rehab: ['mobility'] }
+const RELATED = { weight_loss: ['conditioning'], conditioning: ['weight_loss'], home: [], hypertrophy: ['strength'], strength: ['hypertrophy'], mobility: [] }
 
 // lista do aluno é substituída pela nova (a lista anterior fica no histórico de auditoria)
 async function saveEquipment(u, ids, unknown) {
@@ -64,6 +64,11 @@ export function scorePrograms(programs, p) {
   const seen = new Set(strict.map(x => x.id))
   return strict.concat(rank(programs, p, true).filter(x => !seen.has(x.id)).map(x => ({ ...x, score: x.score - 40 })))
 }
+
+// A ativação orientada usa exatamente a mesma ordenação exibida ao aluno.
+// O servidor recalcula o resultado com o perfil da sessão; o navegador não escolhe
+// um usuário nem informa qual programa deve ser tratado como "recomendado".
+export const recommendedProgram = (programs, profile) => scorePrograms(programs, profile)[0] || null
 function rank(programs, p, relaxed) {
   p = { ...p, nivel: p.nivel || 'beginner', dias: p.dias || 3, minutos: p.minutos || 45 }
   const ul = LEVELS.indexOf(p.nivel)
@@ -166,11 +171,12 @@ export async function programFull(id, tid, revisionId = null) {
   p.muscles_pt = mg.rows.map(r => r.name_pt)
   return p
 }
-const LIST_SQL = `select p.id,p.slug,p.title,p.description,p.goal,p.level,p.location,p.weeks,p.days_per_week,p.minutes,p.minutes_max,p.is_rehab,p.tags,
+const LIST_SQL = `select p.id,p.slug,p.title,p.description,p.goal,p.level,p.location,p.weeks,p.days_per_week,p.minutes,p.minutes_max,p.is_rehab,p.tags,p.progression,p.published_revision_id,
     p.cover_url,p.author_name,p.status,p.version,p.equipment,p.muscles,p.contraindications avoid,
     (select count(*) from program_workouts w where w.program_id=p.id and (p.published_revision_id is null or w.revision_id is not distinct from p.published_revision_id))::int workouts_count,
     ${BADGES_SQL('p')},
     (select coalesce(array_agg(pe.equipment_id order by pe.equipment_id), '{}') from program_equipment pe where pe.program_id=p.id and pe.required) req_equipment,
+    (select coalesce(array_agg(e.name_pt order by e.name_pt), '{}') from program_equipment pe join equipment e on e.id=pe.equipment_id where pe.program_id=p.id and pe.required) equipment_pt,
     (select coalesce(json_object_agg(c.code,c.n),'{}') from (select ci.restriction_code code, count(distinct x.exercise_id) n from program_workouts w
        join program_workout_exercises x on x.program_workout_id=w.id join exercise_contraindications ci on ci.exercise_id=x.exercise_id and ci.level='caution'
        where w.program_id=p.id and (p.published_revision_id is null or w.revision_id is not distinct from p.published_revision_id) group by ci.restriction_code) c) caution
@@ -228,7 +234,7 @@ export function guidedRoutes({ json, readBody }) {
     },
     'GET /api/guided/recommendations': async (req, res) => {
       const u = await requireTrainee(req, res, json); if (!u) return
-      const p = await profileOf(u.id); if (!p) return json(res, 400, { error: 'Responda o questionário primeiro' })
+      const p = await profileOf(u.id); if (!p) return json(res, 400, { error: 'Responda o questionário primeiro', code: 'PROFILE_INCOMPLETE' })
       const list = (await q(LIST_SQL + ` and p.status='publicado' and p.archived_at is null`, [u.tenant_id])).rows
       const ranked = scorePrograms(list, p).slice(0, 3)
       if (!ranked.length) return json(res, 200, { profile: p, recommendations: [], no_compatible: true,
@@ -269,6 +275,28 @@ export function guidedRoutes({ json, readBody }) {
       if (p.rows[0].published_revision_id) await q('insert into user_program_revisions(user_program_id, revision_id) values($1,$2) on conflict do nothing', [r.rows[0].id, p.rows[0].published_revision_id])
       await setActiveSystem(u, r.rows[0].id)   // V4.1: um treino ativo — a ficha do profissional fica inativa (não apagada)
       json(res, 200, { user_program_id: r.rows[0].id })
+    },
+    'POST /api/guided/start-recommended': async (req, res) => {
+      const u = await requireTrainee(req, res, json); if (!u) return
+      const profile = await profileOf(u.id)
+      if (!profile) return json(res, 400, { error: 'Responda o questionário antes de ativar sua ficha.', code: 'PROFILE_INCOMPLETE' })
+      const list = (await q(LIST_SQL + ` and p.status='publicado' and p.archived_at is null`, [u.tenant_id])).rows
+      const pick = recommendedProgram(list, profile)
+      if (!pick) return json(res, 409, { error: 'Não encontramos uma ficha compatível com seu perfil e equipamentos.', code: 'NO_COMPATIBLE_PROGRAM' })
+      const program = list.find(p => p.id === pick.id)
+      if (!program) return json(res, 409, { error: 'A recomendação não está mais disponível.', code: 'RECOMMENDATION_UNAVAILABLE' })
+      const at = await activeTrainingOf(u.id)
+      if (at.locked_to_pro) return json(res, 409, at.can_detach
+        ? { error: 'Você tem uma ficha do personal ativa. Desvincule essa ficha antes de ativar a recomendação.', code: 'MUST_DETACH' }
+        : { error: 'Você treina com a ficha do seu personal. Os programas do sistema ficam travados enquanto ela estiver ativa.', code: 'COACH_LOCKED' })
+      if (at.kind === 'sistema') {
+        if (at.program.program_id === program.id) return json(res, 200, { user_program_id: at.program.id, program_id: program.id, already: true })
+        return json(res, 409, { error: 'Desvincule seu programa atual antes de ativar a recomendação.', code: 'MUST_DETACH' })
+      }
+      const row = await q(`insert into user_programs(tenant_id,user_id,program_id,start_date,status,started_at,schedule) values($1,$2,$3,current_date,'active',now(),'{}') returning id`, [u.tenant_id, u.id, program.id])
+      if (program.published_revision_id) await q('insert into user_program_revisions(user_program_id, revision_id) values($1,$2) on conflict do nothing', [row.rows[0].id, program.published_revision_id])
+      await setActiveSystem(u, row.rows[0].id, 'confirmou a ficha recomendada')
+      json(res, 200, { user_program_id: row.rows[0].id, program_id: program.id })
     },
     'POST /api/guided/abandon': async (req, res) => {
       const u = await requireTrainee(req, res, json); if (!u) return

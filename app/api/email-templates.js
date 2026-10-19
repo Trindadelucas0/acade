@@ -13,13 +13,13 @@ export function renderEmail({ subject, body, actionUrl, actionLabel = 'Abrir ORN
   return { html, text }
 }
 export const previewModels = [
-  ['cadastro', 'Bem-vindo ao ORNY', 'Olá, Lucas!\nSua conta foi criada. As ações do aplicativo dependem da liberação de acesso pela administração.', 'Abrir aplicativo'],
+  ['cadastro', 'Bem-vindo ao ORNY', 'Olá, Lucas!\nSua conta foi criada. Escolha um plano ou ative um benefício válido para começar; pagamentos confirmados liberam o uso automaticamente.', 'Ver planos'],
   ['primeiro_acesso', 'Defina sua senha', 'Olá, Lucas!\nSeu personal criou sua conta. Escolha sua senha pelo link enviado. O link real tem validade de 24 horas e uso único.', 'Definir minha senha'],
   ['recuperacao', 'Redefina sua senha', 'Recebemos uma solicitação para redefinir sua senha. O link real tem validade de 24 horas e uso único. Se não foi você, ignore esta mensagem.', 'Redefinir senha'],
   ['senha_alterada', 'Sua senha foi alterada', 'Sua senha foi alterada e as sessões anteriores foram encerradas. Se não reconhece esta ação, recupere sua conta e procure a administração.', 'Abrir aplicativo'],
-  ['liberacao', 'Sua conta foi liberada', 'Olá, Lucas!\nAgora você pode usar as ações liberadas no seu plano.', 'Acessar minha conta'],
-  ['recusa', 'Pedido de liberação recusado', 'Seu pedido de liberação foi analisado. Procure a administração para conhecer as orientações.', 'Ver minha conta'],
-  ['bloqueio', 'Acesso bloqueado', 'A administração alterou a situação de acesso da sua conta. Procure a administração para mais informações.', 'Ver minha conta'],
+  ['liberacao', 'Suspensão removida', 'Olá, Lucas!\nSeu acesso voltou a seguir o plano vigente.', 'Acessar minha conta'],
+  ['recusa', 'Fluxo de liberação encerrado', 'O acesso agora depende do plano ou benefício válido, sem pedido de análise.', 'Ver planos'],
+  ['bloqueio', 'Conta suspensa', 'A administração suspendeu o acesso da sua conta. Procure o suporte para revisar a situação.', 'Ver minha conta'],
   ['convite', 'Convite de acompanhamento', 'Um profissional convidou você para acompanhamento. Abra o aplicativo para analisar o convite.', 'Ver convite'],
   ['vinculo', 'Vínculo de acompanhamento atualizado', 'A situação do seu acompanhamento foi atualizada. Consulte os detalhes no aplicativo.', 'Ver acompanhamento'],
   ['treino', 'Novo treino disponível', 'Sua ficha foi publicada ou atualizada. Consulte os exercícios e orientações no aplicativo.', 'Ver meus treinos'],

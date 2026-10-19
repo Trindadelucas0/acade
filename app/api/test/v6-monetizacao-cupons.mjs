@@ -1,4 +1,4 @@
-// Monetizacao F2-F4 (decisoes D1-D9 do Lucas): teste de 168h unico por titular, cupom de teste e de indicacao (D2),
+// Monetizacao: periodo configurado por cupom, unico por titular, incluindo cupom de indicacao,
 // atribuicao ao primeiro indicador, concorrencia, motor central de acesso (402 com 'monetizacao_ativa'), patrocinio do personal.
 // SOMENTE no banco de TESTE: API=http://localhost:8797 DB_NAME=avagym_test
 import test, { after } from 'node:test'
@@ -42,14 +42,14 @@ test('preparacao: admin e monetizacao DESLIGADA', async () => {
   adm = await login('admin.e2e@avadesk.local'); assert.ok(adm)
   assert.equal((await setMon(false)).s, 200)
 })
-test('cupom de teste valido ativa exatamente 168h (servidor) no plano Individual', async () => {
-  const u = await conta('t168'); const c = await cupom()
+test('cupom de teste usa os dias configurados no servidor', async () => {
+  const u = await conta('t10'); const c = await cupom({}, { trial_days: 10 })
   const v = await call(u.tok, 'POST', '/api/billing/coupon/validate', { code: c.code.toLowerCase() })
-  assert.equal(v.d.valid, true); assert.equal(v.d.trial_hours, 168)
+  assert.equal(v.d.valid, true); assert.equal(v.d.trial_hours, 240)
   const r = await call(u.tok, 'POST', '/api/billing/coupon/redeem', { code: c.code })
   assert.equal(r.s, 201, JSON.stringify(r.d)); assert.equal(r.d.plan_id, 'individual')
   const t = (await pool.query('select extract(epoch from ends_at-starts_at)::int s, audience, plan_id, source from trial_grants where user_id=$1', [u.id])).rows[0]
-  assert.equal(t.s, 168 * 3600); assert.equal(t.plan_id, 'individual'); assert.equal(t.source, 'cupom_teste')
+  assert.equal(t.s, 10 * 86400); assert.equal(t.plan_id, 'individual'); assert.equal(t.source, 'cupom_teste')
   const a = await call(u.tok, 'GET', '/api/access/me'); assert.equal(a.d.trial.active, true); assert.equal(a.d.trial_eligible, false)
   assert.ok(a.d.audiences.aluno.sources.some(s => s.kind === 'teste'))
 })

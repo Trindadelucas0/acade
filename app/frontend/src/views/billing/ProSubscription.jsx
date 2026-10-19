@@ -15,7 +15,8 @@ export default function ProSubscription() {
   if (err) return <div className="ag bl-app"><p className="bl-err">{err}</p></div>
   if (!s) return <div className="ag bl-app"><p className="bl-load">Carregando…</p></div>
   const sub = s.subscription, cap = s.capacity || {}
-  const pct = cap.effective_limit ? Math.min(100, Math.round(100 * (cap.used || 0) / cap.effective_limit)) : 0
+  const unlimited = cap.effective_limit == null
+  const pct = unlimited ? 100 : cap.effective_limit ? Math.min(100, Math.round(100 * (cap.used || 0) / cap.effective_limit)) : 0
   return <div className="ag bl-app" data-testid="pro-subscription">
     <span className="g-eyebrow">Profissional</span><h1>Minha assinatura PRO</h1>
     <section className="bl-sub" data-testid="pro-plan">
@@ -27,9 +28,9 @@ export default function ProSubscription() {
     </section>
     <section className="bl-sub" data-testid="pro-capacity">
       <h2>Alunos</h2>
-      <p><b data-testid="pro-used">{cap.used ?? 0}</b> de <b data-testid="pro-limit">{cap.effective_limit ?? 0}</b> vagas usadas{cap.granted_extra ? ` (inclui ${cap.granted_extra} vaga(s) extra concedidas)` : ''}.</p>
+      <p><b data-testid="pro-used">{cap.used ?? 0}</b> de <b data-testid="pro-limit">{unlimited ? 'Ilimitado' : cap.effective_limit ?? 0}</b> vagas usadas{cap.granted_extra ? ` (inclui ${cap.granted_extra} vaga(s) extra concedidas)` : ''}.</p>
       <div role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} style={{ height: 8, borderRadius: 4, background: 'var(--g-line, #e5e5e5)' }}><div style={{ width: pct + '%', height: '100%', borderRadius: 4, background: cap.over_limit ? '#c0392b' : '#0b5d3b' }} /></div>
-      <p className="g-xs g-mut">{cap.available > 0 ? `${cap.available} vaga(s) livre(s).` : cap.over_limit ? 'Acima do limite: os alunos atuais continuam, mas novos vínculos ficam bloqueados até liberar vagas ou mudar de plano.' : 'Sem vagas livres: mude de plano para aceitar novos alunos.'}</p>
+      <p className="g-xs g-mut">{unlimited ? 'Seu plano não limita a quantidade de alunos ativos.' : cap.available > 0 ? `${cap.available} vaga(s) livre(s).` : cap.over_limit ? 'Acima do limite: os alunos atuais continuam, mas novos vínculos ficam bloqueados até liberar vagas ou mudar de plano.' : 'Sem vagas livres: mude de plano para aceitar novos alunos.'}</p>
     </section>
     <section className="bl-sub">
       <h2>Gerenciar</h2>

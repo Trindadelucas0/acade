@@ -27,7 +27,7 @@ check((await q('select count(*)::int n from user_app_state_rejections where user
 console.log('— criação e permissões')
 const pa = await pro('v4f3autor'), pb = await pro('v4f3semlib', false)
 r = await post(pb.tok, '/api/pro/programs', content('X'))
-check(r.s === 403 && r.d.code === 'FEATURE_NOT_INCLUDED', 'profissional sem liberação não cria programa público')
+check(r.s === 201, 'profissional cria rascunho sem aprovação cadastral prévia')
 r = await post(al.tok, '/api/pro/programs', content('X'))
 check(r.s === 403, 'aluno não cria programa')
 r = await post(pa.tok, '/api/pro/programs', content('Força V4', 0))

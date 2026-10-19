@@ -357,22 +357,6 @@ export async function subscribe(user, b, ip) {
     const r = await q(`insert into promotion_redemptions(tenant_id,code_id,campaign_id,user_id,benefit,status) values($1,$2,$3,$4,'desconto','pendente_assinatura') on conflict (code_id,user_id) do nothing returning id`, [user.tenant_id, disc.code.id, disc.campaign.id, user.id])
     if (r.rowCount) await q('update promotion_codes set redemptions_count=redemptions_count+1 where id=$1', [disc.code.id])
   }
-  // teste do plano (configuravel): sem cobranca agora; a primeira cobranca acontece no fim do teste
-  const hadTrial = (await q(`select 1 from subscription_events e join subscriptions s on s.id=e.subscription_id where s.user_id=$1 and e.action='trial_plano' limit 1`, [user.id])).rowCount
-  const pol = await policy(user.tenant_id)
-  if (plan.trial_days > 0 && !hadTrial && !pol.teste_so_cupom) {
-    const end = addDays(new Date(), plan.trial_days)
-    await q(`update subscriptions set plan_id=$2, plan_version_id=$3, provider=$4, price_cents=$5, payment_method_id=$6, promotion_code_id=$7, discount_pct=$8, discount_cycles_left=$9,
-      partner_user_id=$10, payment_type=$12, status='trial', trial_ends_at=$11, current_period_start=now(), current_period_end=$11, cancel_at_period_end=false, retry_count=0, started_at=now(), updated_at=now() where id=$1`,
-      [sub.id, plan.id, plan.version_id, provider.name, plan.price_cents, pm?.id || null, meta.promotion_code_id, meta.discount_pct, meta.discount_cycles, partner, end, paymentType])
-    await q(`insert into subscription_events(subscription_id,action,from_plan,to_plan,from_status,to_status,actor_id) values($1,'trial_plano',$2,$3,$4,'trial',$5)`, [sub.id, sub.plan_id, plan.id, sub.status, user.id])
-    if (meta.promotion_code_id) await q(`update promotion_redemptions set subscription_id=$2, status='consumido' where code_id=$1 and user_id=$3`, [meta.promotion_code_id, sub.id, user.id])
-    if (partner) await q(`insert into attribution_events(tenant_id,partner_user_id,user_id,event) values($1,$2,$3,'assinatura')`, [user.tenant_id, partner, user.id])
-    await audit(user.tenant_id, user.id, 'cobranca.trial', 'subscription', sub.id, { plan: plan.id, ends: end })
-    await notifyBilling(user.id, 'trial_iniciado', { plan: plan.name, next: dBR(end) }, sub.id + ':' + end.getTime())
-    await refreshUsage(user.id, plan.audience)
-    return { status: 200, result: 'trial', trial_ends_at: end }
-  }
   const amount = disc ? Math.round(plan.price_cents * (1 - disc.campaign.discount_pct / 100)) : plan.price_cents
   const now = new Date()
   const pixExpiresAt = paymentType === 'pix' ? addDays(now, 1) : null

@@ -18,8 +18,11 @@ async function sysActive(uid) {
 // V4.3 — R13 (Lucas): UM treino ativo por vez, garantido no servidor. A ficha do personal tem PRIORIDADE:
 // quando chega, o programa do sistema é pausado ('switched', nada apagado). Desvincular a ficha só pode quem tem
 // mensalidade própria (usuário normal ou aluno do personal liberado); o aluno coberto pelo personal não desvincula.
-export const STUDENT_CAN_DETACH_PRO = true   // condicionado à mensalidade própria (ownPaid)
-const ownPaid = async uid => !!(await q('select access_unlocked_at from users where id=$1', [uid])).rows[0]?.access_unlocked_at
+export const STUDENT_CAN_DETACH_PRO = true   // condicionado a acesso Individual proprio
+const ownPaid = async uid => !!(await q(`select 1 where
+  exists(select 1 from subscriptions s join plans p on p.id=s.plan_id where s.user_id=$1 and s.audience='aluno' and not p.is_free and s.status in ('ativa','trial','inadimplente','carencia'))
+  or exists(select 1 from trial_grants g where g.user_id=$1 and g.audience='aluno' and g.revoked_at is null and g.starts_at<=now() and g.ends_at>now())
+  or exists(select 1 from entitlement_grants g where g.user_id=$1 and g.audience='aluno' and g.kind='feature' and g.key='acesso' and g.revoked_at is null and g.starts_at<=now() and (g.expires_at is null or g.expires_at>now()))`, [uid])).rowCount
 export async function activeTrainingOf(uid) {
   const [choice, sys, plans, paid] = await Promise.all([q('select * from student_active_training where user_id=$1', [uid]).then(r => r.rows[0] || null), sysActive(uid), proPlans(uid), ownPaid(uid)])
   let kind = null, plan = null
@@ -77,7 +80,7 @@ export function activeTrainingRoutes({ json, readBody }) {
         return json(res, 200, await activeTrainingOf(u.id))
       }
       if (cur.kind === 'profissional') {
-        if (!cur.can_detach) return json(res, 403, { error: 'A sua conta é coberta pelo seu personal: você treina com a ficha dele. Para usar os programas do sistema, solicite a liberação (mensalidade própria).', code: 'PRO_DETACH_ONLY' })
+        if (!cur.can_detach) return json(res, 403, { error: 'A sua conta é coberta pelo personal. Para usar os programas do sistema, contrate o plano Individual.', code: 'PRO_DETACH_ONLY' })
         // aluno com mensalidade própria desvincula a ficha (vira histórico, somente leitura); o vínculo com o personal continua
         await q(`update pro_plans set status='arquivado', archived_at=now(), updated_at=now() where id=$1 and status='ativo'`, [cur.pro_plan.id])
         await q('insert into pro_plan_history(plan_id,actor_id,action,reason) values($1,$2,$3,$4)', [cur.pro_plan.id, u.id, 'desvinculada_aluno', 'o aluno desvinculou a ficha'])

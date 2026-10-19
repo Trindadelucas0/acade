@@ -1,34 +1,30 @@
-// V4.2 — conta nova não liberada (ações travadas no backend), aluno do personal (senha provisória, escopo), liberação pelo admin,
+// Conta aberta, aluno do personal (senha provisória/escopo), suspensão excepcional pelo admin,
 // ficha nova substitui a anterior, exportação LGPD por e-mail (senha + e-mail, 1/24 h, fila).
 import { get, post, login, check, summary, q, PASS } from './v3-lib.mjs'
 import { pool } from '../db/pool.js'
 const adm = await login('admin.e2e@avadesk.local'), p1 = await login('pro1.e2e@avadesk.local')
 const terms = (await get(null, '/api/terms')).d.terms
-// 1) conta nova (domínio fora do auto-desbloqueio de teste) entra travada
+// 1) conta nova nao entra em fila de liberacao; somente suspensao explicita bloqueia
 const em = `lock${Date.now()}@lock.test`
 const reg = await post(null, '/api/auth/register', { name: 'Conta Travada', email: em, password: PASS, accept_terms: true, birth_date: '1990-01-01', terms_version: terms.version })
 const t = reg.d.token
 check(reg.s === 200 && reg.d.user.account_type === 'normal', 'cadastro aberto: conta normal criada')
-check((await get(t, '/api/guided/programs')).s === 200, 'conta não liberada VÊ o catálogo')
+check(!reg.d.user.access_suspended, 'cadastro aberto: conta não nasce suspensa')
+check((await get(t, '/api/guided/programs')).s === 200, 'conta nova vê o catálogo conforme a configuração comercial')
 await post(t, '/api/guided/onboarding', { objetivo: 'hypertrophy', nivel: 'beginner', local: 'gym', dias: 3, minutos: 45, restricoes: [] })
 const prog = (await get(t, '/api/guided/programs')).d.programs[0]
 let r = await post(t, '/api/guided/start', { program_id: prog.id })
-check(r.s === 403 && r.d.code === 'ACCESS_LOCKED', 'conta não liberada não inicia programa (backend)')
-check((await post(t, '/api/posts', { body: 'oi' })).s === 403, 'conta não liberada não publica')
 check((await post(t, '/api/me/theme', { theme: 'dark' })).s === 200, 'preferências continuam liberadas')
 r = await post(t, '/api/billing/cards', { number: '1234567812345670', holder_name: 'X Y', exp_month: 12, exp_year: 2030, cvv: '123' })
 check(r.s === 400 && r.d.code === 'CARD_INVALID', 'conta não liberada pode iniciar pagamento; validação não retorna ACCESS_LOCKED')
 r = await post(t, '/api/me/unlock-request', { reason: 'quero treinar' })
-check(r.s === 201, 'pede liberação'); const rid = r.d.id
-check((await post(t, '/api/me/unlock-request', {})).s === 409, 'um pedido aberto por vez')
-check((await post(p1, '/api/adm/access/decide', { id: rid, action: 'aprovar' })).s === 403, 'só admin decide')
-const lst = (await get(adm, '/api/adm/access')).d
-check(lst.requests.some(x => x.id === rid) && lst.locked_users.some(x => x.email === em), 'admin vê pedido e contas travadas')
-check((await post(adm, '/api/adm/access/decide', { id: rid, action: 'aprovar', note: 'ok' })).s === 200, 'admin aprova')
-check((await post(t, '/api/guided/start', { program_id: prog.id })).s === 200, 'liberada: inicia programa')
+check(r.s === 410 && r.d.code === 'UNLOCK_FLOW_RETIRED', 'pedido de liberação foi aposentado')
 const uid = reg.d.user.id
-check((await post(adm, '/api/adm/access/set', { user_id: uid, unlocked: false, note: 'teste' })).s === 200 && (await post(t, '/api/posts', { body: 'oi' })).s === 403, 'admin bloqueia de novo')
+check((await post(adm, '/api/adm/access/set', { user_id: uid, unlocked: false })).s === 400, 'suspensão exige motivo')
+check((await post(adm, '/api/adm/access/set', { user_id: uid, unlocked: false, note: 'violação de teste' })).s === 200 && (await get(t, '/api/guided/programs')).d.code === 'ACCESS_SUSPENDED', 'admin suspende excepcionalmente e o bloqueio prevalece')
+check((await post(t, '/api/me/unlock-request', {})).d.code === 'ACCESS_SUSPENDED', 'conta suspensa é direcionada ao suporte, sem fila')
 await post(adm, '/api/adm/access/set', { user_id: uid, unlocked: true })
+check((await get(t, '/api/guided/programs')).s === 200, 'reativação devolve o acesso ao estado comercial')
 // 2) personal cria aluno
 const ce = `cli${Date.now()}@lock.test`
 r = await post(p1, '/api/pro/clients', { name: 'Cliente do Personal', email: ce })

@@ -16,7 +16,7 @@ const isUuid = s => /^[0-9a-f-]{36}$/i.test(String(s || ''))
 const has = (u, r) => u.roles.includes(r)
 const txt = (s, n = 2000) => String(s ?? '').trim().slice(0, n)
 const CATS = ['dor', 'desconforto', 'dificuldade', 'duvida', 'outro']
-const PRO_STATES = ['em_analise', 'ativo', 'suspenso', 'encerrado']
+const PRO_STATES = ['ativo', 'suspenso', 'encerrado']
 export const DEFAULT_SETTINGS = { prazo_ocorrencia_horas: 24, prazo_mensagem_horas: 48, comentarios_alunos: false, ranking_percentual_sessao: 80, fuso_horario: 'America/Sao_Paulo', limite_publicacoes_dia: 5, liberacao_prazo_texto: '', auditoria_retencao_dias: 180 }
 
 export async function getSettings(tid) {
@@ -65,14 +65,14 @@ export function habilitacao(p, quals = []) {
   if (!p) return null
   const vs = p.verification_status
   const verif = vs === 'verificado' ? 'aprovado' : vs === 'correcao_solicitada' ? 'reprovado' : quals.length ? 'aguardando' : 'nao_iniciado'
-  const act = p.state === 'ativo' ? 'aprovado' : p.state === 'em_analise' ? 'aguardando' : 'suspenso'
-  const stu = verif   // regra real: POST /api/pro/plans exige verification_status='verificado'; guard('profissional') só confere o papel (não o estado da conta)
-  const pub = act === 'suspenso' ? 'suspenso' : act === 'aprovado' && p.can_publish ? 'aprovado' : 'aguardando'
+  const act = p.state === 'ativo' ? 'aprovado' : 'suspenso'
+  const stu = act === 'aprovado' ? 'aprovado' : 'suspenso'
+  const pub = act === 'suspenso' || p.publication_suspended_at ? 'suspenso' : 'aprovado'
   const D = {
     verificacao: { aprovado: 'Registro profissional verificado.', reprovado: 'A administração pediu correção no seu registro. Revise os dados enviados.', aguardando: 'Seu registro está em análise pela administração.', nao_iniciado: 'Envie seu registro profissional (ex.: CREF) para iniciar a verificação.' },
-    ativacao: { aprovado: 'Conta profissional ativa.', aguardando: 'Sua conta profissional está em análise.', suspenso: p.state === 'encerrado' ? 'Conta profissional encerrada.' : 'Conta profissional suspensa pela administração.' },
-    alunos: { aprovado: 'Você pode cadastrar alunos e criar fichas.', aguardando: 'Liberado assim que o registro profissional for verificado.', nao_iniciado: 'Liberado assim que o registro profissional for verificado.', reprovado: 'Depende da correção do registro profissional.' },
-    publicacao: { aprovado: 'Você pode publicar na comunidade.', aguardando: 'Publicações aguardando autorização. A publicação de conteúdos depende de liberação administrativa.', suspenso: 'Indisponível enquanto a conta estiver suspensa.' },
+    ativacao: { aprovado: 'Conta profissional ativa.', suspenso: p.state === 'encerrado' ? 'Conta profissional encerrada.' : 'Conta profissional suspensa pela administração.' },
+    alunos: { aprovado: 'Você pode cadastrar alunos e criar fichas.', suspenso: 'Indisponível enquanto a conta estiver suspensa.' },
+    publicacao: { aprovado: 'Você pode publicar na comunidade.', suspenso: p.publication_suspended_at ? 'Publicação restringida pela moderação.' : 'Indisponível enquanto a conta estiver suspensa.' },
   }
   const it = (key, label, status) => ({ key, label, status, detail: D[key][status] || null })
   return { items: [it('verificacao', 'Verificação profissional', verif), it('ativacao', 'Ativação da conta', act), it('alunos', 'Acesso a alunos e fichas', stu), it('publicacao', 'Permissão para publicar na comunidade', pub)] }
@@ -92,7 +92,6 @@ export async function linkFailures(tid, studentId, coachId, area) {
   const fail = []
   if (!s || s.status !== 'ativo') fail.push('A conta do aluno não está ativa')
   if (!p || p.state !== 'ativo') fail.push('O profissional não está ativo')
-  if (p && !p.verified) fail.push('O profissional não tem habilitação verificada' + (area ? ' para esta área' : ''))
   if (p) { const lim = await capacitySummary(coachId); if (lim.effective_limit != null && lim.used >= lim.effective_limit) fail.push('O profissional não tem vaga disponível') }
   if (s && s.max_professionals == null) fail.push('O aluno não tem plano de acesso definido')
   else if (s && links >= s.max_professionals) fail.push(`O plano do aluno permite no máximo ${s.max_professionals} profissional(is)`)
@@ -284,7 +283,7 @@ export function proRoutes({ json, readBody }) {
         q(`select cp.*, a.name author_name, p.title plan_title from change_proposals cp join users a on a.id=cp.author_id left join pro_plans p on p.id=cp.plan_id
            where (cp.decider_id=$1 or cp.author_id=$1) and cp.tenant_id=$2 ${history ? '' : "and cp.status='pendente'"} order by cp.created_at desc ${history ? 'limit 200' : ''}`, [u.id, u.tenant_id])])
       const lim = await capacitySummary(u.id)
-      json(res, 200, { profile: prof ? { ...proView(prof), capacity: lim.effective_limit, can_publish: prof.can_publish, habilitacao: habilitacao(prof, quals) } : null, qualifications: quals, students,
+      json(res, 200, { profile: prof ? { ...proView(prof), capacity: lim.effective_limit, can_publish: prof.state === 'ativo' && !prof.publication_suspended_at, habilitacao: habilitacao(prof, quals) } : null, qualifications: quals, students,
         occurrences: occ.rows, threads: th.rows, proposals: pr.rows, capacity: { max: lim.effective_limit, active: lim.used, available: lim.available }, limit: lim })
     },
     'POST /api/pro/profile': async (req, res) => {
@@ -324,7 +323,6 @@ export function proRoutes({ json, readBody }) {
     'POST /api/pro/plans': async (req, res) => {
       const u = await guard('profissional')(req, res, json); if (!u) return
       const b = await readBody(req)
-      if (!has(u, 'admin') && (await q('select verification_status v from professional_profiles where user_id=$1', [u.id])).rows[0]?.v !== 'verificado') return json(res, 403, { error: 'Seu cadastro profissional ainda não foi verificado.', code: 'PERMISSION_DENIED' })
       const title = txt(b.title, 120); if (title.length < 2) return json(res, 400, { error: 'Dê um nome ao plano', code: 'INVALID_INPUT' })
       const exs = (Array.isArray(b.exercises) ? b.exercises : []).slice(0, 40).map(e => ({ exercise_id: txt(e.exercise_id, 80), name: txt(e.name, 120), sets: Math.max(1, Math.min(10, +e.sets || 3)),
         reps_min: e.reps_min ? +e.reps_min : null, reps_max: e.reps_max ? +e.reps_max : (e.reps ? +e.reps : null), load: e.load ? txt(e.load, 30) : null, rest_sec: +e.rest_sec || 60, notes: e.notes ? txt(e.notes, 400) : null })).filter(e => e.exercise_id)
@@ -455,7 +453,7 @@ export function proRoutes({ json, readBody }) {
     'GET /api/adm/users': async (req, res) => {
       const u = await guard('admin')(req, res, json); if (!u) return
       const st = qs(req).get('status'), s = likeTerm(qs(req).get('q'), 100)
-      const r = await q(`select u.id,u.name,u.email,u.status,u.created_at,u.share_code,u.account_type,u.access_unlocked_at,u.last_seen_at,(select m.name from users m where m.id=u.managed_by) managed_by_name,(select pp.verification_status from professional_profiles pp where pp.user_id=u.id) verification,
+      const r = await q(`select u.id,u.name,u.email,u.status,u.created_at,u.share_code,u.account_type,u.access_unlocked_at,u.access_suspended_at,u.access_suspension_reason,u.last_seen_at,(select m.name from users m where m.id=u.managed_by) managed_by_name,(select pp.verification_status from professional_profiles pp where pp.user_id=u.id) verification,
           coalesce((select json_agg(json_build_object('audience',s.audience,'plan',p.name,'status',s.status,'over_limit',s.over_limit) order by s.audience) from subscriptions s join plans p on p.id=s.plan_id where s.user_id=u.id and s.status<>'cancelada'),'[]') subs, coalesce(array_agg(distinct ur.role_id) filter (where ur.role_id is not null),'{}') roles,
           u.access_unlocked_at, u.account_type, uap.plan_id, ap.max_professionals, (select count(*) from coach_students cs where cs.student_id=u.id and cs.status='ativo')::int links
         from users u left join user_roles ur on ur.user_id=u.id left join user_access_plans uap on uap.user_id=u.id left join access_plans ap on ap.id=uap.plan_id
@@ -470,7 +468,7 @@ export function proRoutes({ json, readBody }) {
       const r = await q(`update users set status=$2, approved_by=case when $2='ativo' then $3::uuid else approved_by end, approved_at=case when $2='ativo' then now() else approved_at end where id=$1 and tenant_id=$4 returning id`, [b.id, b.status, u.id, u.tenant_id])
       if (!r.rowCount) return json(res, 404, { error: 'Usuário não encontrado', code: 'NOT_FOUND' })
       await audit(u.tenant_id, u.id, 'conta.' + b.status, 'user', b.id, { reason: txt(b.reason, 300) || null })
-      if (b.status === 'ativo') await notify(b.id, 'conta', 'Seu cadastro foi ativado', 'O cadastro está ativo. A liberação das ações do aplicativo é administrada separadamente.', '/hoje')
+      if (b.status === 'ativo') await notify(b.id, 'conta', 'Seu cadastro foi ativado', 'O acesso aos recursos segue automaticamente o plano ou benefício vigente.', '/hoje')
       json(res, 200, { ok: true })
     },
     'POST /api/adm/users/role': async (req, res) => {
@@ -689,8 +687,8 @@ export function proRoutes({ json, readBody }) {
     'POST /api/adm/assign': async (req, res) => {
       const u = await guard('admin')(req, res, json); if (!u) return
       const b = await readBody(req)
-      const p = (await q(`select pp.state from professional_profiles pp where pp.user_id=$1 and exists(select 1 from professional_qualifications q where q.user_id=pp.user_id and q.status='verificada')`, [b.professional_id])).rows[0]
-      if (!p || p.state !== 'ativo') return json(res, 409, { error: 'Designe um profissional ativo e com habilitação verificada', code: 'CONFLICT' })
+      const p = (await q(`select pp.state from professional_profiles pp where pp.user_id=$1`, [b.professional_id])).rows[0]
+      if (!p || p.state !== 'ativo') return json(res, 409, { error: 'Designe um profissional ativo', code: 'CONFLICT' })
       const table = b.type === 'thread' ? 'threads' : 'occurrences'
       const st = await getSettings(u.tenant_id), hours = b.type === 'thread' ? +st.prazo_mensagem_horas : +st.prazo_ocorrencia_horas
       const extra = table === 'occurrences' ? ', admin_review_required = false' : ''   // revisão registrada abaixo (review_reason)

@@ -69,14 +69,25 @@ Assinaturas e cartões do simulador/sandbox não são convertidos em cobranças 
 ## Checklist de ativação
 
 1. Confirmar conta aprovada, chave Pix e tokenização de cartão.
-2. Conferir no admin os preços dos planos Individual e PRO e se estão à venda.
+2. Confirmar os preços oficiais: Individual R$ 12,90/mês, Personal 15 R$ 39,90/mês e Personal Ilimitado R$ 79,90/mês. Durante a homologação, todos permanecem fora de venda.
 3. Conferir monetização, carência e regras comerciais.
 4. Fazer backup do banco e do `.env`.
-5. Aplicar as migrations pendentes, inclusive `057_cobranca_pix.sql`.
+5. Aplicar as migrations pendentes, inclusive `057_cobranca_pix.sql` e `062_cupons_indicacao_personalizados.sql`. A 062 preserva concessões antigas, remove teste automático de planos e pausa a distribuição automática anterior.
 6. Preencher as quatro variáveis no `.env` privado.
 7. Executar `pm2 restart avagym-api --update-env`.
 8. Abrir **Admin → Cobrança, preços e cupons → Visão geral** e confirmar **Asaas (produção)**.
 9. Fazer uma cobrança real controlada de baixo valor e confirmar cobrança, assinatura e entrega do webhook no Asaas.
+10. Só depois da homologação, marcar os planos como vendáveis e habilitar a monetização pública.
+
+Qualquer API Key ou token de webhook compartilhado em chat, chamado, print ou log deve ser revogado. A substituição deve ser criada no painel Asaas e gravada diretamente no `.env` privado; o valor não entra em documentação nem no histórico Git.
+
+## Preparação executada em 18/10/2026
+
+- Backup prévio criado em `/opt/avagym-backups/20261018_164911_pre-asaas-production`, com dump e `.env` protegidos por permissão 600; catálogo do dump validado dentro do container PostgreSQL.
+- Produção: Individual R$ 12,90, Personal 15 R$ 39,90 e Personal Ilimitado R$ 79,90, todos `sellable=false`; Personal 15 com 15 alunos e Personal Ilimitado com capacidade sem limite numérico.
+- `monetizacao_ativa=false`; catálogo público confirmou os dois planos pagos como não compráveis.
+- O endpoint de webhook respondeu 401 sem token, conforme esperado.
+- O ambiente permanece Asaas sandbox. A virada real aguarda revogação dos segredos expostos e criação das novas credenciais diretamente no painel Asaas.
 
 A publicação do código, sozinha, não ativa o Asaas. Sem a troca explícita do provedor, o sistema permanece no simulador.
 

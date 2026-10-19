@@ -51,7 +51,7 @@ function Painel({ go }) {
     <h2>Atividade recente dos alunos</h2>
     <div className="g-card g-list">{d.activity.length ? d.activity.map(a => <button key={a.id} className="g-li" onClick={() => go('alunos', { id: a.student_id })}>
       <Av name={a.student} size={40} /><span><b>{a.student}</b><br /><span className="g-mut g-xs">{a.workout_name || 'Treino'} · {a.sets_count || 0} séries · {dt(a.started_at)}</span></span></button>) : <Empty icon="chart">Nenhum treino registrado ainda.</Empty>}</div>
-    {d.state !== 'ativo' && <p className="g-note" style={{ marginTop: 12 }}>Seu perfil está “{d.state.replace('_', ' ')}”. Novos vínculos dependem de perfil ativo e habilitação verificada.</p>}
+    {d.state !== 'ativo' && <p className="g-note" style={{ marginTop: 12 }}>Seu perfil está “{d.state.replace('_', ' ')}”. Fale com o suporte para revisar a situação.</p>}
   </>
 }
 

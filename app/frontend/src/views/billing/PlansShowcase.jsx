@@ -1,15 +1,15 @@
 // Pagina de planos (redesenho 16/10, feedback do Lucas): cards com preco grande/mes, badge "Mais escolhido" no PRO,
-// beneficios com icones, CTA claro, alternancia aluno/personal, selo do teste de 7 dias com cupom e FAQ curto.
+// beneficios com icones, CTA claro, alternancia aluno/personal e FAQ curto.
 // Preco vem SEMPRE do admin (price_cents); sem preco: "Em breve", nunca vazio. Usado em #/precos, #/assinatura,
 // cadastro (etapa 3) e Perfil > Meu plano.
 import { useState } from 'react'
 import Icon from '../../components/Icon.jsx'
 import './plans.css'
 
-export const SELLABLE = ['individual', 'pro']
-const AUD_OF = { individual: 'aluno', pro: 'profissional' }
-const TAG = { individual: 'Para quem treina', pro: 'Para personal trainers' }
-const PITCH = { individual: 'Seu treino com método, do primeiro dia ao recorde.', pro: 'Prescreva, acompanhe e faça seus alunos evoluírem.' }
+export const SELLABLE = ['individual', 'pro', 'pro_ilimitado']
+const AUD_OF = { individual: 'aluno', pro: 'profissional', pro_ilimitado: 'profissional' }
+const TAG = { individual: 'Para quem treina', pro: 'Para personal trainers', pro_ilimitado: 'Para personal trainers' }
+const PITCH = { individual: 'Seu treino com método, do primeiro dia ao recorde.', pro: 'Prescreva, acompanhe e faça seus alunos evoluírem.', pro_ilimitado: 'Atenda sem limite de alunos, com toda a estrutura profissional.' }
 // beneficios reais do produto; `f` = recurso do plano que precisa estar ligado para o item aparecer (null = sempre)
 const BEN = {
   individual: [['dumbbell', 'Programas guiados para o seu objetivo', 'programas_guiados'], ['timer', 'Execução guiada com cronômetro de descanso', 'execucao'],
@@ -19,18 +19,19 @@ const BEN = {
     ['clipboard', 'Prescrição e acompanhamento dos alunos', 'prescrever'], ['globe', 'Publicação de fichas na biblioteca pública', 'fichas_publicas'],
     ['chat', 'Conversas e ocorrências com cada aluno', null], ['dumbbell', 'Seu próprio treino incluído', null]]
 }
+BEN.pro_ilimitado = [['users', 'Alunos ativos ilimitados', null], ...BEN.pro.slice(1)]
 const money = c => (c / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 export function benefitsOf(p) {
   return (BEN[p.id] || []).filter(([, , f]) => !f || p.features?.[f] !== false).map(([icon, t]) => [icon, typeof t === 'function' ? t(p) : t])
 }
 export function Price({ p }) {
-  if (p.price_cents == null || p.price_cents <= 0) return <div className="pl-price pl-soon" data-testid={'price-' + p.id}><span className="pl-soon-pill">Em breve</span><small>Preço sendo definido. Comece pelo teste de 7 dias com cupom.</small></div>
+  if (p.price_cents == null || p.price_cents <= 0) return <div className="pl-price pl-soon" data-testid={'price-' + p.id}><span className="pl-soon-pill">Em breve</span><small>Preço sendo definido.</small></div>
   const [int, dec] = money(p.price_cents).split(',')
   return <div className="pl-price" data-testid={'price-' + p.id}><span className="pl-cur">R$</span><b>{int}</b><span className="pl-dec">,{dec}</span><span className="pl-per">/mês</span></div>
 }
 export function TrialSeal({ compact }) {
-  return <div className={'pl-seal' + (compact ? ' pl-seal-c' : '')} data-testid="trial-seal"><Icon name="sparkles" /><span><b>7 dias grátis</b> com cupom{compact ? '' : ' · sem cartão, sem cobrança automática'}</span></div>
+  return <div className={'pl-seal' + (compact ? ' pl-seal-c' : '')} data-testid="trial-seal"><Icon name="sparkles" /><span><b>Período gratuito</b> com cupom{compact ? '' : ' · sem cartão e sem cobrança automática'}</span></div>
 }
 export function PlanCard({ p, cta, current, selected, onSelect, compact }) {
   const best = p.id === 'pro'
@@ -43,7 +44,6 @@ export function PlanCard({ p, cta, current, selected, onSelect, compact }) {
     <h3 className="pl-name">{p.name}</h3>
     <p className="pl-pitch">{PITCH[p.id] || p.description}</p>
     <Price p={p} />
-    <TrialSeal compact />
     <ul className="pl-bens">{benefitsOf(p).slice(0, compact ? 4 : 9).map(([i, t]) => <li key={t}><span className="pl-ico"><Icon name={i} /></span>{t}</li>)}</ul>
     {cta && <div className="pl-cta">{cta(p)}</div>}
   </Tag>
@@ -66,7 +66,7 @@ export function PlanGrid({ plans, cta, current = {}, initialAud = 'aluno', lockA
   </div>
 }
 const FAQ = [
-  ['Como funciona o teste de 7 dias?', 'Com um cupom de teste ou o código de indicação de um amigo, você usa tudo do plano por 7 dias (168 horas). O teste é único por pessoa.'],
+  ['Como funciona o período gratuito?', 'Alguns cupons liberam o plano por um período definido na oferta. O período gratuito é único por pessoa.'],
   ['Preciso de cartão para testar?', 'Não. O teste com cupom não pede cartão e não vira cobrança automática. Você assina só se quiser.'],
   ['Posso cancelar quando quiser?', 'Sim. O cancelamento é feito no app e o acesso continua até o fim do período já pago.'],
   ['O que acontece com meus dados se eu não assinar?', 'Nada se perde: treinos, histórico e progresso ficam guardados e voltam quando você assinar.'],

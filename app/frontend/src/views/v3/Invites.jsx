@@ -11,7 +11,7 @@ export default function Invites({ compact = false }) {
   const [form, setForm] = useState(null), [cancel, setCancel] = useState(null), [busy, setBusy] = useState(false), [msg, setMsg] = useState(''), [created, setCreated] = useState(null)
   if (err) return <Err msg={err} retry={reload} />
   if (!d) return <Load />
-  const full = d.limit != null && d.active >= d.limit, verified = d.verification === 'verificado'
+  const full = d.limit != null && d.active >= d.limit
   const create = async () => {
     setBusy(true); setMsg('')
     try { const r = await V.createInvite({ student_code: form.student_code || undefined, message: form.message || undefined }); setCreated(r); setForm(null); reload() }
@@ -25,8 +25,8 @@ export default function Invites({ compact = false }) {
       {d.limit != null && <div style={{ height: 8, borderRadius: 8, background: '#ffffff14', marginTop: 6 }}><i style={{ display: 'block', height: 8, borderRadius: 8, width: Math.min(100, d.active / Math.max(1, d.limit) * 100) + '%', background: 'var(--ag-acc)' }} /></div>}
       </>}
       {d.over_limit && <p className="g-warn g-sm">Acima do limite do plano: seus alunos continuam, mas novos vínculos ficam bloqueados.</p>}
-      {!verified && <p className="g-note g-sm">Cadastro profissional: <b>{VER_PT[d.verification]}</b>. Convites só depois da verificação.</p>}
-      <button className="g-btn" style={{ marginTop: 12 }} disabled={!verified} onClick={() => full ? window.dispatchEvent(new CustomEvent('avagym:plan-error', { detail: { code: 'LIMIT_REACHED', error: `Seu plano permite ${d.limit} alunos ativos e você já tem ${d.active}.`, metric: 'alunos_ativos', used: d.active, limit: d.limit } })) : setForm({ student_code: '', message: '' })} data-testid="inv-new">
+      {d.verification !== 'verificado' && <p className="g-note g-sm">Cadastro profissional: <b>{VER_PT[d.verification]}</b>. Essa informação é opcional e não impede seus convites.</p>}
+      <button className="g-btn" style={{ marginTop: 12 }} onClick={() => full ? window.dispatchEvent(new CustomEvent('avagym:plan-error', { detail: { code: 'LIMIT_REACHED', error: `Seu plano permite ${d.limit} alunos ativos e você já tem ${d.active}.`, metric: 'alunos_ativos', used: d.active, limit: d.limit } })) : setForm({ student_code: '', message: '' })} data-testid="inv-new">
         <Icon name="plus" /> Convidar aluno</button>
     </div>
     {created && <div className="g-card" style={{ marginTop: 12, borderColor: 'var(--ag-acc)' }} data-testid="inv-created">

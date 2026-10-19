@@ -30,6 +30,8 @@ try {
   const u = (await q(`insert into users(tenant_id,name,email,password_hash,status) values($1,$2,$3,$4,'ativo') returning id`, [t.id, name, email, await bcrypt.hash(p1, 12)])).rows[0]
   await q(`insert into user_roles values($1,$2,'admin') on conflict do nothing`, [u.id, t.id])
   await q(`insert into term_acceptances(user_id,version) select $1, version from terms_versions on conflict do nothing`, [u.id])
+  const legalVersion = (await q(`select coalesce(value->>'doc_version','1.0') version from app_settings where tenant_id=$1 and key='empresa_legal'`, [t.id])).rows[0]?.version || '1.0'
+  for (const document of ['termos_uso', 'privacidade']) await q(`insert into legal_acceptances(tenant_id,user_id,document,version,granted,ip,user_agent) values($1,$2,$3,$4,true,'127.0.0.1','create-admin')`, [t.id, u.id, document, legalVersion])
   await q(`insert into audit_log(tenant_id,actor_id,action,entity,entity_id,data) values($1,$2,'admin.criado_cli','user',$2,'{}')`, [t.id, u.id]).catch(() => {})
   if (auto) console.log(`SENHA (mostrada só agora): ${p1}`)
   console.log(`Administrador criado: ${email}. Entre em http://localhost:4449 com esse e-mail e senha.`)

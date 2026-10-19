@@ -39,7 +39,7 @@ function Geral() {
     <div className="adm-row2" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
       <label className="adm-field">De<input className="adm-in" type="date" value={f.from} onChange={x => setF({ ...f, from: x.target.value })} /></label>
       <label className="adm-field">Até<input className="adm-in" type="date" value={f.to} onChange={x => setF({ ...f, to: x.target.value })} /></label>
-      <label className="adm-field">Plano<select className="adm-in" value={f.plan} onChange={x => setF({ ...f, plan: x.target.value })}><option value="">Todos</option><option value="individual">Individual</option><option value="pro">PRO</option></select></label>
+      <label className="adm-field">Plano<select className="adm-in" value={f.plan} onChange={x => setF({ ...f, plan: x.target.value })}><option value="">Todos</option><option value="individual">Individual</option><option value="pro">Personal 15</option><option value="pro_ilimitado">Personal Ilimitado</option></select></label>
       <label className="adm-field">Canal<input className="adm-in" value={f.channel} placeholder="ex.: instagram" onChange={x => setF({ ...f, channel: x.target.value })} /></label>
     </div>
     {e ? <p className="bl-err">{e}</p> : !d ? <p>Carregando…</p> : <>
@@ -84,7 +84,7 @@ function CuponsV2() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 8 }}>
         <label className="adm-field">Campanha<select className="adm-in" value={f.campaign_id} onChange={x => setF({ ...f, campaign_id: x.target.value })} data-testid="cv2-campaign"><option value="">Escolha</option>{(camps?.campaigns || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
         <label className="adm-field">Código<input className="adm-in" value={f.code} onChange={x => setF({ ...f, code: x.target.value.toUpperCase() })} data-testid="cv2-code" /></label>
-        <label className="adm-field">Tipo<select className="adm-in" value={f.kind} onChange={x => setF({ ...f, kind: x.target.value })} data-testid="cv2-kind"><option value="teste">Teste (7 dias)</option><option value="indicacao">Indicação (7 dias + indicador)</option></select></label>
+        <label className="adm-field">Tipo<select className="adm-in" value={f.kind} onChange={x => setF({ ...f, kind: x.target.value })} data-testid="cv2-kind"><option value="teste">Período gratuito</option><option value="indicacao">Indicação + responsável</option></select></label>
         <label className="adm-field">Usuário responsável (e-mail){f.kind === 'indicacao' ? ' *' : ''}<input className="adm-in" value={f.owner_email} onChange={x => setF({ ...f, owner_email: x.target.value })} data-testid="cv2-owner" /></label>
         <label className="adm-field">Perfil<select className="adm-in" value={f.eligible_audience} onChange={x => setF({ ...f, eligible_audience: x.target.value })}><option value="">Aluno e profissional</option><option value="aluno">Só aluno</option><option value="profissional">Só profissional</option></select></label>
         <label className="adm-field">Canal<input className="adm-in" value={f.channel} placeholder="instagram, academia…" onChange={x => setF({ ...f, channel: x.target.value })} /></label>
@@ -98,7 +98,7 @@ function CuponsV2() {
       ['uso', 'Usos', r => `${r.redemptions_count}${r.max_redemptions ? '/' + r.max_redemptions : ''}`], ['testes', 'Testes'], ['convertidos', 'Convertidos'], ['ends_at', 'Validade', r => dt(r.ends_at)],
       ['acoes', 'Ações', r => <span style={{ display: 'flex', gap: 4 }}>{r.status !== 'ativo' && <button className="adm-btn ghost" onClick={() => status(r.id, 'ativo')}>Ativar</button>}{r.status === 'ativo' && <button className="adm-btn ghost" onClick={() => status(r.id, 'pausado')}>Suspender</button>}{r.status !== 'revogado' && <button className="adm-btn ghost" onClick={() => status(r.id, 'revogado')}>Revogar</button>}<button className="adm-btn ghost" onClick={() => api('/api/adm/monetizacao/cupons/historico?id=' + r.id).then(h => setHist({ code: r.code, rows: h.historico }))}>Histórico</button></span>]]} />}
     {hist && <div className="adm-card"><h3>Histórico de {hist.code}</h3><Table rows={hist.rows} cols={[['created_at', 'Quando', r => dt(r.created_at)], ['actor', 'Quem'], ['action', 'Ação'], ['reason', 'Motivo'], ['after', 'Depois', r => <code className="g-xs">{JSON.stringify(r.after).slice(0, 80)}</code>]]} /><button className="adm-btn ghost" onClick={() => setHist(null)}>Fechar</button></div>}
-    <h3 style={{ marginTop: 14 }}>Testes concedidos (168h)</h3>
+    <h3 style={{ marginTop: 14 }}>Períodos gratuitos concedidos</h3>
     <Table testid="cv2-trials" rows={testes?.testes} cols={[['name', 'Pessoa'], ['audience', 'Perfil'], ['plan_id', 'Plano'], ['source', 'Origem'], ['code', 'Cupom'], ['ends_at', 'Termina', r => dt(r.ends_at)], ['status', 'Status'], ['x', '', r => r.status === 'ativo' ? <button className="adm-btn ghost" onClick={() => revokeTrial(r.id)}>Revogar</button> : null]]} />
     <details style={{ marginTop: 12 }}><summary>Campanhas e cupons de desconto (tela clássica)</summary><Cupons /></details>
   </div>

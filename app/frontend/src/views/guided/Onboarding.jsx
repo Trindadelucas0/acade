@@ -8,7 +8,7 @@ import './guided.css'
 
 const STEPS = [
   { k: 'objetivo', q: 'Qual é o seu objetivo?', sub: 'Escolha um. O ORNY encontra o programa certo para você.',
-    opts: GOALS.map(([v, l, i]) => ({ v, l, i, s: { hypertrophy: 'Ganhar músculos e definição', weight_loss: 'Perder gordura e ganhar disposição', strength: 'Levantar mais peso com segurança', conditioning: 'Mais fôlego e resistência', mobility: 'Corpo mais solto e boa postura', home: 'Treinar sem sair de casa', rehab: 'Voltar a treinar com cuidado' }[v] })) },
+    opts: GOALS.map(([v, l, i]) => ({ v, l, i, s: { hypertrophy: 'Ganhar músculos e definição', weight_loss: 'Perder gordura e ganhar disposição', strength: 'Levantar mais peso com segurança', conditioning: 'Mais fôlego e resistência', mobility: 'Corpo mais solto e boa postura', home: 'Treinar sem sair de casa' }[v] })) },
   { k: 'nivel', q: 'Você já treina?', sub: 'Sem problema se estiver começando agora.',
     opts: [{ v: 'beginner', l: 'Estou começando', s: 'Nunca treinei ou parei há muito tempo', i: 'sparkles' }, { v: 'intermediate', l: 'Já treino', s: 'Treino há alguns meses', i: 'bolt' }, { v: 'advanced', l: 'Treino há anos', s: 'Conheço bem os exercícios', i: 'trophy' }] },
   { k: 'local', q: 'Onde você vai treinar?', sub: '',

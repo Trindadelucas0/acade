@@ -14,6 +14,12 @@ for (const [email, name, roles] of [['admin.e2e@avadesk.local', 'Admin E2E', ['a
   await q('update users set access_unlocked_at=coalesce(access_unlocked_at, now()) where id=$1', [u.id])
   // contas de teste já aceitaram a versão vigente dos termos
   await q(`insert into term_acceptances(user_id,version) select $1, version from terms_versions on conflict do nothing`, [u.id])
+  // O gate atual usa legal_acceptances; a fixture deve nascer em estado válido e independente do histórico do banco.
+  const legalVersion = (await q(`select coalesce(value->>'doc_version','1.0') version from app_settings where tenant_id=$1 and key='empresa_legal'`, [t])).rows[0]?.version || '1.0'
+  for (const document of ['termos_uso', 'privacidade', ...(roles.includes('profissional') ? ['profissional'] : [])])
+    await q(`insert into legal_acceptances(tenant_id,user_id,document,version,granted,ip,user_agent)
+      select $1,$2,$3,$4,true,'127.0.0.1','fixture-e2e' where not exists
+      (select 1 from legal_acceptances where user_id=$2 and document=$3 and version=$4 and granted)`, [t, u.id, document, legalVersion])
   // zera a janela de 24h do limite diário de publicações (repetições do smoke no mesmo dia); não apaga nada
   if (roles.includes('profissional')) await q(`update posts set created_at = created_at - interval '25 hours' where author_id=$1 and created_at > now() - interval '24 hours'`, [u.id])
   // V3: os profissionais fixos do smoke acumulam alunos de várias execuções → concessão de teste (+1000 alunos ativos, 1 ano)

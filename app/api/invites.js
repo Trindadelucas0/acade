@@ -114,9 +114,9 @@ export function inviteRoutes({ json, readBody }) {
         else if (i.professional_id === u.id) bad(400, { error: 'Você não pode aceitar o próprio convite' })
         else if (i.status !== 'pendente' || i.expires_at < new Date()) bad(410, { error: i.status === 'aceito' ? 'Este convite já foi usado' : 'Convite expirado ou cancelado', status: i.status })
         if (!out) {
-          // revalida o profissional NO ACEITE (pode ter sido suspenso/desverificado depois do convite)
-          const p = (await c.query(`select state, capacity, verification_status from professional_profiles where user_id=$1`, [i.professional_id])).rows[0]
-          if (!p || p.state !== 'ativo' || p.verification_status !== 'verificado') bad(409, { error: 'Este profissional não pode receber novos alunos agora', code: 'PERMISSION_DENIED' })
+          // Revalida apenas suspensao/encerramento. Verificacao cadastral nao bloqueia o uso do plano PRO.
+          const p = (await c.query(`select state, capacity from professional_profiles where user_id=$1`, [i.professional_id])).rows[0]
+          if (!p || p.state !== 'ativo') bad(409, { error: 'Este profissional não pode receber novos alunos agora', code: 'PERMISSION_DENIED' })
         }
         if (!out && (await c.query(`select 1 from coach_students where coach_id=$1 and student_id=$2 and status='ativo'`, [i.professional_id, u.id])).rowCount) bad(409, { error: 'Você já é acompanhado por este profissional', code: 'ALREADY_LINKED' })
         if (!out) {

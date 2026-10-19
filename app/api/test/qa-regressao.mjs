@@ -42,18 +42,17 @@ test('BUG-001: aceite pelo fluxo antigo (/api/terms/accept) tambem grava legal_a
   assert.equal(!!u.needs_terms, false)
 })
 
-test('BUG-002 (AD-27): liberar a conta encerra o pedido pendente', async () => {
+test('fluxo antigo: pedido pendente e encerrado sem criar nova fila de liberacao', async () => {
   const adm = await account('adm'), al = await account('al')
   const t = (await pool.query('select tenant_id from users where id=$1', [adm.id])).rows[0].tenant_id
   await pool.query(`insert into user_roles values($1,$2,'admin') on conflict do nothing`, [adm.id, t])
-  await pool.query('update users set access_unlocked_at=null where id=$1', [al.id])
   const pr = await call(al.jar, 'POST', '/api/me/unlock-request', { message: 'QA pedido ficticio' })
-  assert.ok(pr.s < 300, JSON.stringify(pr.d))
-  assert.equal(+(await pool.query(`select count(*) from unlock_requests where user_id=$1 and status='pendente'`, [al.id])).rows[0].count, 1)
+  assert.equal(pr.s, 410, JSON.stringify(pr.d))
+  assert.equal(+(await pool.query(`select count(*) from unlock_requests where user_id=$1 and status='pendente'`, [al.id])).rows[0].count, 0)
   const s = await call(adm.jar, 'POST', '/api/adm/access/set', { user_id: al.id, unlocked: true, note: 'QA' })
   assert.equal(s.s, 200, JSON.stringify(s.d))
   const rows = (await pool.query('select status from unlock_requests where user_id=$1', [al.id])).rows
-  assert.deepEqual(rows.map(r => r.status), ['aprovada'])
+  assert.ok(rows.every(r => r.status !== 'pendente'))
   const fila = await call(adm.jar, 'GET', '/api/adm/access')
   assert.equal(fila.s, 200)
   const reqs = (fila.d.requests || fila.d.reqs || []).filter(r => r.user_id === al.id)

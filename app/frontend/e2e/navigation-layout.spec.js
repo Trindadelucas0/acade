@@ -18,6 +18,7 @@ async function setup(page, role, theme) {
     else if (u.pathname === '/api/pro/templates') data = {templates:[]}
     else if (u.pathname === '/api/pro/students') data = {students:[]}
     else if (u.pathname === '/api/feed') data = {posts:[]}
+    else if (u.pathname === '/api/adm/community/editorial') data = {posts:[{id:'official-1',title:'Conteúdo programado',body:'Texto oficial',category:'comunicados',state:'agendado',status:'publicado',publish_at:'2026-10-25T12:00:00.000Z',likes:0,comments:0}]}
     else if (u.pathname.includes('subscriptions')) data = {subscriptions:{aluno:{active:true,features:{ranking:true,progresso:true,programas_guiados:true}}}}
     else if (u.pathname.includes('tours')) data = {tours:{}}
     else if (u.pathname.includes('theme')) data = {theme}
@@ -61,8 +62,9 @@ for (const role of ['aluno','profissional','admin']) for (const width of [320,39
     if (role === 'aluno') {
       await page.goto('/#/programas')
       await expect(page.getByRole('combobox',{name:'Objetivo',exact:true})).toBeVisible()
-      await page.getByRole('combobox',{name:'Objetivo',exact:true}).click(); await page.locator('[role=option][data-value="rehab"]').click()
-      await expect(page.getByRole('combobox',{name:'Objetivo',exact:true})).toHaveAttribute('data-value','rehab')
+      await page.getByRole('combobox',{name:'Objetivo',exact:true}).click(); await page.locator('[role=option][data-value="mobility"]').click()
+      await expect(page.getByRole('combobox',{name:'Objetivo',exact:true})).toHaveAttribute('data-value','mobility')
+      await expect(page.locator('[role=option][data-value="rehab"]')).toHaveCount(0)
       await fit(page)
       await page.goto('/#/progresso')
       await expect(page.getByTestId('progress-trophies')).toBeVisible()   // V4.3: layout de d8c2591, sem abas
@@ -89,6 +91,9 @@ for (const role of ['aluno','profissional','admin']) for (const width of [320,39
       await expect(page.getByRole('complementary',{name:'Menu administrativo'})).toBeVisible()
       await page.getByTestId('adm-publicacoes').click()
       await expect(page.getByRole('tab',{name:'Moderação',exact:true})).toBeVisible()
+      await page.getByRole('tab',{name:'Conteúdo oficial',exact:true}).click()
+      await expect(page.getByTestId('official-seed')).toBeVisible()
+      await expect(page.getByText('Conteúdo programado',{exact:true})).toBeVisible()
       await fit(page)
     }
   })

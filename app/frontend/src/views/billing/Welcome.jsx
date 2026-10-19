@@ -50,7 +50,7 @@ export function WelcomeModal({ w, name, onClose, onGo, onShown }) {
   return <div ref={root} className="wl-back" role="dialog" aria-modal="true" aria-labelledby="wl-ttl" data-testid="welcome-modal">
     <div className="wl-card">
       <div className="wl-hero"><span className="wl-burst" aria-hidden="true"><Icon name="sparkles" /></span>
-        <span className="wl-eyebrow">{w.kind === 'teste' ? 'Teste de 7 dias ativado' : 'Assinatura confirmada'}</span>
+        <span className="wl-eyebrow">{w.kind === 'teste' ? 'Período gratuito ativado' : 'Assinatura confirmada'}</span>
         <h2 id="wl-ttl">Obrigado{name ? ', ' + name : ''}!</h2>
         <p>{w.kind === 'teste' ? <>Seu teste do plano <b>{w.plan_name}</b> está valendo{w.until ? <> até <b>{dBR(w.until)}</b></> : ''}. Aproveite tudo, sem cartão e sem cobrança automática.</>
           : <>Seu plano <b>{w.plan_name}</b> está ativo. Tudo abaixo já está liberado para você.</>}</p>
@@ -60,7 +60,7 @@ export function WelcomeModal({ w, name, onClose, onGo, onShown }) {
       <ul className="wl-list">{items.map(([icon, t, d, to]) => <li key={to}>
         <button onClick={() => onGo(to)} data-testid={'welcome-go-' + to.replace(/[^a-z]/g, '')}><span className="wl-ico"><Icon name={icon} /></span>
           <span className="wl-t"><b>{t}</b><small>{d}</small></span><span className="wl-arrow" aria-hidden="true">›</span></button></li>)}</ul>
-      <button className="wl-main" onClick={() => onGo(w.audience === 'profissional' ? '/pro' : '/hoje')} data-testid="welcome-start">Começar agora</button>
+      <button className="wl-main" onClick={() => onGo(w.audience === 'profissional' ? '/pro' : '/recomendados')} data-testid="welcome-start">{w.audience === 'profissional' ? 'Começar agora' : 'Encontrar minha ficha'}</button>
       <button className="wl-later" onClick={onClose} data-testid="welcome-close">Fechar</button>
     </div>
   </div>

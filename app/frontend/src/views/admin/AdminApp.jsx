@@ -13,7 +13,7 @@ import { useLoad } from '../app/kit.jsx'
 import { ask, askText, showValue, notify, notifyError } from '../../lib/dialog.js'
 import { UserWorkouts, Profissionais, Planos, Vinculos, Filas, Config, EXTRA } from '../app/AdminPanel.jsx'
 import '../guided/guided.css'
-import { UserEdit, ProEdit, StudentRecord, StudentTraining, Publicacoes, ExerciseEdit } from './AdminCrud.jsx'
+import { UserEdit, ProEdit, StudentRecord, StudentTraining, Publicacoes, ConteudoOficial, ExerciseEdit } from './AdminCrud.jsx'
 import AdmVerifications from '../v3/AdmVerifications.jsx'
 import AdmSubscriptions from '../v3/AdmSubscriptions.jsx'
 import AdmUser360 from '../v3/AdmUser360.jsx'
@@ -73,13 +73,13 @@ function Usuarios({ pendingOnly = false }) {
   return <>
     <div className="adm-tools"><button className="adm-btn" onClick={() => setNovo(true)} data-testid="nu-open">+ Novo usuário</button></div>
     {novo && <NovoUsuario plans={(pl?.plans || []).filter(p => p.active)} onClose={() => setNovo(false)} onDone={reload} />}
-    {err ? <p className="g-warn">{err}</p> : <DataTable name="usuarios" cols={cols} rows={pendingOnly ? d?.users?.filter(u => u.status === 'pendente' || (!u.roles.includes('admin') && !u.access_unlocked_at)) : d?.users} onRow={r => { setSel(r.id); setDt('v360') }}
+    {err ? <p className="g-warn">{err}</p> : <DataTable name="usuarios" cols={cols} rows={pendingOnly ? d?.users?.filter(u => u.status === 'pendente' || u.access_suspended_at) : d?.users} onRow={r => { setSel(r.id); setDt('v360') }}
       filters={<select className="adm-in" value={st} onChange={e => setSt(e.target.value)} aria-label="Status" data-testid="usr-status"><option value="">Todos os status</option><option value="pendente">Pendentes</option><option value="ativo">Ativos</option><option value="bloqueado">Bloqueados</option></select>} />}
     {u && <UserPanel key={u.id} u={u} onClose={() => setSel(null)} reload={reload} pros={pros?.professionals} reloadPros={reloadPros} onDeleted={() => { setSel(null); reload() }} />}
   </>
 }
 
-// Admin cria conta já liberada (aluno ou profissional). Depois, a mesma conta pode ganhar o outro papel.
+// Admin cria conta (aluno ou profissional). O acesso aos recursos segue o plano.
 function NovoUsuario({ plans, onClose, onDone }) {
   const [f, setF] = useState({ type: 'aluno', name: '', email: '', password: '', plan_id: '', coach_id: '', area: '', can_publish: false, q_kind: 'CREF', q_number: '', q_verified: false })
   const [errs, setErrs] = useState({}), [msg, setMsg] = useState(''), [busy, setBusy] = useState(false), [res, setRes] = useState(null)
@@ -124,7 +124,7 @@ function NovoUsuario({ plans, onClose, onDone }) {
         <label className="g-row" style={{ gap: 8, minHeight: 44 }}><input type="checkbox" checked={f.q_verified} onChange={set('q_verified')} data-testid="nu-qver" /> Habilitação conferida pelo admin (verificada)</label>
       </>}
       {msg && <p className="g-warn" role="alert">{msg}</p>}
-      <div className="adm-tools"><button className="adm-btn" disabled={busy} data-testid="nu-submit">{busy ? 'Criando…' : 'Criar conta liberada'}</button><button type="button" className="adm-btn ghost" onClick={onClose}>Cancelar</button></div>
+      <div className="adm-tools"><button className="adm-btn" disabled={busy} data-testid="nu-submit">{busy ? 'Criando…' : 'Criar conta'}</button><button type="button" className="adm-btn ghost" onClick={onClose}>Cancelar</button></div>
       <p className="g-mut g-xs">O limite de alunos do profissional vem do plano dele. Para dar vagas extras, use uma concessão (com motivo e validade).</p>
     </form>
   </Drawer>
@@ -381,13 +381,13 @@ export default function AdminApp() {
       <div className="adm-mtop"><button className="adm-btn ghost" style={{ minWidth: 44, minHeight: 44, fontSize: 18 }} onClick={() => setOpen(!open)} aria-label="Menu" aria-expanded={open} aria-controls="admin-navigation" data-testid="adm-menu">☰</button><b>{TITLE[tab]}</b><Brand compact /></div>
       <h1 data-testid="adm-title">{TITLE[tab]}</h1><p className="adm-sub">ORNY · central administrativa · <button className="g-link" style={{ minHeight: 32, padding: '4px 8px' }} data-testid="tour-restart" onClick={() => dispatchEvent(new Event('avagym:tour-restart'))}>Rever orientações</button></p>
       {tab === 'dashboard' && <ManagementDashboard go={go} />}
-      {tab === 'usuarios' && <><SubTabs items={[['contas','Contas'],['pendencias','Pendências'],['liberacoes','Liberação das ações']]} current={sub} onChange={setSub}/>{sub==='liberacoes'?<AdmLiberacoes/>:<Usuarios key={sub} pendingOnly={sub==='pendencias'}/>}</>}
+      {tab === 'usuarios' && <><SubTabs items={[['contas','Contas'],['pendencias','Pendências'],['liberacoes','Suspensões de acesso']]} current={sub} onChange={setSub}/>{sub==='liberacoes'?<AdmLiberacoes/>:<Usuarios key={sub} pendingOnly={sub==='pendencias'}/>}</>}
 
 
       {tab === 'cobranca' && <AdmBilling />}
       {tab === 'monetizacao' && <AdmMonetizacao />}
       {tab === 'assinaturas' && <AdmSubscriptions />}
-      {tab === 'publicacoes' && <><SubTabs items={[['publicacoes','Publicações e comentários'],['moderacao','Moderação']]} current={sub} onChange={setSub}/>{sub==='moderacao'?<ExtraSection name="moderacao"/>:<Publicacoes DataTable={DataTable} Drawer={Drawer}/>}</>}
+      {tab === 'publicacoes' && <><SubTabs items={[['publicacoes','Publicações e comentários'],['oficial','Conteúdo oficial'],['moderacao','Moderação']]} current={sub} onChange={setSub}/>{sub==='moderacao'?<ExtraSection name="moderacao"/>:sub==='oficial'?<ConteudoOficial DataTable={DataTable} Drawer={Drawer}/>:<Publicacoes DataTable={DataTable} Drawer={Drawer}/>}</>}
 
       {tab === 'profissionais' && <><SubTabs items={[['perfis','Perfis e habilitações'],['verificacoes','Verificação profissional']]} current={sub} onChange={setSub}/>{sub==='verificacoes'?<AdmVerifications/>:<Wrap><Profissionais/></Wrap>}</>}
       {tab === 'vinculos' && <><SubTabs items={[['vinculos','Vínculos'],['convites','Convites']]} current={sub} onChange={setSub}/>{sub==='convites'?<AdminInvites/>:<Wrap><Vinculos/></Wrap>}</>}

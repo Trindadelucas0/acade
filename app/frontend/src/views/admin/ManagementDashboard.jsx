@@ -30,8 +30,8 @@ export default function ManagementDashboard({ go }) {
     <div className="adm-tools mg-period"><label htmlFor="mg-period">Período</label><select id="mg-period" className="adm-in" value={period} onChange={e=>setPeriod(+e.target.value)}>{[7,30,90].map(n=><option key={n} value={n}>Últimos {n} dias</option>)}</select><button className="adm-btn ghost" onClick={reload}>Atualizar</button></div>
     {err?<div role="alert"><p>{err}</p><button className="adm-btn" onClick={reload}>Tentar novamente</button></div>:!ready?<p role="status">Carregando indicadores…</p>:<>
       <h2>Atenção necessária</h2><div className="adm-grid mg-alerts">
-        {k('Contas para liberar',d.pending.accounts,'Cadastro pendente ou ações travadas','usuarios:pendencias')}
-        {k('Profissionais para verificar',d.pending.verifications,'Envios pendentes de revisão','profissionais:verificacoes')}
+        {k('Contas suspensas ou pendentes',d.pending.accounts,'Suspensão administrativa ou cadastro incompleto','usuarios:pendencias')}
+        {k('Documentos para revisar',d.pending.verifications,'Verificação profissional opcional','profissionais:verificacoes')}
         {k('Solicitações de vagas',d.pending.requests,'Pedidos atuais em aberto','solicitacoes')}
         {k('Atendimentos atrasados',d.pending.overdue,'Ocorrências e mensagens','filas')}
       </div>

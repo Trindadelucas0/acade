@@ -45,7 +45,7 @@ export async function resolve(userId, audience, c, { lock = false } = {}) {
   const g = (await c.query(`select kind, key, value, expires_at from entitlement_grants where user_id=$1 and audience=$2 and revoked_at is null
       and starts_at <= now() and (expires_at is null or expires_at > now())`, [userId, audience])).rows
   const features = { ...(s.features || {}) }, limits = { ...(s.limits || {}) }
-  // Monetizacao (D3): teste de 168h ativo = recursos COMPLETOS do plano pago do perfil (Individual ou PRO)
+  // Monetizacao: cupom ativo = recursos completos do plano e pelo prazo configurados na campanha.
   const tr = (await c.query(`select t.plan_id, t.ends_at, v.features, v.limits from trial_grants t
       join lateral (select features, limits from plan_versions where plan_id=t.plan_id order by version desc limit 1) v on true
       where t.user_id=$1 and t.audience=$2 and t.revoked_at is null and t.starts_at<=now() and t.ends_at>now() limit 1`, [userId, audience]).catch(() => ({ rows: [] }))).rows[0]
@@ -115,15 +115,16 @@ export async function refreshUsage(userId, audience, c) {
 // ===== middleware central: tabela rota → exigência. Aplicada pelo despachante do server.js antes do handler. =====
 // Admin do tenant é gestão pura e não é cobrado como aluno/profissional: as regras não se aplicam a ele.
 export const ROUTE_RULES = {
-  'POST /api/pro/prescriptions/publish': { audience: 'profissional', feature: 'prescrever', verified: true },
+  'POST /api/pro/prescriptions/publish': { audience: 'profissional', feature: 'prescrever' },
   'POST /api/pro/prescriptions': { audience: 'profissional', feature: 'prescrever' },
-  'POST /api/pro/plans': { audience: 'profissional', feature: 'prescrever', verified: true },
-  'POST /api/pro/invites': { audience: 'profissional', feature: 'convidar_alunos', verified: true },
+  'POST /api/pro/plans': { audience: 'profissional', feature: 'prescrever' },
+  'POST /api/pro/invites': { audience: 'profissional', feature: 'convidar_alunos' },
   'POST /api/invites/accept': { audience: 'aluno', feature: 'receber_ficha_profissional' },
   // V5 billing: publicar programa/ficha publica na biblioteca e recurso dos planos PRO pagos (so vale com monetizacao_ativa=true)
   'POST /api/pro/programs/submit': { audience: 'profissional', feature: 'fichas_publicas', whenMonetized: true },
   // V5 monetizacao: paywall do catalogo oficial - so vale com monetizacao_ativa=true (painel admin)
   'POST /api/guided/start': { audience: 'aluno', catalog: true },
+  'POST /api/guided/start-recommended': { audience: 'aluno', catalog: true },
   'POST /api/guided/sessions/start': { audience: 'aluno', catalog: true, systemOnly: true }
 }
 const PAYWALL_MSG = 'Os programas oficiais fazem parte do ORNY Individual. Ative seu período experimental com um cupom ou conheça a assinatura. Seu histórico continua salvo.'
@@ -147,10 +148,6 @@ export async function entitlementGate(key, user, res, json) {
   if (!user.roles.includes(rule.audience)) return true   // o handler responde PERMISSION_DENIED com a mensagem própria
   if (rule.catalog) return catalogGate(rule, user, res, json)
   if (rule.whenMonetized && (await q(`select value from app_settings where tenant_id=$1 and key='monetizacao_ativa'`, [user.tenant_id])).rows[0]?.value !== true) return true
-  if (rule.verified) {
-    const v = (await q('select verification_status from professional_profiles where user_id=$1', [user.id])).rows[0]
-    if (!v || v.verification_status !== 'verificado') { fail(json, res, 'PERMISSION_DENIED', 'Seu cadastro profissional ainda não foi verificado. Enquanto isso você pode treinar como aluno, mas não enviar treinos nem convidar alunos.', { verification_status: v?.verification_status || 'pendente' }); return false }
-  }
   const f = await checkFeature(user.id, rule.audience, rule.feature)
   if (f) { fail(json, res, f.code, f.error, f); return false }
   return true

@@ -18,6 +18,7 @@ import Toast from './components/Toast.jsx'
 import DialogHost from './components/DialogHost.jsx'
 import RestTimer from './components/RestTimer.jsx'
 import Login from './views/Login.jsx'
+const Landing = lazy(() => import('./views/landing/Landing.jsx'))
 import Workout from './views/Workout.jsx'
 import Stats from './views/Stats.jsx'
 import History from './views/History.jsx'
@@ -69,6 +70,7 @@ import ProSubscription from './views/billing/ProSubscription.jsx'   // Monetizac
 import { NavigationAccess } from './components/NavigationAccess.jsx'
 import AcceptInvite from './views/v3/AcceptInvite.jsx'
 import ProfileNotice from './components/ProfileNotice.jsx'
+import DeviceSetupFlow from './components/DeviceSetupFlow.jsx'
 
 bindUI(useUI)   // lets the shared controls open sheets without importing the store at module scope
 
@@ -102,6 +104,8 @@ function Shell() {
   // V5 cobranca: pagina publica de planos (com ou sem login)
   if (loc.pathname === '/precos') return <div id="app" className="vfade"><ErrorBoundary><PublicPlans /></ErrorBoundary></div>
   if (loc.pathname.startsWith('/legal')) return <div id="app" className="vfade"><ErrorBoundary><Routes><Route path="/legal" element={<LegalPage authed={authed} />} /><Route path="/legal/:doc" element={<LegalPage authed={authed} />} /></Routes></ErrorBoundary></div>
+  const legacySignup = loc.pathname === '/' && new URLSearchParams(loc.search).get('cadastro') === '1'
+  if ((loc.pathname === '/' && !legacySignup) || loc.pathname === '/conheca') return <Suspense fallback={<div id="app"><BrandLoading /></div>}><Landing /></Suspense>
 
   return (
     <>
@@ -213,6 +217,7 @@ function Shell() {
       {authed && <WelcomeHost />}
       {authed && <AccessLockHost />}
       {authed && <TourHost />}
+      {authed && !user?.must_change_password && !user?.needs_terms && <DeviceSetupFlow user={user} />}
       {!(authed && ['/hoje', '/pro'].includes(loc.pathname) && !user?.must_change_password && !user?.needs_terms && !isAdminAccount(user)) && !['/treinar', '/concluido', '/pro/treino'].includes(loc.pathname) && <ThemeToggle className="g-bell g-theme-fab" />}
       <Toast />
       <DialogHost />

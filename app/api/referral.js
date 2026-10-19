@@ -1,4 +1,4 @@
-// AVAGYM - Monetizacao F5: link de indicacao /convite/CODIGO, cliques, atribuicao no cadastro e painel do indicador.
+// ORNY - link de cupom de indicacao /convite/CODIGO, cliques e painel do responsavel.
 // Regras (D2/D5): atribuicao ao PRIMEIRO indicador valido (referral_attributions.user_id unico, nunca sobrescrito;
 // troca so pelo admin, auditada); janela de 30 dias entre o clique e o cadastro (o front guarda o codigo com a data);
 // o indicador ve nome, @, data do cadastro e status (teste/assinante) dos indicados - nunca telefone ou e-mail.
@@ -9,69 +9,33 @@ import { audit } from './auth.js'
 import { normPhone, fraudSignal } from './billing/coupons.js'
 
 export const REF_WINDOW_DAYS = 30
-const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-const randCode = () => Array.from(crypto.randomBytes(8), b => A[b % A.length]).join('')
 const SALT = () => process.env.IDENTITY_SALT || process.env.JWT_SECRET || 'avagym-dev'
 const hm = v => crypto.createHmac('sha256', SALT()).update(String(v)).digest('hex').slice(0, 40)
 export const LINK_BASE = () => (process.env.PUBLIC_URL || process.env.ORIGIN || 'https://ornygym.avadesk.com.br').replace(/\/+$/, '')
 
-export async function ensureReferralCode(user) {
-  const cur = (await q('select code, status from referral_codes where user_id=$1', [user.id])).rows[0]
-  if (cur) return cur
-  for (let i = 0; i < 5; i++) {
-    try { return (await q(`insert into referral_codes(user_id,tenant_id,code) values($1,$2,$3) returning code, status`, [user.id, user.tenant_id, randCode()])).rows[0] }
-    catch (e) { if (e.code !== '23505') throw e; const again = (await q('select code, status from referral_codes where user_id=$1', [user.id])).rows[0]; if (again) return again }
-  }
-  throw new Error('nao foi possivel gerar o codigo de indicacao')
-}
-
-// Lucas (16/10, 20:38): indicacao SO por CODIGO de cupom (sem link). Cada usuario tem um cupom proprio kind='indicacao'
-// (dono = ele) numa campanha de sistema "Indicacoes de usuarios" (beneficio: teste de 7 dias, D2). Quem recebe digita o
-// codigo no cadastro (etapa 4) ou em Planos; o resgate concede o teste e registra o indicador (primeiro valido, nunca sobrescrito).
-export const SYS_CAMPAIGN = 'Indicações de usuários'
-async function systemCampaign(tenantId) {
-  const cur = (await q(`select id from campaigns where tenant_id=$1 and name=$2 order by created_at limit 1`, [tenantId, SYS_CAMPAIGN])).rows[0]
-  if (cur) return cur.id
-  const r = await q(`insert into campaigns(name,kind,benefit,trial_days,status,notes,tenant_id) values($1,'oficial','trial',7,'ativa',$2,$3) returning id`,
-    [SYS_CAMPAIGN, 'Campanha de sistema: cupons de indicação de cada usuário (criada automaticamente).', tenantId])
-  await audit(tenantId, null, 'campanha.criada', 'campaign', r.rows[0].id, { sistema: true, name: SYS_CAMPAIGN })
-  return r.rows[0].id
-}
-export async function ensureReferralCoupon(user) {
-  const own = (await q(`select pc.code from promotion_codes pc where pc.owner_user_id=$1 and pc.kind='indicacao' and pc.status='ativo' order by pc.created_at limit 1`, [user.id])).rows[0]
-  if (own) return own.code
-  const camp = await systemCampaign(user.tenant_id)
-  const base = (await ensureReferralCode(user)).code
-  for (let i = 0; i < 6; i++) {
-    const code = i === 0 ? base : randCode()
-    try {
-      const r = await q(`insert into promotion_codes(tenant_id,campaign_id,code,code_norm,kind,owner_user_id,channel,notes) values($1,$2,$3,$3,'indicacao',$4,'indicacao_usuario','cupom pessoal de indicação') returning id, code`, [user.tenant_id, camp, code, user.id])
-      await q(`insert into coupon_changes(tenant_id,code_id,actor_id,action,after) values($1,$2,$3,'criado',$4)`, [user.tenant_id, r.rows[0].id, user.id, JSON.stringify({ code, kind: 'indicacao', automatico: true })])
-      return r.rows[0].code
-    } catch (e) { if (e.code !== '23505') throw e }
-  }
-  throw new Error('nao foi possivel gerar o cupom de indicacao')
-}
-
-// resolve /convite/CODIGO: convite do personal (pro_invites) ou indicacao (referral_codes). Resposta generica se nao existir.
+// Resolve /convite/CODIGO: convite do personal ou cupom personalizado de indicacao.
 export async function resolveInviteCode(raw, req, tenantSlug) {
   const code = String(raw || '').trim().toUpperCase()
   if (!/^[A-Z0-9_-]{4,32}$/.test(code)) return null
   const inv = (await q(`select status from pro_invites where upper(code)=$1`, [code])).rows[0]
   if (inv) return { type: 'convite_personal', status: inv.status }
-  if (process.env.REFERRAL_LINKS !== 'on') return null   // Lucas 16/10: indicacao so por codigo; /convite fica so para convite de personal
-  const r = (await q(`select rc.user_id, rc.tenant_id, u.name from referral_codes rc join users u on u.id=rc.user_id and u.status='ativo' and u.disabled_at is null
-      where upper(rc.code)=$1 and rc.status='ativo'`, [code])).rows[0]
+  const slug = tenantSlug || process.env.DEFAULT_TENANT || 'avadesk'
+  const r = (await q(`select pc.code, pc.owner_user_id user_id, pc.tenant_id, pc.status, pc.max_redemptions, pc.redemptions_count,
+      pc.ends_at, pc.eligible_audience, cp.status campaign_status, cp.trial_days, cp.ends_at campaign_ends_at, u.name
+      from promotion_codes pc join campaigns cp on cp.id=pc.campaign_id join users u on u.id=pc.owner_user_id and u.status='ativo' and u.disabled_at is null
+      join tenants t on t.id=pc.tenant_id where pc.code_norm=$1 and pc.kind='indicacao' and t.slug=$2`, [code, slug])).rows[0]
   if (!r) return null
   const ip = clientIp(req)
   const vid = String(req.headers['x-visitor-id'] || '').slice(0, 64)
   const visitor = hm('v:' + (vid || ip + '|' + (req.headers['user-agent'] || '')))
   await q(`insert into referral_clicks(tenant_id,referrer_user_id,visitor_hash,ip_hash,user_agent) values($1,$2,$3,$4,$5) on conflict do nothing`,
     [r.tenant_id, r.user_id, visitor, ip ? hm('ip:' + ip) : null, String(req.headers['user-agent'] || '').slice(0, 200)])
-  // cupom de indicacao ativo do indicador (D2: o cupom concede o teste); o front preenche no cadastro
-  const coupon = (await q(`select pc.code from promotion_codes pc join campaigns cp on cp.id=pc.campaign_id where pc.owner_user_id=$1 and pc.kind='indicacao'
-      and pc.status='ativo' and cp.status='ativa' and (pc.ends_at is null or pc.ends_at>now()) and (cp.ends_at is null or cp.ends_at>now()) order by pc.created_at desc limit 1`, [r.user_id])).rows[0]
-  return { type: 'indicacao', code, referrer: { first_name: String(r.name || '').split(/\s+/)[0] }, coupon: coupon?.code || null, window_days: REF_WINDOW_DAYS }
+  const now = Date.now(), end = r.ends_at || r.campaign_ends_at
+  const active = r.status === 'ativo' && r.campaign_status === 'ativa' && (!end || new Date(end).getTime() > now) && (!r.max_redemptions || r.redemptions_count < r.max_redemptions)
+  const reason = active ? null : r.max_redemptions && r.redemptions_count >= r.max_redemptions ? 'limite_atingido'
+    : end && new Date(end).getTime() <= now ? 'encerrado' : 'indisponivel'
+  return { type: 'indicacao', code: r.code, referrer: { first_name: String(r.name || '').split(/\s+/)[0] }, coupon: active ? r.code : null, window_days: REF_WINDOW_DAYS,
+    offer: { active, reason, trial_days: r.trial_days, audience: r.eligible_audience, remaining: r.max_redemptions ? Math.max(0, r.max_redemptions - r.redemptions_count) : null, ends_at: end } }
 }
 
 // atribuicao no cadastro pelo link (primeiro indicador; nunca sobrescreve). Autoindicacao por identidade = sem atribuicao + alerta.
@@ -111,9 +75,16 @@ export function referralRoutes({ json, requireAuth }) {
     },
     'GET /api/referral/me': async (req, res) => {
       const u = await requireAuth(req, res, json); if (!u) return
-      const code = await ensureReferralCoupon(u)   // sem link (Lucas 16/10): so o codigo do cupom
+      const codes = (await q(`select pc.code, pc.status, pc.max_redemptions, pc.redemptions_count, pc.ends_at, pc.eligible_audience, cp.trial_days,
+          case when pc.status='ativo' and cp.status='ativa' and (pc.ends_at is null or pc.ends_at>now()) and (cp.ends_at is null or cp.ends_at>now())
+            and (pc.max_redemptions is null or pc.redemptions_count<pc.max_redemptions) then true else false end active
+        from promotion_codes pc join campaigns cp on cp.id=pc.campaign_id
+        where pc.owner_user_id=$1 and pc.tenant_id=$2 and pc.kind='indicacao' order by pc.created_at desc`, [u.id, u.tenant_id])).rows
       const { cliques, ...stats } = await referralStats(u.id)
-      json(res, 200, { code, ...stats })
+      const primary = codes.find(x => x.active) || codes[0] || null
+      json(res, 200, { code: primary?.code || null, link: primary ? `${LINK_BASE()}/#/convite/${encodeURIComponent(primary.code)}` : null,
+        trial_days: primary?.trial_days || null, audience: primary?.eligible_audience || null, max_redemptions: primary?.max_redemptions || null,
+        redemptions_count: primary?.redemptions_count || 0, active: !!primary?.active, codes, ...stats })
     }
   }
 }

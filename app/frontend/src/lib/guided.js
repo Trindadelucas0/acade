@@ -12,6 +12,7 @@ export const G = {
   programs: goal => api('/api/guided/programs' + (goal ? '?goal=' + goal : '')),
   program: id => api('/api/guided/program?id=' + encodeURIComponent(id)),
   start: id => api('/api/guided/start', { method: 'POST', body: JSON.stringify({ program_id: id }) }),
+  startRecommended: () => api('/api/guided/start-recommended', { method: 'POST', body: '{}' }),
   abandon: reason => api('/api/guided/abandon', { method: 'POST', body: JSON.stringify({ reason }) }),
   today: wid => api('/api/guided/today' + (wid ? '?workout=' + wid : '')),
   saveSession: s => api('/api/guided/sessions', { method: 'POST', body: JSON.stringify(s) }),
@@ -29,7 +30,7 @@ export const G = {
 
 export const GOALS = [
   ['hypertrophy', 'Ganhar massa', 'arm'], ['weight_loss', 'Emagrecer', 'flame'], ['strength', 'Ficar mais forte', 'barbell'],
-  ['conditioning', 'Condicionamento', 'heart'], ['mobility', 'Mobilidade', 'stretch'], ['home', 'Treino em casa', 'house'], ['rehab', 'Reabilitação', 'shield']
+  ['conditioning', 'Condicionamento', 'heart'], ['mobility', 'Mobilidade e bem-estar', 'stretch'], ['home', 'Treino em casa', 'house']
 ]
 export const GOAL_PT = Object.fromEntries(GOALS.map(g => [g[0], g[1]]))
 export const LEVEL_PT = { beginner: 'Iniciante', intermediate: 'Intermediário', advanced: 'Avançado' }

@@ -31,7 +31,7 @@ export function placeholders(company = {}, plans = [], pro = null) {
     'e-mail de moderação': [c.email_moderacao, A], 'canal de cancelamento': [c.url_cancelamento, A], 'foro': [c.foro, A],
     'versão': [c.doc_version, A], 'data de vigência': [dateBR(c.doc_vigencia), A],
     'preços': [prices, ''], 'índice': ['a definir', ''], 'prazo de aviso': ['a definir', ''],
-    'provedor e país da vps': ['', A],
+    'provedor e país da vps': [c.hosting_provider_country, A],
     'nome do profissional': [pro?.name, P], 'cpf ou cnpj': [pro?.document, P], 'cref': [pro?.cref, P],
   }
 }
@@ -56,11 +56,11 @@ export function LegalDoc({ text, map }) {
   })}</div>
 }
 export function useLegalData(withMe) {
-  const [d, setD] = useState({ company: null, plans: [], me: null })
+  const [d, setD] = useState({ company: null, legalConfig: null, plans: [], me: null })
   useEffect(() => {
     let live = true
     Promise.all([api('/api/legal/company').catch(() => ({})), withMe ? api('/api/legal/me').catch(() => null) : null])
-      .then(([c, me]) => live && setD({ company: c.company || {}, plans: c.plans || [], me }))
+      .then(([c, me]) => live && setD({ company: c.company || {}, legalConfig: c.legal_config || null, plans: c.plans || [], me }))
     return () => { live = false }
   }, [withMe])
   return d
@@ -94,7 +94,7 @@ export function LegalGate({ onAccepted }) {
   const [ok1, setOk1] = useState(false), [ok2, setOk2] = useState(false), [health, setHealth] = useState(false), [busy, setBusy] = useState(false), [msg, setMsg] = useState(''), [open, setOpen] = useState('termos_uso')
   const req = d.me?.legal_required || ['termos_uso', 'privacidade'], isPro = req.includes('profissional')
   const reaccept = d.me && d.me.legal_missing && d.me.legal_missing.length < req.length
-  const can = ok1 && (!isPro || ok2) && d.me && !busy
+  const can = ok1 && (!isPro || ok2) && d.me && d.legalConfig?.ready !== false && !busy
   const accept = async () => {
     setBusy(true); setMsg('')
     try { await api('/api/legal/accept', { method: 'POST', body: JSON.stringify({ version: d.me.legal_version, documents: req, health_consent: health }) }); onAccepted() }
@@ -103,6 +103,7 @@ export function LegalGate({ onAccepted }) {
   return <div className="ag g-page" data-testid="terms-gate">
     <h1 className="g-h1">{reaccept ? 'Documentos atualizados' : 'Termos e privacidade'}</h1>
     <p className="g-mut">Para continuar, leia e aceite os documentos abaixo{d.me ? ` (versão ${d.me.legal_version})` : ''}.</p>
+    {d.legalConfig?.ready === false && <p className="g-bad2" data-testid="legal-config-incomplete">Os documentos ainda não foram publicados porque a identificação legal da ORNY está incompleta. A administração precisa concluir Sistema → Dados da empresa.</p>}
     {req.map(k => <div key={k} className="g-card" style={{ marginTop: 8 }}>
       <button className="g-btn ghost g-block" onClick={() => setOpen(open === k ? '' : k)} aria-expanded={open === k}>{open === k ? '▾' : '▸'} {DOCS[k].title}</button>
       {open === k && <div style={{ maxHeight: '45vh', overflow: 'auto' }}><LegalDoc text={DOCS[k].text} map={map} /></div>}
@@ -119,9 +120,9 @@ export function LegalGate({ onAccepted }) {
 
 // ---------- admin: Dados da empresa ----------
 const FIELDS = [
-  ['razao_social', 'Razão social'], ['nome_fantasia', 'Nome fantasia'], ['cnpj', 'CNPJ'], ['endereco', 'Endereço completo'],
+  ['razao_social', 'Razão social'], ['nome_fantasia', 'Nome fantasia'], ['cnpj', 'CNPJ'], ['chave_pix', 'Chave Pix da empresa'], ['endereco', 'Endereço completo'],
   ['email_suporte', 'E-mail de suporte'], ['email_dpo', 'E-mail do encarregado (DPO)'], ['email_financeiro', 'E-mail financeiro'],
-  ['email_moderacao', 'E-mail de moderação'], ['url_cancelamento', 'Canal/URL de cancelamento'], ['foro', 'Foro (cidade/UF)'],
+  ['email_moderacao', 'E-mail de moderação'], ['url_cancelamento', 'Canal/URL de cancelamento'], ['foro', 'Foro (cidade/UF)'], ['hosting_provider_country', 'Provedor e país da hospedagem'],
   ['doc_version', 'Versão dos documentos'], ['doc_vigencia', 'Data de vigência'],
 ]
 export function AdmEmpresa() {
@@ -134,7 +135,7 @@ export function AdmEmpresa() {
     setBusy(true); setMsg(''); setErrs({})
     try {
       const r = await api('/api/adm/company/cnpj?cnpj=' + encodeURIComponent(f.cnpj))
-      setF({ ...f, cnpj: r.cnpj, razao_social: r.razao_social || f.razao_social, nome_fantasia: r.nome_fantasia || f.nome_fantasia, endereco: r.endereco || f.endereco, foro: f.foro || r.foro })
+      setF({ ...f, cnpj: r.cnpj, chave_pix: f.chave_pix || r.chave_pix, razao_social: r.razao_social || f.razao_social, nome_fantasia: r.nome_fantasia || f.nome_fantasia, endereco: r.endereco || f.endereco, foro: f.foro || r.foro })
       setMsg('Dados da Receita preenchidos' + (r.situacao ? ` (situação: ${r.situacao})` : '') + '. Revise e clique em Salvar.')
     } catch (e) { setMsg(e.message); if (e.status === 400) setErrs({ cnpj: e.message }) } finally { setBusy(false) }
   }
@@ -146,12 +147,12 @@ export function AdmEmpresa() {
     catch (e) { setErrs(e.errors || {}); setMsg(e.message) } finally { setBusy(false) }
   }
   return <div data-testid="adm-empresa">
-    <p className="adm-sub">Esses dados preenchem automaticamente os Termos de Uso, a Política de Privacidade, o Termo do Profissional, os Termos de Assinatura e as Regras da Comunidade. Mudar a <b>versão</b> pede novo aceite a todos.</p>
+    <p className="adm-sub">Esses dados preenchem automaticamente os Termos de Uso, a Política de Privacidade, o Termo do Profissional, os Termos de Assinatura e as Regras da Comunidade. Todos os campos legais são obrigatórios para salvar. Mudar a <b>versão</b> pede novo aceite a todos.</p>
     <div style={{ display: 'grid', gap: 10, maxWidth: 720 }}>
       {FIELDS.map(([k, l]) => <label key={k} className="g-field"><span>{l}</span>
         <div style={{ display: 'flex', gap: 8 }}>
           {k === 'endereco' ? <textarea className="adm-in" rows={2} value={f[k] || ''} onChange={e => set(k, e.target.value)} data-testid={'emp-' + k} style={{ flex: 1 }} />
-            : <input className="adm-in" type={k === 'doc_vigencia' ? 'date' : 'text'} value={f[k] || ''} onChange={e => set(k, e.target.value)} data-testid={'emp-' + k} style={{ flex: 1 }} placeholder={k === 'cnpj' ? '00.000.000/0000-00' : k === 'foro' ? 'Cidade/UF' : ''} />}
+            : <input className="adm-in" type={k === 'doc_vigencia' ? 'date' : 'text'} value={f[k] || ''} onChange={e => set(k, e.target.value)} data-testid={'emp-' + k} style={{ flex: 1 }} placeholder={k === 'cnpj' || k === 'chave_pix' ? '00.000.000/0000-00' : k === 'foro' ? 'Cidade/UF' : ''} />}
           {k === 'cnpj' && <button className="adm-btn ghost" disabled={busy || String(f.cnpj || '').replace(/\D/g, '').length !== 14} onClick={fromCnpj} data-testid="emp-cnpj-fetch">Preencher pela Receita</button>}
         </div>
         {errs[k] && <small className="g-bad2">{errs[k]}</small>}</label>)}

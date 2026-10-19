@@ -8,7 +8,7 @@ import { notify, notifyAdmins } from './pro.js'
 
 const isUuid = s => /^[0-9a-f-]{36}$/i.test(String(s || ''))
 const qs = req => new URL(req.url, 'http://x').searchParams
-const GOALS = ['hypertrophy', 'weight_loss', 'strength', 'conditioning', 'mobility', 'home', 'rehab']
+const GOALS = ['hypertrophy', 'weight_loss', 'strength', 'conditioning', 'mobility', 'home']
 const LEVELS = ['beginner', 'intermediate', 'advanced']
 const LOCS = ['gym', 'home', 'home_noequip']
 const err = (json, res, status, code, error, extra) => json(res, status, { error, code, ...(extra || {}) })
@@ -39,7 +39,7 @@ export async function normalizeContent(b) {
     content: {
       title: txt(b.title, 120), description: txt(b.description, 2000), goal: GOALS.includes(b.goal) ? b.goal : null, level: LEVELS.includes(b.level) ? b.level : null,
       location: LOCS.includes(b.location) ? b.location : null, weeks: int(b.weeks, 1, 52), days_per_week: int(b.days_per_week, 1, 7), minutes: int(b.minutes, 5, 240),
-      minutes_max: int(b.minutes_max, 5, 300), is_rehab: !!b.is_rehab, workouts: ws
+      minutes_max: int(b.minutes_max, 5, 300), is_rehab: false, workouts: ws
     },
     unknown
   }
@@ -53,14 +53,14 @@ export function completeness(c) {
   return miss
 }
 
-// profissional habilitado: verificado + liberado para publicar pela administração (can_publish). Admin sempre.
+// Profissional com plano/recurso e sem restricao de moderacao. A verificacao cadastral e informativa.
 async function requireAuthor(req, res, json) {
   const u = await requireAuth(req, res, json); if (!u) return null
   if (u.roles.includes('admin')) return u
   if (!u.roles.includes('profissional')) { err(json, res, 403, 'PERMISSION_DENIED', 'Somente profissionais criam programas.'); return null }
-  const p = (await q('select verification_status, can_publish, state from professional_profiles where user_id=$1', [u.id])).rows[0]
-  if (!p || p.verification_status !== 'verificado') { err(json, res, 403, 'PROFESSIONAL_NOT_VERIFIED', 'Seu registro profissional precisa estar verificado para criar programas públicos.'); return null }
-  if (!p.can_publish) { err(json, res, 403, 'FEATURE_NOT_INCLUDED', 'Sua conta ainda não está liberada para criar programas públicos.'); return null }
+  const p = (await q('select publication_suspended_at, state from professional_profiles where user_id=$1', [u.id])).rows[0]
+  if (!p || p.state !== 'ativo') { err(json, res, 403, 'ACCOUNT_NOT_ACTIVE', 'Seu perfil profissional está suspenso ou encerrado.'); return null }
+  if (p.publication_suspended_at) { err(json, res, 403, 'PUBLISH_RESTRICTED', 'A publicação foi restringida pela moderação.'); return null }
   return u
 }
 const latestRev = (c, pid) => c.query('select * from program_revisions where program_id=$1 order by version_number desc limit 1', [pid]).then(r => r.rows[0])

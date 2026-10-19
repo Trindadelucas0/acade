@@ -7,7 +7,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import Icon from '../../components/Icon.jsx'
 import { G, GOALS, GOAL_PT, LEVEL_PT, LOC_PT, RESTR_PT, mediaOf, minutesLabel, repsLabel } from '../../lib/guided.js'
 import './guided.css'
-import { ask, notifyError } from '../../lib/dialog.js'
+import { ask, notify, notifyError } from '../../lib/dialog.js'
 
 export const Spin = () => <div className="ag"><div className="g-center g-dim" style={{ paddingTop: '40vh' }}><Icon name="dumbbell" /></div></div>
 
@@ -20,8 +20,9 @@ export function Cover({ p, big, badge }) {
   </div>
 }
 const Meta = ({ p }) => <div className="g-chips">
-  <span className="g-chip">{p.weeks} semanas</span><span className="g-chip">{p.days_per_week}x por semana</span>
+  <span className="g-chip g-on">{GOAL_PT[p.goal]}</span><span className="g-chip">{p.weeks} semanas</span><span className="g-chip">{p.days_per_week}x por semana</span>
   <span className="g-chip">{minutesLabel(p)}</span><span className="g-chip">{LOC_PT[p.location]}</span><span className="g-chip">{LEVEL_PT[p.level]}</span>
+  {!!p.equipment_pt?.length && <span className="g-chip">{p.equipment_pt.join(' · ')}</span>}
 </div>
 
 export function ProgramCard({ p, badge, why, onClick }) {
@@ -38,11 +39,32 @@ export function ProgramCard({ p, badge, why, onClick }) {
 
 export function Recommendations() {
   const nav = useNavigate()
-  const [d, setD] = useState(null), [err, setErr] = useState('')
-  useEffect(() => { G.recs().then(setD).catch(e => { if (e.status === 400) nav('/onboarding', { replace: true }); else setErr(e.message) }) }, [nav])
+  const [d, setD] = useState(null), [at, setAt] = useState(null), [busy, setBusy] = useState(false), [err, setErr] = useState('')
+  useEffect(() => {
+    G.recs().then(setD).catch(e => { if (e.code === 'PROFILE_INCOMPLETE' || e.status === 400) nav('/onboarding', { replace: true }); else setErr(e.message) })
+    AT.get().then(setAt).catch(() => {})
+  }, [nav])
   if (err) return <div className="ag"><p className="g-warn">{err}</p></div>
   if (!d) return <Spin />
   const p = d.profile
+  const best = d.recommendations[0]
+  const bestActive = !!best && at?.kind === 'sistema' && at.program?.program_id === best.id
+  const activate = async () => {
+    if (!best || at?.locked_to_pro || busy) return
+    if (bestActive) return nav('/meu-programa')
+    if (!await ask('Ativar esta ficha recomendada?', { text: `${best.title} será seu treino ativo. A ficha inclui ${best.days_per_week} dias por semana durante ${best.weeks} semanas e pode ser trocada depois sem apagar seu histórico.`, ok: 'Ativar treino recomendado', cancel: 'Revisar' })) return
+    if (at?.kind === 'sistema') {
+      const detached = await detachSystem(at)
+      if (!detached) return
+      setAt(detached)
+    }
+    setBusy(true)
+    try {
+      await G.startRecommended()
+      notify('Ficha recomendada ativada.')
+      nav('/meu-programa', { replace: true })
+    } catch (e) { notifyError(e); AT.get().then(setAt).catch(() => {}) } finally { setBusy(false) }
+  }
   return <div className="ag" data-testid="recs">
     <CoachLockNote />
     <span className="g-eyebrow">Encontramos para você</span>
@@ -54,7 +76,14 @@ export function Recommendations() {
     </div>
     {d.notes.map((n, i) => <p key={i} className="g-note" style={{ marginTop: 10 }}>{n}</p>)}
     <div style={{ marginTop: 16 }}>
-      {d.recommendations.length ? d.recommendations.map((r, i) => <ProgramCard key={r.id} p={r} why={r.why} badge={i === 0 ? 'Mais indicado' : null} onClick={() => nav('/programa/' + r.id)} />)
+      {d.recommendations.length ? <>
+        <ProgramCard p={best} why={best.why} badge="Mais indicado" onClick={() => nav('/programa/' + best.id)} />
+        <div className="g-recommended-action">
+          {at?.locked_to_pro ? <p className="g-note" data-testid="recommended-pro-priority">Sua ficha do personal continua como treino ativo. Para usar a recomendação, faça a troca pelo seu treino atual; nada será apagado.</p>
+            : <button className="g-btn" disabled={busy} aria-busy={busy} onClick={activate} data-testid="activate-recommended">{busy ? 'Ativando ficha…' : bestActive ? 'Ir para Meu treino' : 'Ativar treino recomendado'}</button>}
+        </div>
+        {d.recommendations.slice(1).map(r => <ProgramCard key={r.id} p={r} why={r.why} onClick={() => nav('/programa/' + r.id)} />)}
+      </>
         : <div className="g-card"><p>Não encontramos um programa ideal com essas respostas.</p>{d.no_compatible && <button className="g-link" data-testid="recs-equipment" onClick={() => nav('/perfil/equipamentos')}>Revisar meus equipamentos</button>}<button className="g-link" onClick={() => nav('/onboarding')}>Refazer perguntas</button></div>}
     </div>
     <div className="g-row" style={{ justifyContent: 'space-between', marginTop: 10 }}>
@@ -83,7 +112,7 @@ export function Library() {
       <span className="g-sp" /><Icon name="play" />
     </button>
     <div className="program-filters"><label className="g-filter-field">Objetivo
-      <GSelect label="Objetivo" value={goal} onChange={setGoal} options={[['', 'Todos os objetivos'], ...GOALS.map(([v, l]) => [v, v === 'rehab' ? 'Fisioterapia' : l])]} testid="prog-goal" />
+      <GSelect label="Objetivo" value={goal} onChange={setGoal} options={[['', 'Todos os objetivos'], ...GOALS.map(([v, l]) => [v, l])]} testid="prog-goal" />
     </label>
     <label className="g-filter-field">Nível<GSelect label="Nível" value={level} onChange={setLevel} options={[["", "Todos os níveis"], ...Object.entries(LEVEL_PT)]} testid="prog-level" /></label>
     <label className="g-filter-field">Local<GSelect label="Local" value={location} onChange={setLocation} options={[["", "Todos os locais"], ...Object.entries(LOC_PT)]} testid="prog-location" /></label></div>
@@ -113,14 +142,15 @@ export function ProgramDetail() {
   return <div className="ag" data-testid="program-detail">
     <div className="g-row" style={{ marginBottom: 10 }}>
       <button className="g-icbtn" onClick={() => nav(-1)} aria-label="Voltar"><span style={{ transform: 'scaleX(-1)', display: 'flex' }}><Icon name="play" /></span></button>
-      <span className="g-eyebrow">{p.is_rehab ? 'Fisioterapia' : GOAL_PT[p.goal]}</span>
+      <span className="g-eyebrow">{GOAL_PT[p.goal]}</span>
     </div>
     <Cover p={p} big badge={isActive ? 'Seu programa' : null} />
     {!isActive && <CoachLockNote />}
     <h1>{p.title}</h1>
     <Meta p={p} />
     <p className="g-mut" style={{ marginTop: 12 }}>{p.description}</p>
-    {p.is_rehab && <p className="g-note" style={{ marginTop: 12 }}>Este programa não substitui a avaliação de um profissional. Se a dor aumentar, pare e procure um fisioterapeuta ou médico.</p>}
+    {p.goal === 'mobility' && <p className="g-note" style={{ marginTop: 12 }}>Conteúdo geral de mobilidade e bem-estar. Não substitui avaliação, diagnóstico ou tratamento clínico.</p>}
+    {p.progression && <div className="g-card" style={{ marginTop: 16 }}><div className="g-row g-xs g-mut" style={{ marginBottom: 6 }}><Icon name="chart" /> Como evoluir</div><p className="g-sm">{p.progression}</p></div>}
     <div className="g-card" style={{ marginTop: 16 }}>
       <div className="g-row g-xs g-mut" style={{ marginBottom: 6 }}><Icon name="dumbbell" /> Equipamentos</div>
       <p className="g-sm">{p.equipment_pt.join(' · ') || 'Nenhum'}</p>

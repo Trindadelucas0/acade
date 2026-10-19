@@ -134,8 +134,8 @@ export function ProProfile({ d, reload }) {
       <button className="g-btn" style={{ marginTop: 12 }} onClick={async () => { await C.saveProfile(f); setMsg('Perfil salvo'); reload() }}>Salvar perfil</button>
       {msg && <p className="g-acc g-sm" style={{ marginTop: 8 }}>{msg}</p>}
     </div>
-    <h2>Verificação profissional</h2>
-    <div className="g-card"><p className="g-sm">Seu registro (CREF/CREFITO) agora é enviado e conferido em <b>Verificação profissional</b>.</p>
+    <h2>Dados profissionais</h2>
+    <div className="g-card"><p className="g-sm">Você pode informar seu registro (CREF/CREFITO) para exibição e conferência cadastral. Isso não impede o uso do plano PRO.</p>
       <button className="g-btn g-ghost g-sm" style={{ marginTop: 8 }} onClick={() => { location.hash = '#/pro?tab=verificacao' }}>Abrir verificação</button>
       {d.qualifications.length > 0 && <p className="g-xs g-mut" style={{ marginTop: 8 }}>Registros antigos (só consulta): {d.qualifications.map(q => `${q.kind} ${q.number || ''} (${q.status})`).join(' · ')}</p>}</div>
   </div>
@@ -159,9 +159,9 @@ export default function Pro() {
         <button className="g-li" onClick={() => setTab('atendimentos')}><span className="g-ico"><Icon name="flag" /></span><span><b>{d.occurrences.length} ocorrência(s) pendente(s)</b></span></button>
         <button className="g-li" onClick={() => setTab('atendimentos')}><span className="g-ico"><Icon name="chat" /></span><span><b>{d.threads.filter(t => t.status === 'aguardando').length} mensagem(ns) aguardando</b></span></button>
         <button className="g-li" onClick={() => setTab('atendimentos')}><span className="g-ico"><Icon name="clipboard" /></span><span><b>{d.proposals.length} proposta(s)</b></span></button>
-        <button className="g-li" onClick={() => nav('/comunidade')}><span className="g-ico"><Icon name="users" /></span><span><b>Comunidade</b><br /><span className="g-mut g-xs">{d.profile?.can_publish ? 'Criar publicação e ver as suas' : 'Publicação ainda não autorizada pela administração'}</span></span></button>
+        <button className="g-li" onClick={() => nav('/comunidade')}><span className="g-ico"><Icon name="users" /></span><span><b>Comunidade</b><br /><span className="g-mut g-xs">{d.profile?.can_publish ? 'Criar publicação e ver as suas' : 'Publicação restringida pela moderação'}</span></span></button>
       </div>
-      {d.profile?.state !== 'ativo' && <p className="g-note" style={{ marginTop: 12 }}>Seu perfil está “{(d.profile?.state || 'em análise').replace('_', ' ')}”. Novos vínculos só acontecem com perfil ativo e habilitação verificada.</p>}
+      {d.profile?.state !== 'ativo' && <p className="g-note" style={{ marginTop: 12 }}>Seu perfil está “{(d.profile?.state || 'suspenso').replace('_', ' ')}”. Fale com o suporte para revisar a situação.</p>}
     </>}
     {tab === 'alunos' && (stu ? <Student id={stu} onBack={() => setStu(null)} /> : <div className="g-card g-list">{d.students.length ? d.students.map(s => <button key={s.id} className="g-li" onClick={() => setStu(s.id)} data-testid="student">
       <Av name={s.name} /><span><b>{s.name}</b><br /><span className="g-mut g-xs">{s.week_sessions} treino(s) em 7 dias{s.last_session ? ' · último ' + dt(s.last_session) : ''}</span></span></button>)
@@ -172,7 +172,7 @@ export default function Pro() {
 }
 
 // V4.4 U1: "Minha habilitação profissional" - estado de cada autorização, derivado no backend (que continua sendo a autoridade)
-const HAB_LABEL = { nao_iniciado: 'Não iniciado', aguardando: 'Aguardando análise', aprovado: 'Aprovado', reprovado: 'Reprovado', suspenso: 'Suspenso' }
+const HAB_LABEL = { nao_iniciado: 'Não iniciado', aguardando: 'Documento em revisão', aprovado: 'Conferido', reprovado: 'Correção solicitada', suspenso: 'Suspenso' }
 export function Habilitacao({ h }) {
   if (!h?.items?.length) return null
   return <section className="g-card" data-testid="pro-habilitacao" style={{ marginBottom: 12 }} aria-labelledby="hab-ttl">
