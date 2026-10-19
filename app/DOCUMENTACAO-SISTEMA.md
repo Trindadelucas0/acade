@@ -30,6 +30,8 @@ Onde olhar no código: `api/billing/core.js` (validação do meio, migração de
 2. Se o Asaas indicar análise, aguarde a atualização. Só depois do webhook confirmado os recursos do plano aparecem.
 3. Se a assinatura ainda for Pix, adicione um cartão antes da renovação para manter o serviço. O período pago permanece até sua data final; cobranças Pix pendentes antigas são canceladas durante a troca.
 
+Publicação em 19/10/2026: commit `7f2fe14` implantado na VPS após backup validado em `/opt/avagym-backups/orny_card_only_20261019_142225`. Nenhuma migration foi necessária. API e site responderam HTTP 200, o webhook sem token respondeu 401, os processos PM2 ficaram online e o build publicado não contém os controles Pix. O Asaas permanece configurado em produção com token de webhook presente; nenhum pagamento real de teste foi criado. Cinco testes unitários da API passaram. O build de produção passou; a suíte frontend completa não executou por `EPERM` no sandbox antes de rodar testes, e o cenário integrado da API ficou pendente por falta de banco `_test` local.
+
 ## Cadastro e aceite legal — correção 1.7.4 (19/10/2026)
 
 No cadastro, selecione um plano pago e disponível para continuar; a API também valida plano e perfil antes de criar a conta. Não há opção de decidir depois. Criar a conta não libera o produto: após o cadastro, o checkout abre para concluir por cartão de crédito, e o sistema só libera recursos após confirmação real do pagamento. O código de personal continua opcional e fechado por padrão; só é enviado quando a pessoa escolhe **Tenho código do meu personal**.
