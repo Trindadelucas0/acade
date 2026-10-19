@@ -71,7 +71,17 @@ function Checkout({ plan, cfg, cards, onClose, onDone }) {
   const [idem, setIdem] = useState(newKey)   // BUG-031: uma chave por tentativa (duplo clique nao cobra 2x; nova tentativa usa chave nova)
   const set = k => e => setF({ ...f, [k]: e.target.value })
   const price = cv?.valid && cv.benefit === 'desconto' ? Math.round(plan.price_cents * (1 - cv.discount_pct / 100)) : plan.price_cents
-  async function checkCoupon() { if (!coupon.trim()) return; try { setCv(await post('/api/billing/coupon/validate', { code: coupon.trim() })) } catch (e) { setCv({ valid: false, error: e.message }) } }
+  async function checkCoupon() {
+    if (!coupon.trim()) return
+    try {
+      const result = await post('/api/billing/coupon/validate', { code: coupon.trim() })
+      const denied = result.code === 'PERMISSION_DENIED' || /permiss[aã]o|permission/i.test(result.error || '')
+      setCv(denied ? { valid: false, unavailable: true } : result)
+    } catch (e) {
+      const denied = e.code === 'PERMISSION_DENIED' || /permiss[aã]o|permission/i.test(e.message || '')
+      setCv(denied ? { valid: false, unavailable: true } : { valid: false, error: e.message })
+    }
+  }
   async function pay(e) {
     e.preventDefault(); setBusy(true); setMsg(null)
     try {
@@ -132,7 +142,7 @@ function Checkout({ plan, cfg, cards, onClose, onDone }) {
         <label className="bl-f">Número do endereço<input className="g-in" required value={f.address_number} onChange={set('address_number')} /></label></>}
     </div>}
     {!pendingChargeId && <div className="bl-row bl-coupon"><input className="g-in" placeholder="Cupom de desconto (opcional)" value={coupon} onChange={e => { setCoupon(e.target.value); setCv(null) }} data-testid="coupon" /><button type="button" className="g-btn" onClick={checkCoupon}>Aplicar</button></div>}
-    {cv && <p className={cv.valid && cv.benefit === 'desconto' ? 'bl-ok' : 'bl-err'} data-testid="coupon-msg">{cv.valid ? cv.benefit === 'desconto' ? `Cupom aplicado: ${cv.discount_pct}% off.` : 'Este cupom é de período experimental; ative-o na tela inicial.' : cv.error}</p>}
+    {cv && <p className={cv.valid && cv.benefit === 'desconto' ? 'bl-ok' : cv.unavailable ? 'bl-info' : 'bl-err'} data-testid="coupon-msg">{cv.valid ? cv.benefit === 'desconto' ? `Cupom aplicado: ${cv.discount_pct}% off.` : 'Este cupom é de período experimental; ative-o na tela inicial.' : cv.unavailable ? 'Não foi possível aplicar o cupom. Você pode continuar pelo valor integral.' : cv.error}</p>}
     {msg && <p className="bl-err" role="alert" data-testid="checkout-error">{msg}</p>}
     {!pendingChargeId && <button className="bl-btn bl-wide" disabled={busy} data-testid="checkout-pay">{busy ? 'Processando…' : 'Pagar ' + brl(price)}</button>}
     <p className="bl-fine">Pagamento processado por {cfg.label}. Não guardamos o número nem o CVV do cartão. Ao assinar você aceita os <a href="#/legal/assinatura" target="_blank" rel="noopener">Termos de assinatura</a>.</p>

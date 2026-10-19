@@ -1,6 +1,6 @@
 # ORNY — Documentação do sistema
 
-Fonte oficial de comportamento. Versão frontend: 1.7.5. Atualização: 19/10/2026 — venda dos três planos aberta na VPS; checkout somente por cartão e acesso após confirmação do webhook Asaas.
+Fonte oficial de comportamento. Versão frontend: 1.7.6. Atualização: 19/10/2026 — erro de permissão ao validar cupom não impede contratar sem desconto.
 O inventário em `docs/INVENTARIO-FUNCIONAL.md` preserva o levantamento histórico e seus limites de validação; este documento consolida os fluxos atualizados.
 
 ## Bloqueio comercial — somente pagamento confirmado (19/10/2026)
@@ -18,7 +18,7 @@ Onde olhar no código: `api/access.js` (origem paga, allowlist e middleware glob
 
 ## Cobrança somente por cartão — remoção do Pix (19/10/2026)
 
-O checkout aceita somente cartão de crédito. A API recusa `payment_type=pix`, e as rotas antigas para regenerar ou confirmar Pix respondem HTTP 410; o backend Asaas não cria mais cobranças Pix. `GET /api/billing/me` não retorna QR Code nem copia e cola. Cobranças históricas continuam no histórico, e o webhook ainda reconhece eventos reais de cobranças Pix criadas anteriormente para manter o registro financeiro correto.
+O checkout aceita somente cartão de crédito. O cupom é opcional; se a validação retornar falta de permissão, ele não é aplicado e a pessoa pode contratar pelo valor integral. O erro de cupom não autoriza nem bloqueia o envio da cobrança. A contratação continua exigindo um plano compatível com o perfil da conta. A API recusa `payment_type=pix`, e as rotas antigas para regenerar ou confirmar Pix respondem HTTP 410; o backend Asaas não cria mais cobranças Pix. `GET /api/billing/me` não retorna QR Code nem copia e cola. Cobranças históricas continuam no histórico, e o webhook ainda reconhece eventos reais de cobranças Pix criadas anteriormente para manter o registro financeiro correto.
 
 Uma assinatura Pix antiga conserva o acesso até o fim do período já pago e não recebe novas cobranças Pix. O job avisa quando a renovação se aproxima. Em **Planos e pagamento → Adicionar cartão**, a migração cancela primeiro as cobranças Pix antigas ainda pendentes no Asaas e só então troca a assinatura para cartão; se o cancelamento remoto falhar, a migração é recusada e pode ser tentada novamente. A cobrança/renovação por cartão não libera acesso enquanto estiver pendente: `applyChargeResult` ativa o plano somente quando o webhook autenticado (`PAYMENT_CONFIRMED` ou `PAYMENT_RECEIVED`) confirmar o pagamento. Repetições são idempotentes.
 
