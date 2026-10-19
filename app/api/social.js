@@ -6,6 +6,7 @@ import { requireAuth, audit } from './auth.js'
 import { notify } from './pro.js'
 import { contactOf, publicContact } from './contact.js'
 import { countsInMetrics } from './metrics.js'
+import { homeOf, recordsOf } from './stats.js'
 import { storage, validKey, verifySig, mimeOf } from './storage/index.js'
 
 const qs = req => new URL(req.url, 'http://x').searchParams
@@ -216,12 +217,15 @@ export function socialRoutes({ json, readBody }) {
     },
     'GET /api/me/share-card': async (req, res) => {
       const u = await requireAuth(req, res, json); if (!u) return
-      const kind = ['treino', 'semana', 'musculos'].includes(qs(req).get('kind')) ? qs(req).get('kind') : 'treino'
+      const kind = ['treino', 'semana', 'musculos', 'recorde', 'sequencia'].includes(qs(req).get('kind')) ? qs(req).get('kind') : 'treino'
       const [s, a] = await Promise.all([socialOf(u.id), avatarOf(u.id)])
       const who = { name: s?.display_name || u.name, handle: s?.handle || null, avatar: a?.url || null }
       if (kind === 'treino') {
+        const sessionId = qs(req).get('session_id')
+        if (sessionId && !isUuid(sessionId)) return deny(json, res, 400, 'INVALID_INPUT', 'Treino inválido.')
         const last = (await q(`select id, workout_name, started_at, duration_sec, active_sec, exercises_count, sets_count, volume_kg, time_corrected_at, voided_at, origin
-          from sessions where user_id=$1 and status='done' and discarded_at is null order by started_at desc limit 1`, [u.id])).rows[0]
+          from sessions where user_id=$1 and tenant_id=$2 and status='done' and discarded_at is null and started_at<=now() and ($3::uuid is null or id=$3)
+          order by started_at desc limit 1`, [u.id, u.tenant_id, sessionId || null])).rows[0]
         if (!last) return json(res, 200, { kind, eligible: false, reason: 'Você ainda não tem um treino concluído para compartilhar. Conclua um treino e volte aqui.', who })
         if (last.time_corrected_at || last.voided_at || last.origin === 'legado') return json(res, 200, { kind, eligible: false, reason: 'Seu último treino teve o tempo corrigido (ou foi anulado) e não entra nos cartões, para manter os números confiáveis.', who })
         const mus = await musclesOf('ss.session_id=$1', [last.id])
@@ -232,11 +236,22 @@ export function socialRoutes({ json, readBody }) {
         const r = (await q(`select count(*)::int n, coalesce(sum(coalesce(duration_sec, active_sec)),0)::int secs, coalesce(sum(sets_count),0)::int sets,
           coalesce(array_agg(distinct extract(isodow from started_at at time zone 'America/Sao_Paulo')::int) filter (where id is not null), '{}') days,
           to_char(${WEEK_START}::date, 'YYYY-MM-DD') week_start
-          from sessions s where user_id=$1 and ${countsInMetrics('s')} and started_at >= ${WEEK_START}`, [u.id])).rows[0]
-        const mus = await musclesOf(`s.user_id=$1 and ${countsInMetrics('s')} and s.started_at >= ${WEEK_START}`, [u.id])
-        return json(res, 200, { kind, eligible: true, who, data: { week_start: r.week_start, workouts: r.n, minutes: Math.round(r.secs / 60), sets: r.sets, days: r.days || [], muscles: mus.slice(0, 6) } })
+          from sessions s where user_id=$1 and tenant_id=$2 and ${countsInMetrics('s')} and started_at >= ${WEEK_START}`, [u.id, u.tenant_id])).rows[0]
+        const [mus, home] = await Promise.all([musclesOf(`s.user_id=$1 and s.tenant_id=$2 and ${countsInMetrics('s')} and s.started_at >= ${WEEK_START}`, [u.id, u.tenant_id]), homeOf(u)])
+        return json(res, 200, { kind, eligible: true, who, data: { week_start: r.week_start, workouts: r.n, minutes: Math.round(r.secs / 60), sets: r.sets, days: r.days || [], muscles: mus.slice(0, 6), streak_days: home.streak_days, best_streak_days: home.best_streak_days } })
       }
-      const mus = await musclesOf(`s.user_id=$1 and ${countsInMetrics('s')} and s.started_at > now() - interval '7 days'`, [u.id])
+      if (kind === 'recorde') {
+        const rec = (await recordsOf(u)).find(r => r.improved)
+        if (!rec) return json(res, 200, { kind, eligible: false, reason: 'Quando você superar uma marca comparável, seu recorde aparecerá aqui.', who })
+        return json(res, 200, { kind, eligible: true, who, data: { exercise: rec.name, weight_kg: rec.weight, reps: rec.reps, estimated_1rm: Math.round(rec.e1rm * 10) / 10, date: rec.at, criterion: 'Maior 1RM estimado com carga positiva e 1 a 12 repetições' } })
+      }
+      if (kind === 'sequencia') {
+        const home = await homeOf(u)
+        if (!home.best_streak_days) return json(res, 200, { kind, eligible: false, reason: 'Conclua treinos em dias diferentes para formar sua sequência.', who })
+        const total = (await q(`select count(*)::int n from sessions s where user_id=$1 and tenant_id=$2 and ${countsInMetrics('s')}`, [u.id, u.tenant_id])).rows[0].n
+        return json(res, 200, { kind, eligible: true, who, data: { streak_days: home.streak_days, best_streak_days: home.best_streak_days, workouts: total } })
+      }
+      const mus = await musclesOf(`s.user_id=$1 and s.tenant_id=$2 and ${countsInMetrics('s')} and s.started_at > now() - interval '7 days'`, [u.id, u.tenant_id])
       json(res, 200, { kind, eligible: true, who, data: { muscles: mus } })
     },
   }

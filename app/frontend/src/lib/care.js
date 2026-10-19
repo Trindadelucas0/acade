@@ -41,7 +41,8 @@ export const C = {
   myRequests: () => api('/api/me/requests'), deleteRequest: reason => post('/api/me/delete-request', { reason }), cancelDelete: () => post('/api/me/delete-request/cancel', {}),
   proThread: (student_id, body) => post('/api/pro/threads', { student_id, body }),
   resetLink: id => post('/api/adm/users/reset-link', { id }),
-  audit: () => api('/api/adm/audit'), settings: () => api('/api/adm/settings'), saveSettings: b => post('/api/adm/settings', b)
+  audit: () => api('/api/adm/audit'), settings: () => api('/api/adm/settings'), saveSettings: b => post('/api/adm/settings', b),
+  tapago: () => api('/api/adm/tapago'), saveTapago: b => post('/api/adm/tapago/config', b), decideTapago: (id, decision, reason) => post('/api/adm/tapago/decide', { id, decision, reason }), applyTapago: id => post('/api/adm/tapago/apply', { id }), revokeTapago: (id, reason) => post('/api/adm/tapago/revoke', { id, reason })
 }
 export const CAT_PT = { dor: 'Dor', desconforto: 'Desconforto', dificuldade: 'Dificuldade para realizar', duvida: 'Dúvida sobre a execução', outro: 'Outro motivo' }
 export const OCC_ST = { aberta: 'Aguardando avaliação', orientada: 'Orientação registrada', encerrada: 'Encerrada' }

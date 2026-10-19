@@ -1,7 +1,48 @@
 # ORNY — Documentação do sistema
 
-Fonte oficial de comportamento. Versão frontend: 1.6.0. Atualização: 19/10/2026.
+Fonte oficial de comportamento. Versão frontend: 1.7.1. Atualização: 19/10/2026.
 O inventário em `docs/INVENTARIO-FUNCIONAL.md` preserva o levantamento histórico e seus limites de validação; este documento consolida os fluxos atualizados.
+
+## Landing pública e instalação da ORNY — 1.7.2 (19/10/2026)
+
+A landing pública das rotas `/` e `/conheca` usa apresentação clara, com proposta principal, benefícios por perfil, funcionamento, catálogo real de planos, instalação opcional, dúvidas e chamada final. O seletor de perfil altera a mensagem, benefícios e planos exibidos para aluno ou profissional; os links continuam usando o cadastro existente.
+
+### Instalação no celular
+
+Na seção **Instale quando quiser. Use desde já.**, a ORNY explica que funciona normalmente no navegador. Android usa Chrome e pode abrir o prompt real de instalação quando o navegador oferece `beforeinstallprompt`; quando não oferece, o visitante segue pelo menu `⋮` e escolhe **Instalar app** ou **Adicionar à tela inicial**. iPhone usa Safari e o caminho manual **Compartilhar → Adicionar à Tela de Início → Adicionar**.
+
+Depois do cadastro, `DeviceSetupFlow` usa os mesmos passos do tutorial público. A instalação pode ser adiada. Notificações são uma etapa separada, opcionais e nunca bloqueiam o uso; podem ser ativadas depois em Perfil → Configurações.
+
+Onde olhar no código: landing em `frontend/src/views/landing/Landing.jsx` e `frontend/src/views/landing/landing.css`; passos compartilhados em `frontend/src/components/install-guide.js`; fluxo autenticado em `frontend/src/components/DeviceSetupFlow.jsx`; botão de instalação em `frontend/src/components/InstallButton.jsx`.
+
+## Planos e pagamento — correção visual 1.7.1 (19/10/2026)
+
+Os cartões públicos e autenticados de planos mantêm seus botões de ação visíveis com texto contrastante no tema claro. A correção é somente visual; não altera preço, venda, pagamento ou liberação de acesso.
+
+## #TáPago 2.0 — editor social e campanha de 30 dias — 1.7.0 (19/10/2026)
+
+Depois que o servidor confirma um treino válido, a conclusão apresenta **Treino pago. Evolução garantida.** e abre o editor em **Criar meu card**. A rota `/compartilhar` oferece seis estilos: Treino, Minha foto, Semana, Músculos, Recorde e Sequência. Treino específico é validado pelo servidor; sessão apenas na fila offline ainda não gera card oficial. Recorde só aparece quando supera uma marca anterior comparável e identifica o critério de 1RM estimado; sequência usa dias distintos válidos no fuso do produto. Ausência de volume, músculos ou recorde não produz valor inventado.
+
+O editor gera Story 9:16, Feed 4:5 e Quadrado 1:1 em PNG. Nome, avatar e indicadores podem ser ocultados; o modelo com foto permite zoom, deslocamento, posição dos dados e intensidade do gradiente. A foto escolhida é processada somente no aparelho e não é enviada ao perfil ou à comunidade. No navegador, usa compartilhamento de arquivo quando suportado e download como alternativa; no shell Capacitor, usa Filesystem temporário e Share. A captura contém somente o canvas do card.
+
+A campanha promocional é independente dos cards e nasce **inativa**. Em **Administração → Marketing → Campanha #TáPago**, o administrador configura perfil oficial, instruções, vigência, campos obrigatórios, retenção e uma versão dos termos. Ativar exige perfil e termos completos. O aluno elegível aceita os termos, informa Instagram/link e envia uma captura privada. As situações são pendente, aprovada, rejeitada ou cancelada; rejeição permite nova comprovação enquanto a campanha estiver ativa.
+
+A aprovação exige administrador do mesmo ambiente, bloqueia autoaprovação e roda em transação. Índices únicos e identidades protegidas por hash impedem recompensa repetida ou duas concessões concorrentes. O prêmio cria duas concessões temporárias de aluno (`acesso` e `catalogo_completo`) por 30 dias, sem ampliar a capacidade do personal. Havendo período Individual pago com término confiável, o prêmio começa depois dele; se o término ainda não for confiável, o direito fica reservado e o administrador pode usar **Tentar aplicar crédito pendente** sem conceder um segundo benefício. Revogação exige justificativa e não apaga o histórico. Evidências ficam no storage privado, passam por validação real de imagem/limite/dimensões e são removidas após a retenção configurada, preservando o evento de auditoria.
+
+Contratos: `GET /api/me/share-card?kind=treino|semana|musculos|recorde|sequencia`, `GET /api/tapago/me`, `POST /api/tapago/preferences`, `POST /api/tapago/submissions`, `GET /api/tapago/evidence?id=`, `GET /api/adm/tapago`, `POST /api/adm/tapago/config`, `POST /api/adm/tapago/decide` e `POST /api/adm/tapago/revoke`. Implementação em `api/social.js`, `api/tapago.js`, `frontend/src/views/guided/ShareCard.jsx` e `frontend/src/views/admin/TapagoAdmin.jsx`; persistência na migration aditiva `064_tapago_2.sql`.
+
+### Como usar
+
+1. Aluno: conclua e sincronize um treino; em **Treino concluído**, toque em **Criar meu card**.
+2. Escolha Treino, Minha foto, Semana, Músculos, Recorde ou Sequência. Modelos sem dado confiável explicam por que ainda não estão disponíveis.
+3. Se desejar, abra **Personalizar**, ajuste o formato e os itens visíveis; no modelo Minha foto, escolha uma imagem e posicione-a.
+4. Use **Compartilhar treino** ou **Salvar imagem**. Nada é publicado automaticamente.
+5. Se a campanha estiver ativa e a conta elegível, abra **Como participar**, leia os termos e envie a comprovação. O resultado aparece no mesmo módulo e em notificações.
+6. Administrador: abra **Administração → Marketing → Campanha #TáPago** para configurar, analisar, aprovar, rejeitar ou revogar. Nunca ative publicamente sem validação jurídica e operacional.
+
+### Validação desta versão
+
+Build do frontend aprovado. Vitest: 292 testes aprovados. A migration 064 foi aplicada com sucesso somente no banco isolado `avagym_tapago_test_20261019`. O teste `api/test/tapago.integration.mjs` aprovou configuração segura, comprovante privado, aprovação concorrente com recompensa única e bloqueio de autoaprovação. Banco de uso, VPS e produção não foram alterados. Compartilhamento físico em iPhone/Android, revisão jurídica e ativação operacional continuam pendentes.
 
 ## Conteúdo oficial da Comunidade — 1.5.0 (18/10/2026)
 

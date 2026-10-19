@@ -28,4 +28,9 @@ describe('V5 - cartões #TáPago', () => {
     expect(cardStats('semana', { workouts: 0, minutes: 0, sets: 0 })).toHaveLength(3)
     expect(cardStats('musculos', {})).toEqual([])
   })
+  it('foto reutiliza métricas oficiais; recorde e sequência exibem apenas valores recebidos', () => {
+    expect(cardStats('foto', { duration_sec: 3600, exercises: 8, sets: 24 })).toEqual([['Tempo', '1h00'], ['Exercícios', 8], ['Séries', 24]])
+    expect(cardStats('recorde', { weight_kg: 100, reps: 5, estimated_1rm: 116.7 })).toEqual([['Carga', '100 kg'], ['Repetições', 5], ['1RM estimado', '116.7 kg']])
+    expect(cardStats('sequencia', { streak_days: 3, best_streak_days: 8, workouts: 20 })).toEqual([['Sequência atual', '3 dias'], ['Maior sequência', '8 dias'], ['Treinos', 20]])
+  })
 })

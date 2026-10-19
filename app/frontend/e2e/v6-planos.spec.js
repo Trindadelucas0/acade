@@ -15,6 +15,9 @@ for (const [w, h, tag] of [[390, 844, 'celular'], [1280, 860, 'desktop']]) {
     for (const id of ['individual', 'pro']) {
       const p = plans.find(x => x.id === id), card = page.getByTestId('plan-card-' + id)
       await expect(card).toBeVisible()
+      const cta = page.getByTestId('cta-' + id)
+      await expect(cta).toBeVisible()
+      await expect(cta).not.toHaveText('')
       if (p.price_cents > 0) { await expect(page.getByTestId('price-' + id)).toContainText(brl(p.price_cents).replace('R$', '')); await expect(page.getByTestId('price-' + id)).toContainText('/mês') }
       else await expect(page.getByTestId('price-' + id)).toContainText('Em breve')
       await expect(card.getByTestId('trial-seal')).toContainText('7 dias grátis')

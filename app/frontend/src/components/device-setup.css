@@ -15,4 +15,7 @@
 .ds-btn.primary { border-color: #20f51b; color: #050605; background: #20f51b; }
 .ds-btn:disabled { opacity: .55; cursor: wait; }
 .ds-btn:focus-visible { outline: 3px solid rgba(32,245,27,.42); outline-offset: 3px; }
+.install-guide-steps { display:grid; gap:12px; margin:18px 0 22px; padding:0; list-style:none; }
+.install-guide-steps li { display:flex; gap:10px; align-items:flex-start; color:#dce1dc; line-height:1.45; }
+.install-guide-steps b { flex:0 0 26px; width:26px; height:26px; display:grid; place-items:center; border-radius:50%; color:#050605; background:#20f51b; font-size:12px; }
 @media (max-width: 520px) { .ds-backdrop { align-items: end; padding: 0; } .ds-card { width: 100%; max-height: 92dvh; border-radius: 26px 26px 0 0; padding: 24px 18px max(22px, env(safe-area-inset-bottom)); } }

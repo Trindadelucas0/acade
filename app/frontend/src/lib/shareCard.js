@@ -1,5 +1,5 @@
 // AVAGYM V5 - molduras #TáPago desenhadas em canvas no aparelho, só com dados elegíveis devolvidos pelo servidor.
-import { fmtDur, fmtVol, WEEKDAYS, initials } from './socialRules.js'
+import { fmtDur, fmtVol, WEEKDAYS, initials, cropRect } from './socialRules.js'
 import { MUSCLES, INERT, levelsOf } from './muscles.js'
 // grupos do banco -> musculos desenhados na silhueta 2D (mesmo mapa de Progresso > Musculos trabalhados)
 export const GROUP_SLUG = { peito: 'chest', costas: 'upper-back', ombros: 'deltoids', biceps: 'biceps', triceps: 'triceps', antebraco: 'forearm', abdomen: 'abs',
@@ -26,8 +26,10 @@ export function drawBody(ctx, paths, load, x, y, w, h, accent, body = 'male') {
 const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif'
 // indicadores exibidos: valores ausentes não aparecem (nunca inventa número)
 export function cardStats(kind, data = {}) {
-  if (kind === 'treino') return [['Tempo', fmtDur(data.duration_sec)], ['Exercícios', data.exercises ?? null], ['Séries', data.sets ?? null], ['Volume', fmtVol(data.volume_kg)]].filter(([, v]) => v != null && v !== '')
+  if (kind === 'treino' || kind === 'foto') return [['Tempo', fmtDur(data.duration_sec)], ['Exercícios', data.exercises ?? null], ['Séries', data.sets ?? null], ['Volume', fmtVol(data.volume_kg)]].filter(([, v]) => v != null && v !== '')
   if (kind === 'semana') return [['Treinos', data.workouts], ['Minutos', data.minutes], ['Séries', data.sets]].filter(([, v]) => v != null)
+  if (kind === 'recorde') return [['Carga', data.weight_kg ? `${data.weight_kg} kg` : null], ['Repetições', data.reps ?? null], ['1RM estimado', data.estimated_1rm ? `${data.estimated_1rm} kg` : null]].filter(([, v]) => v != null)
+  if (kind === 'sequencia') return [['Sequência atual', `${data.streak_days || 0} dias`], ['Maior sequência', `${data.best_streak_days || 0} dias`], ['Treinos', data.workouts ?? null]].filter(([, v]) => v != null)
   return []
 }
 function wrap(ctx, text, maxW, maxLines) {
@@ -39,19 +41,25 @@ function wrap(ctx, text, maxW, maxLines) {
 }
 function roundRect(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath() }
 
-export function drawCard(ctx, { kind, data = {}, who, showStats = true, showWho = true, avatar = null, accent = '#b6f23a', bodyPaths = null, body = 'male' }) {
+export function drawCard(ctx, { kind, data = {}, who, showStats = true, showWho = true, avatar = null, accent = '#b6f23a', bodyPaths = null, body = 'male', photo = null, photoZoom = 1, photoX = 0, photoY = 0, gradient = 70, statsPosition = 'baixo' }) {
   const W = ctx.canvas.width, H = ctx.canvas.height, P = 80, tall = H / W > 1.5
   const g = ctx.createLinearGradient(0, 0, W, H); g.addColorStop(0, '#0d1117'); g.addColorStop(1, '#1b2535'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H)
+  if (kind === 'foto' && photo) {
+    const r = cropRect(photo.naturalWidth || photo.width, photo.naturalHeight || photo.height, photoZoom, photoX, photoY)
+    ctx.drawImage(photo, r.sx, r.sy, r.side, r.side, 0, 0, W, H)
+    const shade = ctx.createLinearGradient(0, 0, 0, H); shade.addColorStop(0, 'rgba(0,0,0,.28)'); shade.addColorStop(.48, 'rgba(0,0,0,.06)'); shade.addColorStop(1, `rgba(0,0,0,${Math.max(.3, Math.min(.95, gradient / 100))})`); ctx.fillStyle = shade; ctx.fillRect(0, 0, W, H)
+  }
   ctx.fillStyle = accent; ctx.fillRect(0, 0, W, 14)
   ctx.textBaseline = 'top'; ctx.textAlign = 'left'
   ctx.fillStyle = accent; ctx.font = `800 ${tall ? 120 : 100}px ${FONT}`; ctx.fillText('#TáPago', P, P)
   ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.font = `600 34px ${FONT}`; ctx.textAlign = 'right'; ctx.fillText('ORNY', W - P, P + 10); ctx.textAlign = 'left'
-  let y = P + (tall ? 210 : 160)
-  const title = kind === 'treino' ? data.workout_name || 'Treino concluído' : kind === 'semana' ? 'Minha semana' : 'Músculos da semana'
+  let y = kind === 'foto' && statsPosition === 'baixo' ? Math.max(P + 210, H * .52) : P + (tall ? 210 : 160)
+  const title = kind === 'treino' ? data.workout_name || 'Treino concluído' : kind === 'foto' ? 'Mais um dia pago.' : kind === 'semana' ? 'Semana paga' : kind === 'recorde' ? 'Novo recorde pessoal' : kind === 'sequencia' ? 'Consistência construída' : 'Músculos da semana'
   ctx.fillStyle = '#fff'; ctx.font = `700 ${tall ? 78 : 66}px ${FONT}`
   for (const line of wrap(ctx, title, W - 2 * P, 2)) { ctx.fillText(line, P, y); y += tall ? 92 : 78 }
-  const sub = kind === 'treino' && data.date ? new Date(data.date).toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
-    : kind === 'semana' && data.week_start ? 'Semana de ' + new Date(data.week_start + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' }) : 'Últimos 7 dias'
+  const sub = ['treino','foto'].includes(kind) && data.date ? new Date(data.date).toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
+    : kind === 'semana' && data.week_start ? 'Semana de ' + new Date(data.week_start + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' })
+      : kind === 'recorde' ? `${data.exercise || ''} · ${data.criterion || ''}` : kind === 'sequencia' ? 'Dias consecutivos com atividade válida' : 'Últimos 7 dias'
   ctx.fillStyle = 'rgba(255,255,255,.65)'; ctx.font = `500 36px ${FONT}`; ctx.fillText(sub, P, y + 6); y += 84
   if (kind === 'semana') {
     const r = 46, gap = (W - 2 * P - 14 * r) / 6

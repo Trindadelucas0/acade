@@ -87,6 +87,7 @@ test('#TáPago: acesso por Progresso, treino sem dado não inventa, formatos, oc
   const c = page.getByTestId('card-canvas'); await expect(c).toBeVisible()
   await expect(c).toHaveAttribute('data-format', '9:16')
   await expect.poll(() => c.evaluate(e => [e.width, e.height])).toEqual([1080, 1920])
+  await page.getByRole('button', { name: 'Personalizar' }).click()
   await page.getByTestId('card-fmt-1x1').click(); await expect.poll(() => c.evaluate(e => [e.width, e.height])).toEqual([1080, 1080])
   await page.getByTestId('card-fmt-4x5').click(); await expect.poll(() => c.evaluate(e => [e.width, e.height])).toEqual([1080, 1350])
   await page.getByTestId('card-toggle-stats').uncheck(); await page.getByTestId('card-toggle-who').uncheck()

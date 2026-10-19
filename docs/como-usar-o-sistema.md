@@ -110,3 +110,32 @@ Na abertura, se houver falha de carregamento, confira a conexão e use Tentar no
 No beta, o Individual custa R$ 12,90 por mês. Para profissionais, o Personal 15 custa R$ 39,90 por mês e permite até 15 alunos ativos; o Personal Ilimitado custa R$ 79,90 por mês e não limita alunos ativos. Ao reduzir para o Personal 15, alunos existentes permanecem, mas novos vínculos ficam bloqueados enquanto houver mais de 15 ativos. Enquanto a homologação do Asaas não estiver concluída, os planos aparecem como indisponíveis para contratação mesmo com os preços definidos.
 
 Para liberar a venda, o administrador deve confirmar em Cobrança, preços e cupons que o provedor aparece como Asaas em produção, que o webhook está configurado e que a cobrança controlada foi conciliada. Só então os planos são marcados como vendáveis e a monetização é ativada.
+# #TáPago 2.0
+
+## Criar e compartilhar um card
+
+1. Conclua o treino e aguarde a confirmação do servidor.
+2. Toque em **Criar meu card** na tela de conclusão ou abra **Progresso → #TáPago**.
+3. Escolha o estilo. Treino já vem pronto; Minha foto permite escolher câmera/galeria, ajustar zoom e posição.
+4. Abra **Personalizar** apenas se quiser mudar formato, indicadores, nome/foto de perfil ou composição.
+5. Toque em **Compartilhar treino**. Se o aparelho não aceitar compartilhamento de arquivo, use **Salvar imagem**.
+
+A foto usada no editor permanece no aparelho. O sistema não publica automaticamente nem envia essa foto para comunidade ou perfil.
+
+## Participar da campanha de 30 dias
+
+Quando a campanha estiver ativa, após preparar o card aparece **Ganhe 30 dias de ORNY**. Leia os termos, publique por conta própria, marque o perfil indicado e envie Instagram, link e captura conforme a configuração. O benefício é único e depende de análise. Solicitação rejeitada mostra o motivo e pode aceitar nova prova enquanto a campanha permitir.
+
+## Administrar a campanha
+
+Administradores usam **Administração → Marketing → Campanha #TáPago**. Primeiro mantenha a situação **Inativa**, preencha perfil oficial, instruções, vigência, retenção e termos. Só use **Ativa** depois das validações jurídica e operacional. Em Solicitações, abra **Ver**, confira o comprovante protegido e escolha **Aprovar 30 dias** ou **Rejeitar**; rejeição e revogação exigem justificativa. Se um aprovado estiver sem data confiável para começar, use **Tentar aplicar crédito pendente** depois que a assinatura estiver regularizada.
+
+---
+
+## Entrar na ORNY e instalar no celular
+
+1. Abra `/` ou `/conheca`, escolha **Quero treinar** ou **Sou profissional** e avance pelo botão correspondente.
+2. Crie sua conta ou entre normalmente. A instalação não é obrigatória: a ORNY funciona no navegador.
+3. No Android, abra a ORNY no Chrome, toque em `⋮` e escolha **Instalar app** ou **Adicionar à tela inicial**. Se aparecer **Instalar a ORNY**, use esse botão.
+4. No iPhone, abra a ORNY no Safari, toque em **Compartilhar**, escolha **Adicionar à Tela de Início** e confirme em **Adicionar**.
+5. Se não quiser instalar agora, escolha **Fazer depois**. As notificações também são opcionais e podem ser ativadas posteriormente em **Perfil → Configurações**.

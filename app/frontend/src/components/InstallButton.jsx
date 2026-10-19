@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useUI } from '../store/useUI.js'
+import { INSTALL_GUIDE } from './install-guide.js'
 
 let deferred = null
 if (typeof window !== 'undefined') {
@@ -23,20 +24,11 @@ export async function requestAppInstall() {
 }
 
 function Steps({ ios, close }) {
-  const step = { display: 'flex', gap: 10, alignItems: 'center', margin: '10px 0', textAlign: 'left' }
-  const n = { flex: '0 0 26px', height: 26, borderRadius: 13, background: 'var(--acc)', color: '#fff', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: 13 }
+  const guide = ios ? INSTALL_GUIDE.ios : INSTALL_GUIDE.android
   return <>
-    <h3>Adicionar {'\u00e0'} tela inicial</h3>
-    <div className="muted small" style={{ marginBottom: 8 }}>Instale o ORNY para abrir como um app, em tela cheia.</div>
-    {ios ? <>
-      <div style={step}><span style={n}>1</span><span>Toque em <b>Compartilhar</b> <span style={{ fontSize: 18 }}>{'\u2b06'}</span> na barra do Safari</span></div>
-      <div style={step}><span style={n}>2</span><span>Escolha <b>Adicionar {'\u00e0'} Tela de In{'\u00ed'}cio</b></span></div>
-      <div style={step}><span style={n}>3</span><span>Toque em <b>Adicionar</b></span></div>
-    </> : <>
-      <div style={step}><span style={n}>1</span><span>Toque no menu <b>{'\u22ee'}</b> do navegador</span></div>
-      <div style={step}><span style={n}>2</span><span>Escolha <b>Adicionar {'\u00e0'} tela inicial</b> ou <b>Instalar app</b></span></div>
-    </>}
-    <div style={{ height: 12 }} />
+    <h3>{guide.title}</h3>
+    <div className="muted small" style={{ marginBottom: 8 }}>{guide.intro}</div>
+    <ol className="install-guide-steps">{guide.steps.map((item, index) => <li key={item}><b>{index + 1}</b><span>{item}</span></li>)}</ol>
     <button className="btn primary" style={{ width: '100%' }} onClick={close}>Entendi</button>
   </>
 }

@@ -15,6 +15,7 @@ import { proRoutes } from './pro.js';
 import { communityRoutes } from './community.js';
 import { communityEditorialRoutes } from './community-editorial.js';
 import { socialRoutes } from './social.js';
+import { tapagoRoutes } from './tapago.js';
 import { rankingRoutes } from './ranking.js';
 import { lgpdRoutes, termsStatus } from './lgpd.js';
 import { legalRoutes } from './legal.js';
@@ -408,6 +409,7 @@ Object.assign(routes, proRoutes({ json, readBody }));
 Object.assign(routes, communityRoutes({ json, readBody }));  // feed, curtidas, comentários, denúncias, moderação
 Object.assign(routes, communityEditorialRoutes({ json, readBody }));  // calendário oficial da Comunidade
 Object.assign(routes, socialRoutes({ json, readBody }));  // V5 E1: perfil social, foto, seguidores, cartões #TáPago
+Object.assign(routes, tapagoRoutes({ json, readBody }));  // #TáPago 2.0: editor, campanha e recompensa de 30 dias
 Object.assign(routes, lgpdRoutes({ json, readBody, legacyState: readState, legacyErase: uid => { eraseStatePg(uid).catch(() => {}); try { fs.unlinkSync(stateFile(uid)) } catch {} db.users = db.users.filter(x => x.id !== uid); saveDb() } }));
 Object.assign(routes, legalRoutes({ json, readBody }));  // dados da empresa + aceite dos documentos legais
 Object.assign(routes, rankingRoutes({ json, readBody }));

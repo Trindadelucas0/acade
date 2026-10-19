@@ -24,6 +24,7 @@ import ManagementDashboard from './ManagementDashboard.jsx'
 import AdmBilling from '../billing/AdmBilling.jsx'
 import AdmMonetizacao from '../billing/AdmMonetizacao.jsx'   // Monetizacao F7   // V5 cobranca: planos, precos, cupons, parceiros, assinaturas
 import { AdmEmpresa } from '../app/Legal.jsx'
+import TapagoAdmin from './TapagoAdmin.jsx'
 
 // ---------- utilitários ----------
 const csvEsc = v => { const s = v == null ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v); return /[",;\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s }
@@ -351,6 +352,7 @@ const NAV = [
  ['Planos e capacidade', [['cobranca','Cobrança, preços e cupons','sparkles'],['assinaturas','Assinaturas','sparkles'],['planos','Limites de acompanhamento','shield'],['solicitacoes','Solicitações de vagas','flag']]],
  ['Treinos', [['modelos','Modelos de treino','pencil'],['exercicios','Biblioteca e mídia','dumbbell']]],
  ['Comunidade', [['publicacoes','Publicações e moderação','chat'],['grupos','Grupos e desafios','users'],['ranking','Ranking','sparkles']]],
+ ['Marketing', [['tapago','Campanha #TáPago','sparkles']]],
  ['Operação', [['filas','Atendimentos e prazos','bell']]],
  ['Sistema', [['empresa','Dados da empresa','list'],['lgpd','Privacidade e termos','lock'],['auditoria','Logs e auditoria','list'],['config','Configurações','gear']]]]
 const TITLE=Object.fromEntries(NAV.flatMap(([,items])=>items.map(([k,l])=>[k,l])))
@@ -386,6 +388,7 @@ export default function AdminApp() {
 
       {tab === 'cobranca' && <AdmBilling />}
       {tab === 'monetizacao' && <AdmMonetizacao />}
+      {tab === 'tapago' && <TapagoAdmin />}
       {tab === 'assinaturas' && <AdmSubscriptions />}
       {tab === 'publicacoes' && <><SubTabs items={[['publicacoes','Publicações e comentários'],['oficial','Conteúdo oficial'],['moderacao','Moderação']]} current={sub} onChange={setSub}/>{sub==='moderacao'?<ExtraSection name="moderacao"/>:sub==='oficial'?<ConteudoOficial DataTable={DataTable} Drawer={Drawer}/>:<Publicacoes DataTable={DataTable} Drawer={Drawer}/>}</>}
 

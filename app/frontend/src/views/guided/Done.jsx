@@ -43,10 +43,10 @@ export default function Done() {
   const save = async () => {
     setBusy(true)
     const p = payloadOf(s, { finished_at: finishedAt, feeling: feel, pain: pain ? { code: area, intensity: inten, notes } : null, time_correction: s.time_correction || null })
-    let synced = true
+    let synced = true, serverId = null
     let rejected = null
-    try { await G.saveSession(p) } catch (e) { await enqueue(p); synced = false; if (e.status && e.status < 500 && e.status !== 401) { rejected = e.message; flushQueue().catch(() => {}) } }
-    const rec = { session: { ...s, finished_at: finishedAt }, synced, rejected, pain: !!pain }
+    try { serverId = (await G.saveSession(p))?.id || null } catch (e) { await enqueue(p); synced = false; if (e.status && e.status < 500 && e.status !== 401) { rejected = e.message; flushQueue().catch(() => {}) } }
+    const rec = { session: { ...s, finished_at: finishedAt }, server_id: serverId, synced, rejected, pain: !!pain }
     setLastFinished(rec); saveSessionLocal(null); setSaved(rec); setBusy(false)
   }
 
@@ -62,7 +62,7 @@ export default function Done() {
       <div><b>{fmtMin(dur)}</b><span>Tempo</span></div><div><b>{exs}</b><span>Exercícios</span></div>
       <div><b>{sets}</b><span>Séries</span></div><div><b>{fmtKg(vol)}</b><span>Volume (carga × repetições)</span></div>
     </div>
-    {(saved || view)?.synced && !corr && <button className="g-btn g-ghost" style={{ marginTop: 12 }} onClick={() => nav('/compartilhar?tipo=treino')} data-testid="done-share"><Icon name="sparkles" /> Compartilhar #TáPago</button>}
+    {(saved || view)?.synced && !corr && <section className="g-card" style={{ marginTop: 16, textAlign: 'center' }} data-testid="done-tapago"><span className="g-eyebrow">#TáPago</span><h2 style={{ margin: '6px 0' }}>Treino pago. Evolução garantida.</h2><p className="g-mut g-sm">Transforme seu treino confirmado em uma arte pronta para compartilhar.</p><button className="g-btn" style={{ marginTop: 12 }} onClick={() => nav('/compartilhar?tipo=treino' + ((saved || view).server_id ? '&sessao=' + (saved || view).server_id : ''))} data-testid="done-share"><Icon name="sparkles" /> Criar meu card</button></section>}
     {corr ? <p className="g-note" style={{ marginTop: 12 }} data-testid="done-corrected">Tempo corrigido por você ({fmtMin(corr.manual_sec)}). Este treino fica no histórico, mas não conta para ranking, desafios, prêmios nem para os números do progresso.</p> : <TimingSummary t={timing} />}
 
     {!(saved || view) ? <>

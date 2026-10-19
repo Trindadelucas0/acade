@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { enablePush, pushPermission, pushSupported } from '../lib/push.js'
 import { installTipKind } from '../lib/installTip.js'
 import { isAppInstalled, requestAppInstall } from './InstallButton.jsx'
+import { INSTALL_GUIDE } from './install-guide.js'
 import './device-setup.css'
 
 const STORAGE_VERSION = 1
@@ -56,12 +57,7 @@ export default function DeviceSetupFlow({ user }) {
     {stage === 'install' ? <>
       <div className="ds-head"><span className="ds-icon" aria-hidden="true">＋</span><div><span className="ds-step">1 de 2 · No celular</span><h2 id="ds-title">Adicione a ORNY à tela inicial</h2></div></div>
       <p className="ds-copy">Abra em tela cheia, encontre a ORNY mais rápido e tenha uma experiência melhor durante o treino.</p>
-      {ios ? <ol className="ds-list">
-        {kind === 'ios-other' && <li><b>!</b><span>Abra <strong>ornygym.avadesk.com.br</strong> no Safari.</span></li>}
-        <li><b>1</b><span>No Safari, toque em <strong>Compartilhar</strong> — o quadrado com uma seta para cima.</span></li>
-        <li><b>2</b><span>Role as opções e toque em <strong>Adicionar à Tela de Início</strong>.</span></li>
-        <li><b>3</b><span>Confira o nome ORNY e toque em <strong>Adicionar</strong>.</span></li>
-      </ol> : <ol className="ds-list"><li><b>1</b><span>Toque em <strong>Instalar a ORNY</strong>.</span></li><li><b>2</b><span>Se o botão não aparecer, abra o menu <strong>⋮</strong> do Chrome.</span></li><li><b>3</b><span>Escolha <strong>Instalar app</strong> ou <strong>Adicionar à tela inicial</strong>.</span></li></ol>}
+      <ol className="ds-list">{(ios ? INSTALL_GUIDE.ios : INSTALL_GUIDE.android).steps.map((step, index) => <li key={step}><b>{index + 1}</b><span>{step}</span></li>)}</ol>
       {ios && <p className="ds-note">Depois, abra a ORNY pelo novo ícone para ativar as notificações.</p>}
       {message && <p className="ds-note" role="status">{message}</p>}
       <div className="ds-actions">{ios ? <button className="ds-btn primary" onClick={() => { if (!manual) write(user, { stage: 'notifications', at: Date.now() }); setOpen(false) }}>Vou abrir pelo ícone</button> : <button className="ds-btn primary" disabled={busy} onClick={install}>{busy ? 'Aguardando…' : 'Instalar a ORNY'}</button>}<button className="ds-btn" onClick={next}>Já adicionei</button><button className="ds-btn" onClick={later}>Fazer depois</button></div>
