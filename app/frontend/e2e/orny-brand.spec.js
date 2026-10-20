@@ -17,7 +17,7 @@ async function fixture(page, theme, role) {
 }
 for(const theme of ['light','dark'])for(const width of [320,375,768,1280]){
   test(`login ORNY ${theme} ${width}`,async({page})=>{
-    await page.setViewportSize({width,height:900});await fixture(page,theme);await page.goto('/')
+    await page.setViewportSize({width,height:900});await fixture(page,theme);await page.goto('/#/entrar')   // '/' agora e a landing publica
     await expect(page.locator('.lg-brand img')).toBeVisible();await expect(page.getByText('Seu progresso começa aqui',{exact:true})).toBeVisible()
     await expect(page).toHaveTitle('ORNY');await expect(page.locator('html')).toHaveAttribute('data-theme',theme)
     expect(await page.locator('.lg-wrap').evaluate(e=>e.scrollWidth<=e.clientWidth+1)).toBe(true)

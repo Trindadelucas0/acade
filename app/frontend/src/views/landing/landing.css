@@ -6,9 +6,12 @@
  * em views/billing/plans.css, que a grade de planos usa.
  */
 
-html[data-lp],
-html[data-lp] body {
-  background: #000;
+/* O :root[data-theme="light"] body do avadesk.css também é !important e tem a mesma
+ * especificidade (0,1,2), e é carregado depois — então venceria. O :root extra sobe para
+ * (0,2,2) e resolve sem depender da ordem dos arquivos. */
+html[data-lp]:root,
+html[data-lp]:root body {
+  background: #000 !important;
   color: #fff;
 }
 
@@ -73,16 +76,49 @@ html[data-lp] .orny-landing .lp-accent {
   width: min(760px, calc(100% - 40px));
 }
 
-/* ---------- estados iniciais da animação ----------
- * data-anim só é marcado antes da primeira pintura quando o movimento está liberado, e é
- * removido se o GSAP não carregar — assim o conteúdo nunca fica preso invisível.
+/* ---------- entrada do hero: CSS puro, sem esperar o GSAP ----------
+ * O topo da página é o que o tráfego pago vê primeiro; ele não pode depender de um chunk
+ * de JS que ainda está baixando. A animação de entrada é CSS, e o GSAP cuida só do que
+ * depende de rolagem. O desaparecer/aparecer fica impossível: `both` segura o estado final.
  */
-.orny-landing[data-anim] [data-hero],
-.orny-landing[data-anim] [data-reveal],
-.orny-landing[data-anim] [data-card],
-.orny-landing[data-anim] .lp-h1-line > span {
-  opacity: 0;
+@keyframes lp-rise {
+  from { transform: translateY(26px); opacity: 0 }
+  to { transform: none; opacity: 1 }
 }
+
+@keyframes lp-rise-line {
+  from { transform: translateY(108%) }
+  to { transform: none }
+}
+
+@keyframes lp-pop {
+  from { transform: scale(0) }
+  to { transform: none }
+}
+
+.lp-h1-line > span {
+  animation: lp-rise-line .85s cubic-bezier(.16, 1, .3, 1) both;
+}
+
+.lp-h1-line:nth-child(2) > span { animation-delay: .1s }
+
+.orny-landing [data-hero] {
+  animation: lp-rise .7s cubic-bezier(.16, 1, .3, 1) both;
+}
+
+.lp-hero-inner [data-hero]:nth-of-type(2) { animation-delay: .28s }
+.lp-hero-inner .lp-bullets { animation-delay: .36s }
+.lp-hero-inner .lp-actions { animation-delay: .44s }
+.lp-hero-inner .lp-trust { animation-delay: .52s }
+
+.lp-dot {
+  animation: lp-pop .5s cubic-bezier(.34, 1.56, .64, 1) both .5s;
+}
+
+/* O estado inicial do que é revelado na rolagem NÃO fica aqui de propósito: quem esconde é
+ * o próprio gsap.from(), e só para o que ainda não entrou na tela. Esconder por CSS deixava
+ * invisível para sempre tudo que estivesse acima da rolagem quando o ScrollTrigger inicia
+ * (recarregar a página no meio, link direto, ou rolar antes do JS carregar). */
 
 /* ---------- botões ---------- */
 .lp-btn {

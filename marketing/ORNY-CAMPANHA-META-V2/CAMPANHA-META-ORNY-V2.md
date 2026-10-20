@@ -74,11 +74,13 @@ Prescrever é só uma parte do trabalho. A ORNY reúne fichas, alunos, sessões 
 
 ### Aluno
 
-`https://ornygym.avadesk.com.br/#/cadastro?perfil=aluno&utm_source=meta&utm_medium=paid_social&utm_campaign=orny_alunos&utm_content={{ad.name}}`
+`https://ornygym.avadesk.com.br/?perfil=aluno&utm_source=meta&utm_medium=paid_social&utm_campaign=orny_alunos&utm_content={{ad.name}}`
+
+O anuncio aponta para a landing ("/"), nao direto para o cadastro: e la que a pessoa entende o produto, ve o preco real e decide. A landing le o `perfil` e repassa todas as UTMs para o `#/cadastro`. Parametro no `?` (e nao depois do `#`) e o unico formato que chega ao log do gateway e a metrica de visualizacao da pagina de destino da Meta.
 
 ### Personal trainer
 
-`https://ornygym.avadesk.com.br/#/cadastro?perfil=profissional&utm_source=meta&utm_medium=paid_social&utm_campaign=orny_personal&utm_content={{ad.name}}`
+`https://ornygym.avadesk.com.br/?perfil=profissional&utm_source=meta&utm_medium=paid_social&utm_campaign=orny_personal&utm_content={{ad.name}}`
 
 ## Estrutura do primeiro teste
 

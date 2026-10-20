@@ -8,7 +8,7 @@ const PASS = 'e2e-Avadesk-2026'
 test('raiz abre o Login; cadastro em etapas com aceite entra direto, sem gate de termos', async ({ page, baseURL }) => {
   test.skip(/:4449\b/.test(baseURL), 'nao roda contra o ambiente do Lucas')
   const csp = []; page.on('console', m => { if (/Content Security Policy|Refused to/i.test(m.text())) csp.push(m.text()) })
-  const resp = await page.goto('/')
+  const resp = await page.goto('/#/entrar')   // '/' agora e a landing publica
   const h = resp.headers()
   if (process.env.EXPECT_SEC_HEADERS) {
     expect(h['content-security-policy']).toContain("frame-ancestors 'none'")

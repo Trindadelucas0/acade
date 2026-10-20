@@ -6,7 +6,7 @@ const PASS = 'e2e-Avadesk-2026', M = { width: 390, height: 844 }
 const theme = page => page.evaluate(() => document.documentElement.dataset.theme)
 test('sem login: alterna e guarda só o cache visual', async ({ browser }) => {
   const ctx = await browser.newContext({ baseURL: 'http://localhost:4449', extraHTTPHeaders: { Origin: new URL('http://localhost:4449').origin }, viewport: M, colorScheme: 'dark' }), page = await ctx.newPage()
-  await page.goto('/'); const b = page.getByTestId('theme-toggle')
+  await page.goto('/#/entrar'); const b = page.getByTestId('theme-toggle')   // '/' agora e a landing publica
   await expect(b).toHaveAttribute('aria-label', 'Mudar para tema claro')
   const box = await b.boundingBox(); expect(box.width).toBeGreaterThanOrEqual(44); expect(box.height).toBeGreaterThanOrEqual(44)
   await b.click(); expect(await theme(page)).toBe('light'); await expect(b).toHaveAttribute('aria-label', 'Mudar para tema escuro')

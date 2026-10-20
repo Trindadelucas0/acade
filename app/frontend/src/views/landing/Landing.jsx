@@ -7,7 +7,7 @@
 //
 // O acesso só é liberado após a confirmação do pagamento (api/auth.js exige um plano vendável),
 // por isso não há CTA de "começar grátis" em lugar nenhum.
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Brand from '../../components/Brand.jsx'
 import Icon from '../../components/Icon.jsx'
 import { api } from '../../lib/api.js'
@@ -224,7 +224,9 @@ export default function Landing() {
         {plans?.test_mode && <p className="lp-status" role="status">Ambiente de teste: os pagamentos desta versão não geram cobrança real.</p>}
         {error ? <p className="lp-error" role="alert">{error}</p>
           : !plans ? <p className="lp-loading">Carregando planos…</p>
-            : <div data-reveal className="lp-plans">
+            // sem data-reveal: este bloco so existe depois da resposta da API, e o
+            // ScrollTrigger.batch so enxerga o que ja estava no DOM quando foi criado
+            : <div className="lp-plans">
               <PlanGrid plans={plans.plans} lockAud={aud} cta={p => !p.purchasable
                 ? <span className="pl-btn" aria-disabled="true" data-testid={'cta-' + p.id}>Em breve</span>
                 : <a className="pl-btn" href={href(p.id)} data-testid={'cta-' + p.id}>{user ? 'Assinar o ' + p.name : 'Começar com o ' + p.name}<Icon name="bolt" /></a>} />
@@ -323,33 +325,20 @@ export default function Landing() {
 // prefers-reduced-motion, e uma faixa extra encurta tudo no celular.
 function useGsap(root, heroRef, deps) {
   const st = useRef(null)
-  const fallback = useRef(null)
-
-  // Antes da primeira pintura: esconde o que vai animar (o CSS usa [data-anim]), para o
-  // conteúdo não aparecer e sumir. Só quando o movimento está liberado.
-  useLayoutEffect(() => {
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return
-    const el = root.current
-    el?.setAttribute('data-anim', '1')
-    // rede de segurança: se o GSAP demorar ou falhar, nada pode ficar preso invisível
-    fallback.current = setTimeout(() => el?.removeAttribute('data-anim'), 3000)
-    return () => { clearTimeout(fallback.current); el?.removeAttribute('data-anim') }
-  }, [root])
 
   useEffect(() => {
     let cancelled = false, ctx, mm
-    Promise.all([import('gsap'), import('gsap/ScrollTrigger'), import('gsap/SplitText')]).then(([g, s, sp]) => {
+    Promise.all([import('gsap'), import('gsap/ScrollTrigger')]).then(([g, s]) => {
       if (cancelled) return   // StrictMode: a limpeza roda antes do import resolver
-      clearTimeout(fallback.current)   // o GSAP chegou: a rede de segurança não é mais necessária
       const gsap = g.default || g.gsap
-      const { ScrollTrigger } = s, { SplitText } = sp
-      gsap.registerPlugin(ScrollTrigger, SplitText)
+      const { ScrollTrigger } = s
+      gsap.registerPlugin(ScrollTrigger)
       ScrollTrigger.config({ ignoreMobileResize: true })   // a barra de URL do iOS não conta como resize
       st.current = ScrollTrigger
 
-      // Todas as animações são fromTo com opacity:1 no destino: o estilo inline final
-      // sobrepõe o opacity:0 do CSS, então nada depende de clearProps.
-      const rise = (t, o) => gsap.fromTo(t, { opacity: 0, ...o.from }, { opacity: 1, ...o.to })
+      // gsap.from: o estado inicial e aplicado pelo proprio ScrollTrigger, e so no que
+      // ainda nao entrou na tela. Nada depende de CSS para ficar escondido.
+      const rise = (t, o) => gsap.from(t, { opacity: 0, ...o.from, ...o.to })
 
       ctx = gsap.context(() => {
         mm = gsap.matchMedia()
@@ -357,23 +346,11 @@ function useGsap(root, heroRef, deps) {
         mm.add({ motion: '(prefers-reduced-motion: no-preference)', small: '(max-width: 760px)' }, c => {
           const { motion, small } = c.conditions
           if (!motion) return
-          const dur = small ? .6 : .9
-          const tl = gsap.timeline({ defaults: { ease: 'power4.out' } })
 
-          // título palavra a palavra, saindo de uma máscara (as linhas têm overflow:hidden)
-          const lines = root.current?.querySelectorAll('.lp-h1-line > span')
-          let split
-          if (lines?.length) {
-            gsap.set(lines, { opacity: 1 })
-            split = new SplitText(lines, { type: 'words' })
-            tl.from(split.words, { yPercent: 115, duration: dur, stagger: .06 })
-          }
-          // tl.fromTo direto: um gsap.fromTo solto e depois tl.add() deixa o tween preso no
-          // estado inicial, porque ele ja comecou a rodar fora da timeline
-          tl.fromTo('[data-hero]', { opacity: 0, y: 26 }, { opacity: 1, y: 0, duration: dur * .75, stagger: .08 }, '-=.45')
-          tl.from('.lp-dot', { scale: 0, duration: .5, stagger: .07, ease: 'back.out(2.2)' }, '-=.5')
-          tl.from('.lp-hero-still', { scale: 1.12, duration: 1.8, ease: 'power2.out' }, 0)
-          // deriva lenta e continua: o hero nunca fica parado, sem custo de rede
+          // A entrada do hero (título, apoio, CTAs) é feita em CSS — ver landing.css.
+          // O topo da página não pode ficar invisível esperando este chunk baixar.
+          gsap.fromTo('.lp-hero-still', { scale: 1.12 }, { scale: 1, duration: 1.8, ease: 'power2.out' })
+          // deriva lenta e contínua: o hero nunca fica parado, sem custo de rede
           gsap.to('.lp-hero-still', { scale: 1.07, xPercent: -1.5, duration: 16, ease: 'sine.inOut', repeat: -1, yoyo: true, delay: 1.8 })
           // o fundo do hero acompanha a rolagem (parallax curto)
           gsap.to('.lp-hero-bg', { yPercent: 12, ease: 'none', scrollTrigger: { trigger: '.lp-hero', start: 'top top', end: 'bottom top', scrub: .5 } })
@@ -394,15 +371,11 @@ function useGsap(root, heroRef, deps) {
             scaleY: 1, transformOrigin: 'top', ease: 'none',
             scrollTrigger: { trigger: '.lp-steps', start: 'top 72%', end: 'bottom 70%', scrub: .4 },
           })
-          return () => split?.revert()
         })
-
-        // Sem transform nem scrub para quem pediu menos movimento; a força fica no design estático.
-        mm.add('(prefers-reduced-motion: reduce)', () => {
-          gsap.set('[data-hero], [data-reveal], [data-card], .lp-h1-line > span', { opacity: 1 })
-        })
+        // Com prefers-reduced-motion: reduce nenhuma animação é registrada, e nada esconde
+        // os elementos — a página aparece inteira e estática. A força vem do design.
       }, root)
-    }).catch(() => { root.current?.removeAttribute('data-anim') })   // sem animação: mostra tudo
+    }).catch(() => { /* sem animação: a página continua legível */ })
 
     return () => { cancelled = true; mm?.kill(); ctx?.revert(); st.current = null }
   }, [root, heroRef])

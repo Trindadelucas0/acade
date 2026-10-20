@@ -21,7 +21,7 @@ test('pagina publica: cards Individual e PRO (redesenho) com CTA', async ({ page
   await expect(page.getByText('AVADESK')).toHaveCount(0)
 })
 test('login tem link para os planos e a marca AVAGYM', async ({ page }) => {
-  await page.goto('/'); await expect(page.getByTestId('see-plans')).toBeVisible({ timeout: 15000 })
+  await page.goto('/#/entrar'); await expect(page.getByTestId('see-plans')).toBeVisible({ timeout: 15000 })   // '/' agora e a landing publica
   await expect(page.locator('.lg-brand').first()).toContainText('AVAGYM')
 })
 test('aluno: cartao recusado mostra erro; cartao de teste aprovado ativa o Individual; cancelar e desfazer', async ({ page }) => {
