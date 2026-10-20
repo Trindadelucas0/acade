@@ -6,9 +6,11 @@
 import { q } from './db/pool.js'
 import { resolve } from './entitlements.js'
 import { welcomeResources } from './welcome-features.js'
+import { providerName } from './billing/providers/index.js'
 
 export const PAID_STATUSES = ['ativa', 'inadimplente', 'carencia']
 const db = c => c || { query: (t, p) => q(t, p) }
+export const localTestAccessAllowed = (env = process.env) => env.NODE_ENV !== 'production' && providerName(env) === 'simulado'
 
 // D3: sem acesso ficam so login, assinatura/pagamento, perfil, configuracoes, LGPD e gestao da conta
 // (+ aceitar convite de personal, que devolve o acesso pelo plano dele - D4). Os dados nunca sao apagados.
@@ -34,6 +36,13 @@ async function ownSources(c, userId, audience) {
       and exists (select 1 from billing_charges ch where ch.subscription_id=s.id and ch.status='paga' and ch.amount_cents>0 and ch.paid_at is not null
         and ch.provider<>'simulado') order by s.started_at desc limit 1`, [userId, audience, PAID_STATUSES])).rows[0]
   if (sub) out.push({ kind: 'propria', id: sub.id, plan_id: sub.plan_id, plan_name: sub.plan_name, status: sub.status, until: sub.current_period_end })
+  // Conta de QA local: nunca vale em produção e nunca transforma pagamento
+  // simulado em receita/acesso real. Exige concessão explícita no banco local.
+  if (localTestAccessAllowed()) {
+    const local = (await c.query(`select id from entitlement_grants where user_id=$1 and audience=$2 and kind='feature' and key='acesso'
+      and reason='teste_local_sem_cobranca' and revoked_at is null and starts_at<=now() and (expires_at is null or expires_at>now()) limit 1`, [userId, audience])).rows[0]
+    if (local) out.push({ kind: 'teste_local', id: local.id })
+  }
   return out
 }
 
@@ -69,6 +78,7 @@ export async function commercialStatus(c, userId, audience, sources) {
   if (sources.some(x => x.kind === 'propria') && s && !s.is_free && s.status === 'ativa') return 'ativa'
   if (sources.some(x => x.kind === 'propria') && s && !s.is_free && ['inadimplente', 'carencia'].includes(s.status)) return 'tolerancia'
   if (sources.some(x => x.kind === 'personal')) return 'patrocinada'
+  if (sources.some(x => x.kind === 'teste_local')) return 'teste_local'
   if (s && !s.is_free && s.status === 'suspensa') return 'vencida'
   if (s && !s.is_free && s.status === 'cancelada') return 'cancelada'
   if ((await c.query('select 1 from trial_grants where user_id=$1 and audience=$2', [userId, audience])).rowCount) return 'vencida'

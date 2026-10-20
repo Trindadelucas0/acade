@@ -1,5 +1,14 @@
 # ORNY — Como usar o sistema
 
+## Testar cadastro e planos no computador local
+
+1. Abra `http://127.0.0.1:4449/` e confirme o aviso **Ambiente de teste**.
+2. Toque em **Criar minha conta** e escolha o plano. Os valores aparecem normalmente no simulador local, mas não geram cobrança real.
+3. Conclua o cadastro e leia os documentos jurídicos. Se a API local estiver temporariamente indisponível, toque em **Tentar novamente**.
+4. O ambiente de produção não usa essa exceção: somente planos habilitados para venda e pagamentos confirmados liberam acesso.
+
+Conta local preparada para validação: `TESTE@TESTE.COM`. Ela possui acesso de QA sem cobrança somente neste banco local.
+
 ## Começar ou continuar um treino
 
 1. Entre como aluno e abra **Início**.

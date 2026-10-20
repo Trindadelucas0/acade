@@ -7,7 +7,7 @@ import { audit } from '../auth.js'
 import { enqueueEmail } from '../mailer.js'
 import { ensureSubscription, refreshUsage } from '../entitlements.js'
 import crypto from 'node:crypto'
-import { getProvider, getProviderByName } from './providers/index.js'
+import { canPurchasePlan, getProvider, getProviderByName } from './providers/index.js'
 
 const OPEN_PAID = ['ativa', 'trial', 'inadimplente', 'carencia']
 export const STATUS_PT = { ativa: 'Ativa', trial: 'Em teste', inadimplente: 'Pagamento pendente', carencia: 'Em carência', suspensa: 'Suspensa', cancelada: 'Cancelada' }
@@ -412,7 +412,7 @@ export async function subscribe(user, b, ip) {
   const paymentType = provider.hostedCheckout ? 'card' : normalizePaymentType(b.payment_type)
   if (!paymentType) return { status: 400, error: 'Meio de pagamento indisponível.', code: 'PAYMENT_METHOD_DISABLED' }
   const plan = (await q(`select p.*, (select v.id from plan_versions v where v.plan_id=p.id order by v.version desc limit 1) version_id from plans p where p.id=$1`, [String(b.plan_id || '')])).rows[0]
-  if (!plan || !plan.active || !plan.sellable || plan.price_cents == null || plan.is_free) return { status: 404, error: 'Este plano não está disponível para contratação.', code: 'PLAN_UNAVAILABLE' }
+  if (!canPurchasePlan(plan)) return { status: 404, error: 'Este plano não está disponível para contratação.', code: 'PLAN_UNAVAILABLE' }
   if (!user.roles.includes(plan.audience)) return { status: 403, error: plan.audience === 'profissional' ? 'Planos PRO são para contas profissionais.' : 'Este plano é para contas de aluno.', code: 'PERMISSION_DENIED' }
   const pm = provider.hostedCheckout ? null : (await q('select * from payment_methods where id=$1 and user_id=$2 and removed_at is null', [b.card_id, user.id])).rows[0]
   if (!provider.hostedCheckout && paymentType === 'card' && !pm) return { status: 400, error: 'Escolha um cartão.', code: 'CARD_REQUIRED' }

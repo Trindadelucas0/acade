@@ -1,6 +1,25 @@
 # ORNY — Documentação do sistema
 
-Fonte oficial de comportamento. Versão frontend: 1.10.0; API: 1.9.0. Atualização: 20/10/2026 — hierarquia do Início, registro direto de séries e Progresso com dados suficientes.
+Fonte oficial de comportamento. Versão frontend: 1.10.1; API: 1.9.0. Atualização: 20/10/2026 — recuperação do cadastro, aceite jurídico e simulador local.
+
+## Cadastro e aceite jurídico local — correção 1.10.1 (20/10/2026)
+
+O catálogo local permite exercitar os planos pagos quando o provedor ativo é o simulador e o ambiente não é produção. Isso não habilita venda real: em produção, o servidor continua exigindo que o plano esteja ativo, com preço e explicitamente marcado como vendável. Cadastro, catálogo público e contratação usam a mesma regra do servidor.
+
+A migration `api/db/migrations/068_dados_legais_ornygym.sql` completa somente os campos ausentes ou vazios da configuração jurídica da empresa ORNY padrão. Valores personalizados já existentes têm precedência. O endpoint jurídico informa também se a completude está sendo exigida naquele ambiente. Produção permanece bloqueada quando a identificação legal estiver incompleta; desenvolvimento sem exigência não é bloqueado indevidamente.
+
+Nas telas de documentos e aceite, carregamento e falha de API agora são estados distintos. Uma indisponibilidade de rede mostra a mensagem e a ação **Tentar novamente**, sem ser convertida silenciosamente em “Aguardando dados da empresa”.
+
+Na estação local, `ORIGIN=http://localhost:4449` e `CSRF_ALLOWED_ORIGINS=http://127.0.0.1:4449` permitem usar os dois endereços equivalentes sem disparar “Origem não permitida”. Essa lista adicional é configuração local e não amplia as origens aceitas em produção.
+
+Contas destinadas a QA podem receber no banco local as concessões `acesso` e `catalogo_completo` com motivo exato `teste_local_sem_cobranca`. O motor comercial reconhece essa origem apenas fora de produção e somente quando `BILLING_PROVIDER=simulado`. Em produção, concessões desse tipo são ignoradas e o acesso continua dependendo de pagamento real confirmado ou cobertura válida do personal.
+
+### Como usar
+
+1. No ambiente local, mantenha `BILLING_PROVIDER=simulado` e abra **Criar conta**.
+2. Escolha Individual, Personal 15 ou Personal Ilimitado; a tela identifica o ambiente de teste e nenhuma cobrança real é criada.
+3. Se os documentos não carregarem, use **Tentar novamente** após a API local voltar.
+4. Em produção, a venda e o acesso continuam dependendo da configuração comercial e da confirmação real do provedor.
 O inventário em `docs/INVENTARIO-FUNCIONAL.md` preserva o levantamento histórico e seus limites de validação; este documento consolida os fluxos atualizados.
 
 ## Jornada de treino e progresso — versão 1.10.0 (20/10/2026)

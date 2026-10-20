@@ -8,6 +8,13 @@ export function providerName(env = process.env) {
   if (['simulado', 'asaas', 'infinitepay'].includes(env.BILLING_PROVIDER)) return env.BILLING_PROVIDER
   return env.ASAAS_API_KEY ? 'asaas' : 'simulado'
 }
+// Em desenvolvimento o simulador precisa permitir exercitar a jornada paga mesmo
+// quando o catálogo real está fechado. Produção continua exigindo sellable=true.
+export function canPurchasePlan(plan, env = process.env) {
+  if (!plan || !plan.active || plan.is_free || plan.price_cents == null) return false
+  const localSimulator = env.NODE_ENV !== 'production' && providerName(env) === 'simulado'
+  return !!plan.sellable || localSimulator
+}
 export function getProvider(env = process.env) {
   if (cached && env === process.env) return cached
   const name = providerName(env)

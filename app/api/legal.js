@@ -32,7 +32,7 @@ export const companyReadiness = company => {
   const missing = REQUIRED_COMPANY_FIELDS.filter(k => !String(company?.[k] || '').trim())
   return { ready: missing.length === 0, missing }
 }
-const enforceLegalReadiness = () => process.env.REQUIRE_LEGAL_CONFIG === 'true' || process.env.NODE_ENV === 'production'
+export const enforceLegalReadiness = () => process.env.REQUIRE_LEGAL_CONFIG === 'true' || process.env.NODE_ENV === 'production'
 const ip = req => clientIp(req)
 
 async function defaultTenant() { return (await q('select id from tenants where slug=$1', [process.env.DEFAULT_TENANT || 'avadesk'])).rows[0]?.id || null }
@@ -93,7 +93,7 @@ async function record(u, document, version, req, granted = true) {
 export function legalRoutes({ json, readBody }) {
   return {
     // público: só campos legais + preços dos planos (para os documentos)
-    'GET /api/legal/company': async (req, res) => { const company = await getCompany(); json(res, 200, { company, legal_config: companyReadiness(company), plans: await planPrices() }) },
+    'GET /api/legal/company': async (req, res) => { const company = await getCompany(); json(res, 200, { company, legal_config: { ...companyReadiness(company), enforced: enforceLegalReadiness() }, plans: await planPrices() }) },
     // perfil do profissional logado (Termo do Profissional)
     'GET /api/legal/me': async (req, res) => {
       const u = await requireAuth(req, res, json, { allowPending: true }); if (!u) return

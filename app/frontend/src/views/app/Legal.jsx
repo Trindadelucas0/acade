@@ -56,14 +56,17 @@ export function LegalDoc({ text, map }) {
   })}</div>
 }
 export function useLegalData(withMe) {
-  const [d, setD] = useState({ company: null, legalConfig: null, plans: [], me: null })
+  const [reloadKey, setReloadKey] = useState(0)
+  const [d, setD] = useState({ company: null, legalConfig: null, plans: [], me: null, loading: true, error: '' })
   useEffect(() => {
     let live = true
-    Promise.all([api('/api/legal/company').catch(() => ({})), withMe ? api('/api/legal/me').catch(() => null) : null])
-      .then(([c, me]) => live && setD({ company: c.company || {}, legalConfig: c.legal_config || null, plans: c.plans || [], me }))
+    setD(prev => ({ ...prev, loading: true, error: '' }))
+    Promise.all([api('/api/legal/company'), withMe ? api('/api/legal/me') : null])
+      .then(([c, me]) => live && setD({ company: c.company || {}, legalConfig: c.legal_config || null, plans: c.plans || [], me, loading: false, error: '' }))
+      .catch(error => live && setD(prev => ({ ...prev, loading: false, error: error.message || 'Não foi possível carregar os documentos.' })))
     return () => { live = false }
-  }, [withMe])
-  return d
+  }, [withMe, reloadKey])
+  return { ...d, retry: () => setReloadKey(key => key + 1) }
 }
 
 // rota pública /legal e /legal/:doc
@@ -73,6 +76,8 @@ export function LegalPage({ authed }) {
   const [hc, setHc] = useState(null), [msg, setMsg] = useState('')
   useEffect(() => { if (d.me) setHc(d.me.health_consent) }, [d.me])
   const toggleHealth = async v => { try { await api('/api/legal/health-consent', { method: 'POST', body: JSON.stringify({ granted: v }) }); setHc(v); setMsg(v ? 'Consentimento registrado.' : 'Consentimento revogado.') } catch (e) { setMsg(e.message) } }
+  if (d.loading) return <div className="ag g-page" data-testid="legal-loading"><p className="g-mut">Carregando documentos…</p></div>
+  if (d.error) return <div className="ag g-page" data-testid="legal-error"><p className="g-bad2">{d.error}</p><button className="g-btn" onClick={d.retry}>Tentar novamente</button></div>
   return <div className="ag g-page" data-testid="legal-page">
     <p><Link to="/legal">Documentos legais</Link>{hit && <> › {hit[1].title}</>}</p>
     {hit ? (d.company ? <div className="g-card"><LegalDoc text={hit[1].text} map={map} /></div> : <p className="g-mut">Carregando…</p>) : <>
@@ -94,13 +99,15 @@ export function LegalGate({ onAccepted }) {
   const [ok1, setOk1] = useState(false), [ok2, setOk2] = useState(false), [health, setHealth] = useState(false), [busy, setBusy] = useState(false), [msg, setMsg] = useState(''), [open, setOpen] = useState('termos_uso')
   const req = d.me?.legal_required || ['termos_uso', 'privacidade'], isPro = req.includes('profissional')
   const reaccept = d.me && d.me.legal_missing && d.me.legal_missing.length < req.length
-  const legalMissing = d.legalConfig?.ready === false ? d.legalConfig.missing || [] : []
+  const legalMissing = d.legalConfig?.enforced && d.legalConfig?.ready === false ? d.legalConfig.missing || [] : []
   const can = ok1 && (!isPro || ok2) && d.me && legalMissing.length === 0 && !busy
   const accept = async () => {
     setBusy(true); setMsg('')
     try { await api('/api/legal/accept', { method: 'POST', body: JSON.stringify({ version: d.me.legal_version, documents: req, health_consent: health }) }); onAccepted() }
     catch (e) { setMsg(e.message) } finally { setBusy(false) }
   }
+  if (d.loading) return <div className="ag g-page" data-testid="legal-loading"><p className="g-mut">Carregando documentos para aceite…</p></div>
+  if (d.error) return <div className="ag g-page" data-testid="legal-error"><h1 className="g-h1">Não foi possível carregar os documentos</h1><p className="g-bad2">{d.error}</p><button className="g-btn" onClick={d.retry}>Tentar novamente</button></div>
   return <div className="ag g-page" data-testid="terms-gate">
     <h1 className="g-h1">{reaccept ? 'Documentos atualizados' : 'Termos e privacidade'}</h1>
     <p className="g-mut">Para continuar, leia e aceite os documentos abaixo{d.me ? ` (versão ${d.me.legal_version})` : ''}.</p>

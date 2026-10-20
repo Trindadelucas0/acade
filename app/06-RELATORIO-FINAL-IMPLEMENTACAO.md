@@ -1,7 +1,18 @@
 # ORNY/AVAGYM — Relatório final de implementação
 
 Data: 20/10/2026  
-Versão: frontend 1.10.0
+Versão: frontend 1.10.1
+
+## Correção local posterior — cadastro, planos e aceite jurídico
+
+- Corrigida a divergência em que o catálogo local exibia planos precificados, mas cadastro e contratação ainda exigiam a flag de venda real mesmo usando o simulador.
+- A exceção ficou limitada a ambiente não produtivo com provedor `simulado`; produção continua exigindo plano explicitamente vendável.
+- A configuração jurídica padrão passou a completar apenas campos ausentes, preservando valores personalizados.
+- Carregamento e erro de rede dos documentos receberam estados próprios e ação de nova tentativa.
+- A configuração local passou a aceitar tanto `localhost:4449` quanto `127.0.0.1:4449`; ambos foram confirmados com login HTTP 200.
+- A conta `TESTE@TESTE.COM` recebeu concessão de QA local sem assinatura ou cobrança. O backend reconhece essa concessão apenas fora de produção com o provedor simulado; a trava de pagamento real da VPS permanece inalterada.
+- Validação local: migration 068 aplicada e repetida sem nova alteração; endpoints de saúde, planos e dados jurídicos aprovados; 310/310 testes de frontend e build de produção aprovados; 6/6 testes focados da correção aprovados.
+- Não houve acesso, deploy ou alteração na VPS e nenhuma cobrança real foi criada.
 
 ## Telas modificadas
 
@@ -19,7 +30,7 @@ Versão: frontend 1.10.0
 
 ## Contratos preservados
 
-- Nenhuma rota, API, migration, preço, permissão ou regra de acesso foi alterada.
+- O lote inicial não alterou rotas, preços ou permissões. A correção 1.10.1 adicionou a migration jurídica 068 e uma regra exclusivamente local para permitir testes com o simulador, preservando as travas de produção.
 - Nenhum dado existente é removido ou convertido.
 - #TáPago continua publicando somente após confirmação explícita.
 

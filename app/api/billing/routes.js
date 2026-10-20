@@ -6,7 +6,7 @@ import { q } from '../db/pool.js'
 import { requireAuth, requireRole, audit } from '../auth.js'
 import { resolve, refreshUsage, capacitySummary } from '../entitlements.js'
 import { accessOf } from '../access.js'
-import { getProvider, getProviderByName, providerName } from './providers/index.js'
+import { canPurchasePlan, getProvider, getProviderByName, providerName } from './providers/index.js'
 import { SIM_CARDS } from './providers/simulado.js'
 import * as core from './core.js'
 import * as cp from './coupons.js'
@@ -99,7 +99,7 @@ export function billingRoutes({ json, readBody }) {
     'GET /api/public/plans': async (req, res) => {
       const r = await q(PLANS_SQL + ` where p.active and p.id in (${CATALOG_SQL}) order by p.audience, p.sort`)
       const info = providerInfo()
-      json(res, 200, { plans: r.rows.map(p => ({ ...pubPlan(p), purchasable: !p.is_free && !!p.sellable && p.price_cents != null })).map(p => ({ ...p, price_label: p.is_free ? 'Gratuito' : p.price_cents == null ? 'Preço a definir' : null })), test_mode: !!info.test, hosted_checkout: !!info.hosted_checkout, payment_types: info.payment_types }, { 'Cache-Control': 'public, max-age=60' })
+      json(res, 200, { plans: r.rows.map(p => ({ ...pubPlan(p), purchasable: canPurchasePlan(p) })).map(p => ({ ...p, price_label: p.is_free ? 'Gratuito' : p.price_cents == null ? 'Preço a definir' : null })), test_mode: !!info.test, hosted_checkout: !!info.hosted_checkout, payment_types: info.payment_types }, { 'Cache-Control': 'public, max-age=60' })
     },
     // Monetizacao F8b: tela dedicada do personal (plano, alunos permitidos, vagas usadas, proximo vencimento).
     // Fica em /api/billing/* (sempre liberado) para o personal gerir a assinatura mesmo com o teste vencido.
@@ -122,7 +122,7 @@ export function billingRoutes({ json, readBody }) {
     'GET /api/billing/plans': async (req, res) => {
       const u = await auth(req, res); if (!u) return
       const r = await q(PLANS_SQL + ` where p.active and p.id in (${CATALOG_SQL}) order by p.audience, p.sort`)
-      json(res, 200, { plans: r.rows.filter(p => p.is_free || p.price_cents != null).map(p => ({ ...pubPlan(p), purchasable: !p.is_free && !!p.sellable && p.price_cents != null })) })
+      json(res, 200, { plans: r.rows.filter(p => p.is_free || p.price_cents != null).map(p => ({ ...pubPlan(p), purchasable: canPurchasePlan(p) })) })
     },
     'GET /api/billing/me': async (req, res) => {
       const u = await auth(req, res); if (!u) return
