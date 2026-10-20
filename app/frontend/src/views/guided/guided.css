@@ -2,7 +2,7 @@
 :root{--ag-bg:#0b0b0c;--ag-card:#101821;--ag-card-2:#16212d;--ag-line:#ffffff14;--ag-txt:#eef4f9;--ag-mut:#93a7bb;--ag-dim:#5f7387;--ag-acc:#20f51b;--ag-acc-2:#19cb16;--ag-on:#11140a;--ag-warn:#ffb547;--ag-bad:#ff6b7a}
 body:has(.ag),html:has(.ag){background:var(--ag-bg)!important}
 #app:has(.ag){max-width:none;padding:0}
-.ag{min-height:100vh;background:var(--ag-bg);color:var(--ag-txt);padding:calc(18px + env(safe-area-inset-top)) 18px calc(110px + env(safe-area-inset-bottom));max-width:560px;margin:0 auto;font-size:16px;line-height:1.4}
+.ag{min-height:100dvh;background:var(--ag-bg);color:var(--ag-txt);padding:calc(18px + env(safe-area-inset-top)) 18px calc(110px + env(safe-area-inset-bottom));max-width:560px;margin:0 auto;font-size:16px;line-height:1.4}
 .ag.g-full{padding-bottom:calc(24px + env(safe-area-inset-bottom))}
 .ag *{box-sizing:border-box}
 :root .ag.ag h1,:root .ag.ag h2,:root .ag.ag h3{color:var(--ag-txt)}
@@ -119,6 +119,12 @@ body:has(.ag),html:has(.ag){background:var(--ag-bg)!important}
 .ag .g-stp .g-lb{font-size:13px;color:var(--ag-mut);font-weight:650}
 .ag .g-stp .g-val{font-size:38px;font-weight:850;letter-spacing:-.03em;line-height:1.1;margin:4px 0 8px;font-variant-numeric:tabular-nums}
 .ag .g-stp .g-val small{font-size:15px;color:var(--ag-mut);font-weight:600;margin-left:2px}
+.ag .g-editval{display:flex;align-items:baseline;justify-content:center;gap:4px}
+.ag .g-value-input{width:min(100%,110px);min-height:48px;border:1px solid transparent;border-radius:12px;background:transparent;color:var(--ag-txt);font:inherit;font-size:38px;font-weight:850;line-height:1;text-align:center;font-variant-numeric:tabular-nums;padding:2px 4px}
+.ag .g-value-input:hover{background:var(--ag-card-2)}
+.ag .g-value-input:focus{background:var(--ag-card-2);border-color:var(--ag-acc);outline:0}
+.ag .g-repeat{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:44px;margin:12px 0 0;border:0;background:transparent;color:var(--ag-acc);font:inherit;font-size:14px;font-weight:700;cursor:pointer}
+.ag .g-sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .ag .g-stp .g-pm{display:flex;gap:8px}
 .ag .g-stp .g-pm button{flex:1;height:56px;border-radius:16px;border:1px solid var(--ag-line);background:var(--ag-card-2);color:var(--ag-txt);font-size:28px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .ag .g-stp .g-pm button:active{background:#20f51b2a}

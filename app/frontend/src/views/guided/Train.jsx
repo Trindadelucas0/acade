@@ -10,6 +10,7 @@ import { C } from '../../lib/care.js'
 import { ReportSheet, AskSheet } from '../app/Acompanhamento.jsx'
 import './guided.css'
 import { ask, notify } from '../../lib/dialog.js'
+import { NumberField } from '../../components/ui.jsx'
 
 // V4.1: fim do descanso NÃO inicia a série sozinho — o aluno toca "Iniciar série" e o cronômetro grande aparece
 const endRest = x => { x.rest = null }
@@ -148,6 +149,13 @@ export default function Train() {
   const wStep = (ex.weight || 0) >= 20 ? 2 : 1
 
   const adj = (k, d) => update(x => { const e = x.exercises[x.exIdx]; e[k] = Math.max(0, Math.round(((+e[k] || 0) + d) * 10) / 10) })
+  const setValue = (k, value) => update(x => { x.exercises[x.exIdx][k] = Math.max(0, +value || 0) })
+  const repeatPrevious = () => update(x => {
+    const e = x.exercises[x.exIdx], previous = e.done[e.done.length - 1]
+    if (!previous) return
+    if (!e.timed) e.weight = Math.max(0, +previous.weight || 0)
+    e.reps = Math.max(0, +previous.reps || 0)
+  })
   const goNext = () => update(x => { endRest(x); x.cur_start = null; if (x.exIdx < x.exercises.length - 1) x.exIdx++ ; else x.finishing = true })
   const finishSet = () => {
     logEvent(s, 'set_done', { exercise_id: ex.exercise_id, set_index: ex.done.length, weight: ex.timed ? null : ex.weight, reps: ex.reps })
@@ -207,12 +215,13 @@ export default function Train() {
       {ex.note && <p className="g-acc g-xs" style={{ marginTop: 4 }}>Sugestão: {ex.note}</p>}
     </div>
 
+    {ex.done.length > 0 && <button className="g-repeat" type="button" onClick={repeatPrevious} data-testid="repeat-previous-set"><Icon name="history" /> Repetir valores da série anterior</button>}
     <div className="g-steppers" style={ex.timed ? { gridTemplateColumns: '1fr' } : null}>
       {!ex.timed && <div className="g-stp"><div className="g-lb">Carga</div>
-        <div className="g-val" data-testid="weight">{ex.weight || 0}<small>kg</small></div>
+        <label className="g-val g-editval"><span className="g-sr">Carga em quilos</span><NumberField value={ex.weight || 0} onChange={value => setValue('weight', value)} decimal className="g-value-input" data-testid="weight" aria-label="Carga em quilos" /><small>kg</small></label>
         <div className="g-pm"><button onClick={() => adj('weight', -wStep)} aria-label="Diminuir carga">−</button><button onClick={() => adj('weight', wStep)} aria-label="Aumentar carga">+</button></div></div>}
       <div className="g-stp"><div className="g-lb">{ex.timed ? 'Segundos' : 'Repetições'}</div>
-        <div className="g-val" data-testid="reps">{ex.reps}</div>
+        <label className="g-val g-editval"><span className="g-sr">{ex.timed ? 'Segundos' : 'Repetições'}</span><NumberField value={ex.reps} onChange={value => setValue('reps', value)} decimal={false} className="g-value-input" data-testid="reps" aria-label={ex.timed ? 'Segundos' : 'Repetições'} /></label>
         <div className="g-pm"><button onClick={() => adj('reps', ex.timed ? -5 : -1)} aria-label="Diminuir">−</button><button onClick={() => adj('reps', ex.timed ? 5 : 1)} aria-label="Aumentar">+</button></div></div>
     </div>
 

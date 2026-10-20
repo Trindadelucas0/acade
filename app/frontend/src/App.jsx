@@ -19,55 +19,62 @@ import Toast from './components/Toast.jsx'
 import DialogHost from './components/DialogHost.jsx'
 import RestTimer from './components/RestTimer.jsx'
 import Login from './views/Login.jsx'
+const lazyNamed = (load, name) => lazy(() => load().then(module => ({ default: module[name] })))
 const Landing = lazy(() => import('./views/landing/Landing.jsx'))
-import Workout from './views/Workout.jsx'
-import Stats from './views/Stats.jsx'
-import History from './views/History.jsx'
-import Library from './views/Library.jsx'
-import SocialProfile from './views/guided/SocialProfile.jsx'
-import SocialPublic from './views/guided/SocialPublic.jsx'
-import ShareCard from './views/guided/ShareCard.jsx'
-import Settings from './views/Settings.jsx'
+const Workout = lazy(() => import('./views/Workout.jsx'))
+const Stats = lazy(() => import('./views/Stats.jsx'))
+const History = lazy(() => import('./views/History.jsx'))
+const Library = lazy(() => import('./views/Library.jsx'))
+const SocialProfile = lazy(() => import('./views/guided/SocialProfile.jsx'))
+const SocialPublic = lazy(() => import('./views/guided/SocialPublic.jsx'))
+const ShareCard = lazy(() => import('./views/guided/ShareCard.jsx'))
+const Settings = lazy(() => import('./views/Settings.jsx'))
 const MuscleMap = lazy(() => import('./views/MuscleMap.jsx'))
 // treino guiado (AVAGYM)
 import GuidedTabBar, { isProAccount, isAdminAccount } from './views/guided/TabBar.jsx'
-import Onboarding from './views/guided/Onboarding.jsx'
-import Today from './views/guided/Today.jsx'
-import { Recommendations, Library as ProgramLibrary, ProgramDetail } from './views/guided/Programs.jsx'
-import MyProgram from './views/guided/MyProgram.jsx'
-import Train from './views/guided/Train.jsx'
-import Done from './views/guided/Done.jsx'
-import Progress from './views/guided/Progress.jsx'
-import Profile from './views/guided/Profile.jsx'
-import MyEquipment from './views/guided/MyEquipment.jsx'
-import AdminPrograms from './views/guided/AdminPrograms.jsx'
+const Onboarding = lazy(() => import('./views/guided/Onboarding.jsx'))
+const Today = lazy(() => import('./views/guided/Today.jsx'))
+const Recommendations = lazyNamed(() => import('./views/guided/Programs.jsx'), 'Recommendations')
+const ProgramLibrary = lazyNamed(() => import('./views/guided/Programs.jsx'), 'Library')
+const ProgramDetail = lazyNamed(() => import('./views/guided/Programs.jsx'), 'ProgramDetail')
+const MyProgram = lazy(() => import('./views/guided/MyProgram.jsx'))
+const Train = lazy(() => import('./views/guided/Train.jsx'))
+const Done = lazy(() => import('./views/guided/Done.jsx'))
+const Progress = lazy(() => import('./views/guided/Progress.jsx'))
+const Profile = lazy(() => import('./views/guided/Profile.jsx'))
+const MyEquipment = lazy(() => import('./views/guided/MyEquipment.jsx'))
+const AdminPrograms = lazy(() => import('./views/guided/AdminPrograms.jsx'))
 // AVAGYM
-import Treinos from './views/app/Treinos.jsx'
-import Comunidade, { PostPage, ProfessionalPage } from './views/app/Comunidade.jsx'
-import Ranking from './views/app/Ranking.jsx'
+const Treinos = lazy(() => import('./views/app/Treinos.jsx'))
+const Comunidade = lazy(() => import('./views/app/Comunidade.jsx'))
+const PostPage = lazyNamed(() => import('./views/app/Comunidade.jsx'), 'PostPage')
+const ProfessionalPage = lazyNamed(() => import('./views/app/Comunidade.jsx'), 'ProfessionalPage')
+const Ranking = lazy(() => import('./views/app/Ranking.jsx'))
 import './views/app/AdminCommunity.jsx'
 import Gate from './views/app/Locked.jsx'
-import Acompanhamento, { Conversa } from './views/app/Acompanhamento.jsx'
-import Avisos from './views/app/Avisos.jsx'
-import AdminApp from './views/admin/AdminApp.jsx'
+const Acompanhamento = lazy(() => import('./views/app/Acompanhamento.jsx'))
+const Conversa = lazyNamed(() => import('./views/app/Acompanhamento.jsx'), 'Conversa')
+const Avisos = lazy(() => import('./views/app/Avisos.jsx'))
+const AdminApp = lazy(() => import('./views/admin/AdminApp.jsx'))
 import { LegalGate, LegalPage } from './views/app/Legal.jsx'
-import ProPortal from './views/pro/Portal.jsx'
-import MyPrograms from './views/pro/MyPrograms.jsx'
-import { GroupPage } from './views/app/Grupos.jsx'
-import { ChallengePage, ChallengeWizard } from './views/app/Desafios.jsx'
-import Builder from './views/builder/WorkoutBuilder.jsx'
+const ProPortal = lazy(() => import('./views/pro/Portal.jsx'))
+const MyPrograms = lazy(() => import('./views/pro/MyPrograms.jsx'))
+const GroupPage = lazyNamed(() => import('./views/app/Grupos.jsx'), 'GroupPage')
+const ChallengePage = lazyNamed(() => import('./views/app/Desafios.jsx'), 'ChallengePage')
+const ChallengeWizard = lazyNamed(() => import('./views/app/Desafios.jsx'), 'ChallengeWizard')
+const Builder = lazy(() => import('./views/builder/WorkoutBuilder.jsx'))
 import PlanErrorHost from './views/v3/PlanErrorHost.jsx'
 import { AccessHost } from './views/billing/Access.jsx'   // Monetizacao F8
 import WelcomeHost from './views/billing/Welcome.jsx'   // lote 7: boas-vindas pos-assinatura
-import Estatisticas from './views/guided/Estatisticas.jsx'   // lote 7: progresso e estatisticas
+const Estatisticas = lazy(() => import('./views/guided/Estatisticas.jsx'))   // lote 7: progresso e estatisticas
 import { MustChangePassword, AccessLockHost, LockBanner, ScopeGate } from './views/v3/V42.jsx'
 import './styles/v42.css'
 import './styles/tours.css'
 import { TourHost } from './components/Tour.jsx'
 import ThemeToggle from './components/ThemeToggle.jsx'
-import Plans from './views/v3/Plans.jsx'
+const Plans = lazy(() => import('./views/v3/Plans.jsx'))
 import { PublicPlans, Subscription } from './views/billing/Billing.jsx'   // V5 cobranca
-import ProSubscription from './views/billing/ProSubscription.jsx'   // Monetizacao F8b
+const ProSubscription = lazy(() => import('./views/billing/ProSubscription.jsx'))   // Monetizacao F8b
 import { NavigationAccess } from './components/NavigationAccess.jsx'
 import AcceptInvite from './views/v3/AcceptInvite.jsx'
 import ProfileNotice from './components/ProfileNotice.jsx'
@@ -119,7 +126,7 @@ function Shell() {
         {authed && !isAdminAccount(user) && <div className="orny-app-brand"><Brand /></div>}
         {authed && !user?.must_change_password && <LockBanner />}
         {authed && user?.profile_incomplete && !user?.must_change_password && !user?.needs_terms && <ProfileNotice />}
-        <ErrorBoundary>
+        <Suspense fallback={<BrandLoading />}><ErrorBoundary>
           {!authed ? <Login /> : user?.must_change_password ? <MustChangePassword /> : user?.needs_terms ? <LegalGate onAccepted={() => useStore.getState().setUser({ ...user, needs_terms: false })} /> : isAdminAccount(user) ? (
             <Routes>
               <Route path="/admin/painel" element={<AdminApp />} />
@@ -209,7 +216,7 @@ function Shell() {
               <Route path="*" element={<Navigate to="/hoje" replace />} />
             </Routes>
           )}
-        </ErrorBoundary>
+        </ErrorBoundary></Suspense>
       </div>
       {/* barra principal = treino guiado; a antiga só aparece no treino manual em execução */}
       {authed && !user?.needs_terms && !user?.must_change_password && !isAdminAccount(user) && !loc.pathname.startsWith('/admin/painel') && !loc.pathname.startsWith('/pro/treino') && <GuidedTabBar />}

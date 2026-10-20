@@ -44,6 +44,7 @@ export default function Progress() {
   const weeks = Array.from({ length: 8 }, (_, i) => { const x = new Date(now); x.setDate(x.getDate() - (7 - i) * 7); const k = x.toISOString().slice(0, 10)
     const n = map[k] || map[new Date(x.getTime() - x.getTimezoneOffset() * 6e4).toISOString().slice(0, 10)] || 0; return { k, n, l: x.getDate() + '/' + (x.getMonth() + 1) } })
   const max = Math.max(3, ...weeks.map(w => w.n))
+  const enoughForTrend = d.totals.n >= 2
   return <div className="ag" data-testid="progress">
     <span className="g-eyebrow">Progresso</span>
     <h1>Você está evoluindo</h1>
@@ -60,7 +61,8 @@ export default function Progress() {
       <button className="g-li" onClick={() => nav('/history')}><span className="g-ico"><Icon name="history" /></span><span><b>Histórico antigo (somente consulta)</b></span></button>
     </div>
     <h2>Treinos por semana</h2>
-    <div className="g-card"><div className="g-bars">{weeks.map(w => <div key={w.k}><b>{w.n || ''}</b><i className={w.n ? '' : 'g-z'} style={{ height: (w.n / max * 100) + '%' }} />{w.l}</div>)}</div></div>
+    {enoughForTrend ? <div className="g-card"><div className="g-bars" aria-label="Treinos concluídos nas últimas oito semanas">{weeks.map(w => <div key={w.k}><b>{w.n || ''}</b><i className={w.n ? '' : 'g-z'} style={{ height: (w.n / max * 100) + '%' }} />{w.l}</div>)}</div></div>
+      : <div className="g-card g-empty" data-testid="progress-insufficient"><Icon name="chart" /><b>Continue registrando seus treinos</b><p className="g-mut g-sm">Você ainda não tem treinos suficientes para comparar sua evolução. Conclua pelo menos dois treinos para ver a tendência semanal.</p><button className="g-btn g-sm" onClick={() => nav('/hoje')}>Ir para o próximo treino</button></div>}
     <h2>Recordes</h2>
     <div className="g-card g-list">{d.records.length ? d.records.map(r => { const m = mediaOf(r.media)
       return <div key={r.exercise_id} className="g-li">{m ? <img className="g-thumb" src={m.img} alt="" /> : <span className="g-ico"><Icon name="trophy" /></span>}

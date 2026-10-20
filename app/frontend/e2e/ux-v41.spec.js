@@ -25,6 +25,7 @@ test('aluno', async ({ browser, playwright }) => {
   await rq.post('/api/auth/register', { data: { name: 'Aluna UX Teste', email, password: PASS, accept_terms: true, birth_date: '1990-01-01', terms_version: terms?.version, intent: 'aluno' } })
   await rq.post('/api/guided/onboarding', { data: { objetivo: 'hypertrophy', nivel: 'beginner', local: 'gym', dias: 3, minutos: 45, restricoes: [] } })
   const list = (await (await rq.get('/api/guided/programs')).json()).programs
+  test.skip(!list?.length, 'catálogo local sem programas publicados; execute a base de teste com SEED_PROGRAMS=1')
   await rq.post('/api/guided/start', { data: { program_id: list[0].id } }); await rq.dispose()
   for (const scheme of ['dark', 'light']) {
     const ctx = await ctxLogin(browser, email, scheme), page = await ctx.newPage(), p = scheme === 'dark' ? 'aluno' : 'aluno-claro'

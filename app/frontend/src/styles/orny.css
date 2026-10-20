@@ -7,6 +7,8 @@
  --bg:#000;--bg-el:#121212;--surface:#1e1e1e;--surface-2:#292929;--surface-3:#333;
  --label:#fff;--label-2:#bdbdbd;--label-3:#aaa;--label-4:#888;--sep:#ffffff26;--sep-op:#ffffff1f;
  --acc:#20f51b;--acc-2:#19cb16;--on-acc:#000;--navy:#fff;--brand-orange:#20f51b;
+ --ui-background:var(--ag-bg);--ui-surface:var(--ag-card);--ui-surface-elevated:var(--ag-card-2);--ui-primary:var(--ag-acc);--ui-primary-pressed:var(--ag-acc-2);
+ --ui-text-primary:var(--ag-txt);--ui-text-secondary:var(--ag-mut);--ui-border:var(--ag-line);--ui-success:#20f51b;--ui-warning:#ffb547;--ui-error:#ff6b7a;--ui-disabled:#888;--ui-focus:var(--ag-focus);
 }
 :root[data-theme="light"],:root[data-theme="light"][data-accent="avagym"]{
  --ag-bg:#f5f5f5;--ag-card:#fff;--ag-card-2:#eaeaea;--ag-line:#00000030;--ag-txt:#171717;--ag-mut:#525252;--ag-dim:#626262;
@@ -14,6 +16,8 @@
  --bg:#f5f5f5;--bg-el:#f5f5f5;--surface:#fff;--surface-2:#eaeaea;--surface-3:#ddd;
  --label:#171717;--label-2:#525252;--label-3:#626262;--label-4:#737373;--sep:#00000030;--sep-op:#0000001f;
  --acc:#176d14;--acc-2:#20f51b;--on-acc:#fff;--navy:#171717;
+ --ui-background:var(--ag-bg);--ui-surface:var(--ag-card);--ui-surface-elevated:var(--ag-card-2);--ui-primary:var(--ag-acc);--ui-primary-pressed:#0f5210;
+ --ui-text-primary:var(--ag-txt);--ui-text-secondary:var(--ag-mut);--ui-border:var(--ag-line);--ui-success:#176d14;--ui-warning:#8a4d00;--ui-error:#9f1524;--ui-disabled:#737373;--ui-focus:var(--ag-focus);
 }
 h1,h2,h3,h4,.sec,button,.g-btn{font-family:var(--font-head)}
 .orny-brand{display:inline-flex;align-items:center;justify-content:center;background:#000;border-radius:10px;padding:8px 12px;max-width:100%;box-sizing:border-box;vertical-align:middle}

@@ -73,8 +73,8 @@ for(const width of [320,390,768,1280])for(const theme of ['light','dark'])test(`
 })
 test('sem acesso: cadeados por seção e acesso direto bloqueado',async({page})=>{
  await setup(page,{locked:true});await page.goto('/#/progresso')
- await expect(page.getByTestId('progress-locked')).toBeVisible()
- await expect(page.locator('[data-feature=musculos]')).toBeVisible()
+ await expect(page.getByTestId('premium-page')).toBeVisible()
+ await expect(page.getByText('Progresso, músculos trabalhados e estatísticas')).toBeVisible()
  await expect(page.getByTestId('tab-progresso').getByTestId('lock-badge')).toBeVisible()
  for(const path of ['/estatisticas','/treinar','/programas','/comunidade']){await page.goto('/#'+path);await expect(page.getByTestId('premium-page')).toBeVisible()}
  await fit(page)
@@ -85,7 +85,7 @@ test('acesso ainda carregando não monta conteúdo premium',async({page})=>{
  await expect(page.getByTestId('premium-page')).toBeVisible()
 })
 test('ativação atualiza o cadeado e mostra agradecimento uma vez',async({page})=>{
- const s=await setup(page,{locked:true});await page.goto('/#/progresso');await expect(page.getByTestId('progress-locked')).toBeVisible()
+ const s=await setup(page,{locked:true});await page.goto('/#/progresso');await expect(page.getByTestId('premium-page')).toBeVisible()
  s.locked=false;s.welcome=true;await page.evaluate(()=>window.dispatchEvent(new CustomEvent('avagym:access-changed')))
  await expect(page.getByTestId('welcome-modal')).toBeVisible();await expect.poll(()=>s.seen).toBe(1)
  await page.getByTestId('welcome-close').click();await expect(page.getByTestId('progress')).toBeVisible()
@@ -118,6 +118,8 @@ test('treino: programa, pesos, série, conclusão e progresso',async({page})=>{
  await page.goto('/#/hoje');await page.getByTestId('start-workout').click()
  await expect(page.getByTestId('workout-weights')).toBeVisible();expect(s.starts).toBe(0)
  await page.getByTestId('confirm-workout-weights').click();await expect(page.getByTestId('start-set')).toBeVisible();expect(s.starts).toBe(1)
+ await page.getByTestId('weight').fill('32,5');await expect(page.getByTestId('weight')).toHaveValue('32.5')
+ await page.getByTestId('reps').fill('10');await expect(page.getByTestId('reps')).toHaveValue('10')
  await page.getByTestId('start-set').click();await expect(page.getByTestId('set-clock')).toBeVisible()
  await page.getByTestId('finish-set').click();await expect(page.getByTestId('done')).toBeVisible()
  await page.getByTestId('pain-no').click();await page.getByTestId('save-session').click();await expect(page.getByTestId('see-progress')).toBeVisible()

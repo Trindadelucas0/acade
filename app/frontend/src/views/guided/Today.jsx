@@ -86,18 +86,6 @@ export default function Today() {
 
     {pend > 0 && <p className="g-note" style={{ margin: '8px 0' }} data-testid="pending-sync">{rejectedCount() > 0 ? `${rejectedCount()} registro(s) recusado(s) pelo servidor ficam guardados no aparelho (nada é apagado). ` : ''}{pend - rejectedCount() > 0 ? `${pend - rejectedCount()} registro(s) aguardando conexão para sincronizar.` : ''}</p>}
 
-    {/* lote 7: 'Minha semana' fixa no topo, em destaque */}
-    <section className="av-hero hw-week" style={{ marginTop: 12 }} data-testid="week-ring" aria-labelledby="wk-ttl">
-      <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-        <div className="av-ring"><svg width="112" height="112" viewBox="0 0 132 132" aria-hidden="true"><circle cx="66" cy="66" r="56" stroke="var(--ag-card-2)" strokeWidth="12" fill="none" />
-          <circle cx="66" cy="66" r="56" stroke="var(--ag-acc)" strokeWidth="12" fill="none" strokeLinecap="round" strokeDasharray={`${2 * Math.PI * 56 * Math.min(1, st.week.done / Math.max(1, st.week.target))} 999`} /></svg>
-          <b>{st.week.done}/{st.week.target}<small>treinos</small></b></div>
-        <div style={{ minWidth: 0 }}><h2 id="wk-ttl" style={{ margin: 0 }}>Minha semana</h2><p className="g-mut g-sm" style={{ margin: '4px 0 0' }}>{st.week.done >= st.week.target ? 'Meta da semana cumprida!' : (n => `${n === 1 ? 'Falta' : 'Faltam'} ${plural(n, 'treino', 'treinos')} para a meta.`)(Math.max(0, st.week.target - st.week.done))}</p>
-          {st.streak_weeks > 0 && <span className="g-ring hw-streak" title="Semanas seguidas treinando"><Icon name="flame" /> {plural(st.streak_weeks, 'semana seguida', 'semanas seguidas')}</span>}</div>
-      </div>
-      <WeekStrip sessions={st.week.sessions} />
-    </section>
-
     {!st.active ? <><ResumeBar /><StartHere profile={!!st.profile} at={at} care={care} coaches={coaches} /></> : <>
       <div className="g-hero" style={{ marginTop: 14 }} data-testid="today-card">
         {cover && <img src={cover.img} alt="" />}
@@ -118,6 +106,17 @@ export default function Today() {
         {w.exercises.length > 4 && <p className="g-mut g-xs">+ {plural(w.exercises.length - 4, 'exercício', 'exercícios')}</p>}
       </div>}
     </>}
+
+    <section className="av-hero hw-week" style={{ marginTop: 16 }} data-testid="week-ring" aria-labelledby="wk-ttl">
+      <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+        <div className="av-ring"><svg width="112" height="112" viewBox="0 0 132 132" aria-hidden="true"><circle cx="66" cy="66" r="56" stroke="var(--ag-card-2)" strokeWidth="12" fill="none" />
+          <circle cx="66" cy="66" r="56" stroke="var(--ag-acc)" strokeWidth="12" fill="none" strokeLinecap="round" strokeDasharray={`${2 * Math.PI * 56 * Math.min(1, st.week.done / Math.max(1, st.week.target))} 999`} /></svg>
+          <b>{st.week.done}/{st.week.target}<small>treinos</small></b></div>
+        <div style={{ minWidth: 0 }}><h2 id="wk-ttl" style={{ margin: 0 }}>Minha semana</h2><p className="g-mut g-sm" style={{ margin: '4px 0 0' }}>{st.week.done >= st.week.target ? 'Meta da semana cumprida!' : (n => `${n === 1 ? 'Falta' : 'Faltam'} ${plural(n, 'treino', 'treinos')} para a meta.`)(Math.max(0, st.week.target - st.week.done))}</p>
+          {st.streak_weeks > 0 && <span className="g-ring hw-streak" title="Semanas seguidas treinando"><Icon name="flame" /> {plural(st.streak_weeks, 'semana seguida', 'semanas seguidas')}</span>}</div>
+      </div>
+      <WeekStrip sessions={st.week.sessions} />
+    </section>
     <HomeWidgets h={home} onRetry={reloadHome} />
 
     <div className="g-card g-list org-list" style={{ marginTop: 12 }}><Li icon="chat" t="Acompanhamento" s="Profissionais, conversas e ocorrências" to="/acompanhamento" testid="home-care" badge={care?.occurrences?.filter(o => o.status !== 'encerrada').length ? care.occurrences.filter(o => o.status !== 'encerrada').length + ' em aberto' : undefined} /></div>

@@ -1,7 +1,26 @@
 # ORNY — Documentação do sistema
 
-Fonte oficial de comportamento. Versão frontend: 1.9.1; API: 1.9.0. Atualização: 20/10/2026 — guia visual interativo de instalação na landing.
+Fonte oficial de comportamento. Versão frontend: 1.10.0; API: 1.9.0. Atualização: 20/10/2026 — hierarquia do Início, registro direto de séries e Progresso com dados suficientes.
 O inventário em `docs/INVENTARIO-FUNCIONAL.md` preserva o levantamento histórico e seus limites de validação; este documento consolida os fluxos atualizados.
+
+## Jornada de treino e progresso — versão 1.10.0 (20/10/2026)
+
+Na tela **Início**, o treino ativo, a retomada de sessão ou a escolha de treino aparecem antes da evolução semanal. A mudança é somente de hierarquia: prioridade da ficha profissional, programas, permissões e bloqueios permanecem iguais.
+
+As telas funcionais são carregadas sob demanda conforme a rota acessada. URLs, navegação por perfil e validações de servidor permanecem iguais; durante a primeira abertura de uma área, o aplicativo exibe o carregamento da marca. Na versão 1.10.0, essa divisão reduziu o arquivo JavaScript inicial de aproximadamente 2.008 MB para 519 KB. A visualização Body3D continua em arquivo separado e só é carregada quando solicitada.
+
+Durante a execução, **Carga** e **Repetições/Segundos** aceitam digitação direta com teclado numérico e continuam oferecendo os controles `−` e `+`. A partir da segunda série do exercício, **Repetir valores da série anterior** copia carga e repetições para a série atual, sem concluí-la e sem transformar os valores em prescrição. Cada alteração continua sendo salva na sessão local e sincronizada pelo mecanismo já existente.
+
+Em **Progresso**, a comparação semanal só é desenhada a partir de dois treinos concluídos. Antes disso, a tela informa que ainda não há base suficiente e oferece **Ir para o próximo treino**. Totais, histórico e demais dados confirmados continuam visíveis conforme o acesso.
+
+### Como usar
+
+1. Abra **Início** e use a primeira ação para continuar, começar ou escolher um treino.
+2. Durante o exercício, toque no valor central para digitar ou use os botões de ajuste.
+3. Depois da primeira série, use **Repetir valores da série anterior** se desejar, revise e conclua normalmente.
+4. Abra **Progresso**; a tendência semanal aparece quando houver pelo menos dois treinos.
+
+Onde olhar no código: `frontend/src/views/guided/Today.jsx`, `Train.jsx`, `Progress.jsx`, `guided.css` e `frontend/src/styles/orny.css`. Guia diário: `docs/como-usar-o-sistema.md`. Auditoria e especificações: arquivos `01-` a `06-` na raiz.
 
 ## Cadastro e entrada — correção visual 1.8.1 (20/10/2026)
 
