@@ -6,7 +6,8 @@ import { q, pool } from '../db/pool.js'
 import { audit } from '../auth.js'
 import { enqueueEmail } from '../mailer.js'
 import { ensureSubscription, refreshUsage } from '../entitlements.js'
-import { getProvider } from './providers/index.js'
+import crypto from 'node:crypto'
+import { getProvider, getProviderByName } from './providers/index.js'
 
 const OPEN_PAID = ['ativa', 'trial', 'inadimplente', 'carencia']
 export const STATUS_PT = { ativa: 'Ativa', trial: 'Em teste', inadimplente: 'Pagamento pendente', carencia: 'Em carência', suspensa: 'Suspensa', cancelada: 'Cancelada' }
@@ -43,6 +44,8 @@ const MSG = {
   assinatura_ativa: v => ['Assinatura ativa', `Seu acesso ${v.plan} está ativo. Próxima cobrança em ${v.next}.`],
   trial_iniciado: v => ['Período de teste iniciado', `Você tem acesso ao ${v.plan} até ${v.next}. A primeira cobrança só acontece nessa data e você pode cancelar antes, sem custo.`],
   pagamento_confirmado: v => ['Pagamento confirmado', `${v.amount} recebido pelo ${v.plan}. Próxima cobrança em ${v.next}.`],
+  renovacao_disponivel: v => ['Renove seu acesso', `A nova cobrança do ${v.plan} está disponível. Pague até ${v.next} para manter o acesso.`],
+  renovacao_vencida: v => ['Pagamento da renovação pendente', `O período pago do ${v.plan} terminou. Conclua a cobrança disponível para reativar o acesso; seu histórico continua salvo.`],
   pix_desativado: v => ['Atualize a forma de pagamento', `O Pix deixou de ser aceito para o ${v.plan}. Adicione um cartão de crédito para manter ou reativar o acesso.`],
   pagamento_recusado: v => ['Pagamento recusado', v.retry ? `Não conseguimos cobrar ${v.amount} no cartão final ${v.last4}. Vamos tentar de novo em ${v.retry}. Se preferir, troque o cartão agora.` : `Não conseguimos cobrar ${v.amount} no cartão final ${v.last4}. Confira os dados ou use outro cartão.`],
   carencia: v => ['Seu acesso está em carência', `As tentativas de cobrança não deram certo. Seu acesso continua até ${v.grace}. Atualize o cartão para não perder o acesso.`],
@@ -146,6 +149,7 @@ async function partnerFor(userId, tid) {
     where r.user_id=$1 and r.tenant_id=$2 and c.partner_user_id is not null order by r.created_at desc limit 1`, [userId, tid])).rows[0]?.partner_user_id || null
 }
 async function splitFor(sub, provider, tid) {
+  if (provider.name === 'infinitepay') return { pct: 0, split: null }
   if (!sub.partner_user_id) return { pct: 0, split: null }
   const p = (await q(`select status, commission_pct, asaas_wallet_id from partners where user_id=$1`, [sub.partner_user_id])).rows[0]
   if (!p || p.status !== 'ativo') return { pct: 0, split: null }
@@ -155,26 +159,41 @@ async function splitFor(sub, provider, tid) {
 }
 // cria a cobranca (idempotente pela chave) e chama o provedor; aplica o resultado
 export async function chargeNow({ sub, kind, amountCents, discountCents = 0, periodStart, periodEnd, meta = {}, key, ip, attemptIndex = 0, paymentType = 'card' }) {
-  if (paymentType !== 'card') throw Object.assign(new Error('Somente cartão de crédito está disponível.'), { code: 'PAYMENT_METHOD_DISABLED' })
   const provider = getProvider()
-  const pm = await cardOf(meta.payment_method_id || sub.payment_method_id)
+  if (!provider.hostedCheckout && paymentType !== 'card') throw Object.assign(new Error('Somente cartão de crédito está disponível.'), { code: 'PAYMENT_METHOD_DISABLED' })
+  const pm = provider.hostedCheckout ? null : await cardOf(meta.payment_method_id || sub.payment_method_id)
   const sp = await splitFor({ ...sub, partner_user_id: meta.partner_user_id ?? sub.partner_user_id }, provider, sub.tenant_id)
   const ins = await q(`insert into billing_charges(tenant_id,subscription_id,user_id,provider,kind,amount_cents,discount_cents,attempt,period_start,period_end,split,idempotency_key,meta,description,payment_type,pix_expires_at)
     values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) on conflict (idempotency_key) do nothing returning *`,
-    [sub.tenant_id, sub.id, sub.user_id, provider.name, kind, amountCents, discountCents, attemptIndex + 1, periodStart, periodEnd, sp.pct ? JSON.stringify({ pct: sp.pct, via_split: !!sp.split }) : null, key, JSON.stringify(meta), meta.plan_name || sub.plan_name || null, 'card', null])
+    [sub.tenant_id, sub.id, sub.user_id, provider.name, kind, amountCents, discountCents, attemptIndex + 1, periodStart, periodEnd, sp.pct ? JSON.stringify({ pct: sp.pct, via_split: !!sp.split }) : null, key, JSON.stringify(meta), meta.plan_name || sub.plan_name || null, provider.hostedCheckout ? 'card' : paymentType, null])
   const charge = ins.rows[0]
-  if (!charge) return { duplicate: true, charge: (await q('select * from billing_charges where idempotency_key=$1', [key])).rows[0] }
+  if (!charge) {
+    const existing = (await q('select * from billing_charges where idempotency_key=$1', [key])).rows[0]
+    return { duplicate: true, charge: existing, status: existing.status, checkout_url: existing.checkout_url }
+  }
   let result
-  if (!pm || pm.removed_at) result = { status: 'recusada', failure: { code: 'no_card', message: 'Nenhum cartão válido cadastrado.' } }
+  if (provider.hostedCheckout) {
+    const user = (await q('select name,email,phone from users where id=$1 and tenant_id=$2', [sub.user_id, sub.tenant_id])).rows[0]
+    const validUntil = new Date(Math.min(Date.now() + 7 * 864e5, new Date(periodEnd || Date.now() + 7 * 864e5).getTime()))
+    try {
+      result = await provider.createCheckout({ charge, amountCents, description: meta.plan_name || sub.plan_name, customer: user || {}, validUntil })
+    } catch (error) {
+      const failure = error.inconclusive ? 'CHECKOUT_CREATION_INCONCLUSIVE' : (error.code || 'CHECKOUT_CREATION_FAILED')
+      await q(`update billing_charges set reconciliation_error=$2, status=case when $3 then status else 'recusada' end, failure_code=$2,
+        failure_message=$4, updated_at=now() where id=$1`, [charge.id, failure, !!error.inconclusive, String(error.message).slice(0, 300)])
+      throw error
+    }
+  } else if (!pm || pm.removed_at) result = { status: 'recusada', failure: { code: 'no_card', message: 'Nenhum cartão válido cadastrado.' } }
   else if (pm.provider !== provider.name) result = { status: 'recusada', failure: { code: 'provider_changed', message: 'Cartão cadastrado em outro ambiente de pagamento. Cadastre o cartão novamente.' } }
   else {
     const cus = (await q('select provider_customer_id from billing_customers where user_id=$1 and provider=$2', [sub.user_id, provider.name])).rows[0]?.provider_customer_id
     result = await provider.charge({ token: pm.token, customerId: cus, amountCents, charge, split: sp.split, remoteIp: ip, attemptIndex })
   }
-  if (result.providerChargeId) await q('update billing_charges set provider_charge_id=coalesce(provider_charge_id,$2), updated_at=now() where id=$1', [charge.id, result.providerChargeId])
+  if (result.providerChargeId || result.checkoutUrl) await q(`update billing_charges set provider_charge_id=coalesce(provider_charge_id,$2), checkout_url=coalesce(checkout_url,$3),
+    checkout_expires_at=coalesce(checkout_expires_at,$4), updated_at=now() where id=$1`, [charge.id, result.providerChargeId || null, result.checkoutUrl || null, result.expiresAt || null])
   if (result.status === 'pendente') {
     const saved = (await q('select * from billing_charges where id=$1', [charge.id])).rows[0]
-    return { charge: saved, status: 'pendente' }
+    return { charge: saved, status: 'pendente', checkout_url: saved.checkout_url }
   }
   const applied = await applyChargeResult(charge.id, result, 'sincrono')
   // o simulador tambem "envia" o webhook equivalente pelo mesmo caminho (idempotente: o efeito ja foi aplicado)
@@ -207,8 +226,12 @@ export async function applyChargeResult(chargeId, result, source) {
     const ok = { pendente: ['paga', 'recusada', 'cancelada'], recusada: ['paga'], paga: ['estornada'] }[charge.status] || []
     if (!ok.includes(result.status)) { await c.query('rollback'); return { charge, noop: true } }
     charge = (await c.query(`update billing_charges set status=$2, paid_at=case when $2='paga' then now() else paid_at end, failure_code=$3, failure_message=$4,
-        provider_charge_id=coalesce(provider_charge_id,$5), updated_at=now() where id=$1 returning *`,
-      [chargeId, result.status, result.failure?.code || null, result.failure?.message?.slice(0, 300) || null, result.providerChargeId || null])).rows[0]
+        provider_charge_id=coalesce(provider_charge_id,$5), provider_transaction_id=coalesce(provider_transaction_id,$6), provider_invoice_slug=coalesce(provider_invoice_slug,$7),
+        confirmed_payment_method=coalesce(confirmed_payment_method,$8), provider_amount_cents=coalesce($9,provider_amount_cents), provider_paid_amount_cents=coalesce($10,provider_paid_amount_cents),
+        last_reconciled_at=case when $11 then now() else last_reconciled_at end, reconciliation_error=null, updated_at=now() where id=$1 returning *`,
+      [chargeId, result.status, result.failure?.code || null, result.failure?.message?.slice(0, 300) || null, result.providerChargeId || null,
+        result.transactionNsu || null, result.invoiceSlug || null, result.paymentMethod || null, result.checkedAmountCents ?? null, result.paidAmountCents ?? null,
+        charge.provider === 'infinitepay'])).rows[0]
     const sub = (await c.query(`select s.*, p.name plan_name from subscriptions s join plans p on p.id=s.plan_id where s.id=$1 for update of s`, [charge.subscription_id])).rows[0]
     const pm = await cardOf(charge.meta?.payment_method_id || sub.payment_method_id, c)
     const pol = await policy(charge.tenant_id, c)
@@ -240,7 +263,7 @@ export async function applyChargeResult(chargeId, result, source) {
       }
       if (sub.status !== 'ativa') await ev('status', { from: sub.status, to: 'ativa' })
       // comissao do parceiro (prevista; liberacao e repasse fora do app ou via split no Asaas)
-      if (charge.split?.pct > 0 && s.partner_user_id && charge.amount_cents > 0) {
+      if (charge.provider !== 'infinitepay' && charge.split?.pct > 0 && s.partner_user_id && charge.amount_cents > 0) {
         await c.query(`insert into partner_commissions(tenant_id,partner_user_id,charge_id,base_cents,pct,amount_cents,via_split) values($1,$2,$3,$4,$5,$6,$7) on conflict (charge_id) do nothing`,
           [charge.tenant_id, s.partner_user_id, charge.id, charge.amount_cents, charge.split.pct, Math.floor(charge.amount_cents * charge.split.pct / 100), !!charge.split.via_split])
       }
@@ -295,6 +318,7 @@ export async function applyChargeResult(chargeId, result, source) {
 // ---------- webhooks (Asaas e simulador, mesmo formato). Idempotencia: (provedor, id do evento) unico ----------
 const EVENT_STATUS = { PAYMENT_CONFIRMED: 'paga', PAYMENT_RECEIVED: 'paga', PAYMENT_CREDIT_CARD_CAPTURE_REFUSED: 'recusada', PAYMENT_REPROVED_BY_RISK_ANALYSIS: 'recusada', PAYMENT_OVERDUE: 'recusada', PAYMENT_DELETED: 'cancelada', PAYMENT_REFUNDED: 'estornada', PAYMENT_CHARGEBACK_REQUESTED: 'estornada' }
 export async function handleWebhook(provider, body) {
+  if (provider === 'infinitepay') return handleInfinitePayWebhook(body)
   const evId = String(body?.id || '').slice(0, 120), type = String(body?.event || '').slice(0, 80)
   if (!evId || !type) return { status: 400, error: 'evento inválido' }
   const ins = await q(`insert into billing_webhook_events(provider,event_id,event_type,payload) values($1,$2,$3,$4) on conflict (provider,event_id) do nothing returning id`, [provider, evId, type, JSON.stringify(body)])
@@ -319,15 +343,78 @@ export async function handleWebhook(provider, body) {
   }
 }
 
+function infinitePayIds(body) {
+  const orderNsu = String(body?.order_nsu || '').trim()
+  const transactionNsu = String(body?.transaction_nsu || '').trim().slice(0, 160)
+  const slug = String(body?.invoice_slug || body?.slug || '').trim().slice(0, 160)
+  const event = String(body?.event || body?.type || (body?.paid === true ? 'paid' : '')).trim().toLowerCase().slice(0, 40)
+  return { orderNsu, transactionNsu, slug, event }
+}
+
+export async function confirmInfinitePay(user, body) {
+  const ids = infinitePayIds(body)
+  if (!/^[0-9a-f-]{36}$/i.test(ids.orderNsu) || !ids.transactionNsu || !ids.slug) return { status: 400, error: 'Dados de confirmação inválidos.', code: 'INVALID_CONFIRMATION' }
+  const charge = user
+    ? (await q(`select * from billing_charges where id=$1 and user_id=$2 and tenant_id=$3 and provider='infinitepay'`, [ids.orderNsu, user.id, user.tenant_id])).rows[0]
+    : (await q(`select * from billing_charges where id=$1 and provider='infinitepay'`, [ids.orderNsu])).rows[0]
+  if (!charge) return { status: 404, error: 'Cobrança não encontrada.', code: 'CHARGE_NOT_FOUND' }
+  await q(`update billing_charges set provider_transaction_id=coalesce(provider_transaction_id,$2), provider_invoice_slug=coalesce(provider_invoice_slug,$3), updated_at=now()
+    where id=$1 and (provider_transaction_id is null or provider_transaction_id=$2) and (provider_invoice_slug is null or provider_invoice_slug=$3)`, [charge.id, ids.transactionNsu, ids.slug])
+  const fresh = (await q('select * from billing_charges where id=$1', [charge.id])).rows[0]
+  if ((fresh.provider_transaction_id && fresh.provider_transaction_id !== ids.transactionNsu) || (fresh.provider_invoice_slug && fresh.provider_invoice_slug !== ids.slug)) {
+    return { status: 409, error: 'Os identificadores não correspondem à cobrança.', code: 'PROVIDER_ID_MISMATCH' }
+  }
+  const provider = getProviderByName('infinitepay')
+  const checked = await provider.checkPayment({ charge: fresh, transactionNsu: ids.transactionNsu, slug: ids.slug })
+  if (!checked) return { status: 202, result: 'pendente' }
+  if (checked.mismatch) {
+    await q(`update billing_charges set last_reconciled_at=now(), reconciliation_error=$2, provider_amount_cents=$3, provider_paid_amount_cents=$4 where id=$1`,
+      [charge.id, checked.mismatch, checked.checkedAmountCents ?? null, checked.paidAmountCents ?? null])
+    await audit(charge.tenant_id, charge.user_id, 'cobranca.divergencia_infinitepay', 'billing_charge', charge.id, { code: checked.mismatch })
+    return { status: 409, error: 'O valor confirmado não corresponde ao pedido. O acesso não foi liberado.', code: 'PAYMENT_VALUE_MISMATCH' }
+  }
+  if (checked.status !== 'paga') {
+    await q(`update billing_charges set last_reconciled_at=now(), reconciliation_error=null where id=$1`, [charge.id])
+    return { status: 202, result: 'pendente', charge_id: charge.id }
+  }
+  const applied = await applyChargeResult(charge.id, checked, 'provider_check')
+  return { status: 200, result: applied.noop ? 'sem_mudanca' : 'paga', charge_id: charge.id }
+}
+
+async function handleInfinitePayWebhook(body) {
+  const ids = infinitePayIds(body)
+  if (!/^[0-9a-f-]{36}$/i.test(ids.orderNsu) || !ids.event) return { status: 400, error: 'evento inválido' }
+  const eventKey = crypto.createHash('sha256').update([ids.event, ids.orderNsu, ids.transactionNsu, ids.slug].join('|')).digest('hex')
+  const ins = await q(`insert into billing_webhook_events(provider,event_id,event_type,payload) values('infinitepay',$1,$2,$3) on conflict (provider,event_id) do nothing returning id`,
+    [eventKey, ids.event, JSON.stringify(body)])
+  if (!ins.rowCount) return { status: 200, duplicate: true }
+  const id = ins.rows[0].id
+  try {
+    let result = 'registrado_sem_confirmacao'
+    if (ids.event === 'paid' || ids.event === 'settled') {
+      const confirmed = await confirmInfinitePay(null, { order_nsu: ids.orderNsu, transaction_nsu: ids.transactionNsu, slug: ids.slug })
+      if (confirmed.status >= 400) throw Object.assign(new Error(confirmed.error), { status: confirmed.status })
+      result = confirmed.result
+    }
+    await q('update billing_webhook_events set processed_at=now(), result=$2 where id=$1', [id, result])
+    return { status: 200, result }
+  } catch (error) {
+    await q('update billing_webhook_events set error=$2 where id=$1', [id, String(error.message).slice(0, 300)])
+    await q('delete from billing_webhook_events where id=$1 and processed_at is null', [id])
+    throw error
+  }
+}
+
 // ---------- contratacao, troca de cartao, cancelamento ----------
 export async function subscribe(user, b, ip) {
-  const paymentType = normalizePaymentType(b.payment_type)
-  if (!paymentType) return { status: 400, error: 'Aceitamos somente cartão de crédito.', code: 'PAYMENT_METHOD_DISABLED' }
+  const provider = getProvider()
+  const paymentType = provider.hostedCheckout ? 'card' : normalizePaymentType(b.payment_type)
+  if (!paymentType) return { status: 400, error: 'Meio de pagamento indisponível.', code: 'PAYMENT_METHOD_DISABLED' }
   const plan = (await q(`select p.*, (select v.id from plan_versions v where v.plan_id=p.id order by v.version desc limit 1) version_id from plans p where p.id=$1`, [String(b.plan_id || '')])).rows[0]
   if (!plan || !plan.active || !plan.sellable || plan.price_cents == null || plan.is_free) return { status: 404, error: 'Este plano não está disponível para contratação.', code: 'PLAN_UNAVAILABLE' }
   if (!user.roles.includes(plan.audience)) return { status: 403, error: plan.audience === 'profissional' ? 'Planos PRO são para contas profissionais.' : 'Este plano é para contas de aluno.', code: 'PERMISSION_DENIED' }
-  const pm = (await q('select * from payment_methods where id=$1 and user_id=$2 and removed_at is null', [b.card_id, user.id])).rows[0]
-  if (paymentType === 'card' && !pm) return { status: 400, error: 'Escolha um cartão.', code: 'CARD_REQUIRED' }
+  const pm = provider.hostedCheckout ? null : (await q('select * from payment_methods where id=$1 and user_id=$2 and removed_at is null', [b.card_id, user.id])).rows[0]
+  if (!provider.hostedCheckout && paymentType === 'card' && !pm) return { status: 400, error: 'Escolha um cartão.', code: 'CARD_REQUIRED' }
   await ensureSubscription(user.id, plan.audience)
   const sub = await openSub(user.id, plan.audience)
   if (!sub.is_free && OPEN_PAID.includes(sub.status) && sub.provider) {
@@ -357,9 +444,10 @@ export async function subscribe(user, b, ip) {
     meta, key: `sub:${sub.id}:primeira:${b.idempotency_key ? String(b.idempotency_key).slice(0, 64) : now.getTime()}`, ip, paymentType })
   await audit(user.tenant_id, user.id, 'cobranca.contratacao', 'subscription', sub.id, { plan: plan.id, status: r.status })
   if (r.status === 'paga') return { status: 200, result: 'ativa', charge_id: r.charge.id }
-  if (r.status === 'pendente') return { status: 202, result: 'pendente', charge_id: r.charge.id, message: 'Pagamento em análise. O acesso será liberado após a confirmação do Asaas.' }
+  if (r.status === 'pendente') return { status: 202, result: 'pendente', charge_id: r.charge.id, checkout_url: r.checkout_url || r.charge.checkout_url,
+    expires_at: r.charge.checkout_expires_at, message: provider.hostedCheckout ? 'Abra o checkout para pagar. O acesso será liberado após a confirmação oficial.' : 'Pagamento em análise. O acesso será liberado após a confirmação do Asaas.' }
   // BUG-031: reenvio com a mesma chave devolve o resultado real (recusada nao vira sucesso)
-  if (r.duplicate) return r.charge.status === 'paga' ? { status: 200, result: 'ativa', charge_id: r.charge.id, duplicate: true } : r.charge.status === 'pendente' ? { status: 202, result: 'pendente', charge_id: r.charge.id, duplicate: true, message: 'Pagamento em análise. O acesso será liberado após a confirmação do Asaas.' } : { status: 402, error: 'Pagamento recusado. Confira os dados do cartão ou use outro cartão.', code: 'CARD_DECLINED', duplicate: true }
+  if (r.duplicate) return r.charge.status === 'paga' ? { status: 200, result: 'ativa', charge_id: r.charge.id, duplicate: true } : r.charge.status === 'pendente' ? { status: 202, result: 'pendente', charge_id: r.charge.id, checkout_url: r.charge.checkout_url, expires_at: r.charge.checkout_expires_at, duplicate: true, message: 'Conclua o pagamento no checkout.' } : { status: 402, error: 'Pagamento não aprovado.', code: 'PAYMENT_DECLINED', duplicate: true }
   return { status: 402, error: 'Pagamento recusado. Confira os dados do cartão ou use outro cartão.', code: 'CARD_DECLINED' }
 }
 // troca entre planos pagos da mesma area: vale ja, o novo preco entra na proxima cobranca (sem pro-rata nesta versao)
@@ -406,7 +494,8 @@ export async function changeCard(user, b, ip) {
 }
 export async function payNow(user, b, ip) {
   const s = await paidSub(user, b.audience); if (!s) return { status: 404, error: 'Nenhuma assinatura paga nesta área.', code: 'NO_SUBSCRIPTION' }
-  if (s.payment_type === 'pix') return { status: 409, error: 'Adicione um cartão de crédito para reativar a cobrança.', code: 'CARD_REQUIRED' }
+  const provider = getProvider()
+  if (!provider.hostedCheckout && s.payment_type === 'pix') return { status: 409, error: 'Adicione um cartão de crédito para reativar a cobrança.', code: 'CARD_REQUIRED' }
   const owes = ['inadimplente', 'carencia'].includes(s.status) || (s.status === 'suspensa' && s.suspended_kind === 'financeiro')
   if (!owes) return { status: 409, error: 'Não há pagamento pendente.', code: 'NOTHING_DUE' }
   const now = new Date()
@@ -414,7 +503,7 @@ export async function payNow(user, b, ip) {
   const ps = s.status === 'suspensa' || !last ? now : last.period_start, pe = s.status === 'suspensa' || !last ? addMonths(now, 1) : last.period_end
   const amount = s.discount_cycles_left > 0 && s.discount_pct ? Math.round(s.price_cents * (1 - s.discount_pct / 100)) : s.price_cents
   const r = await chargeNow({ sub: s, kind: 'retentativa', amountCents: amount, discountCents: s.price_cents - amount, periodStart: ps, periodEnd: pe, key: `sub:${s.id}:manual:${now.getTime()}`, ip, attemptIndex: s.retry_count + 1, meta: { manual: true } })
-  return r.status === 'paga' ? { status: 200, result: 'ativa' } : r.status === 'pendente' ? { status: 202, result: 'pendente' } : { status: 402, error: 'Pagamento recusado. Tente outro cartão.', code: 'CARD_DECLINED' }
+  return r.status === 'paga' ? { status: 200, result: 'ativa' } : r.status === 'pendente' ? { status: 202, result: 'pendente', charge_id: r.charge.id, checkout_url: r.checkout_url || r.charge.checkout_url, expires_at: r.charge.checkout_expires_at } : { status: 402, error: 'Pagamento não aprovado.', code: 'PAYMENT_DECLINED' }
 }
 export async function cancel(user, b) {
   const s = await paidSub(user, b.audience); if (!s) return { status: 404, error: 'Nenhuma assinatura paga nesta área.', code: 'NO_SUBSCRIPTION' }
@@ -458,21 +547,42 @@ export async function tick({ only } = {}) {
     const lock = (await c.query(`select pg_try_advisory_lock(hashtext('avagym_billing_tick')) ok`)).rows[0].ok
     if (!lock) return { busy: true }
     try {
-      const sel = (sql, p = []) => q(sql + (only ? ` and s.id = '${String(only).replace(/[^0-9a-f-]/gi, '')}'` : ''), p).then(r => r.rows)
+      const sel = (sql, p = []) => q(sql + (only ? ` and s.id=$${p.length + 1}` : ''), only ? [...p, only] : p).then(r => r.rows)
       const base = `select s.*, p.name plan_name from subscriptions s join plans p on p.id=s.plan_id where s.provider is not null and not p.is_free`
       // 1) fim do periodo com cancelamento agendado
       for (const s of await sel(base + ` and s.status in ('ativa','trial','inadimplente') and s.cancel_at_period_end and s.current_period_end <= now()`)) { await endSubscription(s, 'fim_periodo_cancelado'); out.encerradas++ }
       // Assinaturas Pix legadas não geram novas cobranças. Avise uma vez para migração para cartão.
       for (const s of await sel(base + ` and s.payment_type='pix' and s.status in ('ativa','trial') and not s.cancel_at_period_end and s.current_period_end <= now()+interval '5 days'`))
         await notifyBilling(s.user_id, 'pix_desativado', { plan: s.plan_name }, `legacy-pix:${s.id}:${new Date(s.current_period_end).toISOString()}`)
-      // 3) Cartao: renovacao no vencimento e retentativas automaticas.
-      for (const s of await sel(base + ` and s.payment_type='card' and s.status in ('ativa','trial') and not s.cancel_at_period_end and s.current_period_end <= now()`)) {
+      // 3) InfinitePay: nova cobranca antes do vencimento, sem debito automatico.
+      if (getProvider().hostedCheckout) for (const s of await sel(base + ` and s.status in ('ativa','trial') and not s.cancel_at_period_end and s.current_period_end <= now()+interval '5 days'`)) {
+        const amount = s.discount_cycles_left > 0 && s.discount_pct ? Math.round(s.price_cents * (1 - s.discount_pct / 100)) : s.price_cents
+        const ps = new Date(s.current_period_end)
+        const r = await chargeNow({ sub: s, kind: 'renovacao', amountCents: amount, discountCents: s.price_cents - amount, periodStart: ps, periodEnd: addMonths(ps, 1), key: `sub:${s.id}:periodo:${ps.toISOString()}`, paymentType: 'card' })
+        if (r.charge?.checkout_url) await notifyBilling(s.user_id, 'renovacao_disponivel', { plan: s.plan_name, next: dBR(s.current_period_end) }, `renewal:${r.charge.id}`)
+        out.renovadas++
+      }
+      // O link não pago nunca estende o acesso. Após o fim do período comprado, entra em
+      // carência operacional (já sem acesso pago) e depois em suspensão financeira.
+      if (getProvider().hostedCheckout) for (const s of await sel(base + ` and s.status in ('ativa','trial') and not s.cancel_at_period_end and s.current_period_end <= now()
+        and exists(select 1 from billing_charges ch where ch.subscription_id=s.id and ch.provider='infinitepay' and ch.kind='renovacao' and ch.status='pendente' and ch.period_start=s.current_period_end)`)) {
+        const pol = await policy(s.tenant_id)
+        const graceUntil = new Date(Date.now() + pol.carencia_dias * 864e5)
+        const changed = await q(`update subscriptions set status='carencia', grace_until=$2, next_retry_at=null, updated_at=now() where id=$1 and status in ('ativa','trial') returning id`, [s.id, graceUntil])
+        if (changed.rowCount) {
+          await q(`insert into subscription_events(subscription_id,action,from_status,to_status,data) values($1,'vencimento_sem_pagamento',$2,'carencia',$3)`, [s.id, s.status, JSON.stringify({ grace_until: graceUntil })])
+          await refreshUsage(s.user_id, s.audience).catch(() => {})
+          await notifyBilling(s.user_id, 'renovacao_vencida', { plan: s.plan_name }, `infinitepay-grace:${s.id}:${new Date(s.current_period_end).toISOString()}`)
+        }
+      }
+      // Asaas/simulador: renovacao no vencimento e retentativas automaticas.
+      if (!getProvider().hostedCheckout) for (const s of await sel(base + ` and s.payment_type='card' and s.status in ('ativa','trial') and not s.cancel_at_period_end and s.current_period_end <= now()`)) {
         const amount = s.discount_cycles_left > 0 && s.discount_pct ? Math.round(s.price_cents * (1 - s.discount_pct / 100)) : s.price_cents
         const ps = new Date(s.current_period_end)
         await chargeNow({ sub: s, kind: s.status === 'trial' ? 'primeira' : 'renovacao', amountCents: amount, discountCents: s.price_cents - amount, periodStart: ps, periodEnd: addMonths(ps, 1), key: `sub:${s.id}:periodo:${ps.toISOString()}`, paymentType: 'card' })
         out.renovadas++
       }
-      for (const s of await sel(base + ` and s.payment_type='card' and s.status='inadimplente' and s.next_retry_at <= now()`)) {
+      if (!getProvider().hostedCheckout) for (const s of await sel(base + ` and s.payment_type='card' and s.status='inadimplente' and s.next_retry_at <= now()`)) {
         const last = (await q(`select * from billing_charges where subscription_id=$1 and status='recusada' and coalesce(meta->>'manual','')='' order by created_at desc limit 1`, [s.id])).rows[0]
         const ps = last?.period_start || s.current_period_end, pe = last?.period_end || addMonths(ps, 1)
         const amount = last ? last.amount_cents : s.price_cents
@@ -505,18 +615,22 @@ export async function tick({ only } = {}) {
   return out
 }
 export async function reconcile({ olderThanSec = 0, only } = {}) {
-  const provider = getProvider()
-  const r = await q(`select * from billing_charges where status='pendente' and provider=$1 and created_at <= now() - ($2 || ' seconds')::interval ${only ? 'and subscription_id=$3' : ''} order by created_at limit 50`,
-    only ? [provider.name, String(olderThanSec), only] : [provider.name, String(olderThanSec)])
-  let updated = 0
+  const r = await q(`select * from billing_charges where status='pendente' and created_at <= now() - ($1 || ' seconds')::interval ${only ? 'and subscription_id=$2' : ''} order by created_at limit 50`,
+    only ? [String(olderThanSec), only] : [String(olderThanSec)])
+  let updated = 0, errors = 0
   for (const ch of r.rows) {
     try {
+      const provider = getProviderByName(ch.provider)
       const st = await provider.getCharge(ch)
-      if (st && st.status !== 'pendente') { const x = await applyChargeResult(ch.id, st, 'reconciliacao'); if (!x.noop) updated++ }
+      if (st?.mismatch) {
+        await q(`update billing_charges set last_reconciled_at=now(), reconciliation_error=$2, provider_amount_cents=$3, provider_paid_amount_cents=$4 where id=$1`, [ch.id, st.mismatch, st.checkedAmountCents ?? null, st.paidAmountCents ?? null])
+        errors++
+      } else if (st && st.status !== 'pendente') { const x = await applyChargeResult(ch.id, st, 'reconciliacao'); if (!x.noop) updated++ }
+      else if (ch.provider === 'infinitepay') await q(`update billing_charges set last_reconciled_at=now(), reconciliation_error=null where id=$1`, [ch.id])
       else if (!st && provider.name === 'simulado' && Date.now() - new Date(ch.created_at) > 3600e3) { await applyChargeResult(ch.id, { status: 'cancelada' }, 'reconciliacao'); updated++ }
-    } catch (e) { console.error('reconcile', ch.id, e.code || '', e.message) }
+    } catch (e) { errors++; console.error('reconcile', ch.id, e.code || '', e.message) }
   }
-  return { checked: r.rowCount, updated }
+  return { checked: r.rowCount, updated, errors }
 }
 export function startBillingJob() {
   if (process.env.BILLING_TICK === 'off') return

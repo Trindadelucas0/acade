@@ -33,7 +33,8 @@ function Geral() {
       <p><b>{pv.label}</b> {pv.test ? <span className="g-chip">TESTE — nenhum valor real</span> : pv.live ? <span className="g-chip">PRODUÇÃO</span> : null}</p>
       {pv.fallback_reason && <p className="bl-warn">Usando o simulador: {pv.fallback_reason}</p>}
       {pv.warnings?.map((w, i) => <p key={i} className="bl-warn">{w}</p>)}
-      <p className="g-xs g-mut">Webhook com token: {pv.webhook_token_set ? 'configurado' : 'não configurado'}. A troca de provedor é feita só por variáveis de ambiente no servidor (BILLING_PROVIDER, ASAAS_ENV, ASAAS_API_KEY, ASAAS_WEBHOOK_TOKEN).</p>
+      <p className="g-xs g-mut">{pv.provider === 'infinitepay' ? 'O webhook é sempre confirmado pela consulta oficial payment_check; a API Key não é exposta ao navegador.' : `Webhook com token: ${pv.webhook_token_set ? 'configurado' : 'não configurado'}.`} A troca de provedor é feita somente por variáveis de ambiente no servidor.</p>
+      {pv.provider === 'infinitepay' && <p className="bl-info">Renovação por nova cobrança mensal. Cartão e Pix são preenchidos no checkout da InfinitePay. Novas comissões de parceiros estão pausadas.</p>}
       <button className="adm-btn" onClick={reconcile} data-testid="billing-reconcile">Reconciliar agora</button></div>
     <div className="adm-card"><h3>Política de cobrança</h3>
       <label className="g-row"><input type="checkbox" checked={f.monetizacao_ativa} onChange={e => setF({ ...f, monetizacao_ativa: e.target.checked })} data-testid="pol-monet" /> Monetização ativa (exige plano para os recursos pagos)</label>
@@ -50,7 +51,7 @@ function Geral() {
       <p>Cupons ativos: {d.coupons?.ativos ?? 0} · resgates: {d.coupons?.resgates ?? 0} · conversões: {d.coupons?.conversoes ?? 0}</p></div>
     <div className="adm-card"><h3>Webhooks recentes</h3>
       {d.webhook_rejected?.n > 0 && <p className="bl-warn" data-testid="webhook-rejeitado">O Asaas tentou entregar {d.webhook_rejected.n} evento(s) e foi recusado ({d.webhook_rejected.reason === 'token_invalido' ? 'token do webhook diferente do configurado no servidor' : 'webhook sem token no servidor'}); última vez em {dBR(d.webhook_rejected.last_at)}. Confira o token cadastrado em Integrações → Webhooks no painel do Asaas — depois de várias recusas o Asaas interrompe a fila.</p>}
-      {pv.provider === 'asaas' && <p><button className="adm-btn ghost" onClick={diagnosticar} data-testid="asaas-diag">Diagnosticar Asaas</button></p>}
+      {(pv.provider === 'asaas' || pv.provider === 'infinitepay') && <p><button className="adm-btn ghost" onClick={diagnosticar} data-testid="asaas-diag">Diagnosticar legado Asaas</button></p>}
       {diag && <div className="g-xs" data-testid="asaas-diag-saida">
         {diag.errors?.map((x, i) => <p key={i} className="bl-err">{x.step}: {x.code} — {x.message}</p>)}
         {!diag.webhooks?.length && !diag.errors?.length && <p className="bl-warn">Nenhum webhook cadastrado na conta Asaas.</p>}
@@ -170,14 +171,14 @@ export function Assinaturas() {
   const sim = async (action, s) => { try { const r = await post('/api/adm/billing/simulate', { action, subscription_id: s.id }); setM({ ok: true, t: `Simulado: ${action} → ${r.subscription?.status}` }); load(); open({ ...s, ...r.subscription }) } catch (x) { setM({ ok: false, t: x.message }) } }
   if (e) return <p className="bl-err">{e}</p>; if (!d) return <p>Carregando…</p>
   return <div className="ag"><Msg m={m} />
-    <div className="adm-card"><h3>Assinaturas pagas</h3><div className="adm-tbl-wrap"><table className="adm-table" data-testid="adm-subs"><thead><tr><th>Conta</th><th>Plano</th><th>Status</th><th>Valor</th><th>Período até</th><th>Cartão</th></tr></thead>
-      <tbody>{d.subscriptions.map(s => <tr key={s.id} onClick={() => open(s)} style={{ cursor: 'pointer' }}><td>{s.name}<br /><span className="g-xs g-mut">{s.email}</span></td><td>{s.plan_name}</td><td>{s.status}{s.cancel_at_period_end ? ' (cancela no fim)' : ''}</td><td>{s.price_cents != null ? brl(s.price_cents) : '—'}</td><td>{dBR(s.current_period_end)}</td><td>{s.last4 ? '•••• ' + s.last4 : '—'}</td></tr>)}</tbody></table></div></div>
+    <div className="adm-card"><h3>Assinaturas pagas</h3><div className="adm-tbl-wrap"><table className="adm-table" data-testid="adm-subs"><thead><tr><th>Conta</th><th>Plano</th><th>Status</th><th>Valor</th><th>Período até</th><th>Provedor</th><th>Pagamento</th></tr></thead>
+      <tbody>{d.subscriptions.map(s => <tr key={s.id} onClick={() => open(s)} style={{ cursor: 'pointer' }}><td>{s.name}<br /><span className="g-xs g-mut">{s.email}</span></td><td>{s.plan_name}</td><td>{s.status}{s.cancel_at_period_end ? ' (cancela no fim)' : ''}</td><td>{s.price_cents != null ? brl(s.price_cents) : '—'}</td><td>{dBR(s.current_period_end)}</td><td>{s.provider}</td><td>{s.last4 ? '•••• ' + s.last4 : s.provider === 'infinitepay' ? 'Checkout' : '—'}</td></tr>)}</tbody></table></div></div>
     {sel && <div className="adm-card" data-testid="adm-sub-detail"><h3>{sel.name} — {sel.plan_name} ({sel.status})</h3>
       <p className="g-xs g-mut">Simulador de tempo (só com o provedor simulado): antecipa o vencimento e roda o job de cobrança na hora.</p>
       <div className="g-row" style={{ flexWrap: 'wrap', gap: 8 }}>{[['vencer_periodo', 'Vencer período (renovar)'], ['vencer_retentativa', 'Vencer retentativa'], ['vencer_carencia', 'Vencer carência']].map(([a, l]) => <button key={a} className="adm-btn ghost" onClick={() => sim(a, sel)} data-testid={'sim-' + a}>{l}</button>)}</div>
       {ch && <><h4>Eventos</h4><ul className="g-sm">{ch.events.map((x, i) => <li key={i}>{dBR(x.created_at)} · {x.action} {x.from_status ? x.from_status + ' → ' + x.to_status : ''}</li>)}</ul></>}
     </div>}
-    <div className="adm-card"><h3>Cobranças recentes</h3>{all && <div className="adm-tbl-wrap"><table className="adm-table"><thead><tr><th>Data</th><th>Conta</th><th>Tipo</th><th>Valor</th><th>Status</th><th>Tentativa</th></tr></thead>
-      <tbody>{all.charges.map(c => <tr key={c.id}><td>{dBR(c.created_at)}</td><td>{c.email}</td><td>{c.kind}</td><td>{brl(c.amount_cents)}</td><td>{c.status}{c.failure_message ? ' — ' + c.failure_message : ''}</td><td>{c.attempt}</td></tr>)}</tbody></table></div>}</div>
+    <div className="adm-card"><h3>Cobranças recentes</h3>{all && <div className="adm-tbl-wrap"><table className="adm-table"><thead><tr><th>Data</th><th>Conta</th><th>Provedor</th><th>Tipo</th><th>Valor</th><th>Status</th><th>Identificadores</th><th>Conciliação</th></tr></thead>
+      <tbody>{all.charges.map(c => <tr key={c.id}><td>{dBR(c.created_at)}</td><td>{c.email}</td><td>{c.provider}</td><td>{c.kind}{c.confirmed_payment_method ? ` · ${c.confirmed_payment_method}` : ''}</td><td>{brl(c.amount_cents)}</td><td>{c.status}{c.failure_message ? ' — ' + c.failure_message : ''}</td><td><span className="g-xs">{c.provider_invoice_slug || '—'}<br />{c.provider_transaction_id || c.provider_charge_id || '—'}</span></td><td>{c.reconciliation_error ? <span className="bl-err">{c.reconciliation_error}</span> : dBR(c.last_reconciled_at)}</td></tr>)}</tbody></table></div>}</div>
   </div>
 }

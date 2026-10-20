@@ -5,7 +5,7 @@ const PUBLIC = new Set(['GET /api/config', 'GET /api/health', 'HEAD /api/health'
   'POST /api/auth/forgot', 'POST /api/auth/login', 'POST /api/auth/logout', 'POST /api/auth/register', 'POST /api/auth/reset', 'POST /api/logout'])
 // PUBLIC_V5: publicas por desenho - dados da empresa/precos para os termos; midia com chave assinada (chave invalida = 404, sem dado);
 // webhook do provedor de cobranca (protegido por token, 503 sem token); 'POST /api/auth/' e prefixo do rate limit, nao rota
-for (const k of ['GET /api/legal/company', 'GET /api/media/private', 'GET /api/media/pub', 'POST /api/auth/', 'POST /api/billing/webhook/asaas', 'POST /api/billing/webhook/simulado']) PUBLIC.add(k)
+for (const k of ['GET /api/legal/company', 'GET /api/media/private', 'GET /api/media/pub', 'POST /api/auth/', 'POST /api/billing/webhook/asaas', 'POST /api/billing/webhook/simulado', 'POST /api/billing/webhook/infinitepay']) PUBLIC.add(k)
 // QA: reset do rate limit - so existe na API de teste (DB_NAME *_test + TEST_RL_RESET=1); em producao a rota nao e registrada
 PUBLIC.add('POST /api/test/rate-limit/reset')
 const routes = new Set()

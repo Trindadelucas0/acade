@@ -6,7 +6,7 @@ import { q } from '../db/pool.js'
 import { requireAuth, requireRole, audit } from '../auth.js'
 import { resolve, refreshUsage, capacitySummary } from '../entitlements.js'
 import { accessOf } from '../access.js'
-import { getProvider, providerName } from './providers/index.js'
+import { getProvider, getProviderByName, providerName } from './providers/index.js'
 import { SIM_CARDS } from './providers/simulado.js'
 import * as core from './core.js'
 import * as cp from './coupons.js'
@@ -32,8 +32,8 @@ export function providerInfo() {
   const p = getProvider(), name = providerName()
   return { provider: p.name, configured: name, label: p.label, test: !!p.test, live: !!p.live, mode: p.mode || (p.name === 'simulado' ? 'simulado' : null),
     fallback_reason: p.fallbackReason || null, warnings: p.warnings || [], requires_holder_info: p.name === 'asaas',
-    webhook_token_set: p.name === 'asaas' ? !!process.env.ASAAS_WEBHOOK_TOKEN : !!process.env.SIM_WEBHOOK_TOKEN,
-    payment_types: ['card'] }
+    webhook_token_set: p.name === 'asaas' ? !!process.env.ASAAS_WEBHOOK_TOKEN : p.name === 'infinitepay' ? null : !!process.env.SIM_WEBHOOK_TOKEN,
+    hosted_checkout: !!p.hostedCheckout, payment_types: p.hostedCheckout ? ['card', 'pix'] : ['card'] }
 }
 const pubPlan = p => ({ id: p.id, audience: p.audience, product: p.product, name: p.name, description: p.description, price_cents: p.price_cents, currency: p.currency,
   billing_interval: p.billing_interval, trial_days: p.trial_days, benefits: (p.benefits || []).filter(x => x.state !== 'indisponivel'), limits: p.limits || {}, features: p.features || {}, is_free: p.is_free })
@@ -99,7 +99,7 @@ export function billingRoutes({ json, readBody }) {
     'GET /api/public/plans': async (req, res) => {
       const r = await q(PLANS_SQL + ` where p.active and p.id in (${CATALOG_SQL}) order by p.audience, p.sort`)
       const info = providerInfo()
-      json(res, 200, { plans: r.rows.map(p => ({ ...pubPlan(p), purchasable: !p.is_free && !!p.sellable && p.price_cents != null })).map(p => ({ ...p, price_label: p.is_free ? 'Gratuito' : p.price_cents == null ? 'Preço a definir' : null })), test_mode: !!info.test }, { 'Cache-Control': 'public, max-age=60' })
+      json(res, 200, { plans: r.rows.map(p => ({ ...pubPlan(p), purchasable: !p.is_free && !!p.sellable && p.price_cents != null })).map(p => ({ ...p, price_label: p.is_free ? 'Gratuito' : p.price_cents == null ? 'Preço a definir' : null })), test_mode: !!info.test, hosted_checkout: !!info.hosted_checkout, payment_types: info.payment_types }, { 'Cache-Control': 'public, max-age=60' })
     },
     // Monetizacao F8b: tela dedicada do personal (plano, alunos permitidos, vagas usadas, proximo vencimento).
     // Fica em /api/billing/* (sempre liberado) para o personal gerir a assinatura mesmo com o teste vencido.
@@ -129,7 +129,8 @@ export function billingRoutes({ json, readBody }) {
       const subs = {}
       for (const a of ['aluno', 'profissional']) if (u.roles.includes(a)) subs[a] = await subView(u, a)
       const cards = (await q('select * from payment_methods where user_id=$1 and removed_at is null order by is_default desc, created_at desc', [u.id])).rows.map(core.publicCard)
-      const charges = (await q(`select id, kind, payment_type, amount_cents, discount_cents, status, attempt, period_start, period_end, paid_at, failure_message, description, created_at, provider
+      const charges = (await q(`select id, kind, payment_type, amount_cents, discount_cents, status, attempt, period_start, period_end, paid_at, failure_message, description, created_at, provider,
+          checkout_url, checkout_expires_at, confirmed_payment_method, provider_invoice_slug, provider_transaction_id, last_reconciled_at, reconciliation_error
           from billing_charges where user_id=$1 order by created_at desc limit 24`, [u.id])).rows
       json(res, 200, { subscriptions: subs, cards, charges, access: await accessSummary(u), provider: providerInfo() })
     },
@@ -173,6 +174,7 @@ export function billingRoutes({ json, readBody }) {
       json(res, 200, { ok: true })
     },
     'POST /api/billing/subscribe': async (req, res) => { const u = await auth(req, res); if (!u) return; const b = await readBody(req); if (!CATALOG.includes(String(b.plan_id || ''))) return json(res, 404, { error: 'Este plano não está disponível para contratação.', code: 'PLAN_UNAVAILABLE' }); send(json, res, await core.subscribe(u, b, ipOf(req))) },
+    'POST /api/billing/infinitepay/confirm': async (req, res) => { const u = await auth(req, res); if (!u) return; send(json, res, await core.confirmInfinitePay(u, await readBody(req))) },
     'POST /api/billing/change-card': async (req, res) => { const u = await auth(req, res); if (!u) return; send(json, res, await core.changeCard(u, await readBody(req), ipOf(req))) },
     'POST /api/billing/pay-now': async (req, res) => { const u = await auth(req, res); if (!u) return; send(json, res, await core.payNow(u, await readBody(req), ipOf(req))) },
     'POST /api/billing/pix/regenerate': async (req, res) => { const u = await auth(req, res); if (!u) return; json(res, 410, { error: 'Pix não está mais disponível. Use cartão de crédito.', code: 'PAYMENT_METHOD_DISABLED' }) },
@@ -190,6 +192,12 @@ export function billingRoutes({ json, readBody }) {
       if (providerName() !== 'simulado' || !process.env.SIM_WEBHOOK_TOKEN) return json(res, 404, { error: 'Endereço não encontrado', code: 'NOT_FOUND' })
       if (!safeEq(req.headers['x-webhook-token'], process.env.SIM_WEBHOOK_TOKEN)) return json(res, 401, { error: 'token inválido' })
       send(json, res, await core.handleWebhook('simulado', await readBody(req)))
+    },
+    // A InfinitePay nao documenta assinatura do webhook. O evento nunca libera acesso diretamente:
+    // core.handleWebhook confirma a transacao em payment_check usando a API Key do servidor.
+    'POST /api/billing/webhook/infinitepay': async (req, res) => {
+      if (!process.env.INFINITEPAY_API_KEY || !process.env.INFINITEPAY_HANDLE) return json(res, 503, { error: 'webhook não configurado' })
+      send(json, res, await core.handleWebhook('infinitepay', await readBody(req)))
     },
 
     // ===== parceiro (PRD 13): so resultados agregados, nenhum dado de quem resgatou =====
@@ -333,7 +341,8 @@ export function billingRoutes({ json, readBody }) {
     'GET /api/adm/billing/charges': async (req, res) => {
       const u = await admin(req, res, json); if (!u) return
       const sid = qs(req).get('subscription_id')
-      const r = await q(`select c.id, c.kind, c.amount_cents, c.discount_cents, c.status, c.attempt, c.provider, c.provider_charge_id, c.failure_code, c.failure_message, c.period_start, c.period_end, c.paid_at, c.created_at, us.name, us.email
+      const r = await q(`select c.id, c.kind, c.amount_cents, c.discount_cents, c.status, c.attempt, c.provider, c.provider_charge_id, c.failure_code, c.failure_message, c.period_start, c.period_end, c.paid_at, c.created_at, us.name, us.email,
+          c.checkout_url, c.checkout_expires_at, c.provider_invoice_slug, c.provider_transaction_id, c.confirmed_payment_method, c.last_reconciled_at, c.reconciliation_error, c.provider_amount_cents, c.provider_paid_amount_cents
           from billing_charges c join users us on us.id=c.user_id where c.tenant_id=$1 and ($2::uuid is null or c.subscription_id=$2) order by c.created_at desc limit 200`, [u.tenant_id, isUuid(sid) ? sid : null])
       const ev = isUuid(sid) ? (await q(`select action, from_status, to_status, from_plan, to_plan, data, created_at from subscription_events where subscription_id=$1 order by created_at desc limit 100`, [sid])).rows : []
       json(res, 200, { charges: r.rows, events: ev })
@@ -371,8 +380,8 @@ export function billingRoutes({ json, readBody }) {
     // diagnostico do Asaas sem SSH: estado da conta e se a fila de webhook esta interrompida (somente leitura)
     'GET /api/adm/billing/asaas-diagnostico': async (req, res) => {
       const u = await admin(req, res, json); if (!u) return
-      const p = getProvider()
-      if (p.name !== 'asaas' || !p.diagnostics) return json(res, 409, { error: 'Disponível só com o provedor Asaas.', code: 'ASAAS_ONLY' })
+      let p
+      try { p = getProviderByName('asaas') } catch { return json(res, 409, { error: 'Credenciais legadas do Asaas não estão configuradas.', code: 'ASAAS_NOT_CONFIGURED' }) }
       json(res, 200, { ...await p.diagnostics(), webhook_rejected: { ...webhookRejeitado } })
     },
     'POST /api/adm/billing/webhooks/replay': async (req, res) => {

@@ -464,8 +464,9 @@ const RL_RULES = {
   // V5 monetizacao: cupom (validacao/resgate), cartao e checkout por sessao
   'POST /api/billing/coupon/validate': [30, 10 * 60e3], 'POST /api/billing/coupon/redeem': [10, 60 * 60e3], 'POST /api/billing/cards': [10, 60 * 60e3],
   'POST /api/billing/subscribe': [10, 60 * 60e3], 'POST /api/billing/pay-now': [10, 60 * 60e3], 'POST /api/billing/change-card': [10, 60 * 60e3],
+  'POST /api/billing/infinitepay/confirm': [30, 10 * 60e3],
   'POST /api/billing/pix/regenerate': [10, 60 * 60e3], 'POST /api/billing/pix/confirm-test': [10, 60 * 60e3],
-  'POST /api/billing/webhook/asaas': [600, 60e3],
+  'POST /api/billing/webhook/asaas': [600, 60e3], 'POST /api/billing/webhook/infinitepay': [600, 60e3],
   'POST /api/me/export-request': [5, 60 * 60e3], 'POST /api/me/delete-request': [5, 60 * 60e3], 'POST /api/me/social': [30, 10 * 60e3],
 };
 const RL_PER_SESSION = key => !key.startsWith('POST /api/auth/');
@@ -506,7 +507,7 @@ const TEST_RL_RESET = process.env.NODE_ENV !== 'production' && /_test$/.test(pro
 if (TEST_RL_RESET) routes['POST /api/test/rate-limit/reset'] = async (req, res) => { const n = rlHits.size; rlHits.clear(); json(res, 200, { ok: true, cleared: n }) };
 const PUBLIC_ROUTES = new Set(['GET /api/public/plans', 'GET /api/cep', 'GET /api/convite', 'GET /api/config', 'GET /api/health', 'HEAD /api/health', 'GET /api/media', 'GET /api/media/pub', 'GET /api/media/private', 'GET /api/push/public-key', 'GET /api/terms',
   'GET /api/legal/company', 'POST /api/auth/forgot', 'POST /api/auth/login', 'POST /api/auth/logout', 'POST /api/auth/register', 'POST /api/auth/reset', 'POST /api/logout',
-  'POST /api/billing/webhook/asaas', 'POST /api/billing/webhook/simulado']);
+  'POST /api/billing/webhook/asaas', 'POST /api/billing/webhook/simulado', 'POST /api/billing/webhook/infinitepay']);
 const decodeURIComponentSafe = v => { try { return decodeURIComponent(v) } catch { return '\u0000' } };
 const server = http.createServer(async (req, res) => {
   const t0 = performance.now(), audit = watchResponse(res);

@@ -1,7 +1,37 @@
 # ORNY — Documentação do sistema
 
-Fonte oficial de comportamento. Versão frontend/API: 1.7.9. Atualização: 19/10/2026 — checkout insere a barra da validade após o mês e explica quando a tokenização depende de habilitação da conta Asaas; landing mantém footer completo e responsivo.
+Fonte oficial de comportamento. Versão frontend/API: 1.8.0. Atualização: 19/10/2026 — integração local do Checkout InfinitePay para novas cobranças, com cartão/Pix, confirmação por `payment_check`, renovação mensal por novo link e legado Asaas preservado. Produção não foi alterada.
 O inventário em `docs/INVENTARIO-FUNCIONAL.md` preserva o levantamento histórico e seus limites de validação; este documento consolida os fluxos atualizados.
+
+## Checkout InfinitePay — versão 1.8.0 (19/10/2026)
+
+Quando `BILLING_PROVIDER=infinitepay`, novas contratações e renovações criam uma cobrança interna e direcionam a pessoa ao Checkout Integrado da InfinitePay. O checkout hospedado oferece cartão de crédito e Pix; o ORNY não recebe número, validade ou código de segurança do cartão. Preço, desconto, plano, período e vínculo com a conta são sempre calculados no servidor.
+
+O retorno do navegador e o corpo do webhook não liberam acesso. O backend usa `order_nsu` igual ao identificador interno da cobrança e confirma `transaction_nsu`, `slug`, situação e valor por `POST /payment_check`, autenticado com a API Key mantida no servidor. Valor divergente fica registrado para análise e não ativa a assinatura. Eventos repetidos são idempotentes; a transição financeira continua atômica.
+
+A InfinitePay não é tratada como débito recorrente: cinco dias antes do vencimento, o job prepara uma nova cobrança mensal e avisa o usuário. O período vigente continua até a data paga. A pessoa abre **Planos e pagamento** e usa **Abrir checkout** ou **Pagar agora** para concluir a renovação. O checkout vencido não é considerado pagamento e uma nova tentativa mantém a unicidade do período.
+
+Cobranças, cartões tokenizados e webhooks antigos do Asaas não são convertidos nem apagados. A reconciliação escolhe o provedor gravado em cada cobrança, permitindo consultar o legado mesmo depois da troca do provedor ativo. As credenciais Asaas permanecem necessárias enquanto houver operação histórica pendente. Novas comissões de parceiros ficam pausadas na InfinitePay; registros anteriores permanecem consultáveis.
+
+O painel **Administração → Monetização → Assinaturas e cobranças** identifica provedor, método confirmado, `slug`, transação, última conciliação e divergências. Cancelamento da assinatura continua sendo uma regra do ORNY. Cancelamento financeiro e reembolso no gateway não ganharam botão local porque a API oficial consultada não documenta essas operações; eventos recebidos ficam auditados para conciliação operacional.
+
+### Como usar
+
+1. Em **Planos e pagamento**, escolha o plano e aplique um cupom opcional.
+2. Toque em **Ir para pagamento**. A InfinitePay abre fora do formulário do ORNY e oferece cartão ou Pix.
+3. Conclua o pagamento e retorne ao ORNY. A tela mostra a conferência; somente a consulta oficial aprovada libera o plano.
+4. Se ainda estiver pendente, volte ao histórico e use **Abrir checkout** enquanto o link estiver válido.
+5. Na renovação, abra o aviso ou **Planos e pagamento**, encontre a nova cobrança e conclua o pagamento antes do vencimento.
+6. Administrador: use **Reconciliar agora** para consultar cobranças pendentes. Divergência de valor exige análise e nunca pode ser marcada como paga manualmente.
+
+Onde olhar no código: `api/billing/providers/infinitepay.js` (API externa e validação), `api/billing/core.js` (pedido, confirmação, renovação e coexistência), `api/billing/routes.js` (rotas e ownership), `frontend/src/views/billing/Billing.jsx` (checkout e retorno), `frontend/src/views/billing/AdmBilling.jsx` (auditoria administrativa) e migration `api/db/migrations/066_infinitepay_checkout.sql`.
+
+### Ambiente, implantação e rollback
+
+- Configuração: `BILLING_PROVIDER=infinitepay`, `INFINITEPAY_API_KEY`, `INFINITEPAY_HANDLE` e `ORIGIN` pública HTTPS. Não existe `INFINITEPAY_WEBHOOK_SECRET` no código porque esse mecanismo não foi documentado; a autenticidade financeira vem de `payment_check`.
+- Antes do corte: backup validado do PostgreSQL, `.env`, PM2 e frontend; aplicar a migration 066; manter credenciais Asaas; testar criação e confirmação sem expor chaves.
+- Rollback lógico: voltar `BILLING_PROVIDER=asaas` e reiniciar a API. As colunas e cobranças InfinitePay permanecem para auditoria; nenhum registro é apagado.
+- Estado desta versão: código e testes locais, sem migration no banco de uso, sem credenciais InfinitePay, sem cobrança real, sem deploy e sem validação ponta a ponta no provedor.
 
 ## Bloqueio comercial — somente pagamento confirmado (19/10/2026)
 
@@ -16,9 +46,9 @@ Onde olhar no código: `api/access.js` (origem paga, allowlist e middleware glob
 1. Sem cobrança confirmada, a pessoa pode entrar na conta e abrir **Assinatura** para escolher/concluir o pagamento, mas não acessar treinos, progresso ou recursos internos.
 2. Após confirmação real pelo provedor e período vigente, o acesso é liberado automaticamente. Se o pagamento estiver pendente, deve aguardar a confirmação ou regularizar a cobrança.
 
-## Cobrança somente por cartão — remoção do Pix (19/10/2026)
+## Histórico Asaas: cobrança somente por cartão e remoção do Pix (19/10/2026)
 
-O checkout aceita somente cartão de crédito. O cupom é opcional; se a validação retornar falta de permissão, ele não é aplicado e a pessoa pode contratar pelo valor integral. O erro de cupom não autoriza nem bloqueia o envio da cobrança. A contratação continua exigindo um plano compatível com o perfil da conta. A API recusa `payment_type=pix`, e as rotas antigas para regenerar ou confirmar Pix respondem HTTP 410; o backend Asaas não cria mais cobranças Pix. `GET /api/billing/me` não retorna QR Code nem copia e cola. Cobranças históricas continuam no histórico, e o webhook ainda reconhece eventos reais de cobranças Pix criadas anteriormente para manter o registro financeiro correto.
+Este comportamento permanece para o provedor Asaas e para seu histórico. Quando o provedor ativo é Asaas, o checkout aceita somente cartão de crédito. O cupom é opcional; se a validação retornar falta de permissão, ele não é aplicado e a pessoa pode contratar pelo valor integral. O erro de cupom não autoriza nem bloqueia o envio da cobrança. A contratação continua exigindo um plano compatível com o perfil da conta. As rotas antigas para regenerar ou confirmar Pix respondem HTTP 410; o backend Asaas não cria novas cobranças Pix. Cobranças históricas continuam no histórico, e o webhook ainda reconhece eventos reais de cobranças Pix criadas anteriormente para manter o registro financeiro correto. Com `BILLING_PROVIDER=infinitepay`, vale o fluxo 1.8.0 acima, com cartão e Pix no checkout hospedado.
 
 O autoatendimento financeiro usa a autenticação que aceita conta pendente nas rotas de consulta, validação/resgate de cupom, cadastro/remoção/troca de cartão, contratação, pagamento de pendência, cancelamento e reativação. Isso não concede acesso ao produto: ownership do cartão e da assinatura continua validado pelo usuário autenticado, e as demais APIs permanecem sob o bloqueio comercial. No celular, o checkout abre em tela cheia, separa dados do cartão e do titular, aplica máscaras sem enviar pontuação ao Asaas, insere `/` assim que o mês é completado no campo **Validade (MM/AA)**, mostra erros junto ao campo e mantém o botão de pagamento alcançável. Toques repetidos durante o processamento são ignorados e a mesma tentativa conserva a chave de idempotência. Se a API do Asaas recusar a tokenização por falta de habilitação da conta em produção, a tela informa que a ORNY precisa solicitar a liberação ao gerente de contas do Asaas; o comprador não precisa alterar seus dados do cartão. Essa habilitação é uma configuração externa e não é realizada pelo checkout.
 
@@ -46,7 +76,7 @@ Publicação em 19/10/2026: commit `7f2fe14` implantado na VPS após backup vali
 
 ## Cadastro e aceite legal — correção 1.7.4 (19/10/2026)
 
-No cadastro, selecione um plano pago e disponível para continuar; a API também valida plano e perfil antes de criar a conta. Não há opção de decidir depois. Criar a conta não libera o produto: após o cadastro, o checkout abre para concluir por cartão de crédito, e o sistema só libera recursos após confirmação real do pagamento. O código de personal continua opcional e fechado por padrão; só é enviado quando a pessoa escolhe **Tenho código do meu personal**.
+No cadastro, selecione um plano pago e disponível para continuar; a API também valida plano e perfil antes de criar a conta. Não há opção de decidir depois. Criar a conta não libera o produto: após o cadastro, o checkout abre para concluir pelo meio oferecido pelo provedor ativo, e o sistema só libera recursos após confirmação real do pagamento. O código de personal continua opcional e fechado por padrão; só é enviado quando a pessoa escolhe **Tenho código do meu personal**.
 
 O aceite de documentos continua bloqueado quando faltam dados jurídicos obrigatórios da empresa. A tela agora identifica junto ao botão quais campos precisam ser concluídos em **Sistema → Dados da empresa**, em vez de parecer que **Continuar** não responde. O servidor permanece como autoridade e não aceita documentos incompletos.
 
