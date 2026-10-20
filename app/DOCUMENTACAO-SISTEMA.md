@@ -31,7 +31,7 @@ Onde olhar no código: `api/billing/providers/infinitepay.js` (API externa e val
 - Configuração: `BILLING_PROVIDER=infinitepay`, `INFINITEPAY_API_KEY`, `INFINITEPAY_HANDLE` e `ORIGIN` pública HTTPS. Não existe `INFINITEPAY_WEBHOOK_SECRET` no código porque esse mecanismo não foi documentado; a autenticidade financeira vem de `payment_check`.
 - Antes do corte: backup validado do PostgreSQL, `.env`, PM2 e frontend; aplicar a migration 066; manter credenciais Asaas; testar criação e confirmação sem expor chaves.
 - Rollback lógico: voltar `BILLING_PROVIDER=asaas` e reiniciar a API. As colunas e cobranças InfinitePay permanecem para auditoria; nenhum registro é apagado.
-- Estado desta versão: código e testes locais, sem migration no banco de uso, sem credenciais InfinitePay, sem cobrança real, sem deploy e sem validação ponta a ponta no provedor.
+- Publicação em 20/10/2026: commit `43b0b92` implantado na VPS após backup validado em `/opt/avagym-backups/infinitepay_20261020_001346`. A migration 066 foi aplicada, o frontend foi recompilado e `avagym-api`/`avagym-web` ficaram online. O provedor ativo passou para InfinitePay em produção; a API pública confirmou checkout hospedado com cartão e Pix, e o webhook rejeitou payload inválido. Nenhuma cobrança real foi criada nesta publicação, portanto a primeira jornada pagamento → `payment_check` → acesso ainda precisa ser acompanhada antes de ser declarada homologada.
 
 ## Bloqueio comercial — somente pagamento confirmado (19/10/2026)
 

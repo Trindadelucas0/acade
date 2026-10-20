@@ -62,3 +62,14 @@ ASAAS_WEBHOOK_TOKEN=<token igual ao do webhook no painel Asaas>
 ```
 
 O checkout atual aceita somente cartão de crédito; Pix foi aposentado. Antes de habilitar cobranças, confirmar a conta Asaas aprovada, tokenização de cartão, preços, monetização e carência; cadastrar o webhook `https://ornygym.avadesk.com.br/api/billing/webhook/asaas` com envio sequencial e token exclusivo. Depois de preencher o `.env`: `pm2 restart avagym-api --update-env` e conferir no admin (Cobrança, preços e cupons > Visão geral) **Asaas (produção)**. Configuração incompleta ou com prefixo de chave incompatível impede a API de iniciar; não cai no simulador. O acesso ao plano depende do evento de pagamento confirmado recebido por esse webhook.
+
+### InfinitePay (provedor ativo desde 20/10/2026)
+
+```dotenv
+BILLING_PROVIDER=infinitepay
+INFINITEPAY_API_KEY=<chave privada inchk_...>
+INFINITEPAY_HANDLE=<InfiniteTag sem $>
+ORIGIN=https://ornygym.avadesk.com.br
+```
+
+O AVAGYM cria um checkout individual por contratação ou renovação e envia automaticamente o webhook `https://ornygym.avadesk.com.br/api/billing/webhook/infinitepay`. Não cadastrar nem documentar segredo de webhook fictício: o backend confirma `order_nsu`, transação, slug e valor pela API `payment_check` antes de liberar acesso. O Asaas permanece configurado apenas para conciliação do legado. Rollback lógico: restaurar `BILLING_PROVIDER=asaas`, reiniciar `avagym-api --update-env` e preservar as cobranças InfinitePay para auditoria.
