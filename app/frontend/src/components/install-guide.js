@@ -2,19 +2,19 @@ export const INSTALL_GUIDE = {
   android: {
     eyebrow: 'Android · Chrome',
     title: 'Adicione a ORNY à tela inicial',
-    intro: 'Use a ORNY em tela cheia e abra seus treinos com um toque.',
+    intro: 'Veja onde tocar e adicione a ORNY à tela inicial em poucos passos.',
     icon: '⋮',
     steps: [
       'Abra a ORNY no Chrome.',
-      'Toque no menu ⋮ no canto superior do navegador.',
-      'Escolha “Instalar app” ou “Adicionar à tela inicial”.',
+      'Toque nos três pontinhos ⋮ no alto da tela.',
+      'Escolha “Instalar app” ou “Instalar e criar atalho”.',
       'Confirme em “Instalar” ou “Adicionar”.',
     ],
   },
   ios: {
     eyebrow: 'iPhone · Safari',
     title: 'Adicione à Tela de Início',
-    intro: 'No iPhone, a instalação é feita pelo menu Compartilhar do Safari.',
+    intro: 'Veja o caminho do Safari e adicione a ORNY à Tela de Início.',
     icon: '↑',
     steps: [
       'Abra a ORNY no Safari.',

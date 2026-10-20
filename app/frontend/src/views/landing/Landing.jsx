@@ -12,7 +12,7 @@ import Brand from '../../components/Brand.jsx'
 import Icon from '../../components/Icon.jsx'
 import { api } from '../../lib/api.js'
 import { useStore } from '../../store/useStore.js'
-import { INSTALL_GUIDE } from '../../components/install-guide.js'
+import InstallWalkthrough from '../../components/InstallWalkthrough.jsx'
 import { parseEntry, signupHref, rememberEntry } from '../../lib/landingParams.js'
 import { PlanGrid, TrialSeal, Faq } from '../billing/PlansShowcase.jsx'
 import './landing.css'
@@ -252,16 +252,7 @@ export default function Landing() {
           <h2>Instale quando quiser</h2>
           <p className="lp-copy">A ORNY funciona normalmente no navegador. Adicionar à tela inicial é opcional e deixa o acesso mais rápido.</p>
         </div>
-        <div className="lp-grid lp-grid-2">
-          {Object.entries(INSTALL_GUIDE).map(([key, guide]) =>
-            <article data-card className="lp-card" key={key}>
-              <span className="lp-card-ico" aria-hidden="true">{guide.icon}</span>
-              <span className="lp-kicker">{guide.eyebrow}</span>
-              <h3>{guide.title}</h3>
-              <p className="lp-copy">{guide.intro}</p>
-              <ol className="lp-ol">{guide.steps.map((step, i) => <li key={step}><b>{i + 1}</b><span>{step}</span></li>)}</ol>
-            </article>)}
-        </div>
+        <InstallWalkthrough />
         <p className="lp-status">As notificações são opcionais. Você pode ativá-las depois em Perfil, Configurações. Elas nunca bloqueiam o seu acesso.</p>
       </div>
     </section>

@@ -7,7 +7,7 @@ const active={id:'active-test',program_id:program.id,title:program.title,weeks:8
 const stats={period_days:90,target_per_week:3,kpis:{n:3,vol:600,secs:1800,avg_secs:600,active_days:3,sets:3,per_week:1,weeks:3,weeks_hit:0,consistency_pct:0,avg_volume:200,records_count:2},weeks:[{wk:'2026-09-28',n:1,vol:100,secs:600},{wk:'2026-10-05',n:0,vol:0,secs:0},{wk:'2026-10-12',n:2,vol:500,secs:1200}],days:[],weekdays:[1,2,3,4,5,6,7].map(dow=>({dow,n:dow===1?3:0})),groups:[{group_id:'peito',sets:3,vol:600}],exercises:[{exercise_id:'supino',name:'Supino',sets:3,vol:600,points:[{d:'2026-10-05',w:10,e1rm:13.3},{d:'2026-10-17',w:30,e1rm:40}]}],records:[{exercise_id:'supino',name:'Supino',weight:30,reps:10,e1rm:40,at:'2026-10-17T03:00:00Z',new:true}]}
 async function setup(page,{locked=false,scoped=false,status='ativo',welcome=false,delay=0,role='aluno'}={}){
  const user={id:'premium-test',name:'Maria Teste',status,roles:[role],context:role,pro:role==='profissional',access_locked:false,access_unlocked_at:scoped?null:'2026-01-01',client_locked:scoped,account_type:scoped?'personal_client':'normal'}
- const state={locked,seen:0,starts:0,saved:0,statsFail:false,homeFail:false,welcome}
+ const state={locked,seen:0,starts:0,saved:0,published:0,statsFail:false,homeFail:false,welcome}
  await page.addInitScript(user=>{localStorage.setItem('gym_user',JSON.stringify(user));localStorage.setItem('gym_state_v1',JSON.stringify({lang:'pt',theme:'dark'}))},user)
  await page.route('**/api/**',async route=>{
   const req=route.request(),url=new URL(req.url()),p=url.pathname
@@ -43,6 +43,8 @@ async function setup(page,{locked=false,scoped=false,status='ativo',welcome=fals
   else if(p.includes('tours'))data={tours:{}}
   else if(p.includes('theme'))data={theme:'dark'}
   else if(p==='/api/me/live-session')data={session:null}
+  else if(p==='/api/me/share-card')data={kind:'treino',eligible:true,who:{name:'Maria Teste',handle:null,avatar:null},data:{workout_name:'Treino A',date:'2026-10-20T10:00:00Z',duration_sec:1800,exercises:5,sets:15,volume_kg:1200,muscles:[]}}
+  else if(p==='/api/community/workout-post'){state.published++;data={id:'post-tapago-test',existing:false}}
   else if(p.includes('trophies'))data={trophies:[]}
   else if(p==='/api/muscle-load')data={rows:[]}
   return route.fulfill({json:data})
@@ -120,4 +122,15 @@ test('treino: programa, pesos, série, conclusão e progresso',async({page})=>{
  await page.getByTestId('finish-set').click();await expect(page.getByTestId('done')).toBeVisible()
  await page.getByTestId('pain-no').click();await page.getByTestId('save-session').click();await expect(page.getByTestId('see-progress')).toBeVisible()
  await page.getByTestId('see-progress').click();await expect(page.getByTestId('progress')).toBeVisible();expect(s.saved).toBeGreaterThan(0)
+})
+test('publicação do #TáPago é opcional, pede confirmação e abre o post',async({page})=>{
+ const s=await setup(page);await page.goto('/#/compartilhar?tipo=treino&sessao=aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')
+ await expect(page.getByTestId('card-canvas')).toBeVisible();await expect(page.getByTestId('community-publish')).toBeVisible()
+ await page.getByTestId('card-skip').click();await expect(page).toHaveURL(/#\/hoje/);expect(s.published).toBe(0)
+ await page.goto('/#/compartilhar?tipo=treino&sessao=aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');await expect(page.getByTestId('card-canvas')).toBeVisible()
+ await page.getByTestId('community-publish').click();await page.getByLabel('Legenda opcional').fill('Treino concluído!')
+ await page.getByTestId('community-confirm').click();await expect(page.getByTestId('dialog')).toBeVisible();await page.getByTestId('dialog-cancel').click()
+ await expect(page.getByTestId('community-compose')).toBeVisible();expect(s.published).toBe(0)
+ await page.getByTestId('community-confirm').click();await page.getByTestId('dialog-ok').click()
+ await expect.poll(()=>s.published).toBe(1);await expect(page).toHaveURL(/#\/post\/post-tapago-test/)
 })

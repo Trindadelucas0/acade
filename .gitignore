@@ -34,6 +34,9 @@ backups/
 # uploads da comunidade (fotos dos profissionais)
 app/api/uploads/
 
+# materiais de marketing e campanhas: ficam locais, fora do deploy e do Git
+marketing/
+
 # V3: documentos de verificação profissional (privados)
 app/api/private/
 

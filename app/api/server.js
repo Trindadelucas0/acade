@@ -13,6 +13,7 @@ import { sessionsV4Routes, forgottenSweep } from './sessions-v4.js';
 import { editorialRoutes } from './programs-editorial.js';
 import { proRoutes } from './pro.js';
 import { communityRoutes } from './community.js';
+import { communityWorkoutRoutes } from './community-workout-post.js';
 import { communityEditorialRoutes } from './community-editorial.js';
 import { socialRoutes } from './social.js';
 import { tapagoRoutes } from './tapago.js';
@@ -407,6 +408,7 @@ if (process.env.SESSION_SWEEP !== 'off') setInterval(() => {
 }, 5 * 60 * 1000).unref();
 Object.assign(routes, proRoutes({ json, readBody }));
 Object.assign(routes, communityRoutes({ json, readBody }));  // feed, curtidas, comentários, denúncias, moderação
+Object.assign(routes, communityWorkoutRoutes({ json, readBody }));  // publicação opcional do #TáPago pelo dono do treino
 Object.assign(routes, communityEditorialRoutes({ json, readBody }));  // calendário oficial da Comunidade
 Object.assign(routes, socialRoutes({ json, readBody }));  // V5 E1: perfil social, foto, seguidores, cartões #TáPago
 Object.assign(routes, tapagoRoutes({ json, readBody }));  // #TáPago 2.0: editor, campanha e recompensa de 30 dias

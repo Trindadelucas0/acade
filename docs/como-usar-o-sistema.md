@@ -126,9 +126,10 @@ Para liberar a venda, o administrador deve confirmar em Cobrança, preços e cup
 2. Toque em **Criar meu card** na tela de conclusão ou abra **Progresso → #TáPago**.
 3. Escolha o estilo. Treino já vem pronto; Minha foto permite escolher câmera/galeria, ajustar zoom e posição.
 4. Abra **Personalizar** apenas se quiser mudar formato, indicadores, nome/foto de perfil ou composição.
-5. Toque em **Compartilhar treino**. Se o aparelho não aceitar compartilhamento de arquivo, use **Salvar imagem**.
+5. Para compartilhar o estilo **Treino** na Comunidade, toque em **Publicar na Comunidade**, escreva uma legenda se quiser e confirme a publicação. O app abre o post criado.
+6. Se preferir, use **Compartilhar treino** para enviar por outro aplicativo, **Salvar imagem** para guardar no aparelho ou **Agora não** para sair sem publicar.
 
-A foto usada no editor permanece no aparelho. O sistema não publica automaticamente nem envia essa foto para comunidade ou perfil.
+A publicação na Comunidade é opcional e exige confirmação. O sistema não publica automaticamente. A foto escolhida em **Minha foto** permanece no aparelho e não é enviada à Comunidade ou ao perfil.
 
 ## Participar da campanha de 30 dias
 
@@ -144,9 +145,10 @@ Administradores usam **Administração → Marketing → Campanha #TáPago**. Pr
 
 1. Abra `/` ou `/conheca`, escolha **Quero treinar** ou **Sou profissional** e avance pelo botão correspondente.
 2. Crie sua conta ou entre normalmente. A instalação não é obrigatória: a ORNY funciona no navegador.
-3. No Android, abra a ORNY no Chrome, toque em `⋮` e escolha **Instalar app** ou **Adicionar à tela inicial**. Se aparecer **Instalar a ORNY**, use esse botão.
-4. No iPhone, abra a ORNY no Safari, toque em **Compartilhar**, escolha **Adicionar à Tela de Início** e confirme em **Adicionar**.
-5. Se não quiser instalar agora, escolha **Fazer depois**. As notificações também são opcionais e podem ser ativadas posteriormente em **Perfil → Configurações**.
+3. Na seção **Instale quando quiser**, escolha **Android** ou **iPhone**. Use as setas ou os pontos para ver cada passo ilustrado.
+4. No Android, abra a ORNY no Chrome, toque em `⋮` e escolha a opção de instalação disponível, como **Instalar app**, **Instalar e criar atalho** ou **Adicionar à tela inicial**. Confirme em **Instalar** ou **Adicionar**.
+5. No iPhone, abra a ORNY no Safari, toque em **Compartilhar**, escolha **Adicionar à Tela de Início** e confirme em **Adicionar**. Se estiver em outro navegador, copie o endereço e abra-o no Safari.
+6. Se não quiser instalar agora, continue usando a ORNY no navegador. As notificações também são opcionais e podem ser ativadas posteriormente em **Perfil → Configurações**.
 # Documentos legais e contato da ORNYGYM
 
 No painel, abra **Sistema → Dados da empresa** para conferir os dados que aparecem nos Termos de Uso, na Política de Privacidade e nos demais documentos. O padrão de identificação é **ORNYGYM** e o contato padrão é `avadesktech@gmail.com` para suporte, privacidade, financeiro e moderação. Salve qualquer ajuste antes de voltar aos documentos.

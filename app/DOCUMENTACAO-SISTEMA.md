@@ -1,6 +1,6 @@
 # ORNY — Documentação do sistema
 
-Fonte oficial de comportamento. Versão frontend/API: 1.8.1. Atualização: 20/10/2026 — seleção explícita de plano no cadastro e contraste corrigido no login/cadastro em tema claro, no celular e desktop.
+Fonte oficial de comportamento. Versão frontend: 1.9.1; API: 1.9.0. Atualização: 20/10/2026 — guia visual interativo de instalação na landing.
 O inventário em `docs/INVENTARIO-FUNCIONAL.md` preserva o levantamento histórico e seus limites de validação; este documento consolida os fluxos atualizados.
 
 ## Cadastro e entrada — correção visual 1.8.1 (20/10/2026)
@@ -130,7 +130,23 @@ O footer da landing organiza a marca e o slogan **Seu progresso começa aqui**, 
 
 ### Instalação no celular
 
-Na seção **Instale quando quiser. Use desde já.**, a ORNY explica que funciona normalmente no navegador. Android usa Chrome e pode abrir o prompt real de instalação quando o navegador oferece `beforeinstallprompt`; quando não oferece, o visitante segue pelo menu `⋮` e escolhe **Instalar app** ou **Adicionar à tela inicial**. iPhone usa Safari e o caminho manual **Compartilhar → Adicionar à Tela de Início → Adicionar**.
+Na seção **Instale quando quiser**, a ORNY explica que funciona normalmente no navegador e oferece um guia visual interativo com seletor Android/iPhone e quatro etapas tocáveis. A ilustração destaca as áreas de ação e é uma representação didática da interface; não é uma gravação do aparelho. Android usa Chrome e pode abrir o prompt real de instalação quando o navegador oferece `beforeinstallprompt`; pelo menu `⋮`, a opção pode aparecer como **Instalar app**, **Instalar e criar atalho** ou **Adicionar à tela inicial**, conforme a versão e disponibilidade. iPhone usa Safari e o caminho manual **Compartilhar → Adicionar à Tela de Início → Adicionar**. Em outro navegador no iPhone, o guia orienta copiar o endereço e abri-lo no Safari. A instalação e as notificações continuam opcionais.
+
+Onde olhar no código: `frontend/src/components/InstallWalkthrough.jsx` controla a plataforma, a etapa e o guia visual; `frontend/src/components/install-guide.js` mantém os passos compartilhados; `frontend/src/views/landing/Landing.jsx` inclui a seção pública e `frontend/src/views/landing/landing.css` define o visual adaptável e a redução de movimento.
+
+### Guia visual interativo de instalação — 1.9.1 (20/10/2026)
+
+A landing identifica Android ou iPhone e abre a demonstração correspondente. O visitante também pode trocar de aparelho, navegar pelos quatro passos com controles de toque ou teclado e conferir o menu e as confirmações destacados numa ilustração didática. No iPhone detectado em outro navegador, a página orienta copiar o endereço e abri-lo no Safari. O componente reutiliza o conteúdo de `install-guide.js`, compartilhado com o fluxo de configuração e o botão de instalação. Não altera instalação automática, notificações, login, plano ou pagamento.
+
+### Como usar
+
+1. Abra `/` ou `/conheca` e desça até **Instale quando quiser**.
+2. Confira o aparelho selecionado ou toque em **Android** / **iPhone** para trocar.
+3. Use as setas ou os quatro pontos para acompanhar a ilustração; o círculo verde mostra a área de toque daquele passo.
+4. No aparelho real, siga o texto do próprio passo. A ilustração é didática e os nomes dos menus podem variar com a versão do navegador.
+5. Continue usando a ORNY normalmente no navegador se não quiser adicionar o ícone.
+
+Validação local: build do frontend registrado após execução. Captura real em aparelhos Android/iPhone não está incluída nesta entrega.
 
 Depois do cadastro, `DeviceSetupFlow` usa os mesmos passos do tutorial público. A instalação pode ser adiada. Notificações são uma etapa separada, opcionais e nunca bloqueiam o uso; podem ser ativadas depois em Perfil → Configurações.
 
@@ -158,11 +174,28 @@ Depois que o servidor confirma um treino válido, a conclusão apresenta **Trein
 
 O editor gera Story 9:16, Feed 4:5 e Quadrado 1:1 em PNG. Nome, avatar e indicadores podem ser ocultados; o modelo com foto permite zoom, deslocamento, posição dos dados e intensidade do gradiente. A foto escolhida é processada somente no aparelho e não é enviada ao perfil ou à comunidade. No navegador, usa compartilhamento de arquivo quando suportado e download como alternativa; no shell Capacitor, usa Filesystem temporário e Share. A captura contém somente o canvas do card.
 
+Na rota do card de um treino, o aluno pode abrir **Publicar na Comunidade**, escrever uma legenda opcional e confirmar. A publicação inclui a imagem #TáPago em PNG; o texto do post não repete os indicadores, respeitando a opção de ocultá-los no card. Não inclui relato de dor, notas privadas nem a foto pessoal escolhida no modo Minha foto. Cancelar ou escolher **Agora não** não publica. Publicações de treino são vinculadas à sessão e limitadas a uma por treino; repetição da requisição retorna a publicação existente. O servidor valida aluno, dono, comunidade, sessão concluída e elegibilidade; treino offline, corrigido, anulado ou legado não pode ser publicado. Aluno continua sem acesso ao editor geral.
+
 A campanha promocional é independente dos cards e nasce **inativa**. Em **Administração → Marketing → Campanha #TáPago**, o administrador configura perfil oficial, instruções, vigência, campos obrigatórios, retenção e uma versão dos termos. Ativar exige perfil e termos completos. O aluno elegível aceita os termos, informa Instagram/link e envia uma captura privada. As situações são pendente, aprovada, rejeitada ou cancelada; rejeição permite nova comprovação enquanto a campanha estiver ativa.
 
 A aprovação exige administrador do mesmo ambiente, bloqueia autoaprovação e roda em transação. Índices únicos e identidades protegidas por hash impedem recompensa repetida ou duas concessões concorrentes. O prêmio cria duas concessões temporárias de aluno (`acesso` e `catalogo_completo`) por 30 dias, sem ampliar a capacidade do personal. Havendo período Individual pago com término confiável, o prêmio começa depois dele; se o término ainda não for confiável, o direito fica reservado e o administrador pode usar **Tentar aplicar crédito pendente** sem conceder um segundo benefício. Revogação exige justificativa e não apaga o histórico. Evidências ficam no storage privado, passam por validação real de imagem/limite/dimensões e são removidas após a retenção configurada, preservando o evento de auditoria.
 
-Contratos: `GET /api/me/share-card?kind=treino|semana|musculos|recorde|sequencia`, `GET /api/tapago/me`, `POST /api/tapago/preferences`, `POST /api/tapago/submissions`, `GET /api/tapago/evidence?id=`, `GET /api/adm/tapago`, `POST /api/adm/tapago/config`, `POST /api/adm/tapago/decide` e `POST /api/adm/tapago/revoke`. Implementação em `api/social.js`, `api/tapago.js`, `frontend/src/views/guided/ShareCard.jsx` e `frontend/src/views/admin/TapagoAdmin.jsx`; persistência na migration aditiva `064_tapago_2.sql`.
+Contratos: `GET /api/me/share-card?kind=treino|semana|musculos|recorde|sequencia`, `GET /api/tapago/me`, `POST /api/tapago/preferences`, `POST /api/tapago/submissions`, `GET /api/tapago/evidence?id=`, `GET /api/adm/tapago`, `POST /api/adm/tapago/config`, `POST /api/adm/tapago/decide` e `POST /api/adm/tapago/revoke`. A publicação opcional usa `POST /api/community/workout-post` com `session_id`, `caption` e `image` PNG; retorna `id` e `existing`. Implementação em `api/social.js`, `api/tapago.js`, `api/community-workout-post.js`, `frontend/src/views/guided/ShareCard.jsx` e `frontend/src/views/admin/TapagoAdmin.jsx`; migrations `064_tapago_2.sql` e `067_tapago_comunidade.sql`.
+
+### Publicação #TáPago na Comunidade — 1.9.0 (20/10/2026)
+
+O aluno pode publicar voluntariamente o card padrão **Treino** depois de um treino confirmado. A prévia permite legenda opcional e exige confirmação antes de publicar. A publicação aparece no feed dentro do escopo da conta. O modo **Minha foto** continua apenas para compartilhamento externo ou salvamento no aparelho.
+
+### Como usar
+
+1. Salve e sincronize um treino concluído; na tela de conclusão, toque em **Criar meu card**.
+2. Mantenha o estilo **Treino** e toque em **Publicar na Comunidade**.
+3. Se quiser, escreva uma legenda e toque em **Confirmar publicação**; confirme no diálogo.
+4. O app abre a publicação no feed. **Cancelar** ou **Agora não** encerra sem postar.
+
+### Validação desta versão
+
+A publicação exige sessão própria, confirmada e elegível, usa imagem PNG gerada pelo editor, respeita limite diário e permite somente uma publicação ativa por sessão. O aluno não recebe acesso ao editor livre. Validação local: 7 testes direcionados da API, 307 testes unitários do frontend e build de produção aprovados. O cenário Playwright desta ação não concluiu; a validação visual do fluxo permanece pendente. Nenhuma migration foi aplicada ao banco de uso e VPS/produção não foram alteradas.
 
 ### Como usar
 
@@ -277,6 +310,7 @@ Conferir que esperar na preparação não cria sessão; campos vazios/negativos 
 O início utiliza `startRemote`, que preserva a autorização existente e a continuidade offline. Nenhuma alteração de permissão ou banco nesta versão.
 
 ## Histórico
+- 1.9.0 (20/10/2026): publicação opcional e confirmada do card #TáPago na Comunidade, vinculada à sessão concluída e limitada a uma por treino.
 - 1.7.9 (19/10/2026): validade insere `/` após o mês; erro de permissão de tokenização Asaas recebe mensagem operacional clara, com encaminhamento para habilitação da conta.
 - 1.7.8 (19/10/2026): footer completo e responsivo na landing pública, com marca, atalhos internos, acesso e documentos legais separados; sem alteração de cadastro, planos ou API.
 - 1.7.7 (19/10/2026): checkout mobile em tela cheia, validação por campo, mensagens por etapa e autenticação uniforme nas operações de autoatendimento financeiro; acesso continua dependente de pagamento real confirmado.

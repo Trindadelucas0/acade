@@ -52,14 +52,15 @@ body:has(.ag),html:has(.ag){background:var(--ag-bg)!important}
 .tapago-kinds .g-chipbtn{min-height:48px;white-space:normal}
 .tapago-stage{display:flex;align-items:center;justify-content:center;margin:16px auto;padding:12px;border:1px solid var(--ag-line);border-radius:20px;background:#090d12;max-height:min(64dvh,700px);overflow:hidden}
 .tapago-stage canvas{display:block;max-width:100%;max-height:min(60dvh,660px);width:auto;height:auto;border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.38)}
-.tapago-photo-tools,.tapago-options,.tapago-proof form{display:grid;gap:12px}
+.tapago-photo-tools,.tapago-options,.tapago-proof form,.tapago-community{display:grid;gap:12px}
 .tapago-photo-tools label,.tapago-options label,.tapago-proof label{display:grid;gap:6px;font-size:14px}
 .tapago-photo-tools input[type=range],.tapago-options input[type=range]{width:100%}
 .tapago-options fieldset{display:grid;gap:10px;border:0;border-bottom:1px solid var(--ag-line);padding:0 0 14px;margin:0 0 4px}
 .tapago-options legend{font-weight:800;margin-bottom:8px}
-.tapago-options select,.tapago-proof input{min-height:48px;font-size:16px}
+.tapago-options select,.tapago-proof input,.tapago-community textarea{min-height:48px;font-size:16px}
+.tapago-community{margin-top:16px}.tapago-community h2{margin:0}.tapago-community textarea{min-height:104px;resize:vertical}.tapago-community .g-row{flex-wrap:wrap}
 .tapago-customize{width:100%;margin:8px 0}
-.tapago-actions{position:sticky;bottom:0;z-index:3;display:grid;grid-template-columns:1fr auto;gap:8px;padding:16px 0 calc(12px + env(safe-area-inset-bottom));background:linear-gradient(transparent,var(--ag-bg) 28%)}
+.tapago-actions{position:sticky;bottom:0;z-index:3;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:16px 0 calc(12px + env(safe-area-inset-bottom));background:linear-gradient(transparent,var(--ag-bg) 28%)}
 .tapago-actions .g-btn{min-height:52px}
 .tapago-campaign{margin-top:24px;border-color:color-mix(in srgb,var(--ag-acc) 55%,var(--ag-line));background:linear-gradient(145deg,color-mix(in srgb,var(--ag-acc) 9%,var(--ag-card)),var(--ag-card))}
 .tapago-proof{margin-top:16px}.tapago-proof ol{padding-left:22px}.tapago-proof details{border:1px solid var(--ag-line);border-radius:12px;padding:12px}.tapago-terms{white-space:pre-wrap;max-height:220px;overflow:auto}.tapago-proof input[type=file]{padding:10px}
