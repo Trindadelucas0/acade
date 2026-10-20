@@ -106,7 +106,16 @@ export default function Landing() {
     const prev = meta?.getAttribute('content')
     html.setAttribute('data-lp', '1')
     meta?.setAttribute('content', '#000000')
-    return () => { html.removeAttribute('data-lp'); if (prev != null) meta?.setAttribute('content', prev) }
+    // O fundo também vai inline com prioridade: no build de produção o minificador junta a
+    // regra de tema claro em :is(:root[data-theme="light"] body, … body:has(.ag)), e :is()
+    // herda a especificidade do argumento mais específico — o :has() faz ela passar por
+    // cima de qualquer seletor razoável no CSS. Inline + important não depende disso.
+    for (const el of [html, document.body]) el.style.setProperty('background', '#000', 'important')
+    return () => {
+      html.removeAttribute('data-lp')
+      for (const el of [html, document.body]) el.style.removeProperty('background')
+      if (prev != null) meta?.setAttribute('content', prev)
+    }
   }, [])
 
   useGsap(root, heroRef, [plans, aud])
