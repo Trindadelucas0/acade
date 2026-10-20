@@ -33,6 +33,10 @@ button.pl-card{cursor:pointer}
 .pl-ico{flex:none;display:inline-grid;place-items:center;width:30px;height:30px;border-radius:10px;background:color-mix(in srgb,var(--acc,#20f51b) 16%,transparent);color:var(--acc,#20f51b)}
 .pl-ico svg{width:17px;height:17px}
 .pl-cta{margin-top:auto;display:grid;gap:8px}
+.pl-select{display:flex;justify-content:center;align-items:center;width:100%;min-height:48px;margin-top:auto;padding:12px 16px;border-radius:14px;background:var(--acc,#20f51b);color:var(--on-acc,#11140A);font-weight:800;font-size:15px;line-height:1.2;text-align:center;transition:transform .1s,filter .2s,background .2s}
+button.pl-card:hover .pl-select{filter:brightness(1.05)}
+button.pl-card:active .pl-select{transform:scale(.99)}
+.pl-select.is-selected{background:color-mix(in srgb,var(--acc,#20f51b) 20%,transparent);border:1px solid var(--acc,#20f51b);color:var(--acc,#20f51b)}
 .pl-btn{display:inline-flex;justify-content:center;align-items:center;gap:8px;width:100%;min-height:52px;padding:14px 18px;border-radius:16px;border:0;background:var(--acc,#20f51b);color:#fff!important;font-weight:800;font-size:16px;line-height:1.2;text-decoration:none;cursor:pointer;transition:transform .1s,filter .2s}
 .pl-btn:hover{filter:brightness(1.05)}.pl-btn:active{transform:scale(.99)}
 .pl-btn.pl-sec{background:transparent;color:inherit;border:1px solid var(--sep,#ffffff33);font-weight:700;min-height:46px}
@@ -76,6 +80,7 @@ button.pl-card{cursor:pointer}
 .pl-signup .pl-tag,.pl-signup .pl-ico,.pl-signup .pl-seal svg{color:#20f51b}
 .pl-signup .pl-ico{background:#20f51b22}.pl-signup .pl-seal{background:#20f51b1a;border-color:#20f51b55}
 .pl-signup .pl-sel{outline-color:#20f51b}
+.pl-signup .pl-select{background:#20f51b;color:#05231c}.pl-signup .pl-select.is-selected{background:#20f51b26;border-color:#20f51b;color:#6cff68}
 /* alternancia: vence estilos globais de botao */
 .pl-toggle>button:not(.on){background:transparent!important;color:inherit!important;box-shadow:none!important}
 .pl-toggle>button.on{background:#20f51b!important;color:#11140A!important;box-shadow:0 2px 10px -4px #8fb31a!important}

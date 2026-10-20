@@ -37,7 +37,7 @@ export function PlanCard({ p, cta, current, selected, onSelect, compact }) {
   const best = p.id === 'pro'
   const Tag = onSelect ? 'button' : 'article'
   return <Tag type={onSelect ? 'button' : undefined} className={'pl-card' + (best ? ' pl-best' : '') + (current ? ' pl-current' : '') + (selected ? ' pl-sel' : '') + (compact ? ' pl-compact' : '')}
-    onClick={onSelect} aria-pressed={onSelect ? !!selected : undefined} data-testid={'plan-card-' + p.id}>
+    onClick={onSelect} aria-pressed={onSelect ? !!selected : undefined} aria-label={onSelect ? `${selected ? 'Plano selecionado' : 'Selecionar plano'}: ${p.name}` : undefined} data-testid={'plan-card-' + p.id}>
     {best && <span className="pl-badge" data-testid="badge-best">Mais escolhido</span>}
     {current && <span className="pl-badge pl-badge-cur">Seu plano</span>}
     <span className="pl-tag">{TAG[p.id]}</span>
@@ -45,6 +45,9 @@ export function PlanCard({ p, cta, current, selected, onSelect, compact }) {
     <p className="pl-pitch">{PITCH[p.id] || p.description}</p>
     <Price p={p} />
     <ul className="pl-bens">{benefitsOf(p).slice(0, compact ? 4 : 9).map(([i, t]) => <li key={t}><span className="pl-ico"><Icon name={i} /></span>{t}</li>)}</ul>
+    {onSelect && <span className={'pl-select' + (selected ? ' is-selected' : '')} data-testid={'select-plan-' + p.id} aria-hidden="true">
+      {selected ? '✓ Plano selecionado' : 'Selecionar plano'}
+    </span>}
     {cta && <div className="pl-cta">{cta(p)}</div>}
   </Tag>
 }

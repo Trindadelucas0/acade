@@ -1,7 +1,23 @@
 # ORNY — Documentação do sistema
 
-Fonte oficial de comportamento. Versão frontend/API: 1.8.0. Atualização: 19/10/2026 — integração local do Checkout InfinitePay para novas cobranças, com cartão/Pix, confirmação por `payment_check`, renovação mensal por novo link e legado Asaas preservado. Produção não foi alterada.
+Fonte oficial de comportamento. Versão frontend/API: 1.8.1. Atualização: 20/10/2026 — seleção explícita de plano no cadastro e contraste corrigido no login/cadastro em tema claro, no celular e desktop.
 O inventário em `docs/INVENTARIO-FUNCIONAL.md` preserva o levantamento histórico e seus limites de validação; este documento consolida os fluxos atualizados.
+
+## Cadastro e entrada — correção visual 1.8.1 (20/10/2026)
+
+Na etapa **Assinatura** do cadastro, cada plano disponível apresenta **Selecionar plano**. Depois do acionamento, o controle mostra **Plano selecionado**, o cartão mantém o contorno verde e **Continuar** usa exatamente o plano marcado. O cartão inteiro continua acionável por toque, clique ou teclado, com o estado exposto por `aria-pressed`.
+
+No tema claro, login, cadastro e recuperação usam uma camada escura translúcida sobre a imagem e superfícies com contraste próprio. A fotografia continua visível, mas textos, campos e botões secundários permanecem legíveis no celular e desktop. A alteração não muda autenticação, preços, checkout, cupons, cobrança ou liberação de acesso.
+
+### Como usar
+
+1. Abra **Criar conta** e avance até **Etapa 3 de 5 · Assinatura**.
+2. Toque em **Selecionar plano** no cartão desejado. Confirme o texto **Plano selecionado** e o contorno verde.
+3. Toque em **Continuar**. O plano escolhido aparece na confirmação e é enviado ao cadastro.
+
+Onde olhar no código: seleção em `frontend/src/views/billing/PlansShowcase.jsx` e `frontend/src/views/billing/plans.css`; composição do cadastro em `frontend/src/views/Login.jsx`; contraste da entrada em `frontend/src/styles/orny.css`.
+
+Validação local: 307 testes unitários aprovados, quatro cenários Playwright aprovados (incluindo cadastro em 390 px e 1280 px no tema claro) e build de produção concluído. Nenhuma cobrança real foi criada.
 
 ## Checkout InfinitePay — versão 1.8.0 (19/10/2026)
 

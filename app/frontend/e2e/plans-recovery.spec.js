@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { fillContact } from './_contact.js'
 
 const plan = { id: 'individual', audience: 'aluno', product: 'individual', name: 'Individual', description: 'Treino completo', price_cents: 1290, currency: 'BRL', billing_interval: 'mensal', benefits: [], limits: {}, features: {}, is_free: false, purchasable: true }
 
@@ -35,4 +36,34 @@ test('opções do campo UF têm contraste nos temas escuro e claro', async ({ pa
     })
     expect(colors.background).not.toBe(colors.color)
   }
+})
+
+for (const width of [390, 1280]) test(`cadastro seleciona plano e mantém contraste no tema claro (${width}px)`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 900 })
+  await page.route('**/api/public/plans', route => route.fulfill({ json: { plans: [plan], test_mode: false, hosted_checkout: true, payment_types: ['card', 'pix'] } }))
+  await page.route('**/api/cep**', route => route.fulfill({ json: { street: 'Avenida Paulista', neighborhood: 'Bela Vista', city: 'São Paulo', uf: 'SP' } }))
+  await page.goto('/#/?cadastro=1')
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'))
+  const shade = await page.locator('.lg-shade').evaluate(el => getComputedStyle(el).backgroundImage)
+  expect(shade).toContain('11, 18, 32')
+
+  await page.getByLabel('Nome', { exact: false }).first().fill('Teste Seleção')
+  await page.getByLabel('E-mail').fill(`selecao.${width}@e2e.local`)
+  const passwords = page.locator('input[type=password]')
+  await passwords.nth(0).fill('e2e-Avadesk-2026')
+  await passwords.nth(1).fill('e2e-Avadesk-2026')
+  await page.getByTestId('signup-next').click()
+  await page.getByTestId('birth-date').fill('1990-01-01')
+  await fillContact(page)
+  await page.getByTestId('signup-next').click()
+
+  const card = page.getByTestId('plan-card-individual')
+  await expect(card).toHaveAttribute('aria-pressed', 'false')
+  await expect(page.getByTestId('select-plan-individual')).toHaveText('Selecionar plano')
+  await card.click()
+  await expect(card).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByTestId('select-plan-individual')).toContainText('Plano selecionado')
+  await page.getByTestId('signup-next').click()
+  await expect(page.getByTestId('signup-pay-note')).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true)
 })
