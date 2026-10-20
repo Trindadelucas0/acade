@@ -79,7 +79,7 @@ test('a landing fica escura mesmo com o sistema no tema claro', async ({ browser
   await ctx.close()
 })
 
-for (const width of [375, 1280]) {
+for (const width of [375, 800, 1280]) {   // 800 = largura onde "ACOMPANHAMENTO" era cortado
   test(`sem conteudo invisivel nem rolagem lateral em ${width}px`, async ({ page }) => {
     await visitor(page)
     await page.setViewportSize({ width, height: 900 })
@@ -93,6 +93,18 @@ for (const width of [375, 1280]) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true)
     await page.screenshot({ path: `test-artifacts/orny/landing-${width}.png`, fullPage: true })
   })
+
+  // a mascara da animacao do titulo tem overflow:hidden: palavra que nao cabe some
+  for (const perfil of ['aluno', 'profissional']) {
+    test(`titulo do ${perfil} nao e cortado em ${width}px`, async ({ page }) => {
+      await visitor(page)
+      await page.setViewportSize({ width, height: 900 })
+      await page.goto(`/?perfil=${perfil}`)
+      await expect(page.locator('.lp-h1')).toBeVisible()
+      const estouro = await page.$$eval('.lp-h1-line', ls => ls.filter(l => l.scrollWidth > l.clientWidth + 1).map(l => l.innerText))
+      expect(estouro).toEqual([])
+    })
+  }
 
   test(`acessibilidade da landing em ${width}px`, async ({ page }) => {
     await visitor(page)

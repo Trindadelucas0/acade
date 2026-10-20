@@ -142,7 +142,7 @@ export default function Landing() {
       <div className="lp-hero-shade" aria-hidden="true" />
       <div className="lp-shell lp-hero-inner">
         <span className="lp-kicker" data-hero>{sel.kicker}</span>
-        <h1 className="lp-h1">
+        <h1 className="lp-h1" data-aud={aud}>
           {sel.h1.map((line, i) => <span className="lp-h1-line" key={line}><span className={i ? 'lp-accent' : ''}>{line}</span></span>)}
         </h1>
         <p className="lp-lead" data-hero>{sel.lead}</p>

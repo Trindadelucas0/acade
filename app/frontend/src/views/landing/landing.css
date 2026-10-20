@@ -349,12 +349,22 @@ html[data-lp] .orny-landing .lp-accent {
 
 .lp-h1 {
   margin: 18px 0 0;
-  max-width: 14ch;
+  max-width: min(100%, 15ch);
   font-size: clamp(42px, 8.4vw, 96px);
   font-weight: 900;
   line-height: .94;
   letter-spacing: -.045em;
   text-transform: uppercase;
+  /* a máscara da animação tem overflow:hidden; sem isto, uma palavra que não coubesse
+   * na linha seria cortada em silêncio em vez de quebrar */
+  overflow-wrap: break-word;
+}
+
+/* a chamada do personal é bem mais longa ("ACOMPANHAMENTO" sozinha tem 14 caracteres):
+ * precisa de um corpo menor para a palavra caber na linha em qualquer largura */
+.lp-h1[data-aud='profissional'] {
+  max-width: min(100%, 19ch);
+  font-size: clamp(30px, 6.6vw, 74px);
 }
 
 .lp-h1-line {
