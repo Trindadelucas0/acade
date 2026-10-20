@@ -173,7 +173,8 @@ export async function chargeNow({ sub, kind, amountCents, discountCents = 0, per
   }
   let result
   if (provider.hostedCheckout) {
-    const user = (await q('select name,email,phone from users where id=$1 and tenant_id=$2', [sub.user_id, sub.tenant_id])).rows[0]
+    const user = (await q(`select u.name, u.email, ct.phone from users u left join user_contact ct on ct.user_id=u.id
+      where u.id=$1 and u.tenant_id=$2`, [sub.user_id, sub.tenant_id])).rows[0]
     const validUntil = new Date(Math.min(Date.now() + 7 * 864e5, new Date(periodEnd || Date.now() + 7 * 864e5).getTime()))
     try {
       result = await provider.createCheckout({ charge, amountCents, description: meta.plan_name || sub.plan_name, customer: user || {}, validUntil })
