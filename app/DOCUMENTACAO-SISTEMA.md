@@ -195,7 +195,7 @@ O aluno pode publicar voluntariamente o card padrão **Treino** depois de um tre
 
 ### Validação desta versão
 
-A publicação exige sessão própria, confirmada e elegível, usa imagem PNG gerada pelo editor, respeita limite diário e permite somente uma publicação ativa por sessão. O aluno não recebe acesso ao editor livre. Validação local: 7 testes direcionados da API, 307 testes unitários do frontend e build de produção aprovados. O cenário Playwright desta ação não concluiu; a validação visual do fluxo permanece pendente. Nenhuma migration foi aplicada ao banco de uso e VPS/produção não foram alteradas.
+A publicação exige sessão própria, confirmada e elegível, usa imagem PNG gerada pelo editor, respeita limite diário e permite somente uma publicação ativa por sessão. O aluno não recebe acesso ao editor livre. Validação local: 7 testes direcionados da API, 307 testes unitários do frontend e build de produção aprovados. O cenário Playwright desta ação não concluiu; a validação visual do fluxo permanece pendente. Publicação em 20/10/2026: commit `c3e23e9` implantado na VPS após backup validado em `/opt/avagym-backups/install-guide_20261020_pre` (PostgreSQL, `.env`, PM2, dados, mídia e frontend anterior). A migration aditiva `067_tapago_comunidade.sql` foi aplicada; o frontend foi recompilado e `avagym-api`/`avagym-web` ficaram online. `/api/health`, `/api/public/plans` e `/` responderam HTTP 200. A validação visual do guia em aparelho real e o E2E Playwright de publicação continuam pendentes.
 
 ### Como usar
 
