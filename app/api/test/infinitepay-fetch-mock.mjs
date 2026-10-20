@@ -7,7 +7,7 @@ globalThis.fetch = async (input, init = {}) => {
   if (url.origin !== 'https://api.checkout.infinitepay.io') return realFetch(input, init)
   const body = JSON.parse(String(init.body || '{}'))
   if (url.pathname === '/links') {
-    return new Response(JSON.stringify({ url: `https://checkout.infinitepay.com.br/teste?lenc=${body.order_nsu}` }), {
+    return new Response(JSON.stringify({ url: `https://checkout.infinitepay.io/teste?lenc=${body.order_nsu}` }), {
       status: 200, headers: { 'content-type': 'application/json' }
     })
   }

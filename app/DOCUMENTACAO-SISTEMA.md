@@ -132,6 +132,8 @@ Login, cadastro e recuperação mantêm o mesmo fluxo e os mesmos campos. No tem
 
 Na etapa **Assinatura** do cadastro e na página pública de preços, uma indisponibilidade temporária da API não é mais apresentada como lista vazia nem como mensagem técnica `HTTP 502`. A tela informa que os planos estão temporariamente indisponíveis e oferece **Tentar novamente**, preservando os dados já preenchidos. O campo **UF** e suas opções usam cores compatíveis com os temas claro e escuro. A mudança é apenas de recuperação e apresentação; preços, contratação e liberação de acesso continuam definidos e validados pelo servidor.
 
+Ao concluir o cadastro, a conta entra diretamente em **Planos e pagamento**, com os cartões disponíveis para escolha; não existe mais uma tela intermediária exigindo outro clique. A criação do checkout aceita os dois endereços HTTPS oficiais atualmente usados pela InfinitePay (`checkout.infinitepay.io` e `checkout.infinitepay.com.br`) e rejeita qualquer outro domínio. Falhas do provedor retornam orientação de nova tentativa, sem expor erro interno. Essa navegação não libera acesso: somente a confirmação oficial do pagamento continua ativando o plano.
+
 Onde olhar no código: `frontend/src/views/Login.jsx`, `frontend/src/views/billing/Billing.jsx`, `frontend/src/components/contact.css` e `frontend/src/styles/orny.css`.
 
 ## #TáPago 2.0 — editor social e campanha de 30 dias — 1.7.0 (19/10/2026)

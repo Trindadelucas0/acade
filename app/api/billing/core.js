@@ -441,8 +441,15 @@ export async function subscribe(user, b, ip) {
   }
   const amount = disc ? Math.round(plan.price_cents * (1 - disc.campaign.discount_pct / 100)) : plan.price_cents
   const now = new Date()
-  const r = await chargeNow({ sub: { ...sub, plan_name: plan.name }, kind: 'primeira', amountCents: amount, discountCents: plan.price_cents - amount, periodStart: now, periodEnd: addMonths(now, 1),
-    meta, key: `sub:${sub.id}:primeira:${b.idempotency_key ? String(b.idempotency_key).slice(0, 64) : now.getTime()}`, ip, paymentType })
+  let r
+  try {
+    r = await chargeNow({ sub: { ...sub, plan_name: plan.name }, kind: 'primeira', amountCents: amount, discountCents: plan.price_cents - amount, periodStart: now, periodEnd: addMonths(now, 1),
+      meta, key: `sub:${sub.id}:primeira:${b.idempotency_key ? String(b.idempotency_key).slice(0, 64) : now.getTime()}`, ip, paymentType })
+  } catch (e) {
+    if (e.code === 'PROVIDER_AUTH') return { status: 503, error: 'O checkout está temporariamente indisponível. A equipe responsável já pode verificar a configuração.', code: e.code }
+    if (['PROVIDER_UNAVAILABLE', 'PROVIDER_ERROR', 'PROVIDER_INVALID_RESPONSE'].includes(e.code)) return { status: 503, error: 'Não foi possível abrir o checkout agora. Tente novamente em instantes.', code: e.code }
+    throw e
+  }
   await audit(user.tenant_id, user.id, 'cobranca.contratacao', 'subscription', sub.id, { plan: plan.id, status: r.status })
   if (r.status === 'paga') return { status: 200, result: 'ativa', charge_id: r.charge.id }
   if (r.status === 'pendente') return { status: 202, result: 'pendente', charge_id: r.charge.id, checkout_url: r.checkout_url || r.charge.checkout_url,

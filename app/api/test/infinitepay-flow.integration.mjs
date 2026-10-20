@@ -46,7 +46,7 @@ test('checkout pendente não libera; payment_check libera uma vez e webhook dupl
   const user = await account('pago')
   const subscribe = await call(user.token, 'POST', '/api/billing/subscribe', { plan_id: 'individual', idempotency_key: `ip-${unique()}` })
   assert.equal(subscribe.status, 202, JSON.stringify(subscribe.data))
-  assert.match(subscribe.data.checkout_url, /^https:\/\/checkout\.infinitepay\.com\.br\//)
+  assert.match(subscribe.data.checkout_url, /^https:\/\/checkout\.infinitepay\.(?:io|com\.br)\//)
   const chargeId = subscribe.data.charge_id
   const before = await call(user.token, 'GET', '/api/access/me')
   assert.notEqual(before.data.audiences.aluno.commercial_status, 'ativa')

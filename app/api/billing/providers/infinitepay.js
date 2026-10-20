@@ -1,4 +1,12 @@
 const BASE_URL = 'https://api.checkout.infinitepay.io'
+const CHECKOUT_HOSTS = new Set(['checkout.infinitepay.com.br', 'checkout.infinitepay.io'])
+
+export function validCheckoutUrl(value) {
+  try {
+    const url = new URL(String(value || ''))
+    return url.protocol === 'https:' && CHECKOUT_HOSTS.has(url.hostname) ? url.href : null
+  } catch { return null }
+}
 
 const cleanOrigin = value => {
   const url = new URL(String(value || ''))
@@ -53,11 +61,12 @@ export function infinitepay({ env = process.env, fetchImpl = fetch } = {}) {
         options: { single_payment: true, valid_until: validUntil.toISOString(), payment_methods_enabled: ['credit_card', 'pix'] },
         webhook: { url: `${cfg.origin}/api/billing/webhook/infinitepay`, events: ['paid', 'refunded', 'canceled', 'payment_failed'] }
       })
-      if (!/^https:\/\/checkout\.infinitepay\.com\.br\//i.test(String(data.url || ''))) {
+      const checkoutUrl = validCheckoutUrl(data.url)
+      if (!checkoutUrl) {
         const error = new Error('A InfinitePay não devolveu uma URL de checkout válida.')
         error.code = 'PROVIDER_INVALID_RESPONSE'; throw error
       }
-      return { status: 'pendente', checkoutUrl: data.url, expiresAt: validUntil }
+      return { status: 'pendente', checkoutUrl, expiresAt: validUntil }
     },
     async checkPayment({ charge, transactionNsu, slug }) {
       if (!transactionNsu || !slug) return null

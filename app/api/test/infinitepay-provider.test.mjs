@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { infinitePayConfig, infinitepay } from '../billing/providers/infinitepay.js'
+import { infinitePayConfig, infinitepay, validCheckoutUrl } from '../billing/providers/infinitepay.js'
 import { getProvider, getProviderByName, resetProviderCache } from '../billing/providers/index.js'
 
 const env = { INFINITEPAY_API_KEY: 'inchk_test_only', INFINITEPAY_HANDLE: '$orny', ORIGIN: 'https://orny.example.com' }
@@ -24,6 +24,13 @@ test('cria checkout único com preço do servidor, Pix e cartão sem expor a cha
   assert.equal(body.options.single_payment, true)
   assert.equal(calls[0].init.headers['X-Api-Key'], env.INFINITEPAY_API_KEY)
   assert.equal(calls[0].init.body.includes(env.INFINITEPAY_API_KEY), false)
+})
+
+test('aceita somente os dois hosts HTTPS oficiais de checkout', () => {
+  assert.match(validCheckoutUrl('https://checkout.infinitepay.io/orny/abc'), /^https:/)
+  assert.match(validCheckoutUrl('https://checkout.infinitepay.com.br/orny/abc'), /^https:/)
+  assert.equal(validCheckoutUrl('http://checkout.infinitepay.io/orny/abc'), null)
+  assert.equal(validCheckoutUrl('https://checkout.infinitepay.io.evil.example/abc'), null)
 })
 
 test('payment_check somente confirma quando pedido e valor conferem', async () => {

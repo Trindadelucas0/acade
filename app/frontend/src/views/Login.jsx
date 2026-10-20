@@ -87,8 +87,8 @@ function LoginForm() {
   const reg = mode === 'register'
   // Link /convite/CODIGO: guarda a oferta e abre o cadastro com o cupom configurado pelo administrador.
   const [ref, setRef] = useState(() => readRef())
-  // Monetizacao F8b: cadastro em 6 etapas (perfil, dados, assinatura, contratar ou cupom, confirmacao, onboarding)
-  const [step, setStep] = useState(1), [choice, setChoice] = useState(() => requestedPlan || ''), [plans, setPlans] = useState(null), [plansError, setPlansError] = useState(''), [plansBusy, setPlansBusy] = useState(false), [created, setCreated] = useState(null)
+  // Cadastro em 5 etapas; ao concluir, a conta abre diretamente Planos e pagamento.
+  const [step, setStep] = useState(1), [choice, setChoice] = useState(() => requestedPlan || ''), [plans, setPlans] = useState(null), [plansError, setPlansError] = useState(''), [plansBusy, setPlansBusy] = useState(false)
   const loadPlans = useCallback(async () => {
     setPlansBusy(true); setPlansError('')
     try { setPlans(await api('/api/public/plans')) }
@@ -131,7 +131,6 @@ function LoginForm() {
     if (step === 3 && !plans?.plans?.some(p => p.id === choice && p.audience === intent && p.purchasable)) return setMsg('Este plano não está disponível para contratação. Atualize a página e tente novamente.')
     setStep(step + 1)
   }
-  const finish = async () => { setUser(created.u); await pullState(); useUI.getState().toast(`Bem-vindo(a), ${created.u.name}!`); if (created.plan) location.hash = '#/assinatura?plano=' + created.plan }
   const submit = async ev => {
     ev.preventDefault()
     if (reg && step < 5) return next()   // Enter nas etapas = Continuar
@@ -141,7 +140,7 @@ function LoginForm() {
       const proCode = intent === 'aluno' && useProCode ? f.pro_code.trim() : ''
       const result = reg ? await authRegister(f.name.trim(), f.email.trim(), f.password, terms && agree ? terms.version : undefined, intent, proCode, { accept: agree, birth_date: f.birth_date, health, contact: toApi(ct), plan_id: choice }) : null
       const u = reg ? result.user : await authLogin(f.email.trim(), f.password)
-      if (reg) { try { localStorage.removeItem('avagym_ref') } catch { /* */ } setCreated({ u, plan: choice }); setStep(6); return }
+      if (reg) { try { localStorage.removeItem('avagym_ref') } catch { /* */ } setUser(u); await pullState(); useUI.getState().toast(`Conta criada, ${u.name.split(' ')[0]}! Escolha seu plano para continuar.`); location.hash = '#/assinatura'; return }
       setUser(u); await pullState()
       useUI.getState().toast(reg ? `Bem-vindo(a), ${u.name}!` : `Bem-vindo(a) de volta, ${u.name}!`)
     } catch (e) {
@@ -185,19 +184,13 @@ function LoginForm() {
     <button className="lg-btn" disabled={busy}>{busy ? 'Enviando…' : 'Enviar link de recuperação'}</button>
     <button type="button" className="lg-btn ghost" onClick={() => {setMode('login');setMsg('');setErrs({})}}>Voltar para entrar</button>
   </form></div>
-  if (reg && step === 6 && created) return <div className="lg-wrap"><Hero /><div className="lg-card" data-testid="signup-onboarding">
-    <div className="lg-brand"><Brand /></div><p className="lg-sub" style={{ marginTop: 0 }}>Etapa 6 de 6 · Pronto</p>
-    <h1>Conta criada, {created.u.name.split(' ')[0]}!</h1>
-    <p className="lg-sub">A conta ainda não tem acesso aos treinos. Conclua o pagamento do plano selecionado; o acesso será liberado após confirmação.</p>
-    <button className="lg-btn" onClick={finish} data-testid="onb-start">Ir para o pagamento</button>
-  </div></div>
   return (
     <div className="lg-wrap">
       <Hero />
       <form className="lg-card" onSubmit={submit} noValidate>
         <div className="lg-brand"><Brand /></div>
         <p className="lg-sub">{reg ? 'Crie sua conta e comece a treinar.' : 'Seu progresso começa aqui'}</p>
-        {reg && step < 6 && <p className="lg-sub" data-testid="signup-step" style={{ marginTop: 0 }}>Etapa {step} de 6 · {['Perfil', 'Seus dados', 'Assinatura', 'Pagamento', 'Confirmação'][step - 1]}</p>}
+        {reg && <p className="lg-sub" data-testid="signup-step" style={{ marginTop: 0 }}>Etapa {step} de 5 · {['Perfil', 'Seus dados', 'Assinatura', 'Pagamento', 'Confirmação'][step - 1]}</p>}
         {reg && step === 1 && <div className="lg-intent" role="radiogroup" aria-label="Como você vai usar">
           {[['aluno', 'Quero treinar', 'Treinos, programas, progresso e desafios'], ['profissional', 'Sou profissional', 'Prescreva para alunos depois da verificação']].map(([k, t, d]) =>
             <button key={k} type="button" role="radio" aria-checked={intent === k} disabled={!!ref?.offer?.active && k !== ref.offer.audience} className={'lg-intent-op' + (intent === k ? ' on' : '')} onClick={() => { setIntent(k); if (k !== requestedProfile) setChoice('') }} data-testid={'intent-' + k}><b>{t}</b><small>{d}</small></button>)}
