@@ -7,7 +7,7 @@ import { useUI } from '../store/useUI.js'
 import { authLogin, authRegister, api } from '../lib/api.js'
 import { t } from '../lib/i18n.js'
 import { DEMO, REPO } from '../lib/demo.js'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useTerms, TermsText } from './app/Terms.jsx'
 import { readRef, saveRef } from './billing/Referral.jsx'   // Monetizacao F5
 import { PlanCard, SELLABLE } from './billing/PlansShowcase.jsx'
@@ -88,8 +88,14 @@ function LoginForm() {
   // Link /convite/CODIGO: guarda a oferta e abre o cadastro com o cupom configurado pelo administrador.
   const [ref, setRef] = useState(() => readRef())
   // Monetizacao F8b: cadastro em 6 etapas (perfil, dados, assinatura, contratar ou cupom, confirmacao, onboarding)
-  const [step, setStep] = useState(1), [choice, setChoice] = useState(() => requestedPlan || ''), [plans, setPlans] = useState(null), [created, setCreated] = useState(null)
-  useEffect(() => { if (mode === 'register' && step === 3 && !plans) api('/api/public/plans').then(setPlans).catch(() => setPlans({ plans: [] })) }, [mode, step])
+  const [step, setStep] = useState(1), [choice, setChoice] = useState(() => requestedPlan || ''), [plans, setPlans] = useState(null), [plansError, setPlansError] = useState(''), [plansBusy, setPlansBusy] = useState(false), [created, setCreated] = useState(null)
+  const loadPlans = useCallback(async () => {
+    setPlansBusy(true); setPlansError('')
+    try { setPlans(await api('/api/public/plans')) }
+    catch { setPlansError('Os planos estão temporariamente indisponíveis. Tente novamente em instantes.') }
+    finally { setPlansBusy(false) }
+  }, [])
+  useEffect(() => { if (mode === 'register' && step === 3 && !plans && !plansBusy && !plansError) loadPlans() }, [mode, step, plans, plansBusy, plansError, loadPlans])
   useEffect(() => {
     if (!plans || !requestedPlan) return
     const valid = plans.plans?.some(p => p.id === requestedPlan && p.audience === intent && p.purchasable)
@@ -222,7 +228,8 @@ function LoginForm() {
         {reg && step === 3 && <div data-testid="signup-plans" className="lg-intent pl-signup" role="radiogroup" aria-label="Escolha um plano">
           {(plans?.plans || []).filter(p => SELLABLE.includes(p.id) && p.audience === intent).map(p => <PlanCard key={p.id} p={p} compact selected={choice === p.id} onSelect={p.purchasable ? () => setChoice(p.id) : undefined} />)}
           <p className="lg-sub">É necessário escolher um plano para criar a conta. Cupom de desconto pode ser informado na contratação; o acesso só é liberado após a confirmação do pagamento.</p>
-          {!plans && <p className="lg-sub">Carregando planos…</p>}
+          {plansBusy && <p className="lg-sub" role="status">Carregando planos…</p>}
+          {plansError && <div className="lg-msg" role="alert" data-testid="signup-plans-error"><span>{plansError}</span><button type="button" className="lg-btn ghost" onClick={loadPlans}>Tentar novamente</button></div>}
         </div>}
         {reg && step === 4 && choice && <p className="lg-sub" data-testid="signup-pay-note">Depois de criar a conta, abrimos <b>Planos e pagamento</b> com o plano escolhido. Você conclui o pagamento por cartão; nada é cobrado sem sua confirmação.</p>}
         {reg && step === 5 && <div className="lg-sub" data-testid="signup-summary" style={{ textAlign: 'left' }}>

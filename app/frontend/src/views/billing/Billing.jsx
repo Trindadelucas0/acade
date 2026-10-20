@@ -1,7 +1,7 @@
 import Brand from '../../components/Brand.jsx'
 // V5 cobranca: pagina de planos (publica e no app), checkout com cartao, gestao da assinatura.
 // Todo estado e regra ficam no servidor (/api/billing, /api/public/plans); aqui so exibimos e enviamos.
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { api } from '../../lib/api.js'
 import { ask, askText } from '../../lib/dialog.js'
 import Icon from '../../components/Icon.jsx'
@@ -41,8 +41,14 @@ export function PlansCompare({ plans, cta, current = {}, testMode, initialAud, h
 
 // ===== pagina publica (sem login) =====
 export function PublicPlans() {
-  const [d, setD] = useState(null), [err, setErr] = useState(null)
-  useEffect(() => { api('/api/public/plans').then(setD).catch(e => setErr(e.message)) }, [])
+  const [d, setD] = useState(null), [err, setErr] = useState(null), [busy, setBusy] = useState(false)
+  const load = useCallback(async () => {
+    setBusy(true); setErr(null)
+    try { setD(await api('/api/public/plans')) }
+    catch { setErr('Os planos estão temporariamente indisponíveis. Tente novamente em instantes.') }
+    finally { setBusy(false) }
+  }, [])
+  useEffect(() => { load() }, [load])
   const authed = !!useStore(s => s.user)
   const cta = p => !p.purchasable ? <span className="pl-btn" aria-disabled="true" data-testid={'cta-' + p.id}>Em breve</span>
     : <a className="pl-btn" data-testid={'cta-' + p.id} href={authed ? '#/assinatura?plano=' + p.id : '#/?cadastro=1&plano=' + p.id}>{authed ? 'Assinar o ' + p.name : 'Começar com o ' + p.name}<Icon name="bolt" /></a>
@@ -51,7 +57,7 @@ export function PublicPlans() {
       <h1>Treine com método.<br /><em>Evolua de verdade.</em></h1>
       <p>Um plano para quem treina, outro para quem prescreve. Cupons podem oferecer desconto na contratação; o acesso começa após a confirmação do pagamento.</p>
       <TrialSeal /></header>
-    {err ? <p className="bl-err">{err}</p> : !d ? <p className="bl-load">Carregando planos…</p> : <>
+    {err ? <div className="bl-err" role="alert" data-testid="public-plans-error"><p>{err}</p><button type="button" className="bl-btn" onClick={load}>Tentar novamente</button></div> : !d || busy ? <p className="bl-load">Carregando planos…</p> : <>
       <PlansCompare plans={d.plans} testMode={d.test_mode} hostedCheckout={d.hosted_checkout} cta={cta} />
       <div className="pl-trust"><span><Icon name="shield" /> Pagamento seguro</span><span><Icon name="xmark" /> Cancele quando quiser</span><span><Icon name="lock" /> Seus dados ficam salvos</span></div>
       <p className="pl-note"><a href={authed ? '#/assinatura' : '#/?cadastro=1'} data-testid="have-coupon">Tenho um cupom ou código de indicação</a></p>

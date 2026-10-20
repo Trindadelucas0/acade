@@ -128,7 +128,11 @@ Os cartões públicos e autenticados de planos mantêm seus botões de ação vi
 
 Login, cadastro e recuperação mantêm o mesmo fluxo e os mesmos campos. No tema claro, a camada sobre a imagem de fundo da tela de entrada passou a ser translúcida, preservando a visibilidade da foto sem remover o contraste necessário para o formulário. Não houve alteração de autenticação, validação, dados ou permissões.
 
-Onde olhar no código: `frontend/src/views/Login.jsx` e `frontend/src/styles/orny.css`.
+### Disponibilidade dos planos e campo UF (20/10/2026)
+
+Na etapa **Assinatura** do cadastro e na página pública de preços, uma indisponibilidade temporária da API não é mais apresentada como lista vazia nem como mensagem técnica `HTTP 502`. A tela informa que os planos estão temporariamente indisponíveis e oferece **Tentar novamente**, preservando os dados já preenchidos. O campo **UF** e suas opções usam cores compatíveis com os temas claro e escuro. A mudança é apenas de recuperação e apresentação; preços, contratação e liberação de acesso continuam definidos e validados pelo servidor.
+
+Onde olhar no código: `frontend/src/views/Login.jsx`, `frontend/src/views/billing/Billing.jsx`, `frontend/src/components/contact.css` e `frontend/src/styles/orny.css`.
 
 ## #TáPago 2.0 — editor social e campanha de 30 dias — 1.7.0 (19/10/2026)
 
